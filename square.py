@@ -378,7 +378,9 @@ def main():
     kubeconf = os.path.expanduser('~/.kube/config')
     config = utils.load_auto_config(kubeconf, disable_warnings=True)
     client = utils.setup_requests(config)
-    k8s_version = '1.10'
+
+    config, _ = get_k8s_version(config, client)
+    k8s_version = config.version
     fname = '/tmp/manifests.yaml'
 
     kinds = ('namespace', 'service', 'deployment')
