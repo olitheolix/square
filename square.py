@@ -375,13 +375,17 @@ def get_k8s_version(config: utils.Config, client):
 def main():
     param = parse_commandline_args()
 
+    # Create a `requests` client with proper security certificates to access
+    # K8s API.
     kubeconf = os.path.expanduser('~/.kube/config')
     config = utils.load_auto_config(kubeconf, disable_warnings=True)
     client = utils.setup_requests(config)
 
+    # Update the config with the correct K8s API version.
     config, _ = get_k8s_version(config, client)
-    fname = '/tmp/manifests.yaml'
 
+    # Hard coded variables due to lacking of command line support.
+    fname = '/tmp/manifests.yaml'
     kinds = ('namespace', 'service', 'deployment')
     namespace = None
 
