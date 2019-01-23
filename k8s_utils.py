@@ -8,7 +8,7 @@ import google.auth.transport.requests
 import requests
 import yaml
 
-Config = namedtuple('Config', 'url token ca_cert client_cert')
+Config = namedtuple('Config', 'url token ca_cert client_cert version')
 ClientCert = namedtuple('ClientCert', 'crt key')
 
 FNAME_TOKEN = "/var/run/secrets/kubernetes.io/serviceaccount/token"
@@ -46,6 +46,7 @@ def load_incluster_config(fname_token=FNAME_TOKEN, fname_cert=FNAME_CERT):
             token=open(fname_token, 'r').read(),
             ca_cert=fname_cert,
             client_cert=None,
+            version=None,
         )
         return conf
     except FileNotFoundError:
@@ -107,6 +108,7 @@ def load_gke_config(kubeconfig, disable_warnings=False):
         token=cred.token,
         ca_cert=ssl_ca_cert,
         client_cert=None,
+        config=None,
     )
 
 
@@ -141,6 +143,7 @@ def load_minikube_config(kubeconfig):
         token=None,
         ca_cert=cluster['cluster']['certificate-authority'],
         client_cert=client_cert,
+        version=None,
     )
 
 

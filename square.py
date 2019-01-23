@@ -342,6 +342,36 @@ def save_manifests(manifests, fname):
     )
 
 
+def get_k8s_version(config: utils.Config, client):
+    """Return new `config` with version number of K8s API.
+
+    Contact the K8s API, query its version via `client` and return `config`
+    with an updated `version` field. All other field in `config` will remain
+    intact.
+
+    Inputs:
+        config: k8s_utils.Config
+        client: `requests` session with correct K8s certificates.
+
+    Returns:
+        k8s_utils.Config
+
+    """
+    # Ask the K8s API for its version and check for errors.
+    url = f"{config.url}/version"
+    ret = k8s_get(client, url)
+    if ret.err:
+        return ret
+
+    # Construct the version number of the K8s API.
+    major, minor = ret.data['major'], ret.data['minor']
+    version = f"{major}.{minor}"
+
+    # Return an updated `Config` tuple.
+    config = config._replace(version=version)
+    return RetVal(config, None)
+
+
 def main():
     param = parse_commandline_args()
 
