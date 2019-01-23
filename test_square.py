@@ -434,11 +434,8 @@ class TestFetchFromK8s:
     @mock.patch.object(square, 'list_parser')
     def test_k8s_get_request_ok(self, m_parser):
         """Simulate a successful K8s response for GET request."""
-        config = types.SimpleNamespace(url='http://examples.com/')
-        cargs = config, '1.9', 'namespace', 'ns'
-        url = square.resource_url(*cargs)
-
-        # Dummy `requests` session for the test calls.
+        # Dummies for K8s API URL and `requests` session.
+        url = 'http://examples.com/'
         sess = requests.Session()
 
         for ret_code in range(200, 210):
@@ -450,7 +447,7 @@ class TestFetchFromK8s:
                     status_code=ret_code,
                 )
 
-                assert square.k8s_get_request(sess, *cargs) == m_parser.return_value
+                assert square.k8s_get_request(sess, url) == m_parser.return_value
                 m_parser.assert_called_once_with({'foo': 'bar'})
 
                 assert len(m_requests.request_history) == 1
@@ -460,11 +457,8 @@ class TestFetchFromK8s:
     @mock.patch.object(square, 'list_parser')
     def test_k8s_get_request_err_code(self, m_parser, m_requests):
         """Simulate an unsuccessful K8s response for GET request."""
-        config = types.SimpleNamespace(url='http://examples.com/')
-        cargs = config, '1.9', 'namespace', 'ns'
-        url = square.resource_url(*cargs)
-
-        # Dummy `requests` session for the test calls.
+        # Dummies for K8s API URL and `requests` session.
+        url = 'http://examples.com/'
         sess = requests.Session()
 
         m_requests.get(
@@ -473,18 +467,15 @@ class TestFetchFromK8s:
             status_code=400,
         )
 
-        ret = square.k8s_get_request(sess, *cargs)
+        ret = square.k8s_get_request(sess, url)
         assert not m_parser.called
         assert ret == RetVal(None, "K8s responded with error")
 
     @mock.patch.object(square, 'list_parser')
     def test_k8s_get_request_err_json(self, m_parser, m_requests):
         """Simulate a corrupt JSON response from K8s."""
-        config = types.SimpleNamespace(url='http://examples.com/')
-        cargs = config, '1.9', 'namespace', 'ns'
-        url = square.resource_url(*cargs)
-
-        # Dummy `requests` session for the test calls.
+        # Dummies for K8s API URL and `requests` session.
+        url = 'http://examples.com/'
         sess = requests.Session()
 
         corrupt_json = "{this is not valid] json;"
@@ -494,18 +485,15 @@ class TestFetchFromK8s:
             status_code=200,
         )
 
-        ret = square.k8s_get_request(sess, *cargs)
+        ret = square.k8s_get_request(sess, url)
         assert not m_parser.called
         assert ret == RetVal(None, f"K8s returned corrupt JSON")
 
     @mock.patch.object(square, 'list_parser')
     def test_k8s_get_request_connection_err(self, m_parser, m_requests):
         """Simulate an unsuccessful K8s response for GET request."""
-        config = types.SimpleNamespace(url='http://examples.com/')
-        cargs = config, '1.9', 'namespace', 'ns'
-        url = square.resource_url(*cargs)
-
-        # Dummy `requests` session for the test calls.
+        # Dummies for K8s API URL and `requests` session.
+        url = 'http://examples.com/'
         sess = requests.Session()
 
         m_requests.get(
@@ -513,7 +501,7 @@ class TestFetchFromK8s:
             exc=requests.exceptions.ConnectionError,
         )
 
-        ret = square.k8s_get_request(sess, *cargs)
+        ret = square.k8s_get_request(sess, url)
         assert not m_parser.called
         assert ret == RetVal(None, "Connection error")
 
