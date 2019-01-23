@@ -253,7 +253,7 @@ def list_parser(manifest_list: dict):
     return RetVal(manifests, None)
 
 
-def k8s_get_list(client, config, k8s_version, resource, namespace):
+def k8s_get_request(client, config, k8s_version, resource, namespace):
     url = resource_url(config, k8s_version, resource, namespace)
 
     try:
@@ -278,7 +278,7 @@ def k8s_get_list(client, config, k8s_version, resource, namespace):
 def k8s_fetch(config, client, k8s_version, kinds):
     server_manifests = {}
     for kind in kinds:
-        manifests, _ = k8s_get_list(client, config, k8s_version, kind, None)
+        manifests, _ = k8s_get_request(client, config, k8s_version, kind, None)
         manifests = {k: manifest_metaspec(man)[0] for k, man in manifests.items()}
         server_manifests.update(manifests)
     return RetVal(server_manifests, None)
