@@ -275,6 +275,15 @@ def k8s_get_list(client, config, k8s_version, resource, namespace):
     return list_parser(response)
 
 
+def k8s_fetch(config, client, k8s_version, kinds):
+    server_manifests = {}
+    for kind in kinds:
+        manifests, _ = k8s_get_list(client, config, k8s_version, kind, None)
+        manifests = {k: manifest_metaspec(man)[0] for k, man in manifests.items()}
+        server_manifests.update(manifests)
+    return RetVal(server_manifests, None)
+
+
 def diffpatch(config, client, k8s_version, kinds, fname):
     server_manifests, _ = k8s_fetch(config, client, k8s_version, kinds)
     local_manifests = load_manifest(fname)
@@ -326,15 +335,6 @@ def load_manifest(fname):
         )
         manifests[key] = copy.deepcopy(manifest)
     return manifests
-
-
-def k8s_fetch(config, client, k8s_version, kinds):
-    server_manifests = {}
-    for kind in kinds:
-        manifests, _ = k8s_get_list(client, config, k8s_version, kind, None)
-        manifests = {k: manifest_metaspec(man)[0] for k, man in manifests.items()}
-        server_manifests.update(manifests)
-    return RetVal(server_manifests, None)
 
 
 def save_manifests(manifests, fname):
