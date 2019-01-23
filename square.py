@@ -211,8 +211,8 @@ def manifest_metaspec(manifest: dict):
     return RetVal(ret, None)
 
 
-def _k8s_get_list_parser(manifest_list: dict):
-    # fixme: rename function to just `list_parser`.
+def list_parser(manifest_list: dict):
+    """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
     try:
         apiversion = manifest_list['apiVersion']
         kind = manifest_list['kind']
@@ -260,7 +260,7 @@ def k8s_get_list(client, config, k8s_version, resource, namespace):
         # fixme: log
         return RetVal(None, "K8s returned corrupt JSON")
 
-    return _k8s_get_list_parser(response)
+    return list_parser(response)
 
 
 def diffpatch(config, client, k8s_version, kinds, fname):

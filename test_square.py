@@ -364,7 +364,7 @@ class TestManifestValidation:
 
 
 class TestFetchFromK8s:
-    def test_k8s_get_list_parser_ok(self):
+    def test_list_parser_ok(self):
         """Convert eg a DeploymentList into a Python dict of Deployments."""
         # Demo manifests.
         manifests = [
@@ -381,7 +381,7 @@ class TestFetchFromK8s:
 
         # Parse the DeploymentList into a dict. The keys are ManifestTuples and
         # the values are the Deployment (*not* DeploymentList) manifests.
-        ret = square._k8s_get_list_parser(manifest_list)
+        ret = square.list_parser(manifest_list)
         assert ret.err is None
 
         # Verify the Python dict.
@@ -398,7 +398,7 @@ class TestFetchFromK8s:
             assert src == ret.data[out_key]
             assert src is not ret.data[out_key]
 
-    def test_k8s_get_list_parser_invalid_list_manifest(self):
+    def test_list_parser_invalid_list_manifest(self):
         """The input manifest must have `apiVersion`, `kind` and `items`.
 
         Furthermore, the `kind` *must* be capitalised and end in `List`, eg
@@ -407,31 +407,31 @@ class TestFetchFromK8s:
         """
         # Valid input.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList', 'items': []}
-        ret = square._k8s_get_list_parser(src)
+        ret = square.list_parser(src)
         assert ret == RetVal(data={}, err=None)
 
         # Missing `apiVersion`.
         src = {'kind': 'DeploymentList', 'items': []}
-        ret = square._k8s_get_list_parser(src)
+        ret = square.list_parser(src)
         assert ret == RetVal(data=None, err='Invalid K8s List resource')
 
         # Missing `kind`.
         src = {'apiVersion': 'v1', 'items': []}
-        ret = square._k8s_get_list_parser(src)
+        ret = square.list_parser(src)
         assert ret == RetVal(data=None, err='Invalid K8s List resource')
 
         # Missing `items`.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList'}
-        ret = square._k8s_get_list_parser(src)
+        ret = square.list_parser(src)
         assert ret == RetVal(data=None, err='Invalid K8s List resource')
 
         # All fields present but `kind` does not end in List (case sensitive).
         for invalid_kind in ('Deploymentlist', 'Deployment'):
             src = {'apiVersion': 'v1', 'kind': invalid_kind, 'items': []}
-            ret = square._k8s_get_list_parser(src)
+            ret = square.list_parser(src)
             assert ret == RetVal(data=None, err='Invalid K8s List resource')
 
-    @mock.patch.object(square, '_k8s_get_list_parser')
+    @mock.patch.object(square, 'list_parser')
     def test_k8s_get_list_ok(self, m_parser):
         """Simulate a successful K8s response for GET request."""
         config = types.SimpleNamespace(url='http://examples.com/')
@@ -457,7 +457,7 @@ class TestFetchFromK8s:
                 assert m_requests.request_history[0].method == 'GET'
                 assert m_requests.request_history[0].url == url
 
-    @mock.patch.object(square, '_k8s_get_list_parser')
+    @mock.patch.object(square, 'list_parser')
     def test_k8s_get_list_err_code(self, m_parser, m_requests):
         """Simulate an unsuccessful K8s response for GET request."""
         config = types.SimpleNamespace(url='http://examples.com/')
@@ -477,7 +477,7 @@ class TestFetchFromK8s:
         assert not m_parser.called
         assert ret == RetVal(None, "K8s responded with error")
 
-    @mock.patch.object(square, '_k8s_get_list_parser')
+    @mock.patch.object(square, 'list_parser')
     def test_k8s_get_list_err_json(self, m_parser, m_requests):
         """Simulate a corrupt JSON response from K8s."""
         config = types.SimpleNamespace(url='http://examples.com/')
@@ -498,7 +498,7 @@ class TestFetchFromK8s:
         assert not m_parser.called
         assert ret == RetVal(None, f"K8s returned corrupt JSON")
 
-    @mock.patch.object(square, '_k8s_get_list_parser')
+    @mock.patch.object(square, 'list_parser')
     def test_k8s_get_list_connection_err(self, m_parser, m_requests):
         """Simulate an unsuccessful K8s response for GET request."""
         config = types.SimpleNamespace(url='http://examples.com/')
