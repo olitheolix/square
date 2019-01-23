@@ -154,22 +154,6 @@ def compute_patch(config, k8s_version, src, dst):
     return RetVal(Patch(full_url, patch), None)
 
 
-def k8s_patch(client, full_url, json_patch):
-    headers = {'Content-Type': 'application/json-patch+json'}
-
-    try:
-        ret = client.patch(full_url, json=json_patch, headers=headers)
-    except utils.requests.exceptions.ConnectionError:
-        # fixme: log
-        # fixme: json encoding error
-        return RetVal(None, "Connection error")
-
-    if ret.status_code != 200:
-        return RetVal(None, "K8s operation failed")
-
-    return RetVal(None, None)
-
-
 def manifest_metaspec(manifest: dict):
     manifest = copy.deepcopy(manifest)
 
@@ -251,6 +235,22 @@ def list_parser(manifest_list: dict):
         manifests[key]['apiVersion'] = apiversion
         manifests[key]['kind'] = kind
     return RetVal(manifests, None)
+
+
+def k8s_patch(client, full_url, json_patch):
+    headers = {'Content-Type': 'application/json-patch+json'}
+
+    try:
+        ret = client.patch(full_url, json=json_patch, headers=headers)
+    except utils.requests.exceptions.ConnectionError:
+        # fixme: log
+        # fixme: json encoding error
+        return RetVal(None, "Connection error")
+
+    if ret.status_code != 200:
+        return RetVal(None, "K8s operation failed")
+
+    return RetVal(None, None)
 
 
 def k8s_get_request(client, config, k8s_version, resource, namespace):
