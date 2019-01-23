@@ -275,7 +275,7 @@ def k8s_get_request(client, config, k8s_version, resource, namespace):
     return list_parser(response)
 
 
-def k8s_fetch(config, client, k8s_version, kinds):
+def k8s_get(config, client, k8s_version, kinds):
     server_manifests = {}
     for kind in kinds:
         manifests, _ = k8s_get_request(client, config, k8s_version, kind, None)
@@ -354,16 +354,16 @@ def main():
     kinds = ('namespace', 'service', 'deployment')
 
     if param.parser == "fetch":
-        server_manifests, _ = k8s_fetch(config, client, k8s_version, kinds)
+        server_manifests, _ = k8s_get(config, client, k8s_version, kinds)
         save_manifests(server_manifests, fname)
     elif param.parser == "diff":
         local_manifests = load_manifest(fname)
-        server_manifests, _ = k8s_fetch(config, client, k8s_version, kinds)
+        server_manifests, _ = k8s_get(config, client, k8s_version, kinds)
         deltas, err = diffpatch(config, k8s_version, local_manifests, server_manifests)
         print_deltas(deltas)
     elif param.parser == "patch":
         local_manifests = load_manifest(fname)
-        server_manifests, _ = k8s_fetch(config, client, k8s_version, kinds)
+        server_manifests, _ = k8s_get(config, client, k8s_version, kinds)
         deltas, err = diffpatch(config, k8s_version, local_manifests, server_manifests)
         print_deltas(deltas)
 
