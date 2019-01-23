@@ -273,7 +273,7 @@ def k8s_get_request(client, url):
     return RetVal(response, None)
 
 
-def k8s_get(config, client, k8s_version, kinds, namespace):
+def download_manifests(config, client, k8s_version, kinds, namespace):
     server_manifests = {}
     for kind in kinds:
         url = resource_url(config, k8s_version, kind, namespace=namespace)
@@ -355,16 +355,16 @@ def main():
     namespace = None
 
     if param.parser == "get":
-        server_manifests, _ = k8s_get(config, client, k8s_version, kinds, namespace)
+        server_manifests, _ = download_manifests(config, client, k8s_version, kinds, namespace)
         save_manifests(server_manifests, fname)
     elif param.parser == "diff":
         local_manifests = load_manifest(fname)
-        server_manifests, _ = k8s_get(config, client, k8s_version, kinds, namespace)
+        server_manifests, _ = download_manifests(config, client, k8s_version, kinds, namespace)
         deltas, err = diffpatch(config, k8s_version, local_manifests, server_manifests)
         print_deltas(deltas)
     elif param.parser == "patch":
         local_manifests = load_manifest(fname)
-        server_manifests, _ = k8s_get(config, client, k8s_version, kinds, namespace)
+        server_manifests, _ = download_manifests(config, client, k8s_version, kinds, namespace)
         deltas, err = diffpatch(config, k8s_version, local_manifests, server_manifests)
         print_deltas(deltas)
 
