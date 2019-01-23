@@ -284,10 +284,7 @@ def k8s_fetch(config, client, k8s_version, kinds):
     return RetVal(server_manifests, None)
 
 
-def diffpatch(config, client, k8s_version, kinds, fname):
-    server_manifests, _ = k8s_fetch(config, client, k8s_version, kinds)
-    local_manifests = load_manifest(fname)
-
+def diffpatch(config, k8s_version, local_manifests, server_manifests):
     out = []
     for meta in local_manifests:
         name = f'{meta.namespace}/{meta.name}'
@@ -360,10 +357,14 @@ def main():
         server_manifests, _ = k8s_fetch(config, client, k8s_version, kinds)
         save_manifests(server_manifests, fname)
     elif param.parser == "diff":
-        deltas, err = diffpatch(config, client, k8s_version, kinds, fname)
+        local_manifests = load_manifest(fname)
+        server_manifests, _ = k8s_fetch(config, client, k8s_version, kinds)
+        deltas, err = diffpatch(config, k8s_version, local_manifests, server_manifests)
         print_deltas(deltas)
     elif param.parser == "patch":
-        deltas, err = diffpatch(config, client, k8s_version, kinds, fname)
+        local_manifests = load_manifest(fname)
+        server_manifests, _ = k8s_fetch(config, client, k8s_version, kinds)
+        deltas, err = diffpatch(config, k8s_version, local_manifests, server_manifests)
         print_deltas(deltas)
 
         patches = [_.patch for _ in deltas if len(_.patch.ops) > 0]
