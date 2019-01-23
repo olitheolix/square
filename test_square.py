@@ -431,24 +431,22 @@ class TestFetchFromK8s:
             ret = square.list_parser(src)
             assert ret == RetVal(data=None, err='Invalid K8s List resource')
 
-    @mock.patch.object(square, 'list_parser')
-    def test_k8s_get_request_ok(self, m_parser):
+    def test_k8s_get_request_ok(self):
         """Simulate a successful K8s response for GET request."""
         # Dummies for K8s API URL and `requests` session.
         url = 'http://examples.com/'
         sess = requests.Session()
+        payload = {'foo': 'bar'}
 
         for ret_code in range(200, 210):
             with requests_mock.Mocker() as m_requests:
-                m_parser.reset_mock()
                 m_requests.get(
                     url,
-                    json={'foo': 'bar'},
+                    json=payload,
                     status_code=ret_code,
                 )
 
-                assert square.k8s_get_request(sess, url) == m_parser.return_value
-                m_parser.assert_called_once_with({'foo': 'bar'})
+                assert square.k8s_get_request(sess, url) == RetVal(payload, None)
 
                 assert len(m_requests.request_history) == 1
                 assert m_requests.request_history[0].method == 'GET'
