@@ -551,20 +551,18 @@ class TestPatchK8s:
 
     def test_compute_patch_empty(self):
         """Basic test: compute patch between two identical resources."""
-        config = types.SimpleNamespace(url='http://examples.com/')
-        k8s_version = '1.9'
+        config = types.SimpleNamespace(url='http://examples.com/', version="1.10")
         kind, ns, name = 'Deployment', 'ns', 'foo'
 
-        url = square.resource_url(config, k8s_version, kind, ns) + f'/{name}'
+        url = square.resource_url(config, kind, ns) + f'/{name}'
 
         src = dst = make_manifest(kind, name, ns)
-        ret = square.compute_patch(config, k8s_version, src, dst)
+        ret = square.compute_patch(config, src, dst)
         assert ret == RetVal(Patch(url, []), None)
         assert isinstance(ret.data, Patch)
 
     def test_compute_patch_incompatible(self):
         config = types.SimpleNamespace(url='http://examples.com/')
-        k8s_version = '1.9'
         kind, ns, name = 'Deployment', 'ns', 'foo'
 
         src = make_manifest(kind, name, ns)
@@ -572,25 +570,25 @@ class TestPatchK8s:
         # `apiVersion` must match.
         dst = copy.deepcopy(src)
         dst['apiVersion'] = 'mismatch'
-        ret = square.compute_patch(config, k8s_version, src, dst)
+        ret = square.compute_patch(config, src, dst)
         assert ret == RetVal(None, "Cannot compute JSON patch for incompatible manifests")
 
         # `kind` must match.
         dst = copy.deepcopy(src)
         dst['kind'] = 'Mismatch'
-        ret = square.compute_patch(config, k8s_version, src, dst)
+        ret = square.compute_patch(config, src, dst)
         assert ret == RetVal(None, "Cannot compute JSON patch for incompatible manifests")
 
         # `name` must match.
         dst = copy.deepcopy(src)
         dst['metadata']['name'] = 'mismatch'
-        ret = square.compute_patch(config, k8s_version, src, dst)
+        ret = square.compute_patch(config, src, dst)
         assert ret == RetVal(None, "Cannot compute JSON patch for incompatible manifests")
 
         # `namespace` must match.
         dst = copy.deepcopy(src)
         dst['metadata']['namespace'] = 'mismatch'
-        ret = square.compute_patch(config, k8s_version, src, dst)
+        ret = square.compute_patch(config, src, dst)
         assert ret == RetVal(None, "Cannot compute JSON patch for incompatible manifests")
 
     def test_compute_patch_namespace(self):
@@ -599,16 +597,15 @@ class TestPatchK8s:
         Namespaces are special because, by definition, they must not contain a
         `Namespace` attribute.
         """
-        config = types.SimpleNamespace(url='http://examples.com/')
-        k8s_version = '1.9'
+        config = types.SimpleNamespace(url='http://examples.com/', version="1.10")
         kind, name = 'Namespace', 'foo'
 
-        url = square.resource_url(config, k8s_version, kind, None) + f'/{name}'
+        url = square.resource_url(config, kind, None) + f'/{name}'
 
         # Identical namespace manifests.
         src = make_manifest(kind, name, None)
         dst = copy.deepcopy(src)
-        ret = square.compute_patch(config, k8s_version, src, dst)
+        ret = square.compute_patch(config, src, dst)
         assert ret == RetVal((url, []), None)
 
         # Second manifest specifies a `metadata.namespace` attribute. This is
@@ -616,7 +613,7 @@ class TestPatchK8s:
         src = make_manifest(kind, name, None)
         dst = copy.deepcopy(src)
         dst['metadata']['namespace'] = 'foo'
-        ret = square.compute_patch(config, k8s_version, src, dst)
+        ret = square.compute_patch(config, src, dst)
         assert ret.data is None and ret.err is not None
 
         # Different namespace manifests (second one has labels).
@@ -624,7 +621,7 @@ class TestPatchK8s:
         dst = copy.deepcopy(src)
         dst['metadata']['labels'] = {"key": "value"}
 
-        ret = square.compute_patch(config, k8s_version, src, dst)
+        ret = square.compute_patch(config, src, dst)
         assert ret.err is None and len(ret.data) > 0
 
 

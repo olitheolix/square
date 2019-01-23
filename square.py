@@ -102,7 +102,7 @@ def diff_manifests(src: dict, dst: dict):
     return RetVal(str.join('\n', out), None)
 
 
-def resource_url(config, k8s_version, resource, namespace):
+def resource_url(config, resource, namespace):
     _ns_ = '' if namespace is None else f'namespaces/{namespace}/'
     resource = resource.lower()
 
@@ -119,11 +119,11 @@ def resource_url(config, k8s_version, resource, namespace):
         },
     }
 
-    path = resources[k8s_version][resource]
+    path = resources[config.version][resource]
     return f'{config.url}/{path}'
 
 
-def compute_patch(config, k8s_version, src, dst):
+def compute_patch(config, src, dst):
     src, err = manifest_metaspec(src)
     if err:
         return RetVal(None, err)
@@ -145,7 +145,7 @@ def compute_patch(config, k8s_version, src, dst):
     name = src['metadata']['name']
     namespace = src['metadata'].get('namespace', None)
 
-    url = resource_url(config, k8s_version, kind, namespace)
+    url = resource_url(config, kind, namespace)
 
     patch = jsonpatch.make_patch(src, dst)
     patch = json.loads(patch.to_string())
@@ -273,10 +273,10 @@ def k8s_get(client, url):
     return RetVal(response, None)
 
 
-def download_manifests(config, client, k8s_version, kinds, namespace):
+def download_manifests(config, client, kinds, namespace):
     server_manifests = {}
     for kind in kinds:
-        url = resource_url(config, k8s_version, kind, namespace=namespace)
+        url = resource_url(config, kind, namespace=namespace)
         manifest_list, _ = k8s_get(client, url)
         manifests, _ = list_parser(manifest_list)
         manifests = {k: manifest_metaspec(man)[0] for k, man in manifests.items()}
@@ -284,7 +284,7 @@ def download_manifests(config, client, k8s_version, kinds, namespace):
     return RetVal(server_manifests, None)
 
 
-def diffpatch(config, k8s_version, local_manifests, server_manifests):
+def diffpatch(config, local_manifests, server_manifests):
     out = []
     for meta in local_manifests:
         name = f'{meta.namespace}/{meta.name}'
@@ -302,7 +302,7 @@ def diffpatch(config, k8s_version, local_manifests, server_manifests):
             # fixme: log
             return RetVal(None, err)
 
-        patch, err = compute_patch(config, k8s_version, remote, local)
+        patch, err = compute_patch(config, remote, local)
         if err:
             # fixme: log
             return RetVal(None, err)
@@ -380,24 +380,23 @@ def main():
     client = utils.setup_requests(config)
 
     config, _ = get_k8s_version(config, client)
-    k8s_version = config.version
     fname = '/tmp/manifests.yaml'
 
     kinds = ('namespace', 'service', 'deployment')
     namespace = None
 
     if param.parser == "get":
-        server_manifests, _ = download_manifests(config, client, k8s_version, kinds, namespace)
+        server_manifests, _ = download_manifests(config, client, kinds, namespace)
         save_manifests(server_manifests, fname)
     elif param.parser == "diff":
         local_manifests = load_manifest(fname)
-        server_manifests, _ = download_manifests(config, client, k8s_version, kinds, namespace)
-        deltas, err = diffpatch(config, k8s_version, local_manifests, server_manifests)
+        server_manifests, _ = download_manifests(config, client, kinds, namespace)
+        deltas, err = diffpatch(config, local_manifests, server_manifests)
         print_deltas(deltas)
     elif param.parser == "patch":
         local_manifests = load_manifest(fname)
-        server_manifests, _ = download_manifests(config, client, k8s_version, kinds, namespace)
-        deltas, err = diffpatch(config, k8s_version, local_manifests, server_manifests)
+        server_manifests, _ = download_manifests(config, client, kinds, namespace)
+        deltas, err = diffpatch(config, local_manifests, server_manifests)
         print_deltas(deltas)
 
         patches = [_.patch for _ in deltas if len(_.patch.ops) > 0]
