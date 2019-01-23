@@ -626,3 +626,41 @@ class TestPatchK8s:
 
         ret = square.compute_patch(config, k8s_version, src, dst)
         assert ret.err is None and len(ret.data) > 0
+
+
+class TestK8sConfig:
+    @mock.patch.object(square, "k8s_get")
+    def test_get_k8s_version_auto(self, m_get):
+        """Get K8s version number from API server."""
+
+        # This is a genuine K8s response from Minikube.
+        response = {
+            'major': '1', 'minor': '10',
+            'gitVersion': 'v1.10.0',
+            'gitCommit': 'fc32d2f3698e36b93322a3465f63a14e9f0eaead',
+            'gitTreeState': 'clean',
+            'buildDate': '2018-03-26T16:44:10Z',
+            'goVersion': 'go1.9.3',
+            'compiler': 'gc', 'platform': 'linux/amd64'
+        }
+        m_get.return_value = RetVal(response, None)
+
+        # Create vanilla `Config` instance.
+        m_client = mock.MagicMock()
+        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", None)
+
+        # Test function must contact the K8s API and return a `Config` tuple
+        # with the correct version number.
+        config2, err = square.get_k8s_version(config, client=m_client)
+        assert err is None
+        assert isinstance(config2, k8s_utils.Config)
+        assert config2.version == "1.10"
+
+        # Test function must have called out to `k8s_get` to retrieve the
+        # version. Here we ensure it called the correct URL.
+        m_get.assert_called_once_with(m_client, f"{config.url}/version")
+        assert not m_client.called
+
+        # The return `Config` tuple must be identical to the input except for
+        # the version number.
+        assert config._replace(version=None) == config2._replace(version=None)
