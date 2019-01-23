@@ -1,0 +1,23 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+colorama = "*"
+flake8 = "*"
+flake8-isort = "*"
+google = "*"
+google-api-python-client = "*"
+ipython = "*"
+isort = "*"
+jsonpatch = "*"
+pytest = "*"
+pyyaml = "*"
+requests = "*"
+requests-mock = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.7"
