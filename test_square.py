@@ -81,143 +81,144 @@ class TestBasic:
         """
         assert False
 
-    @pytest.mark.xfail
-    def test_prune_manifests(self):
-        """Remove all manifests that refer to "improper" namespaces.
+    def test_find_namespace_orphans(self):
+        """Return all resource manifests that belong to non-existing
+        namespaces.
 
-        A namespace is "proper" iff we found a manifest for it.
+        This function will be useful to sanity check the local deployments
+        manifest to avoid cases where users define resources in a namespace but
+        forget to define that namespace (or mis-spell it).
 
         """
-        # No proper namespaces `demo` - no resources must survive.
+        Meta = square.ManifestMeta
+        fun = square.find_namespace_orphans
+
+        # Two deployments in the same non-existing Namespace. Both are orphaned
+        # because the namespace `ns1` does not exist.
         man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'demo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'invalid')),
+            Meta('v1', 'Deployment', 'ns1', 'foo'),
+            Meta('v1', 'Deployment', 'ns1', 'bar'),
         }
-        assert square.prune_manifests(man) == set()
+        assert fun(man) == RetVal(data=man, err=False)
 
-        # One proper namespace `demo` - resources in `invalid` must be removed.
+        # Two namespaces - neither is orphaned by definition.
         man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'demo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'demo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'invalid')),
+            Meta('v1', 'Namespace', None, 'ns1'),
+            Meta('v1', 'Namespace', None, 'ns2'),
         }
-        assert square.prune_manifests(man) == {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'demo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'demo')),
-        }
+        assert fun(man) == RetVal(data=set(), err=False)
 
-        # Two namespaces with resources in each.
+        # Two deployments, only one of which is inside a defined Namespace.
         man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'bar')),
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'bar')),
+            Meta('v1', 'Deployment', 'ns1', 'foo'),
+            Meta('v1', 'Deployment', 'ns2', 'bar'),
+            Meta('v1', 'Namespace', None, 'ns1'),
         }
-        assert square.prune_manifests(man) == {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'bar')),
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'bar')),
-        }
+        assert fun(man) == RetVal(
+            data={Meta('v1', 'Deployment', 'ns2', 'bar')},
+            err=False,
+        )
 
-        # Only namespaces.
-        man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'bar')),
-        }
-        assert square.prune_manifests(man) == {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'bar')),
-        }
+    def test_compute_plan_patch(self):
+        """Local and server manifests match.
 
-    @pytest.mark.xfail
-    def test_filter_manifests(self):
-        """Retain only the user specified namespaces"""
-        # Two namespaces with resources in each.
-        fun = square.filter_manifests
-        man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'bar')),
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'bar')),
-        }
-        assert fun(man, ['foo', 'bar']) == RetVal(True, None, man)
-        assert fun(man, ['foo', 'bar', 'foo']) == RetVal(True, None, man)
-        assert fun(man, ('foo', 'bar', 'foo')) == RetVal(True, None, man)
+        If all resource exist both locally and remotely then nothing needs to
+        be created or deleted. However, the resources may need patching but
+        that is not something `compute_plan` concerns itself with.
 
-        # Ignore non-existing namespaces. This is sensible because we may
-        # actually want to create them.
-        assert fun(man, ('foo', 'bar', 'x', 'y')) == RetVal(True, None, man)
-
-        assert fun(man, ['foo']) == RetVal(True, None, {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'foo')),
-        })
-        assert fun(man, ['bar']) == RetVal(True, None, {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'foo')),
-        })
-        assert fun(man, ['invalid']) == RetVal(True, None, set())
-
-    @pytest.mark.xfail
-    def test_compute_plan_add_remove(self):
+        """
         fun = square.compute_plan
+        Meta = square.ManifestMeta
+        Plan = square.DeploymentPlan
 
         # No change because local and cluster manifests are identical.
         local_man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'bar')),
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'bar')),
+            Meta('v1', 'Deployment', 'ns1', 'foo'),
+            Meta('v1', 'Deployment', 'ns2', 'bar'),
+            Meta('v1', 'Namespace', None, 'ns1'),
+            Meta('v1', 'Namespace', None, 'ns2'),
+            Meta('v1', 'Namespace', None, 'ns3'),
         }
         cluster_man = local_man
+        plan = Plan(create=set(), patch=set(), delete=set())
         ret = fun(local_man, cluster_man)
-        assert ret == RetVal(True, None, set())
+        assert ret == RetVal(plan, None)
 
-        # Remove namespace with one resource in it from cluster.
+    def test_compute_plan_add_delete(self):
+        """Local and server manifests are orthogonal sets.
+
+        This must produce a plan where all local resources will be created, all
+        cluster resources deleted and none patched.
+
+        """
+        fun = square.compute_plan
+        Meta = square.ManifestMeta
+        Plan = square.DeploymentPlan
+
+        # No change because local and cluster manifests are identical.
         local_man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'bar')),
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'bar')),
+            Meta('v1', 'Deployment', 'ns2', 'bar'),
+            Meta('v1', 'Namespace', None, 'ns2'),
         }
         cluster_man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'bar')),
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'bar')),
-
+            Meta('v1', 'Deployment', 'ns1', 'foo'),
+            Meta('v1', 'Namespace', None, 'ns1'),
+            Meta('v1', 'Namespace', None, 'ns3'),
         }
-        plan = DeploymentPlan(
-            add=set(),
-            rem={
-                square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'bar')),
-                square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'bar')),
+        plan = Plan(
+            create={
+                Meta('v1', 'Deployment', 'ns2', 'bar'),
+                Meta('v1', 'Namespace', None, 'ns2'),
             },
-            mod=set(),
+            patch=set(),
+            delete={
+                Meta('v1', 'Deployment', 'ns1', 'foo'),
+                Meta('v1', 'Namespace', None, 'ns1'),
+                Meta('v1', 'Namespace', None, 'ns3'),
+            }
         )
         ret = fun(local_man, cluster_man)
-        assert ret == RetVal(True, None, plan)
+        assert ret == RetVal(plan, None)
 
-        # Add namespace with one resource in it.
+    def test_compute_plan_patch_delete(self):
+        """Create plan with resources to delete and patch.
+
+        The local manifests are a strict subset of the cluster. The deployment
+        plan must therefore not create any resources, delete everything absent
+        in the local manifests and mark the rest for patching.
+
+        """
+        fun = square.compute_plan
+        Meta = square.ManifestMeta
+        Plan = square.DeploymentPlan
+
         local_man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'bar')),
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'bar')),
+            Meta('v1', 'Deployment', 'ns2', 'bar1'),
+            Meta('v1', 'Namespace', None, 'ns2'),
         }
         cluster_man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'foo')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'foo')),
+            Meta('v1', 'Deployment', 'ns1', 'foo'),
+            Meta('v1', 'Deployment', 'ns2', 'bar1'),
+            Meta('v1', 'Deployment', 'ns2', 'bar2'),
+            Meta('v1', 'Namespace', None, 'ns1'),
+            Meta('v1', 'Namespace', None, 'ns2'),
+            Meta('v1', 'Namespace', None, 'ns3'),
         }
-        plan = DeploymentPlan(
-            add={
-                square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'bar')),
-                square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'bar')),
+        plan = Plan(
+            create=set(),
+            patch={
+                Meta('v1', 'Deployment', 'ns2', 'bar'),
+                Meta('v1', 'Namespace', None, 'ns2'),
             },
-            rem=set(),
-            mod=set(),
+            delete={
+                Meta('v1', 'Deployment', 'ns1', 'foo'),
+                Meta('v1', 'Deployment', 'ns2', 'bar2'),
+                Meta('v1', 'Namespace', None, 'ns1'),
+                Meta('v1', 'Namespace', None, 'ns3'),
+            }
         )
         ret = fun(local_man, cluster_man)
-        assert ret == RetVal(True, None, plan)
+        assert ret == RetVal(plan, None)
 
     @pytest.mark.xfail
     def test_compute_plan_partial_namespace(self):
