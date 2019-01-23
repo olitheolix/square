@@ -273,11 +273,11 @@ def k8s_get_request(client, url):
     return list_parser(response)
 
 
-def k8s_get(config, client, k8s_version, kinds):
+def k8s_get(config, client, k8s_version, kinds, namespace):
     server_manifests = {}
     for kind in kinds:
-        url = resource_url(config, k8s_version, kind, namespace=None)
-        manifests, _ = k8s_get_request(client, config, url)
+        url = resource_url(config, k8s_version, kind, namespace=namespace)
+        manifests, _ = k8s_get_request(client, url)
         manifests = {k: manifest_metaspec(man)[0] for k, man in manifests.items()}
         server_manifests.update(manifests)
     return RetVal(server_manifests, None)
@@ -351,18 +351,19 @@ def main():
     fname = '/tmp/manifests.yaml'
 
     kinds = ('namespace', 'service', 'deployment')
+    namespace = None
 
     if param.parser == "fetch":
-        server_manifests, _ = k8s_get(config, client, k8s_version, kinds)
+        server_manifests, _ = k8s_get(config, client, k8s_version, kinds, namespace)
         save_manifests(server_manifests, fname)
     elif param.parser == "diff":
         local_manifests = load_manifest(fname)
-        server_manifests, _ = k8s_get(config, client, k8s_version, kinds)
+        server_manifests, _ = k8s_get(config, client, k8s_version, kinds, namespace)
         deltas, err = diffpatch(config, k8s_version, local_manifests, server_manifests)
         print_deltas(deltas)
     elif param.parser == "patch":
         local_manifests = load_manifest(fname)
-        server_manifests, _ = k8s_get(config, client, k8s_version, kinds)
+        server_manifests, _ = k8s_get(config, client, k8s_version, kinds, namespace)
         deltas, err = diffpatch(config, k8s_version, local_manifests, server_manifests)
         print_deltas(deltas)
 
