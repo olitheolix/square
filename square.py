@@ -213,6 +213,18 @@ def manifest_metaspec(manifest: dict):
 
 def list_parser(manifest_list: dict):
     """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
+
+    Return a dictionary where each key uniquely identifies the resource via a
+    `ManifestMeta` tuple and the value is the actual JSON `manifest`.
+
+    Input:
+        manifest_list: dict
+            K8s response from GET request for eg `deployments`.
+
+    Returns:
+        dict[ManifestMeta:dict]
+
+    """
     try:
         apiversion = manifest_list['apiVersion']
         kind = manifest_list['kind']
