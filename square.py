@@ -29,7 +29,7 @@ def parse_commandline_args():
     Manage Kubernetes manifests.
 
     Examples:
-      {name} fetch
+      {name} get
       {name} diff
       {name} patch
     ''')
@@ -48,13 +48,13 @@ def parse_commandline_args():
     parser = argparse.ArgumentParser(add_help=True)
     subparsers = parser.add_subparsers(help='Mode', dest='parser', title="Operation")
 
-    # Sub-command FETCH.
-    parser_fetch = subparsers.add_parser(
-        'fetch', help="Fetch manifests", parents=[parent]
+    # Sub-command GET.
+    parser_get = subparsers.add_parser(
+        'get', help="Get manifests", parents=[parent]
     )
-    padd = parser_fetch.add_argument
+    padd = parser_get.add_argument
     padd('kind', type=str, nargs='*')
-    del parser_fetch, padd
+    del parser_get, padd
 
     # Sub-command DIFF.
     parser_diff = subparsers.add_parser(
@@ -353,7 +353,7 @@ def main():
     kinds = ('namespace', 'service', 'deployment')
     namespace = None
 
-    if param.parser == "fetch":
+    if param.parser == "get":
         server_manifests, _ = k8s_get(config, client, k8s_version, kinds, namespace)
         save_manifests(server_manifests, fname)
     elif param.parser == "diff":
