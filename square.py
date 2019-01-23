@@ -270,14 +270,15 @@ def k8s_get_request(client, url):
         # fixme: log
         return RetVal(None, "K8s returned corrupt JSON")
 
-    return list_parser(response)
+    return RetVal(response, None)
 
 
 def k8s_get(config, client, k8s_version, kinds, namespace):
     server_manifests = {}
     for kind in kinds:
         url = resource_url(config, k8s_version, kind, namespace=namespace)
-        manifests, _ = k8s_get_request(client, url)
+        manifest_list, _ = k8s_get_request(client, url)
+        manifests, _ = list_parser(manifest_list)
         manifests = {k: manifest_metaspec(man)[0] for k, man in manifests.items()}
         server_manifests.update(manifests)
     return RetVal(server_manifests, None)
