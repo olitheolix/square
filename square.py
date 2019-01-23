@@ -112,7 +112,7 @@ def resource_url(config, k8s_version, resource, namespace):
             'service': f'api/v1/{_ns_}services',
             'namespace': f'api/v1/namespaces',
         },
-        '1.11': {
+        '1.10': {
             'deployment': f'apis/apps/v1/{_ns_}deployments',
             'service': f'api/v1/{_ns_}services',
             'namespace': f'api/v1/namespaces',
@@ -348,7 +348,7 @@ def main():
     kubeconf = os.path.expanduser('~/.kube/config')
     config = utils.load_auto_config(kubeconf, disable_warnings=True)
     client = utils.setup_requests(config)
-    k8s_version = '1.11'
+    k8s_version = '1.10'
     fname = '/tmp/manifests.yaml'
 
     kinds = ('namespace', 'service', 'deployment')
