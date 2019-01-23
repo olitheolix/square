@@ -253,7 +253,7 @@ def k8s_patch(client, full_url, json_patch):
     return RetVal(None, None)
 
 
-def k8s_get_request(client, url):
+def k8s_get(client, url):
     try:
         ret = client.get(url)
     except utils.requests.exceptions.ConnectionError:
@@ -277,7 +277,7 @@ def download_manifests(config, client, k8s_version, kinds, namespace):
     server_manifests = {}
     for kind in kinds:
         url = resource_url(config, k8s_version, kind, namespace=namespace)
-        manifest_list, _ = k8s_get_request(client, url)
+        manifest_list, _ = k8s_get(client, url)
         manifests, _ = list_parser(manifest_list)
         manifests = {k: manifest_metaspec(man)[0] for k, man in manifests.items()}
         server_manifests.update(manifests)
