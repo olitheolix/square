@@ -372,6 +372,40 @@ def get_k8s_version(config: utils.Config, client):
     return RetVal(config, None)
 
 
+def find_namespace_orphans(meta_manifests):
+    """Return all orphaned resources in the `meta_manifest` set.
+
+    A resource is orphaned iff it lives in a namespace that is not explicitly
+    declared in the set of `meta_manifests`.
+
+    This function is particularly useful to verify a set of local manifests and
+    pinpoint resources that someone forgot to delete and that have a typo in
+    their namespace field.
+
+    Inputs:
+        meta_manifests: Iterable[ManifestMeta]
+
+    Returns:
+        set[ManifestMeta]: orphaned resources.
+
+    """
+    # Turn the input into a set.
+    meta_manifests = set(meta_manifests)
+
+    # Extract all declared namespaces so we can find the orphans afterwards.
+    namespaces = {_.name for _ in meta_manifests if _.kind == 'Namespace'}
+
+    # Filter all those manifests that are a) not a Namespace and b) live in a
+    # namespace that does not exist in the `namespaces` set aggregated earlier.
+    orphans = {
+        _ for _ in meta_manifests
+        if _.kind != "Namespace" and _.namespace not in namespaces
+    }
+
+    # Return the result.
+    return RetVal(orphans, None)
+
+
 def main():
     param = parse_commandline_args()
 
