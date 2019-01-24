@@ -258,13 +258,13 @@ def k8s_request(client, method, path, payload, headers):
         ret = client.request(method, path, json=payload, headers=headers)
     except utils.requests.exceptions.ConnectionError:
         # fixme: log
-        return RetVal(None, "Connection error")
+        return RetVal(None, True)
 
     try:
         response = ret.json()
     except json.decoder.JSONDecodeError:
         # fixme: log
-        return RetVal(ret.text, True)
+        return RetVal(None, True)
 
     return RetVal(response, ret.status_code)
 

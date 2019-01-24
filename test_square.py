@@ -1,6 +1,7 @@
 import copy
 import json
 import os
+import random
 import types
 import unittest.mock as mock
 import k8s_utils
@@ -401,6 +402,69 @@ class TestFetchFromK8s:
 
 
 class TestK8sDeleteGetPatchPost:
+    @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
+    def test_k8s_request_ok(self, method):
+        """Simulate a successful K8s response for GET request."""
+        # Dummies for K8s API URL and `requests` session.
+        url = 'http://examples.com/'
+        client = requests.Session()
+        headers = {"some": "headers"}
+        payload = {"some": "payload"}
+        response = {"some": "response"}
+
+        def additionalMatcher(req):
+            assert req.method == method
+            assert req.url == url
+            assert req.json() == payload
+            assert req.headers["some"] == headers["some"]
+            return True
+
+        with requests_mock.Mocker() as m_requests:
+            status_code = random.randint(100, 510)
+            m_requests.request(
+                method,
+                url,
+                json=response,
+                status_code=status_code,
+                additional_matcher=additionalMatcher,
+            )
+
+            ret = square.k8s_request(client, method, url, payload, headers)
+            assert ret == RetVal(response, status_code)
+
+            assert len(m_requests.request_history) == 1
+            assert m_requests.request_history[0].method == method
+            assert m_requests.request_history[0].url == url
+
+    @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
+    def test_k8s_request_err_json(self, method, m_requests):
+        """Simulate a corrupt JSON response from K8s."""
+        # Dummies for K8s API URL and `requests` session.
+        url = 'http://examples.com/'
+        sess = requests.Session()
+
+        corrupt_json = "{this is not valid] json;"
+        m_requests.request(
+            method,
+            url,
+            text=corrupt_json,
+            status_code=200,
+        )
+
+        ret = square.k8s_request(sess, method, url, None, None)
+        assert ret == RetVal(None, True)
+
+    @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
+    def test_k8s_request_connection_err(self, method, m_requests):
+        """Simulate an unsuccessful K8s response for GET request."""
+        # Dummies for K8s API URL and `requests` session.
+        url = 'http://examples.com/'
+        sess = requests.Session()
+
+        m_requests.request(method, url, exc=requests.exceptions.ConnectionError)
+        ret = square.k8s_request(sess, method, url, None, None)
+        assert ret == RetVal(None, True)
+
     def test_k8s_delete_ok(self, m_requests):
         """Simulate a successful K8s DELETE request."""
         url = 'https://example.com'
