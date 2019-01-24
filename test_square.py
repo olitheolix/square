@@ -99,14 +99,14 @@ class TestBasic:
             Meta('v1', 'Deployment', 'ns1', 'foo'),
             Meta('v1', 'Deployment', 'ns1', 'bar'),
         }
-        assert fun(man) == RetVal(data=man, err=False)
+        assert fun(man) == RetVal(data=man, err=None)
 
         # Two namespaces - neither is orphaned by definition.
         man = {
             Meta('v1', 'Namespace', None, 'ns1'),
             Meta('v1', 'Namespace', None, 'ns2'),
         }
-        assert fun(man) == RetVal(data=set(), err=False)
+        assert fun(man) == RetVal(data=set(), err=None)
 
         # Two deployments, only one of which is inside a defined Namespace.
         man = {
@@ -116,7 +116,7 @@ class TestBasic:
         }
         assert fun(man) == RetVal(
             data={Meta('v1', 'Deployment', 'ns2', 'bar')},
-            err=False,
+            err=None,
         )
 
     def test_compute_plan_patch(self):
