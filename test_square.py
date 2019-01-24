@@ -399,6 +399,8 @@ class TestFetchFromK8s:
             ret = square.list_parser(src)
             assert ret == RetVal(data=None, err='Invalid K8s List resource')
 
+
+class TestK8sDeleteGetPatchPost:
     def test_k8s_get_ok(self):
         """Simulate a successful K8s response for GET request."""
         # Dummies for K8s API URL and `requests` session.
@@ -471,8 +473,6 @@ class TestFetchFromK8s:
         assert not m_parser.called
         assert ret == RetVal(None, "Connection error")
 
-
-class TestK8sDeleteGetPatchPost:
     def test_k8s_patch_ok(self, m_requests):
         """Simulate a successful K8s PATCH request."""
         url = 'https://example.com'
