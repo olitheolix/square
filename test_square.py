@@ -465,8 +465,7 @@ class TestK8sDeleteGetPatchPost:
             assert m_requests.request_history[0].method == 'GET'
             assert m_requests.request_history[0].url == url
 
-    @mock.patch.object(square, 'list_parser')
-    def test_k8s_get_err_code(self, m_parser, m_requests):
+    def test_k8s_get_err_code(self, m_requests):
         """Simulate an unsuccessful K8s response for GET request."""
         # Dummies for K8s API URL and `requests` session.
         url = 'http://examples.com/'
@@ -480,11 +479,9 @@ class TestK8sDeleteGetPatchPost:
             )
 
             ret = square.k8s_get(sess, url)
-            assert not m_parser.called
             assert ret == RetVal(None, "K8s responded with error")
 
-    @mock.patch.object(square, 'list_parser')
-    def test_k8s_get_err_json(self, m_parser, m_requests):
+    def test_k8s_get_err_json(self, m_requests):
         """Simulate a corrupt JSON response from K8s."""
         # Dummies for K8s API URL and `requests` session.
         url = 'http://examples.com/'
@@ -498,11 +495,9 @@ class TestK8sDeleteGetPatchPost:
         )
 
         ret = square.k8s_get(sess, url)
-        assert not m_parser.called
         assert ret == RetVal(None, f"K8s returned corrupt JSON")
 
-    @mock.patch.object(square, 'list_parser')
-    def test_k8s_get_connection_err(self, m_parser, m_requests):
+    def test_k8s_get_connection_err(self, m_requests):
         """Simulate an unsuccessful K8s response for GET request."""
         # Dummies for K8s API URL and `requests` session.
         url = 'http://examples.com/'
@@ -514,7 +509,6 @@ class TestK8sDeleteGetPatchPost:
         )
 
         ret = square.k8s_get(sess, url)
-        assert not m_parser.called
         assert ret == RetVal(None, "Connection error")
 
     def test_k8s_patch_ok(self, m_requests):
