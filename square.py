@@ -240,8 +240,8 @@ def list_parser(manifest_list: dict):
     return RetVal(manifests, None)
 
 
-def k8s_patch(client, path: str, payload: dict):
-    """Make PATCH requests to K8s `path`.
+def k8s_delete(client, path: str, payload: dict):
+    """Make DELETE requests to K8s `path`.
 
     Inputs:
         client: `requests` session with correct K8s certificates.
@@ -254,17 +254,15 @@ def k8s_patch(client, path: str, payload: dict):
         None
 
     """
-    headers = {'Content-Type': 'application/json-patch+json'}
-
     try:
-        ret = client.patch(path, json=payload, headers=headers)
+        ret = client.delete(path, json=payload)
     except utils.requests.exceptions.ConnectionError:
         # fixme: log
-        # fixme: json encoding error
         return RetVal(None, "Connection error")
 
     if ret.status_code != 200:
-        return RetVal(None, "K8s operation failed")
+        # fixme: log
+        return RetVal(None, "K8s could not delete resource")
 
     return RetVal(None, None)
 
@@ -300,6 +298,35 @@ def k8s_get(client, path: str):
     return RetVal(response, None)
 
 
+def k8s_patch(client, path: str, payload: dict):
+    """Make PATCH requests to K8s `path`.
+
+    Inputs:
+        client: `requests` session with correct K8s certificates.
+        path: str
+            Path to K8s resource (eg `/api/v1/namespaces`).
+        payload: dict
+            Anything that can be JSON encoded.
+
+    Returns:
+        None
+
+    """
+    headers = {'Content-Type': 'application/json-patch+json'}
+
+    try:
+        ret = client.patch(path, json=payload, headers=headers)
+    except utils.requests.exceptions.ConnectionError:
+        # fixme: log
+        # fixme: json encoding error
+        return RetVal(None, "Connection error")
+
+    if ret.status_code != 200:
+        return RetVal(None, "K8s operation failed")
+
+    return RetVal(None, None)
+
+
 def k8s_post(client, path: str, payload: dict):
     """Make POST requests to K8s `path`.
 
@@ -323,33 +350,6 @@ def k8s_post(client, path: str, payload: dict):
     if ret.status_code != 201:
         # fixme: log
         return RetVal(None, "K8s could not create resource")
-
-    return RetVal(None, None)
-
-
-def k8s_delete(client, path: str, payload: dict):
-    """Make DELETE requests to K8s `path`.
-
-    Inputs:
-        client: `requests` session with correct K8s certificates.
-        path: str
-            Path to K8s resource (eg `/api/v1/namespaces`).
-        payload: dict
-            Anything that can be JSON encoded.
-
-    Returns:
-        None
-
-    """
-    try:
-        ret = client.delete(path, json=payload)
-    except utils.requests.exceptions.ConnectionError:
-        # fixme: log
-        return RetVal(None, "Connection error")
-
-    if ret.status_code != 200:
-        # fixme: log
-        return RetVal(None, "K8s could not delete resource")
 
     return RetVal(None, None)
 
