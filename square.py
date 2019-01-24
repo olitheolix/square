@@ -124,6 +124,7 @@ def resource_url(config, resource, namespace):
 
 
 def compute_patch(config, src, dst):
+    # fixme: rename src/dst to loc/srv?
     src, err = manifest_metaspec(src)
     if err:
         return RetVal(None, err)
@@ -302,7 +303,8 @@ def diffpatch(config, local_manifests, server_manifests):
             print(f'Mismatch for ingress {name}')
             continue
 
-        diff, err = diff_manifests(remote, local)
+        # Compute textual diff (only useful for the user to study the diff).
+        diff_str, err = diff_manifests(remote, local)
         if err:
             # fixme: log
             return RetVal(None, err)
@@ -311,7 +313,7 @@ def diffpatch(config, local_manifests, server_manifests):
         if err:
             # fixme: log
             return RetVal(None, err)
-        patches.append(Delta(meta.namespace, meta.name, diff, patch))
+        patches.append(Delta(meta.namespace, meta.name, diff_str, patch))
 
     new_plan = DeploymentPlan(create, patches, delete)
     return RetVal(new_plan, None)
