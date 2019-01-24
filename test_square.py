@@ -459,7 +459,7 @@ class TestK8sDeleteGetPatchPost:
                 status_code=200,
             )
 
-            assert square.k8s_get(sess, url) == RetVal(payload, None)
+            assert square.k8s_get(sess, url) == RetVal(payload, False)
 
             assert len(m_requests.request_history) == 1
             assert m_requests.request_history[0].method == 'GET'
@@ -474,12 +474,12 @@ class TestK8sDeleteGetPatchPost:
         for ret_code in (201, 202, 300, 400):
             m_requests.get(
                 url,
-                text=json.dumps("some error"),
+                text="text response",
                 status_code=400,
             )
 
             ret = square.k8s_get(sess, url)
-            assert ret == RetVal(None, "K8s responded with error")
+            assert ret == RetVal("text response", True)
 
     def test_k8s_get_err_json(self, m_requests):
         """Simulate a corrupt JSON response from K8s."""
@@ -495,7 +495,7 @@ class TestK8sDeleteGetPatchPost:
         )
 
         ret = square.k8s_get(sess, url)
-        assert ret == RetVal(None, f"K8s returned corrupt JSON")
+        assert ret == RetVal(None, True)
 
     def test_k8s_get_connection_err(self, m_requests):
         """Simulate an unsuccessful K8s response for GET request."""
