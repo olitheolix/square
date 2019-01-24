@@ -441,7 +441,7 @@ class TestK8sDeleteGetPatchPost:
         """Simulate a corrupt JSON response from K8s."""
         # Dummies for K8s API URL and `requests` session.
         url = 'http://examples.com/'
-        sess = requests.Session()
+        client = requests.Session()
 
         corrupt_json = "{this is not valid] json;"
         m_requests.request(
@@ -451,7 +451,7 @@ class TestK8sDeleteGetPatchPost:
             status_code=200,
         )
 
-        ret = square.k8s_request(sess, method, url, None, None)
+        ret = square.k8s_request(client, method, url, None, None)
         assert ret == RetVal(None, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
@@ -459,7 +459,7 @@ class TestK8sDeleteGetPatchPost:
         """Simulate an unsuccessful K8s response for GET request."""
         # Dummies for K8s API URL and `requests` session.
         url = 'http://examples.com/'
-        sess = requests.Session()
+        client = requests.Session()
 
         m_requests.request(method, url, exc=requests.exceptions.ConnectionError)
         ret = square.k8s_request(sess, method, url, None, None)
