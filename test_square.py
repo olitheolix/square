@@ -217,35 +217,6 @@ class TestBasic:
         )
         assert fun(local_man, cluster_man) == RetVal(plan, None)
 
-    @pytest.mark.xfail
-    def test_compute_plan_partial_namespace(self):
-        """Must throw error if NS is deleted but not all of its resources."""
-        # Local files mention a resource in a namespace for which we have no manifest.
-        fun = square.compute_plan
-        local_man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'foo')),
-        }
-        cluster_man = set()
-        ret = fun(local_man, cluster_man)
-        assert ret == RetVal(False, 'Unknown namespace <foo>', None)
-
-        # Local files delete a namespace but reference resources in it.
-        fun = square.compute_plan
-        local_man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'bar')),
-        }
-        cluster_man = {
-            square.Meta('1.yaml', 'iowa', self._manifest('namespace', 'bar')),
-            square.Meta('1.yaml', 'iowa', self._manifest('deployment', 'api', 'bar')),
-        }
-        ret = fun(local_man, cluster_man)
-        assert ret == RetVal(False, 'Namespace <bar> is not empty', None)
-
-    @pytest.mark.xfail
-    def test_compute_plan_modify(self):
-        """Compute patches."""
-        assert False
-
 
 class TestManifestValidation:
     def test_manifest_metaspec_basic_valid(self):
