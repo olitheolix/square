@@ -413,9 +413,12 @@ class TestK8sDeleteGetPatchPost:
             assert req.json() == payload
             return True
 
-        m_requests.delete(url, status_code=200, additional_matcher=additionalMatcher)
+        m_requests.delete(
+            url, status_code=200, json={"some": "response"},
+            additional_matcher=additionalMatcher
+        )
         ret = square.k8s_delete(sess, url, payload)
-        assert ret == RetVal(None, None)
+        assert ret == RetVal({"some": "response"}, False)
 
         assert len(m_requests.request_history) == 1
         assert m_requests.request_history[0].method == 'DELETE'
@@ -429,9 +432,9 @@ class TestK8sDeleteGetPatchPost:
         sess = requests.Session()
 
         for status_code in (201, 202, 300, 400):
-            m_requests.delete(url, status_code=status_code)
+            m_requests.delete(url, status_code=status_code, text="error")
             ret = square.k8s_delete(sess, url, payload)
-            assert ret == RetVal(None, "K8s could not delete resource")
+            assert ret == RetVal("error", True)
 
     def test_k8s_delete_connection_err(self, m_requests):
         """Simulate a connection error during DELETE request."""
@@ -443,7 +446,7 @@ class TestK8sDeleteGetPatchPost:
 
         m_requests.delete(url, exc=requests.exceptions.ConnectionError)
         ret = square.k8s_delete(sess, url, payload)
-        assert ret == RetVal(None, "Connection error")
+        assert ret == RetVal(None, True)
 
     def test_k8s_get_ok(self):
         """Simulate a successful K8s response for GET request."""
@@ -495,7 +498,7 @@ class TestK8sDeleteGetPatchPost:
         )
 
         ret = square.k8s_get(sess, url)
-        assert ret == RetVal(None, True)
+        assert ret == RetVal(corrupt_json, True)
 
     def test_k8s_get_connection_err(self, m_requests):
         """Simulate an unsuccessful K8s response for GET request."""
@@ -503,13 +506,9 @@ class TestK8sDeleteGetPatchPost:
         url = 'http://examples.com/'
         sess = requests.Session()
 
-        m_requests.get(
-            url,
-            exc=requests.exceptions.ConnectionError,
-        )
-
+        m_requests.get(url, exc=requests.exceptions.ConnectionError)
         ret = square.k8s_get(sess, url)
-        assert ret == RetVal(None, "Connection error")
+        assert ret == RetVal(None, True)
 
     def test_k8s_patch_ok(self, m_requests):
         """Simulate a successful K8s PATCH request."""
@@ -524,9 +523,12 @@ class TestK8sDeleteGetPatchPost:
             assert req.json() == patch
             return True
 
-        m_requests.patch(url, status_code=200, additional_matcher=additionalMatcher)
+        m_requests.patch(
+            url, status_code=200, json={"some": "response"},
+            additional_matcher=additionalMatcher
+        )
         ret = square.k8s_patch(sess, url, patch)
-        assert ret == RetVal(None, None)
+        assert ret == RetVal({"some": "response"}, False)
 
         assert len(m_requests.request_history) == 1
         assert m_requests.request_history[0].method == 'PATCH'
@@ -539,9 +541,9 @@ class TestK8sDeleteGetPatchPost:
         # Dummy `requests` session for the test calls.
         sess = requests.Session()
 
-        m_requests.patch(url, status_code=400)
+        m_requests.patch(url, status_code=400, json={"some": "response"})
         ret = square.k8s_patch(sess, url, patch)
-        assert ret == RetVal(None, "K8s operation failed")
+        assert ret == RetVal({"some": "response"}, True)
 
     def test_k8s_patch_connection_err(self, m_requests):
         """Simulate a connection error during PATCH request."""
@@ -553,7 +555,7 @@ class TestK8sDeleteGetPatchPost:
 
         m_requests.patch(url, exc=requests.exceptions.ConnectionError)
         ret = square.k8s_patch(sess, url, patch)
-        assert ret == RetVal(None, "Connection error")
+        assert ret == RetVal(None, True)
 
     def test_k8s_post_ok(self, m_requests):
         """Simulate a successful K8s POST request."""
@@ -567,9 +569,12 @@ class TestK8sDeleteGetPatchPost:
             assert req.json() == payload
             return True
 
-        m_requests.post(url, status_code=201, additional_matcher=additionalMatcher)
+        m_requests.post(
+            url, status_code=201, json={"some": "response"},
+            additional_matcher=additionalMatcher
+        )
         ret = square.k8s_post(sess, url, payload)
-        assert ret == RetVal(None, None)
+        assert ret == RetVal({"some": "response"}, False)
 
         assert len(m_requests.request_history) == 1
         assert m_requests.request_history[0].method == 'POST'
@@ -583,9 +588,9 @@ class TestK8sDeleteGetPatchPost:
         sess = requests.Session()
 
         for status_code in (200, 202, 300, 400):
-            m_requests.post(url, status_code=status_code)
+            m_requests.post(url, status_code=status_code, json={"some": "response"})
             ret = square.k8s_post(sess, url, payload)
-            assert ret == RetVal(None, "K8s could not create resource")
+            assert ret == RetVal({"some": "response"}, True)
 
     def test_k8s_post_connection_err(self, m_requests):
         """Simulate a connection error during POST request."""
@@ -597,7 +602,7 @@ class TestK8sDeleteGetPatchPost:
 
         m_requests.post(url, exc=requests.exceptions.ConnectionError)
         ret = square.k8s_post(sess, url, payload)
-        assert ret == RetVal(None, "Connection error")
+        assert ret == RetVal(None, True)
 
 
 class TestPatchK8s:

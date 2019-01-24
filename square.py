@@ -240,33 +240,6 @@ def list_parser(manifest_list: dict):
     return RetVal(manifests, None)
 
 
-def k8s_delete(client, path: str, payload: dict):
-    """Make DELETE requests to K8s `path`.
-
-    Inputs:
-        client: `requests` session with correct K8s certificates.
-        path: str
-            Path to K8s resource (eg `/api/v1/namespaces`).
-        payload: dict
-            Anything that can be JSON encoded.
-
-    Returns:
-        None
-
-    """
-    try:
-        ret = client.delete(path, json=payload)
-    except utils.requests.exceptions.ConnectionError:
-        # fixme: log
-        return RetVal(None, "Connection error")
-
-    if ret.status_code != 200:
-        # fixme: log
-        return RetVal(None, "K8s could not delete resource")
-
-    return RetVal(None, None)
-
-
 def k8s_request(client, method, path, payload, headers):
     """Return response of web request made with `client`.
 
@@ -291,9 +264,15 @@ def k8s_request(client, method, path, payload, headers):
         response = ret.json()
     except json.decoder.JSONDecodeError:
         # fixme: log
-        response = ret.text
+        return RetVal(ret.text, True)
 
     return RetVal(response, ret.status_code)
+
+
+def k8s_delete(client, path: str, payload: dict):
+    """Make DELETE requests to K8s (see `k8s_request`)."""
+    resp, code = k8s_request(client, 'DELETE', path, payload, headers=None)
+    return RetVal(resp, code != 200)
 
 
 def k8s_get(client, path: str):
@@ -303,59 +282,16 @@ def k8s_get(client, path: str):
 
 
 def k8s_patch(client, path: str, payload: dict):
-    """Make PATCH requests to K8s `path`.
-
-    Inputs:
-        client: `requests` session with correct K8s certificates.
-        path: str
-            Path to K8s resource (eg `/api/v1/namespaces`).
-        payload: dict
-            Anything that can be JSON encoded.
-
-    Returns:
-        None
-
-    """
+    """Make PATCH requests to K8s (see `k8s_request`)."""
     headers = {'Content-Type': 'application/json-patch+json'}
-
-    try:
-        ret = client.patch(path, json=payload, headers=headers)
-    except utils.requests.exceptions.ConnectionError:
-        # fixme: log
-        # fixme: json encoding error
-        return RetVal(None, "Connection error")
-
-    if ret.status_code != 200:
-        return RetVal(None, "K8s operation failed")
-
-    return RetVal(None, None)
+    resp, code = k8s_request(client, 'PATCH', path, payload, headers)
+    return RetVal(resp, code != 200)
 
 
 def k8s_post(client, path: str, payload: dict):
-    """Make POST requests to K8s `path`.
-
-    Inputs:
-        client: `requests` session with correct K8s certificates.
-        path: str
-            Path to K8s resource (eg `/api/v1/namespaces`).
-        payload: dict
-            Anything that can be JSON encoded.
-
-    Returns:
-        None
-
-    """
-    try:
-        ret = client.post(path, json=payload)
-    except utils.requests.exceptions.ConnectionError:
-        # fixme: log
-        return RetVal(None, "Connection error")
-
-    if ret.status_code != 201:
-        # fixme: log
-        return RetVal(None, "K8s could not create resource")
-
-    return RetVal(None, None)
+    """Make POST requests to K8s (see `k8s_request`)."""
+    resp, code = k8s_request(client, 'POST', path, payload, headers=None)
+    return RetVal(resp, code != 201)
 
 
 def download_manifests(config, client, kinds, namespace):
