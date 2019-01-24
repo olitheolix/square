@@ -238,11 +238,24 @@ def list_parser(manifest_list: dict):
     return RetVal(manifests, None)
 
 
-def k8s_patch(client, full_url, json_patch):
+def k8s_patch(client, url: str, payload: dict):
+    """Make PATCH requests to K8s `url`.
+
+    Inputs:
+        client: `requests` session with correct K8s certificates.
+        url: str
+            Path to K8s resource (eg `/api/v1/namespaces`).
+        payload: dict
+            Anything that can be JSON encoded.
+
+    Returns:
+        None
+
+    """
     headers = {'Content-Type': 'application/json-patch+json'}
 
     try:
-        ret = client.patch(full_url, json=json_patch, headers=headers)
+        ret = client.patch(url, json=payload, headers=headers)
     except utils.requests.exceptions.ConnectionError:
         # fixme: log
         # fixme: json encoding error
@@ -254,14 +267,25 @@ def k8s_patch(client, full_url, json_patch):
     return RetVal(None, None)
 
 
-def k8s_get(client, url):
+def k8s_get(client, url: str):
+    """Make GET requests to K8s `url`.
+
+    Inputs:
+        client: `requests` session with correct K8s certificates.
+        url: str
+            Path to K8s resource (eg `/api/v1/namespaces`).
+
+    Returns:
+        dict: JSON decoded response.
+
+    """
     try:
         ret = client.get(url)
     except utils.requests.exceptions.ConnectionError:
         # fixme: log
         return RetVal(None, "Connection error")
 
-    if not 200 <= ret.status_code < 300:
+    if ret.status_code != 200:
         # fixme: log
         return RetVal(None, "K8s responded with error")
 
@@ -272,6 +296,60 @@ def k8s_get(client, url):
         return RetVal(None, "K8s returned corrupt JSON")
 
     return RetVal(response, None)
+
+
+def k8s_post(client, url: str, payload: dict):
+    """Make POST requests to K8s `url`.
+
+    Inputs:
+        client: `requests` session with correct K8s certificates.
+        url: str
+            Path to K8s resource (eg `/api/v1/namespaces`).
+        payload: dict
+            Anything that can be JSON encoded.
+
+    Returns:
+        None
+
+    """
+    try:
+        ret = client.post(url, json=payload)
+    except utils.requests.exceptions.ConnectionError:
+        # fixme: log
+        return RetVal(None, "Connection error")
+
+    if ret.status_code != 201:
+        # fixme: log
+        return RetVal(None, "K8s could not create resource")
+
+    return RetVal(None, None)
+
+
+def k8s_delete(client, url: str, payload: dict):
+    """Make DELETE requests to K8s `url`.
+
+    Inputs:
+        client: `requests` session with correct K8s certificates.
+        url: str
+            Path to K8s resource (eg `/api/v1/namespaces`).
+        payload: dict
+            Anything that can be JSON encoded.
+
+    Returns:
+        None
+
+    """
+    try:
+        ret = client.delete(url, json=payload)
+    except utils.requests.exceptions.ConnectionError:
+        # fixme: log
+        return RetVal(None, "Connection error")
+
+    if ret.status_code != 200:
+        # fixme: log
+        return RetVal(None, "K8s could not delete resource")
+
+    return RetVal(None, None)
 
 
 def download_manifests(config, client, kinds, namespace):
