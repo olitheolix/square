@@ -140,9 +140,8 @@ class TestBasic:
             Meta('v1', 'Namespace', None, 'ns3'),
         }
         cluster_man = local_man
-        plan = Plan(create=set(), patch=set(), delete=set())
-        ret = fun(local_man, cluster_man)
-        assert ret == RetVal(plan, None)
+        plan = Plan(create=set(), patch=local_man, delete=set())
+        assert fun(local_man, cluster_man) == RetVal(plan, None)
 
     def test_compute_plan_add_delete(self):
         """Local and server manifests are orthogonal sets.
@@ -155,7 +154,7 @@ class TestBasic:
         Meta = square.ManifestMeta
         Plan = square.DeploymentPlan
 
-        # No change because local and cluster manifests are identical.
+        # Local and cluster manifests are orthogonal.
         local_man = {
             Meta('v1', 'Deployment', 'ns2', 'bar'),
             Meta('v1', 'Namespace', None, 'ns2'),
@@ -177,15 +176,14 @@ class TestBasic:
                 Meta('v1', 'Namespace', None, 'ns3'),
             }
         )
-        ret = fun(local_man, cluster_man)
-        assert ret == RetVal(plan, None)
+        assert fun(local_man, cluster_man) == RetVal(plan, None)
 
     def test_compute_plan_patch_delete(self):
         """Create plan with resources to delete and patch.
 
         The local manifests are a strict subset of the cluster. The deployment
         plan must therefore not create any resources, delete everything absent
-        in the local manifests and mark the rest for patching.
+        from the local manifests and mark the rest for patching.
 
         """
         fun = square.compute_plan
@@ -207,7 +205,7 @@ class TestBasic:
         plan = Plan(
             create=set(),
             patch={
-                Meta('v1', 'Deployment', 'ns2', 'bar'),
+                Meta('v1', 'Deployment', 'ns2', 'bar1'),
                 Meta('v1', 'Namespace', None, 'ns2'),
             },
             delete={
@@ -217,8 +215,7 @@ class TestBasic:
                 Meta('v1', 'Namespace', None, 'ns3'),
             }
         )
-        ret = fun(local_man, cluster_man)
-        assert ret == RetVal(plan, None)
+        assert fun(local_man, cluster_man) == RetVal(plan, None)
 
     @pytest.mark.xfail
     def test_compute_plan_partial_namespace(self):
