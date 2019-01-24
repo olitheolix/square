@@ -401,6 +401,50 @@ class TestFetchFromK8s:
 
 
 class TestK8sDeleteGetPatchPost:
+    def test_k8s_delete_ok(self, m_requests):
+        """Simulate a successful K8s DELETE request."""
+        url = 'https://example.com'
+        payload = {"some": "json"}
+
+        # Dummy `requests` session for the test calls.
+        sess = requests.Session()
+
+        def additionalMatcher(req):
+            assert req.json() == payload
+            return True
+
+        m_requests.delete(url, status_code=200, additional_matcher=additionalMatcher)
+        ret = square.k8s_delete(sess, url, payload)
+        assert ret == RetVal(None, None)
+
+        assert len(m_requests.request_history) == 1
+        assert m_requests.request_history[0].method == 'DELETE'
+
+    def test_k8s_delete_err(self, m_requests):
+        """Simulate K8s DELETE request returning an error response."""
+        url = 'https://example.com'
+        payload = {"some": "json"}
+
+        # Dummy `requests` session for the test calls.
+        sess = requests.Session()
+
+        for status_code in (201, 202, 300, 400):
+            m_requests.delete(url, status_code=status_code)
+            ret = square.k8s_delete(sess, url, payload)
+            assert ret == RetVal(None, "K8s could not delete resource")
+
+    def test_k8s_delete_connection_err(self, m_requests):
+        """Simulate a connection error during DELETE request."""
+        url = 'https://example.com'
+        payload = {"some": "json"}
+
+        # Dummy `requests` session for the test calls.
+        sess = requests.Session()
+
+        m_requests.delete(url, exc=requests.exceptions.ConnectionError)
+        ret = square.k8s_delete(sess, url, payload)
+        assert ret == RetVal(None, "Connection error")
+
     def test_k8s_get_ok(self):
         """Simulate a successful K8s response for GET request."""
         # Dummies for K8s API URL and `requests` session.
@@ -559,50 +603,6 @@ class TestK8sDeleteGetPatchPost:
 
         m_requests.post(url, exc=requests.exceptions.ConnectionError)
         ret = square.k8s_post(sess, url, payload)
-        assert ret == RetVal(None, "Connection error")
-
-    def test_k8s_delete_ok(self, m_requests):
-        """Simulate a successful K8s DELETE request."""
-        url = 'https://example.com'
-        payload = {"some": "json"}
-
-        # Dummy `requests` session for the test calls.
-        sess = requests.Session()
-
-        def additionalMatcher(req):
-            assert req.json() == payload
-            return True
-
-        m_requests.delete(url, status_code=200, additional_matcher=additionalMatcher)
-        ret = square.k8s_delete(sess, url, payload)
-        assert ret == RetVal(None, None)
-
-        assert len(m_requests.request_history) == 1
-        assert m_requests.request_history[0].method == 'DELETE'
-
-    def test_k8s_delete_err(self, m_requests):
-        """Simulate K8s DELETE request returning an error response."""
-        url = 'https://example.com'
-        payload = {"some": "json"}
-
-        # Dummy `requests` session for the test calls.
-        sess = requests.Session()
-
-        for status_code in (201, 202, 300, 400):
-            m_requests.delete(url, status_code=status_code)
-            ret = square.k8s_delete(sess, url, payload)
-            assert ret == RetVal(None, "K8s could not delete resource")
-
-    def test_k8s_delete_connection_err(self, m_requests):
-        """Simulate a connection error during DELETE request."""
-        url = 'https://example.com'
-        payload = {"some": "json"}
-
-        # Dummy `requests` session for the test calls.
-        sess = requests.Session()
-
-        m_requests.delete(url, exc=requests.exceptions.ConnectionError)
-        ret = square.k8s_delete(sess, url, payload)
         assert ret == RetVal(None, "Connection error")
 
 
