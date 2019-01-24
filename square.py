@@ -20,6 +20,8 @@ RetVal = collections.namedtuple('RetVal', 'data err')
 DeploymentPlan = collections.namedtuple('DeploymentPlan', 'create patch delete')
 ManifestMeta = collections.namedtuple('ManifestMeta', 'apiVersion kind namespace name')
 Delta = collections.namedtuple("Delta", "namespace name diff patch")
+DeltaCreate = collections.namedtuple("DeltaCreate", "meta url manifest")
+DeltaDelete = collections.namedtuple("DeltaDelete", "meta url manifest")
 
 
 def parse_commandline_args():
@@ -366,11 +368,25 @@ def download_manifests(config, client, kinds, namespace):
 def diffpatch(config, local_manifests, server_manifests):
     plan, _ = compute_plan(local_manifests, server_manifests)
 
-    create = {k: local_manifests[k] for k in plan.create}
-    delete = {k: server_manifests[k] for k in plan.delete}
+    create = []
+    for meta in plan.create:
+        url = resource_url(config, meta.kind, namespace=meta.namespace)
+        create.append(DeltaCreate(meta, url, local_manifests[meta]))
+
+    delete = []
+    del_opts = {
+        "apiVersion": "v1",
+        "kind": "DeleteOptions",
+        "gracePeriodSeconds": 0,
+        "orphanDependents": False,
+    }
+    for meta in plan.delete:
+        url = resource_url(config, meta.kind, namespace=meta.namespace)
+        url = f"{url}/{meta.name}"
+        delete.append(DeltaDelete(meta, url, copy.deepcopy(del_opts)))
 
     patches = []
-    for meta in local_manifests:
+    for meta in plan.patch:
         name = f'{meta.namespace}/{meta.name}'
         try:
             local = local_manifests[meta]
@@ -398,12 +414,29 @@ def diffpatch(config, local_manifests, server_manifests):
 
 
 def print_deltas(plan):
+    cGreen = colorama.Fore.GREEN
+    cRed = colorama.Fore.RED
+    cReset = colorama.Fore.RESET
+
+    for delta in plan.create:
+        name = f'{delta.meta.namespace}/{delta.meta.name}'
+        txt = yaml.dump(delta.manifest, default_flow_style=False)
+        txt = [cGreen + line + cReset for line in txt.splitlines()]
+        txt.insert(0, cGreen + f"--- {name} ---" + cReset)
+        txt = str.join('\n', txt)
+        print(txt + '\n')
+
     deltas = plan.patch
     for delta in deltas:
         if len(delta.diff) > 0:
             name = f'{delta.namespace}/{delta.name}'
             print('-' * 80 + '\n' + f'{name.upper()}\n' + '-' * 80)
             print(delta.diff)
+
+    for delta in plan.delete:
+        name = f'--- {delta.meta.namespace}/{delta.meta.name} ---'
+        print(cRed + name + cReset + "\n")
+
     return RetVal(None, None)
 
 
@@ -571,11 +604,25 @@ def main():
         plan, err = diffpatch(config, local_manifests, server_manifests)
         print_deltas(plan)
 
+        for data in plan.create:
+            print(f"Creating {data.meta.namespace}/{data.meta.name}")
+            ret = k8s_post(client, data.url, data.manifest)
+            if ret.err:
+                print(ret)
+                return
+
         patches = [_.patch for _ in plan.patch if len(_.patch.ops) > 0]
         print(f"Compiled {len(patches)} patches.")
         for patch in patches:
             pprint(patch)
             ret = k8s_patch(client, patch.url, patch.ops)
+            if ret.err:
+                print(ret)
+                return
+
+        for data in plan.delete:
+            print(f"Deleting {data.meta.namespace}/{data.meta.name}")
+            ret = k8s_delete(client, data.url, data.manifest)
             if ret.err:
                 print(ret)
                 return
