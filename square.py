@@ -285,7 +285,12 @@ def download_manifests(config, client, kinds, namespace):
 
 
 def diffpatch(config, local_manifests, server_manifests):
-    out = []
+    plan, _ = compute_plan(local_manifests, server_manifests)
+
+    create = {k: local_manifests[k] for k in plan.create}
+    delete = {k: server_manifests[k] for k in plan.delete}
+
+    patches = []
     for meta in local_manifests:
         name = f'{meta.namespace}/{meta.name}'
         try:
@@ -306,11 +311,14 @@ def diffpatch(config, local_manifests, server_manifests):
         if err:
             # fixme: log
             return RetVal(None, err)
-        out.append(Delta(meta.namespace, meta.name, diff, patch))
-    return RetVal(out, None)
+        patches.append(Delta(meta.namespace, meta.name, diff, patch))
+
+    new_plan = DeploymentPlan(create, patches, delete)
+    return RetVal(new_plan, None)
 
 
-def print_deltas(deltas):
+def print_deltas(plan):
+    deltas = plan.patch
     for delta in deltas:
         if len(delta.diff) > 0:
             name = f'{delta.namespace}/{delta.name}'
@@ -474,15 +482,16 @@ def main():
     elif param.parser == "diff":
         local_manifests = load_manifest(fname)
         server_manifests, _ = download_manifests(config, client, kinds, namespace)
-        deltas, err = diffpatch(config, local_manifests, server_manifests)
-        print_deltas(deltas)
+        plan, err = diffpatch(config, local_manifests, server_manifests)
+        print_deltas(plan)
     elif param.parser == "patch":
         local_manifests = load_manifest(fname)
         server_manifests, _ = download_manifests(config, client, kinds, namespace)
-        deltas, err = diffpatch(config, local_manifests, server_manifests)
-        print_deltas(deltas)
 
-        patches = [_.patch for _ in deltas if len(_.patch.ops) > 0]
+        plan, err = diffpatch(config, local_manifests, server_manifests)
+        print_deltas(plan)
+
+        patches = [_.patch for _ in plan.patch if len(_.patch.ops) > 0]
         print(f"Compiled {len(patches)} patches.")
         for patch in patches:
             pprint(patch)
