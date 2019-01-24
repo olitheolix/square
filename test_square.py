@@ -26,7 +26,6 @@ def m_requests(request):
 
 
 def make_manifest(kind: str, name: str, namespace: str):
-    # fixme: assert that first letter is captical letter.
     kind = kind.capitalize()
 
     manifest = {
