@@ -267,35 +267,39 @@ def k8s_delete(client, path: str, payload: dict):
     return RetVal(None, None)
 
 
-def k8s_get(client, path: str):
-    """Make GET requests to K8s `path`.
+def k8s_request(client, method, path, payload, headers):
+    """Return response of web request made with `client`.
 
     Inputs:
         client: `requests` session with correct K8s certificates.
         path: str
             Path to K8s resource (eg `/api/v1/namespaces`).
+        payload: dict
+            Anything that can be JSON encoded.
 
     Returns:
-        dict: JSON decoded response.
+        None
 
     """
     try:
-        ret = client.get(path)
+        ret = client.request(method, path, json=payload, headers=headers)
     except utils.requests.exceptions.ConnectionError:
         # fixme: log
         return RetVal(None, "Connection error")
-
-    if ret.status_code != 200:
-        # fixme: log
-        return RetVal(None, "K8s responded with error")
 
     try:
         response = ret.json()
     except json.decoder.JSONDecodeError:
         # fixme: log
-        return RetVal(None, "K8s returned corrupt JSON")
+        response = ret.text
 
-    return RetVal(response, None)
+    return RetVal(response, ret.status_code)
+
+
+def k8s_get(client, path: str):
+    """Make GET requests to K8s (see `k8s_request`)."""
+    resp, code = k8s_request(client, 'GET', path, payload=None, headers=None)
+    return RetVal(resp, code != 200)
 
 
 def k8s_patch(client, path: str, payload: dict):
