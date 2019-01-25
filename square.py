@@ -317,6 +317,51 @@ def download_manifests(config, client, kinds, namespace):
     return RetVal(server_manifests, None)
 
 
+def compute_plan(local_manifests, server_manifests):
+    """Return the `DeploymentPlan` to transition K8s to state of `local_manifests`.
+
+    The deployment plan is a named tuple. It specifies which resources to
+    create, patch and delete to ensure that the K8s state (specified by
+    `server_manifests` usually returned by `download_manifests`) will match the
+    state specified in the `local_manifests`.
+
+    The returned deployment plan will contain *every resource in
+    `local_manifests` and `server_manifests` exactly once*.
+
+    Create: all resources that exist in `local_manifests` but not in `server_manifests`.
+    Delete: all resources that exist in `server_manifests` but not in `local_manifests`.
+    Patch : all resources that exist in both.
+
+    NOTE: resources that exist locally and on the server *may* be identical and
+    would thus not need a patch. They are nevertheless added to the `patched`
+    attribute of the deployment. It is the job of the function doing the actual
+    patching to figure out the difference, if any.
+
+    Inputs:
+        local_manifests: set[MetaManifest]
+            Usually the dictionary keys returned by `load_manifest`.
+        server_manifests: set[MetaManifest]
+            Usually the dictionary keys returned by `download_manifests`.
+
+    Returns:
+        DeploymentPlan
+
+    """
+    # Ensure the input is a genuine set and remove all duplicates.
+    local_manifests = set(local_manifests)
+    server_manifests = set(server_manifests)
+
+    # Determine what needs adding, removing and patching to steer the K8s setup
+    # towards the setup specified in `local_manifests`.
+    create = local_manifests - server_manifests
+    patch = local_manifests.intersection(server_manifests)
+    delete = server_manifests - local_manifests
+
+    # Return the deployment plan.
+    plan = DeploymentPlan(create, patch, delete)
+    return RetVal(plan, None)
+
+
 def diffpatch(config, local_manifests, server_manifests):
     plan, _ = compute_plan(local_manifests, server_manifests)
 
@@ -475,51 +520,6 @@ def find_namespace_orphans(meta_manifests):
 
     # Return the result.
     return RetVal(orphans, None)
-
-
-def compute_plan(local_manifests, server_manifests):
-    """Return the `DeploymentPlan` to transition K8s to state of `local_manifests`.
-
-    The deployment plan is a named tuple. It specifies which resources to
-    create, patch and delete to ensure that the K8s state (specified by
-    `server_manifests` usually returned by `download_manifests`) will match the
-    state specified in the `local_manifests`.
-
-    The returned deployment plan will contain *every resource in
-    `local_manifests` and `server_manifests` exactly once*.
-
-    Create: all resources that exist in `local_manifests` but not in `server_manifests`.
-    Delete: all resources that exist in `server_manifests` but not in `local_manifests`.
-    Patch : all resources that exist in both.
-
-    NOTE: resources that exist locally and on the server *may* be identical and
-    would thus not need a patch. They are nevertheless added to the `patched`
-    attribute of the deployment. It is the job of the function doing the actual
-    patching to figure out the difference, if any.
-
-    Inputs:
-        local_manifests: set[MetaManifest]
-            Usually the dictionary keys returned by `load_manifest`.
-        server_manifests: set[MetaManifest]
-            Usually the dictionary keys returned by `download_manifests`.
-
-    Returns:
-        DeploymentPlan
-
-    """
-    # Ensure the input is a genuine set and remove all duplicates.
-    local_manifests = set(local_manifests)
-    server_manifests = set(server_manifests)
-
-    # Determine what needs adding, removing and patching to steer the K8s setup
-    # towards the setup specified in `local_manifests`.
-    create = local_manifests - server_manifests
-    patch = local_manifests.intersection(server_manifests)
-    delete = server_manifests - local_manifests
-
-    # Return the deployment plan.
-    plan = DeploymentPlan(create, patch, delete)
-    return RetVal(plan, None)
 
 
 def setup_logging(level: int):
