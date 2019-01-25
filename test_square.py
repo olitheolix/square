@@ -353,7 +353,7 @@ class TestFetchFromK8s:
         # Parse the DeploymentList into a dict. The keys are ManifestTuples and
         # the values are the Deployment (*not* DeploymentList) manifests.
         ret = square.list_parser(manifest_list)
-        assert ret.err is None
+        assert ret.err is False
 
         # Verify the Python dict.
         assert len(manifests) == 3
@@ -379,28 +379,24 @@ class TestFetchFromK8s:
         # Valid input.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList', 'items': []}
         ret = square.list_parser(src)
-        assert ret == RetVal(data={}, err=None)
+        assert ret == RetVal({}, False)
 
         # Missing `apiVersion`.
         src = {'kind': 'DeploymentList', 'items': []}
-        ret = square.list_parser(src)
-        assert ret == RetVal(data=None, err='Invalid K8s List resource')
+        assert square.list_parser(src) == RetVal(None, True)
 
         # Missing `kind`.
         src = {'apiVersion': 'v1', 'items': []}
-        ret = square.list_parser(src)
-        assert ret == RetVal(data=None, err='Invalid K8s List resource')
+        assert square.list_parser(src) == RetVal(None, True)
 
         # Missing `items`.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList'}
-        ret = square.list_parser(src)
-        assert ret == RetVal(data=None, err='Invalid K8s List resource')
+        assert square.list_parser(src) == RetVal(None, True)
 
         # All fields present but `kind` does not end in List (case sensitive).
         for invalid_kind in ('Deploymentlist', 'Deployment'):
             src = {'apiVersion': 'v1', 'kind': invalid_kind, 'items': []}
-            ret = square.list_parser(src)
-            assert ret == RetVal(data=None, err='Invalid K8s List resource')
+            assert square.list_parser(src) == RetVal(None, True)
 
 
 class TestK8sDeleteGetPatchPost:

@@ -218,23 +218,25 @@ def list_parser(manifest_list: dict):
         dict[ManifestMeta:dict]
 
     """
-    try:
-        apiversion = manifest_list['apiVersion']
-        kind = manifest_list['kind']
-        items = manifest_list['items']
-    except KeyError as err:
-        # fixme: log which key is missing
-        return RetVal(None, 'Invalid K8s List resource')
+    must_have = ("apiVersion", "kind", "items")
+    missing = [key for key in must_have if key not in manifest_list]
+    if len(missing) > 0:
+        kind = manifest_list.get("kind", "UNKNOWN")
+        logit.error(f"{kind} manifest is missing these keys: {missing}")
+        return RetVal(None, True)
+    del must_have, missing
 
+    kind = manifest_list["kind"]
     if not kind.endswith('List'):
-        # fixme: log name of invalid kind
-        return RetVal(None, 'Invalid K8s List resource')
-
+        logit.error(f"Kind {kind} is not a list")
+        return RetVal(None, True)
     kind = kind[:-4]
+
+    apiversion = manifest_list["apiVersion"]
     meta_ref = ManifestMeta(apiversion, kind, None, None)
 
     manifests = {}
-    for manifest in items:
+    for manifest in manifest_list["items"]:
         manifest = copy.deepcopy(manifest)
         ns = manifest['metadata'].get('namespace', None)
         name = manifest['metadata']['name']
@@ -243,7 +245,7 @@ def list_parser(manifest_list: dict):
         manifests[key] = manifest
         manifests[key]['apiVersion'] = apiversion
         manifests[key]['kind'] = kind
-    return RetVal(manifests, None)
+    return RetVal(manifests, False)
 
 
 def k8s_request(client, method, path, payload, headers):
