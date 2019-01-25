@@ -318,24 +318,14 @@ def download_manifests(config, client, kinds, namespace):
 
 
 def compute_plan(local_manifests, server_manifests):
-    """Return the `DeploymentPlan` to transition K8s to state of `local_manifests`.
-
-    The deployment plan is a named tuple. It specifies which resources to
-    create, patch and delete to ensure that the K8s state (specified by
-    `server_manifests` usually returned by `download_manifests`) will match the
-    state specified in the `local_manifests`.
+    """Partition `{local,server_manifests}` into resource to CREATE, PATCH and DELETE.
 
     The returned deployment plan will contain *every resource in
     `local_manifests` and `server_manifests` exactly once*.
 
     Create: all resources that exist in `local_manifests` but not in `server_manifests`.
     Delete: all resources that exist in `server_manifests` but not in `local_manifests`.
-    Patch : all resources that exist in both.
-
-    NOTE: resources that exist locally and on the server *may* be identical and
-    would thus not need a patch. They are nevertheless added to the `patched`
-    attribute of the deployment. It is the job of the function doing the actual
-    patching to figure out the difference, if any.
+    Patch : all resources that exist in both and therefore *may* need patching.
 
     Inputs:
         local_manifests: set[MetaManifest]
@@ -363,6 +353,24 @@ def compute_plan(local_manifests, server_manifests):
 
 
 def diffpatch(config, local_manifests, server_manifests):
+    """Return the `DeploymentPlan` to transition K8s to state of `local_manifests`.
+
+    The deployment plan is a named tuple. It specifies which resources to
+    create, patch and delete to ensure that the K8s state (specified by
+    `server_manifests` usually returned by `download_manifests`) will match the
+    state specified in the `local_manifests`.
+
+    Inputs:
+        config: k8s_utils.Config
+        local_manifests: set[MetaManifest]
+            Usually the dictionary keys returned by `load_manifest`.
+        server_manifests: set[MetaManifest]
+            Usually the dictionary keys returned by `download_manifests`.
+
+    Returns:
+        DeploymentPlan
+
+    """
     plan, _ = compute_plan(local_manifests, server_manifests)
 
     create = []
