@@ -1,3 +1,4 @@
+import logging
 import sys
 import argparse
 import collections
@@ -520,8 +521,47 @@ def compute_plan(local_manifests, server_manifests):
     return RetVal(plan, None)
 
 
+def setup_logging(level: str):
+    """Configure logging at `level`.
+
+    Inputs:
+        level: str
+            One of ('debug', 'info', 'warn'). Not case sensitive.
+
+    Returns:
+        None
+
+    """
+    # Pick the correct log level.
+    if level.upper() == "DEBUG":
+        level = logging.DEBUG
+    elif level.upper() == "INFO":
+        level = logging.INFO
+    elif level.upper() == "WARN":
+        level = logging.WARN
+    else:
+        print(f"Unknown log level {level} - abort")
+        sys.exit(1)
+
+    # Create logger.
+    logger = logging.getLogger("square")
+    logger.setLevel(level)
+
+    # Configure stdout handler.
+    ch = logging.StreamHandler()
+    ch.setLevel(level)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+
+    # Attach stdout handlers to the `square` logger.
+    logger.addHandler(ch)
+
+
 def main():
     param = parse_commandline_args()
+
+    # Initialise logging.
+    setup_logging("DEBUG")
 
     # Create a `requests` client with proper security certificates to access
     # K8s API.
