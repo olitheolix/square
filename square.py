@@ -342,8 +342,8 @@ def diffpatch(config, local_manifests, server_manifests):
     for meta in plan.patch:
         name = f'{meta.namespace}/{meta.name}'
         try:
-            local = local_manifests[meta]
-            remote = server_manifests[meta]
+            loc = local_manifests[meta]
+            srv = server_manifests[meta]
         except KeyError:
             # fixme: ensure beforehand that keys exist and compile the list of
             # resources to add/delete on the server.
@@ -351,11 +351,11 @@ def diffpatch(config, local_manifests, server_manifests):
             continue
 
         # Compute textual diff (only useful for the user to study the diff).
-        diff_str, err = diff_manifests(remote, local)
+        diff_str, err = diff_manifests(srv, loc)
         if err:
             return RetVal(None, True)
 
-        patch, err = compute_patch(config, remote, local)
+        patch, err = compute_patch(config, srv, loc)
         if err:
             return RetVal(None, True)
         patches.append(Delta(meta.namespace, meta.name, diff_str, patch))
