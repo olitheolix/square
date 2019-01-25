@@ -186,12 +186,11 @@ def manifest_metaspec(manifest: dict):
         logit.error(f"Invalid capitalisation: {manifest.kind}")
         return RetVal(None, True)
 
-    old_meta = manifest.metadata
-    new_meta = {'name': old_meta.name}
-    if 'namespace' in old_meta:
-        new_meta["namespace"] = old_meta.namespace
-    if 'labels' in old_meta:
-        new_meta["labels"] = old_meta.labels
+    new_meta = {'name': manifest.metadata.name}
+    if 'namespace' in manifest.metadata:
+        new_meta["namespace"] = manifest.metadata.namespace
+    if 'labels' in manifest.metadata:
+        new_meta["labels"] = manifest.metadata.labels
 
     ret = {
         'apiVersion': manifest.apiVersion,
