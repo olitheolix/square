@@ -81,10 +81,10 @@ def parse_commandline_args():
 def diff_manifests(src: dict, dst: dict):
     src, err = manifest_metaspec(src)
     if err:
-        return RetVal(None, err)
+        return RetVal(None, True)
     dst, err = manifest_metaspec(dst)
     if err:
-        return RetVal(None, err)
+        return RetVal(None, True)
 
     src_lines = yaml.dump(src, default_flow_style=False).splitlines()
     dst_lines = yaml.dump(dst, default_flow_style=False).splitlines()
@@ -130,10 +130,10 @@ def compute_patch(config, src, dst):
     # fixme: rename src/dst to loc/srv?
     src, err = manifest_metaspec(src)
     if err:
-        return RetVal(None, err)
+        return RetVal(None, True)
     dst, err = manifest_metaspec(dst)
     if err:
-        return RetVal(None, err)
+        return RetVal(None, True)
 
     try:
         assert src["apiVersion"] == dst["apiVersion"]
@@ -164,25 +164,31 @@ def manifest_metaspec(manifest: dict):
 
     must_have = {'apiVersion', 'kind', 'metadata', 'spec'}
     if not must_have.issubset(set(manifest.keys())):
-        # fixme: log which attributes are missing.
-        return RetVal(None, "Manifest is missing attributes")
+        logit = logging.getLogger("square")
+        missing = must_have - set(manifest.keys())
+        logit.error(f"Manifest is missing these keys: {missing}")
+        return RetVal(None, True)
+    del must_have
 
     if manifest["kind"] == "Namespace":
+        logit = logging.getLogger("square")
         if "namespace" in manifest["metadata"]:
-            return RetVal(
-                None,
-                "Namespace manifest must not have metadata.namespace attribute"
-            )
+            logit.error("Namespace must not have a `metadata.namespace` attribute")
+            return RetVal(None, True)
         must_have = {"name"}
     else:
         must_have = {"name", "namespace"}
 
     if not must_have.issubset(set(manifest["metadata"].keys())):
-        # fixme: log which attributes are missing.
-        return RetVal(None, "Manifest metadata is missing attributes")
+        logit = logging.getLogger("square")
+        missing = must_have - set(manifest["metadata"].keys())
+        logit.error(f"Manifest metadata is missing these keys: {missing}")
+        return RetVal(None, True)
 
     if manifest["kind"].lower().capitalize() != manifest["kind"]:
-        return RetVal(None, "<kind> attribute must be capitalised")
+        logit = logging.getLogger("square")
+        logit.error(f"Invalid capitalisation: {manifest['kind']}")
+        return RetVal(None, True)
 
     old_meta = manifest['metadata']
     new_meta = {'name': old_meta['name']}

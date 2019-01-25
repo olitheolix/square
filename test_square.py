@@ -272,7 +272,7 @@ class TestManifestValidation:
 
     def test_manifest_metaspec_basic_invalid(self):
         ret = square.manifest_metaspec({'invalid': 'manifest'})
-        assert ret == RetVal(None, "Manifest is missing attributes")
+        assert ret == RetVal(None, True)
 
         # Namespace manifest must not have a `metadata.namespace` attribute.
         invalid_manifest = {
@@ -281,11 +281,7 @@ class TestManifestValidation:
             'metadata': {'name': 'foo', 'namespace': 'bar'},
             'spec': {'some': 'thing'},
         }
-        ret = square.manifest_metaspec(invalid_manifest)
-        assert ret == RetVal(
-            None,
-            "Namespace manifest must not have metadata.namespace attribute",
-        )
+        assert square.manifest_metaspec(invalid_manifest) == RetVal(None, True)
 
         # The `kind` attribute must be all lower case with a capital first letter.
         invalid_manifest = {
@@ -294,11 +290,7 @@ class TestManifestValidation:
             'metadata': {'name': 'foo', 'namespace': 'bar'},
             'spec': {'some': 'thing'},
         }
-        ret = square.manifest_metaspec(invalid_manifest)
-        assert ret == RetVal(
-            None,
-            "<kind> attribute must be capitalised",
-        )
+        assert square.manifest_metaspec(invalid_manifest) == RetVal(None, True)
 
         # Same test again: the `kind` attribute must be all lower case with a
         # capital first letter.
@@ -308,11 +300,7 @@ class TestManifestValidation:
             'metadata': {'name': 'foo', 'namespace': 'bar'},
             'spec': {'some': 'thing'},
         }
-        ret = square.manifest_metaspec(invalid_manifest)
-        assert ret == RetVal(
-            None,
-            "<kind> attribute must be capitalised",
-        )
+        assert square.manifest_metaspec(invalid_manifest) == RetVal(None, True)
 
     def test_manifest_metaspec_automanifests(self):
         manifest = make_manifest('Deployment', f'name_0', f'ns_0')
@@ -324,11 +312,7 @@ class TestManifestValidation:
         assert ret.err is None
 
         manifest = make_manifest('Namespace', f'name_0', 'ns')
-        ret = square.manifest_metaspec(manifest)
-        assert ret == RetVal(
-            None,
-            "Namespace manifest must not have metadata.namespace attribute",
-        )
+        assert square.manifest_metaspec(manifest) == RetVal(None, True)
 
     def test_manifest_metaspec_missing_fields(self):
         valid_deployment_manifest = {
@@ -342,13 +326,12 @@ class TestManifestValidation:
             invalid = copy.deepcopy(valid_deployment_manifest)
             invalid.pop(field)
             ret = square.manifest_metaspec(invalid)
-            assert ret == RetVal(None, "Manifest is missing attributes")
+            assert ret == RetVal(None, True)
 
         # Metadata must contain at least 'name' field.
         invalid = copy.deepcopy(valid_deployment_manifest)
         del invalid['metadata']['name']
-        ret = square.manifest_metaspec(invalid)
-        assert ret == RetVal(None, "Manifest metadata is missing attributes")
+        assert square.manifest_metaspec(invalid) == RetVal(None, True)
 
 
 class TestFetchFromK8s:
