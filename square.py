@@ -24,6 +24,9 @@ Delta = collections.namedtuple("Delta", "namespace name diff patch")
 DeltaCreate = collections.namedtuple("DeltaCreate", "meta url manifest")
 DeltaDelete = collections.namedtuple("DeltaDelete", "meta url manifest")
 
+# Convenience: global logger instance to avoid repetitive code.
+logit = logging.getLogger("square")
+
 
 def parse_commandline_args():
     """Return parsed command line."""
@@ -142,7 +145,6 @@ def compute_patch(config, src, dst):
         if src["kind"] != "Namespace":
             assert src["metadata"]["namespace"] == dst["metadata"]["namespace"]
     except AssertionError:
-        logit = logging.getLogger("square")
         logit.error("Cannot compute JSON patch for incompatible manifests")
         return RetVal(None, True)
 
@@ -164,14 +166,12 @@ def manifest_metaspec(manifest: dict):
 
     must_have = {'apiVersion', 'kind', 'metadata', 'spec'}
     if not must_have.issubset(set(manifest.keys())):
-        logit = logging.getLogger("square")
         missing = must_have - set(manifest.keys())
         logit.error(f"Manifest is missing these keys: {missing}")
         return RetVal(None, True)
     del must_have
 
     if manifest["kind"] == "Namespace":
-        logit = logging.getLogger("square")
         if "namespace" in manifest["metadata"]:
             logit.error("Namespace must not have a `metadata.namespace` attribute")
             return RetVal(None, True)
@@ -180,13 +180,11 @@ def manifest_metaspec(manifest: dict):
         must_have = {"name", "namespace"}
 
     if not must_have.issubset(set(manifest["metadata"].keys())):
-        logit = logging.getLogger("square")
         missing = must_have - set(manifest["metadata"].keys())
         logit.error(f"Manifest metadata is missing these keys: {missing}")
         return RetVal(None, True)
 
     if manifest["kind"].lower().capitalize() != manifest["kind"]:
-        logit = logging.getLogger("square")
         logit.error(f"Invalid capitalisation: {manifest['kind']}")
         return RetVal(None, True)
 
