@@ -417,6 +417,7 @@ class TestK8sDeleteGetPatchPost:
             assert req.url == url
             assert req.json() == payload
             assert req.headers["some"] == headers["some"]
+            assert req.timeout == 30
             return True
 
         with requests_mock.Mocker() as m_requests:
