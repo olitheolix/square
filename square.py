@@ -104,7 +104,7 @@ def diff_manifests(src: dict, dst: dict):
     return RetVal(str.join('\n', out), None)
 
 
-def resource_url(config, resource, namespace):
+def urlpath_builder(config, resource, namespace):
     _ns_ = '' if namespace is None else f'namespaces/{namespace}/'
     resource = resource.lower()
 
@@ -148,7 +148,7 @@ def compute_patch(config, src, dst):
     name = src['metadata']['name']
     namespace = src['metadata'].get('namespace', None)
 
-    url = resource_url(config, kind, namespace)
+    url = urlpath_builder(config, kind, namespace)
 
     patch = jsonpatch.make_patch(src, dst)
     patch = json.loads(patch.to_string())
@@ -310,7 +310,7 @@ def k8s_post(client, path: str, payload: dict):
 def download_manifests(config, client, kinds, namespace):
     server_manifests = {}
     for kind in kinds:
-        url = resource_url(config, kind, namespace=namespace)
+        url = urlpath_builder(config, kind, namespace=namespace)
         manifest_list, _ = k8s_get(client, url)
         manifests, _ = list_parser(manifest_list)
         manifests = {k: manifest_metaspec(man)[0] for k, man in manifests.items()}
@@ -323,7 +323,7 @@ def diffpatch(config, local_manifests, server_manifests):
 
     create = []
     for meta in plan.create:
-        url = resource_url(config, meta.kind, namespace=meta.namespace)
+        url = urlpath_builder(config, meta.kind, namespace=meta.namespace)
         create.append(DeltaCreate(meta, url, local_manifests[meta]))
 
     delete = []
@@ -334,7 +334,7 @@ def diffpatch(config, local_manifests, server_manifests):
         "orphanDependents": False,
     }
     for meta in plan.delete:
-        url = resource_url(config, meta.kind, namespace=meta.namespace)
+        url = urlpath_builder(config, meta.kind, namespace=meta.namespace)
         url = f"{url}/{meta.name}"
         delete.append(DeltaDelete(meta, url, copy.deepcopy(del_opts)))
 
