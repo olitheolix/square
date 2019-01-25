@@ -1,4 +1,5 @@
 import base64
+import copy
 import os
 import tempfile
 import warnings
@@ -221,6 +222,15 @@ class DotDict(dict):
     def __getattr__(self, key):
         return self[key]
 
+    def __deepcopy__(self, *args, **kwargs):
+        # To copy a `DotDict`, first convert it to a normal Python dict, then
+        # let the `copy` module do its work and afterwards return a `DotDict`
+        # version of that copy.
+        return make_dotdict(copy.deepcopy(dict(self)))
+
+    def __copy__(self, *args, **kwargs):
+        return self.__deepcopy__(*args, **kwargs)
+
 
 def make_dotdict(data):
     """Return `data` as a `DotDict`.
@@ -239,3 +249,20 @@ def make_dotdict(data):
         return [make_dotdict(_) for _ in data]
     else:
         return DotDict({k: make_dotdict(v) for k, v in data.items()})
+
+
+def undo_dotdict(data):
+    """Remove all `DotDict` instances from `data`.
+
+    This function will recursively replace all `DotDict` instances with their
+    plain Python equivalent.
+
+    """
+    if not isinstance(data, (list, tuple, dict)):
+        return data
+
+    # Recursively convert all elements in lists and dicts.
+    if isinstance(data, (list, tuple)):
+        return [undo_dotdict(_) for _ in data]
+    else:
+        return dict({k: undo_dotdict(v) for k, v in data.items()})
