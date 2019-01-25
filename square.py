@@ -258,7 +258,7 @@ def k8s_request(client, method, path, payload, headers):
 
     """
     try:
-        ret = client.request(method, path, json=payload, headers=headers)
+        ret = client.request(method, path, json=payload, headers=headers, timeout=30)
     except utils.requests.exceptions.ConnectionError as err:
         # fixme: log
         method = err.request.method
