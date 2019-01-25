@@ -268,18 +268,19 @@ def k8s_request(client, method, path, payload, headers):
     try:
         ret = client.request(method, path, json=payload, headers=headers, timeout=30)
     except utils.requests.exceptions.ConnectionError as err:
-        # fixme: log
         method = err.request.method
         url = err.request.url
-        print(f"Connection error: {method} {url}")
+        logit.error(f"Connection error: {method} {url}")
         return RetVal(None, True)
 
     try:
         response = ret.json()
     except json.decoder.JSONDecodeError as err:
-        # fixme: log
-        print(f"JSON error: {err.msg} in line {err.lineno} column {err.colno}")
-        print("-" * 80 + "\n" + err.doc + "\n" + "-" * 80)
+        msg = (
+            f"JSON error: {err.msg} in line {err.lineno} column {err.colno}",
+            "-" * 80 + "\n" + err.doc + "\n" + "-" * 80,
+        )
+        logit.error(str.join("\n", msg))
         return RetVal(None, True)
 
     return RetVal(response, ret.status_code)
