@@ -99,32 +99,31 @@ class TestBasic:
         forget to define that namespace (or mis-spell it).
 
         """
-        Meta = square.MetaManifest
         fun = square.find_namespace_orphans
 
         # Two deployments in the same non-existing Namespace. Both are orphaned
         # because the namespace `ns1` does not exist.
         man = {
-            Meta('v1', 'Deployment', 'ns1', 'foo'),
-            Meta('v1', 'Deployment', 'ns1', 'bar'),
+            MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
+            MetaManifest('v1', 'Deployment', 'ns1', 'bar'),
         }
         assert fun(man) == RetVal(data=man, err=None)
 
         # Two namespaces - neither is orphaned by definition.
         man = {
-            Meta('v1', 'Namespace', None, 'ns1'),
-            Meta('v1', 'Namespace', None, 'ns2'),
+            MetaManifest('v1', 'Namespace', None, 'ns1'),
+            MetaManifest('v1', 'Namespace', None, 'ns2'),
         }
         assert fun(man) == RetVal(data=set(), err=None)
 
         # Two deployments, only one of which is inside a defined Namespace.
         man = {
-            Meta('v1', 'Deployment', 'ns1', 'foo'),
-            Meta('v1', 'Deployment', 'ns2', 'bar'),
-            Meta('v1', 'Namespace', None, 'ns1'),
+            MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar'),
+            MetaManifest('v1', 'Namespace', None, 'ns1'),
         }
         assert fun(man) == RetVal(
-            data={Meta('v1', 'Deployment', 'ns2', 'bar')},
+            data={MetaManifest('v1', 'Deployment', 'ns2', 'bar')},
             err=None,
         )
 
@@ -137,16 +136,15 @@ class TestBasic:
 
         """
         fun = square.compute_plan
-        Meta = square.MetaManifest
         Plan = square.DeploymentPlan
 
         # No change because local and cluster manifests are identical.
         local_man = {
-            Meta('v1', 'Deployment', 'ns1', 'foo'),
-            Meta('v1', 'Deployment', 'ns2', 'bar'),
-            Meta('v1', 'Namespace', None, 'ns1'),
-            Meta('v1', 'Namespace', None, 'ns2'),
-            Meta('v1', 'Namespace', None, 'ns3'),
+            MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar'),
+            MetaManifest('v1', 'Namespace', None, 'ns1'),
+            MetaManifest('v1', 'Namespace', None, 'ns2'),
+            MetaManifest('v1', 'Namespace', None, 'ns3'),
         }
         cluster_man = local_man
         plan = Plan(create=set(), patch=local_man, delete=set())
@@ -160,29 +158,28 @@ class TestBasic:
 
         """
         fun = square.compute_plan
-        Meta = square.MetaManifest
         Plan = square.DeploymentPlan
 
         # Local and cluster manifests are orthogonal.
         local_man = {
-            Meta('v1', 'Deployment', 'ns2', 'bar'),
-            Meta('v1', 'Namespace', None, 'ns2'),
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar'),
+            MetaManifest('v1', 'Namespace', None, 'ns2'),
         }
         cluster_man = {
-            Meta('v1', 'Deployment', 'ns1', 'foo'),
-            Meta('v1', 'Namespace', None, 'ns1'),
-            Meta('v1', 'Namespace', None, 'ns3'),
+            MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
+            MetaManifest('v1', 'Namespace', None, 'ns1'),
+            MetaManifest('v1', 'Namespace', None, 'ns3'),
         }
         plan = Plan(
             create={
-                Meta('v1', 'Deployment', 'ns2', 'bar'),
-                Meta('v1', 'Namespace', None, 'ns2'),
+                MetaManifest('v1', 'Deployment', 'ns2', 'bar'),
+                MetaManifest('v1', 'Namespace', None, 'ns2'),
             },
             patch=set(),
             delete={
-                Meta('v1', 'Deployment', 'ns1', 'foo'),
-                Meta('v1', 'Namespace', None, 'ns1'),
-                Meta('v1', 'Namespace', None, 'ns3'),
+                MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
+                MetaManifest('v1', 'Namespace', None, 'ns1'),
+                MetaManifest('v1', 'Namespace', None, 'ns3'),
             }
         )
         assert fun(local_man, cluster_man) == RetVal(plan, None)
@@ -196,32 +193,31 @@ class TestBasic:
 
         """
         fun = square.compute_plan
-        Meta = square.MetaManifest
         Plan = square.DeploymentPlan
 
         local_man = {
-            Meta('v1', 'Deployment', 'ns2', 'bar1'),
-            Meta('v1', 'Namespace', None, 'ns2'),
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar1'),
+            MetaManifest('v1', 'Namespace', None, 'ns2'),
         }
         cluster_man = {
-            Meta('v1', 'Deployment', 'ns1', 'foo'),
-            Meta('v1', 'Deployment', 'ns2', 'bar1'),
-            Meta('v1', 'Deployment', 'ns2', 'bar2'),
-            Meta('v1', 'Namespace', None, 'ns1'),
-            Meta('v1', 'Namespace', None, 'ns2'),
-            Meta('v1', 'Namespace', None, 'ns3'),
+            MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar1'),
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar2'),
+            MetaManifest('v1', 'Namespace', None, 'ns1'),
+            MetaManifest('v1', 'Namespace', None, 'ns2'),
+            MetaManifest('v1', 'Namespace', None, 'ns3'),
         }
         plan = Plan(
             create=set(),
             patch={
-                Meta('v1', 'Deployment', 'ns2', 'bar1'),
-                Meta('v1', 'Namespace', None, 'ns2'),
+                MetaManifest('v1', 'Deployment', 'ns2', 'bar1'),
+                MetaManifest('v1', 'Namespace', None, 'ns2'),
             },
             delete={
-                Meta('v1', 'Deployment', 'ns1', 'foo'),
-                Meta('v1', 'Deployment', 'ns2', 'bar2'),
-                Meta('v1', 'Namespace', None, 'ns1'),
-                Meta('v1', 'Namespace', None, 'ns3'),
+                MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
+                MetaManifest('v1', 'Deployment', 'ns2', 'bar2'),
+                MetaManifest('v1', 'Namespace', None, 'ns1'),
+                MetaManifest('v1', 'Namespace', None, 'ns3'),
             }
         )
         assert fun(local_man, cluster_man) == RetVal(plan, None)
