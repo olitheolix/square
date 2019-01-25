@@ -85,6 +85,9 @@ def diff_manifests(src: dict, dst: dict):
     if err:
         return RetVal(None, True)
 
+    # Undo the DotDicts for the YAML parser.
+    src = utils.undo_dotdict(src)
+    dst = utils.undo_dotdict(dst)
     src_lines = yaml.dump(src, default_flow_style=False).splitlines()
     dst_lines = yaml.dump(dst, default_flow_style=False).splitlines()
 
@@ -459,6 +462,8 @@ def load_manifest(fname):
 
 
 def save_manifests(manifests, fname):
+    # Undo the DotDicts for the YAML parser.
+    manifests = utils.undo_dotdict(copy.deepcopy(manifests))
     yaml.safe_dump_all(
         manifests.values(),
         open(fname, 'w'),
