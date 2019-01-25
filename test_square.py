@@ -546,8 +546,8 @@ class TestPatchK8s:
 
         url = square.urlpath_builder(config, kind, ns) + f'/{name}'
 
-        src = dst = make_manifest(kind, name, ns)
-        ret = square.compute_patch(config, dst, src)
+        loc = srv = make_manifest(kind, name, ns)
+        ret = square.compute_patch(config, loc, srv)
         assert ret == RetVal(Patch(url, []), None)
         assert isinstance(ret.data, Patch)
 
@@ -555,30 +555,30 @@ class TestPatchK8s:
         config = types.SimpleNamespace(url='http://examples.com/')
         kind, ns, name = 'Deployment', 'ns', 'foo'
 
-        src = make_manifest(kind, name, ns)
+        srv = make_manifest(kind, name, ns)
 
         # `apiVersion` must match.
-        dst = copy.deepcopy(src)
-        dst['apiVersion'] = 'mismatch'
-        ret = square.compute_patch(config, dst, src)
+        loc = copy.deepcopy(srv)
+        loc['apiVersion'] = 'mismatch'
+        ret = square.compute_patch(config, loc, srv)
         assert ret == RetVal(None, True)
 
         # `kind` must match.
-        dst = copy.deepcopy(src)
-        dst['kind'] = 'Mismatch'
-        ret = square.compute_patch(config, dst, src)
+        loc = copy.deepcopy(srv)
+        loc['kind'] = 'Mismatch'
+        ret = square.compute_patch(config, loc, srv)
         assert ret == RetVal(None, True)
 
         # `name` must match.
-        dst = copy.deepcopy(src)
-        dst['metadata']['name'] = 'mismatch'
-        ret = square.compute_patch(config, dst, src)
+        loc = copy.deepcopy(srv)
+        loc['metadata']['name'] = 'mismatch'
+        ret = square.compute_patch(config, loc, srv)
         assert ret == RetVal(None, True)
 
         # `namespace` must match.
-        dst = copy.deepcopy(src)
-        dst['metadata']['namespace'] = 'mismatch'
-        ret = square.compute_patch(config, dst, src)
+        loc = copy.deepcopy(srv)
+        loc['metadata']['namespace'] = 'mismatch'
+        ret = square.compute_patch(config, loc, srv)
         assert ret == RetVal(None, True)
 
     def test_compute_patch_namespace(self):
@@ -593,25 +593,25 @@ class TestPatchK8s:
         url = square.urlpath_builder(config, kind, None) + f'/{name}'
 
         # Identical namespace manifests.
-        src = make_manifest(kind, name, None)
-        dst = copy.deepcopy(src)
-        ret = square.compute_patch(config, dst, src)
+        loc = make_manifest(kind, name, None)
+        srv = copy.deepcopy(loc)
+        ret = square.compute_patch(config, loc, srv)
         assert ret == RetVal((url, []), None)
 
         # Second manifest specifies a `metadata.namespace` attribute. This is
         # invalid and must result in an error.
-        src = make_manifest(kind, name, None)
-        dst = copy.deepcopy(src)
-        dst['metadata']['namespace'] = 'foo'
-        ret = square.compute_patch(config, dst, src)
+        loc = make_manifest(kind, name, None)
+        srv = copy.deepcopy(loc)
+        loc['metadata']['namespace'] = 'foo'
+        ret = square.compute_patch(config, loc, srv)
         assert ret.data is None and ret.err is not None
 
         # Different namespace manifests (second one has labels).
-        src = make_manifest(kind, name, None)
-        dst = copy.deepcopy(src)
-        dst['metadata']['labels'] = {"key": "value"}
+        loc = make_manifest(kind, name, None)
+        srv = copy.deepcopy(loc)
+        loc['metadata']['labels'] = {"key": "value"}
 
-        ret = square.compute_patch(config, dst, src)
+        ret = square.compute_patch(config, loc, srv)
         assert ret.err is None and len(ret.data) > 0
 
 
