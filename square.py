@@ -125,7 +125,7 @@ def urlpath_builder(config, resource, namespace):
     return f'{config.url}/{path}'
 
 
-def compute_patch(config, server, local):
+def compute_patch(config, local, server):
     server, err = manifest_metaspec(server)
     if err:
         return RetVal(None, True)
@@ -354,7 +354,7 @@ def diffpatch(config, local_manifests, server_manifests):
         if err:
             return RetVal(None, True)
 
-        patch, err = compute_patch(config, srv, loc)
+        patch, err = compute_patch(config, loc, srv)
         if err:
             return RetVal(None, True)
         patches.append(Delta(meta.namespace, meta.name, diff_str, patch))
