@@ -20,7 +20,7 @@ Patch = collections.namedtuple('Patch', 'url ops')
 RetVal = collections.namedtuple('RetVal', 'data err')
 DeploymentPlan = collections.namedtuple('DeploymentPlan', 'create patch delete')
 MetaManifest = collections.namedtuple('MetaManifest', 'apiVersion kind namespace name')
-Delta = collections.namedtuple("Delta", "namespace name diff patch")
+DeltaPatch = collections.namedtuple("Delta", "namespace name diff patch")
 DeltaCreate = collections.namedtuple("DeltaCreate", "meta url manifest")
 DeltaDelete = collections.namedtuple("DeltaDelete", "meta url manifest")
 
@@ -357,7 +357,7 @@ def diffpatch(config, local_manifests, server_manifests):
         patch, err = compute_patch(config, loc, srv)
         if err:
             return RetVal(None, True)
-        patches.append(Delta(meta.namespace, meta.name, diff_str, patch))
+        patches.append(DeltaPatch(meta.namespace, meta.name, diff_str, patch))
 
     new_plan = DeploymentPlan(create, patches, delete)
     return RetVal(new_plan, None)
