@@ -352,7 +352,7 @@ def partition_manifests(local_manifests, server_manifests):
     return RetVal(plan, None)
 
 
-def diffpatch(config, local_manifests, server_manifests):
+def compile_plan(config, local_manifests, server_manifests):
     """Return the `DeploymentPlan` to transition K8s to state of `local_manifests`.
 
     The deployment plan is a named tuple. It specifies which resources to
@@ -595,13 +595,13 @@ def main():
     elif param.parser == "diff":
         local_manifests = load_manifest(fname)
         server_manifests, _ = download_manifests(config, client, kinds, namespace)
-        plan, err = diffpatch(config, local_manifests, server_manifests)
+        plan, err = compile_plan(config, local_manifests, server_manifests)
         print_deltas(plan)
     elif param.parser == "patch":
         local_manifests = load_manifest(fname)
         server_manifests, _ = download_manifests(config, client, kinds, namespace)
 
-        plan, err = diffpatch(config, local_manifests, server_manifests)
+        plan, err = compile_plan(config, local_manifests, server_manifests)
         print_deltas(plan)
 
         for data in plan.create:
