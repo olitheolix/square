@@ -597,25 +597,25 @@ class TestPatchK8s:
         dst = copy.deepcopy(src)
         dst['apiVersion'] = 'mismatch'
         ret = square.compute_patch(config, src, dst)
-        assert ret == RetVal(None, "Cannot compute JSON patch for incompatible manifests")
+        assert ret == RetVal(None, True)
 
         # `kind` must match.
         dst = copy.deepcopy(src)
         dst['kind'] = 'Mismatch'
         ret = square.compute_patch(config, src, dst)
-        assert ret == RetVal(None, "Cannot compute JSON patch for incompatible manifests")
+        assert ret == RetVal(None, True)
 
         # `name` must match.
         dst = copy.deepcopy(src)
         dst['metadata']['name'] = 'mismatch'
         ret = square.compute_patch(config, src, dst)
-        assert ret == RetVal(None, "Cannot compute JSON patch for incompatible manifests")
+        assert ret == RetVal(None, True)
 
         # `namespace` must match.
         dst = copy.deepcopy(src)
         dst['metadata']['namespace'] = 'mismatch'
         ret = square.compute_patch(config, src, dst)
-        assert ret == RetVal(None, "Cannot compute JSON patch for incompatible manifests")
+        assert ret == RetVal(None, True)
 
     def test_compute_patch_namespace(self):
         """Corner cases that are specific to `Namespace` resources.
