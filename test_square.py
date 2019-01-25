@@ -544,7 +544,7 @@ class TestPatchK8s:
         config = types.SimpleNamespace(url='http://examples.com/', version="1.10")
         kind, ns, name = 'Deployment', 'ns', 'foo'
 
-        url = square.resource_url(config, kind, ns) + f'/{name}'
+        url = square.urlpath_builder(config, kind, ns) + f'/{name}'
 
         src = dst = make_manifest(kind, name, ns)
         ret = square.compute_patch(config, src, dst)
@@ -590,7 +590,7 @@ class TestPatchK8s:
         config = types.SimpleNamespace(url='http://examples.com/', version="1.10")
         kind, name = 'Namespace', 'foo'
 
-        url = square.resource_url(config, kind, None) + f'/{name}'
+        url = square.urlpath_builder(config, kind, None) + f'/{name}'
 
         # Identical namespace manifests.
         src = make_manifest(kind, name, None)
