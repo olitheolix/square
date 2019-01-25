@@ -125,32 +125,31 @@ def urlpath_builder(config, resource, namespace):
     return f'{config.url}/{path}'
 
 
-def compute_patch(config, src, dst):
-    # fixme: rename src/dst to loc/srv?
-    src, err = manifest_metaspec(src)
+def compute_patch(config, server, local):
+    server, err = manifest_metaspec(server)
     if err:
         return RetVal(None, True)
-    dst, err = manifest_metaspec(dst)
+    local, err = manifest_metaspec(local)
     if err:
         return RetVal(None, True)
 
     try:
-        assert src["apiVersion"] == dst["apiVersion"]
-        assert src["kind"] == dst["kind"]
-        assert src["metadata"]["name"] == dst["metadata"]["name"]
-        if src["kind"] != "Namespace":
-            assert src["metadata"]["namespace"] == dst["metadata"]["namespace"]
+        assert server["apiVersion"] == local["apiVersion"]
+        assert server["kind"] == local["kind"]
+        assert server["metadata"]["name"] == local["metadata"]["name"]
+        if server["kind"] != "Namespace":
+            assert server["metadata"]["namespace"] == local["metadata"]["namespace"]
     except AssertionError:
         logit.error("Cannot compute JSON patch for incompatible manifests")
         return RetVal(None, True)
 
-    kind = src['kind']
-    name = src['metadata']['name']
-    namespace = src['metadata'].get('namespace', None)
+    kind = server['kind']
+    name = server['metadata']['name']
+    namespace = server['metadata'].get('namespace', None)
 
     url = urlpath_builder(config, kind, namespace)
 
-    patch = jsonpatch.make_patch(src, dst)
+    patch = jsonpatch.make_patch(server, local)
     patch = json.loads(patch.to_string())
     full_url = f'{url}/{name}'
 
