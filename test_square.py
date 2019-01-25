@@ -126,15 +126,15 @@ class TestBasic:
             err=None,
         )
 
-    def test_compute_plan_patch(self):
+    def test_partition_manifests_patch(self):
         """Local and server manifests match.
 
         If all resource exist both locally and remotely then nothing needs to
         be created or deleted. However, the resources may need patching but
-        that is not something `compute_plan` concerns itself with.
+        that is not something `partition_manifests` concerns itself with.
 
         """
-        fun = square.compute_plan
+        fun = square.partition_manifests
         Plan = square.DeploymentPlan
 
         # No change because local and cluster manifests are identical.
@@ -149,14 +149,14 @@ class TestBasic:
         plan = Plan(create=set(), patch=local_man, delete=set())
         assert fun(local_man, cluster_man) == RetVal(plan, None)
 
-    def test_compute_plan_add_delete(self):
+    def test_partition_manifests_add_delete(self):
         """Local and server manifests are orthogonal sets.
 
         This must produce a plan where all local resources will be created, all
         cluster resources deleted and none patched.
 
         """
-        fun = square.compute_plan
+        fun = square.partition_manifests
         Plan = square.DeploymentPlan
 
         # Local and cluster manifests are orthogonal.
@@ -183,7 +183,7 @@ class TestBasic:
         )
         assert fun(local_man, cluster_man) == RetVal(plan, None)
 
-    def test_compute_plan_patch_delete(self):
+    def test_partition_manifests_patch_delete(self):
         """Create plan with resources to delete and patch.
 
         The local manifests are a strict subset of the cluster. The deployment
@@ -191,7 +191,7 @@ class TestBasic:
         from the local manifests and mark the rest for patching.
 
         """
-        fun = square.compute_plan
+        fun = square.partition_manifests
         Plan = square.DeploymentPlan
 
         local_man = {
