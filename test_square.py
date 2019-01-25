@@ -403,16 +403,17 @@ class TestFetchFromK8s:
 
 class TestK8sDeleteGetPatchPost:
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    def test_k8s_request_ok(self, method):
+    def test_k8s_request_ok(self, method, m_requests):
         """Simulate a successful K8s response for GET request."""
-        # Dummies for K8s API URL and `requests` session.
+        # Dummy values for the K8s API request.
         url = 'http://examples.com/'
         client = requests.Session()
         headers = {"some": "headers"}
         payload = {"some": "payload"}
         response = {"some": "response"}
 
-        def additionalMatcher(req):
+        # Verify the makeup of the actual request.
+        def additional_matcher(req):
             assert req.method == method
             assert req.url == url
             assert req.json() == payload
@@ -420,22 +421,20 @@ class TestK8sDeleteGetPatchPost:
             assert req.timeout == 30
             return True
 
-        with requests_mock.Mocker() as m_requests:
-            status_code = random.randint(100, 510)
-            m_requests.request(
-                method,
-                url,
-                json=response,
-                status_code=status_code,
-                additional_matcher=additionalMatcher,
-            )
+        # Assign a random HTTP status code.
+        status_code = random.randint(100, 510)
+        m_requests.request(
+            method,
+            url,
+            json=response,
+            status_code=status_code,
+            additional_matcher=additional_matcher,
+        )
 
-            ret = square.k8s_request(client, method, url, payload, headers)
-            assert ret == RetVal(response, status_code)
-
-            assert len(m_requests.request_history) == 1
-            assert m_requests.request_history[0].method == method
-            assert m_requests.request_history[0].url == url
+        # Verify that the function makes the correct request and returns the
+        # expected result and HTTP status code.
+        ret = square.k8s_request(client, method, url, payload, headers)
+        assert ret == RetVal(response, status_code)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     def test_k8s_request_err_json(self, method, m_requests):
