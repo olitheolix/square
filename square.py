@@ -413,7 +413,7 @@ def diffpatch(config, local_manifests, server_manifests):
         patches.append(DeltaPatch(meta, diff_str, patch))
 
     new_plan = DeploymentPlan(create, patches, delete)
-    return RetVal(new_plan, None)
+    return RetVal(new_plan, False)
 
 
 def print_deltas(plan):
