@@ -45,11 +45,7 @@ def parse_commandline_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         add_help=False
     )
-    parent.add_argument(
-        '--log-level', default='info',
-        choices=('debug', 'info', 'warning', 'error'),
-        help="Debug level"
-    )
+    parent.add_argument("-v", "--verbosity", action="count", default=0)
 
     parser = argparse.ArgumentParser(add_help=True)
     subparsers = parser.add_subparsers(help='Mode', dest='parser', title="Operation")
@@ -527,27 +523,30 @@ def compute_plan(local_manifests, server_manifests):
     return RetVal(plan, None)
 
 
-def setup_logging(level: str):
+def setup_logging(level: int):
     """Configure logging at `level`.
 
+    Level 0: ERROR
+    Level 1: WARNING
+    Level 2: INFO
+    Level >=3: DEBUG
+
     Inputs:
-        level: str
-            One of ('debug', 'info', 'warn'). Not case sensitive.
+        level: int
 
     Returns:
         None
 
     """
     # Pick the correct log level.
-    if level.upper() == "DEBUG":
-        level = logging.DEBUG
-    elif level.upper() == "INFO":
-        level = logging.INFO
-    elif level.upper() == "WARN":
-        level = logging.WARN
+    if level == 0:
+        level = "ERROR"
+    elif level == 1:
+        level = "WARNING"
+    elif level == 2:
+        level = "INFO"
     else:
-        print(f"Unknown log level {level} - abort")
-        sys.exit(1)
+        level = "DEBUG"
 
     # Create logger.
     logger = logging.getLogger("square")
@@ -567,7 +566,7 @@ def main():
     param = parse_commandline_args()
 
     # Initialise logging.
-    setup_logging("DEBUG")
+    setup_logging(param.verbosity)
 
     # Create a `requests` client with proper security certificates to access
     # K8s API.
