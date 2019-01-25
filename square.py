@@ -166,37 +166,38 @@ def manifest_metaspec(manifest: dict):
         return RetVal(None, True)
     del must_have
 
-    if manifest["kind"] == "Namespace":
-        if "namespace" in manifest["metadata"]:
+    if manifest.kind == "Namespace":
+        if "namespace" in manifest.metadata:
             logit.error("Namespace must not have a `metadata.namespace` attribute")
             return RetVal(None, True)
         must_have = {"name"}
     else:
         must_have = {"name", "namespace"}
 
-    if not must_have.issubset(set(manifest["metadata"].keys())):
-        missing = must_have - set(manifest["metadata"].keys())
+    if not must_have.issubset(set(manifest.metadata.keys())):
+        missing = must_have - set(manifest.metadata.keys())
         logit.error(f"Manifest metadata is missing these keys: {missing}")
         return RetVal(None, True)
+    del must_have
 
-    if manifest["kind"].lower().capitalize() != manifest["kind"]:
-        logit.error(f"Invalid capitalisation: {manifest['kind']}")
+    if manifest.kind.lower().capitalize() != manifest.kind:
+        logit.error(f"Invalid capitalisation: {manifest.kind}")
         return RetVal(None, True)
 
-    old_meta = manifest['metadata']
-    new_meta = {'name': old_meta['name']}
+    old_meta = manifest.metadata
+    new_meta = {'name': old_meta.name}
     if 'namespace' in old_meta:
-        new_meta['namespace'] = old_meta['namespace']
+        new_meta["namespace"] = old_meta.namespace
     if 'labels' in old_meta:
-        new_meta['labels'] = old_meta['labels']
+        new_meta["labels"] = old_meta.labels
 
     ret = {
-        'apiVersion': manifest['apiVersion'],
-        'kind': manifest['kind'],
+        'apiVersion': manifest.apiVersion,
+        'kind': manifest.kind,
         'metadata': new_meta,
-        'spec': manifest['spec'],
+        'spec': manifest.spec,
     }
-    return RetVal(ret, None)
+    return RetVal(utils.make_dotdict(ret), None)
 
 
 def list_parser(manifest_list: dict):
