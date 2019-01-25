@@ -134,30 +134,29 @@ def compute_patch(config, local, server):
         return RetVal(None, True)
 
     try:
-        assert server["apiVersion"] == local["apiVersion"]
-        assert server["kind"] == local["kind"]
-        assert server["metadata"]["name"] == local["metadata"]["name"]
-        if server["kind"] != "Namespace":
-            assert server["metadata"]["namespace"] == local["metadata"]["namespace"]
+        assert server.apiVersion == local.apiVersion
+        assert server.kind == local.kind
+        assert server.metadata.name == local.metadata.name
+        if server.kind != "Namespace":
+            assert server.metadata.namespace == local.metadata.namespace
     except AssertionError:
         logit.error("Cannot compute JSON patch for incompatible manifests")
         return RetVal(None, True)
 
-    kind = server['kind']
-    name = server['metadata']['name']
-    namespace = server['metadata'].get('namespace', None)
+    namespace = server.metadata.get('namespace', None)
 
-    url = urlpath_builder(config, kind, namespace)
+    url = urlpath_builder(config, server.kind, namespace)
 
     patch = jsonpatch.make_patch(server, local)
     patch = json.loads(patch.to_string())
-    full_url = f'{url}/{name}'
+    full_url = f'{url}/{server.metadata.name}'
 
     return RetVal(Patch(full_url, patch), None)
 
 
 def manifest_metaspec(manifest: dict):
     manifest = copy.deepcopy(manifest)
+    manifest = utils.make_dotdict(manifest)
 
     must_have = {'apiVersion', 'kind', 'metadata', 'spec'}
     if not must_have.issubset(set(manifest.keys())):
