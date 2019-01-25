@@ -142,8 +142,9 @@ def compute_patch(config, src, dst):
         if src["kind"] != "Namespace":
             assert src["metadata"]["namespace"] == dst["metadata"]["namespace"]
     except AssertionError:
-        # fixme: log message
-        return RetVal(None, "Cannot compute JSON patch for incompatible manifests")
+        logit = logging.getLogger("square")
+        logit.error("Cannot compute JSON patch for incompatible manifests")
+        return RetVal(None, True)
 
     kind = src['kind']
     name = src['metadata']['name']
@@ -349,13 +350,11 @@ def diffpatch(config, local_manifests, server_manifests):
         # Compute textual diff (only useful for the user to study the diff).
         diff_str, err = diff_manifests(remote, local)
         if err:
-            # fixme: log
-            return RetVal(None, err)
+            return RetVal(None, True)
 
         patch, err = compute_patch(config, remote, local)
         if err:
-            # fixme: log
-            return RetVal(None, err)
+            return RetVal(None, True)
         patches.append(Delta(meta.namespace, meta.name, diff_str, patch))
 
     new_plan = DeploymentPlan(create, patches, delete)
