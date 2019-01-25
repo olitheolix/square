@@ -317,7 +317,7 @@ def download_manifests(config, client, kinds, namespace):
     return RetVal(server_manifests, None)
 
 
-def compute_plan(local_manifests, server_manifests):
+def partition_manifests(local_manifests, server_manifests):
     """Partition `{local,server_manifests}` into resource to CREATE, PATCH and DELETE.
 
     The returned deployment plan will contain *every resource in
@@ -371,7 +371,7 @@ def diffpatch(config, local_manifests, server_manifests):
         DeploymentPlan
 
     """
-    plan, _ = compute_plan(local_manifests, server_manifests)
+    plan, _ = partition_manifests(local_manifests, server_manifests)
 
     create = []
     for meta in plan.create:
