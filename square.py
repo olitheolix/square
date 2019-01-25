@@ -248,10 +248,13 @@ def k8s_request(client, method, path, payload, headers):
         path: str
             Path to K8s resource (eg `/api/v1/namespaces`).
         payload: dict
-            Anything that can be JSON encoded.
+            Anything that can be JSON encoded, usually a K8s manifest.
+        headers: dict
+            Request headers. These will *not* replace the existing request
+            headers dictionary (eg the access tokens), but augment them.
 
     Returns:
-        None
+        RetVal(dict, int): the JSON response and the HTTP status code.
 
     """
     try:
