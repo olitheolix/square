@@ -461,7 +461,14 @@ class TestK8sDeleteGetPatchPost:
         url = 'http://examples.com/'
         client = requests.Session()
 
-        m_requests.request(method, url, exc=requests.exceptions.ConnectionError)
+        # Construct the ConnectionError exception with a fake request object.
+        # The fake is necessary to ensure that the exception handler extracts
+        # the correct pieces of information from it.
+        req = types.SimpleNamespace(method=method, url=url)
+        exc = k8s_utils.requests.exceptions.ConnectionError(request=req)
+
+        # Simulate a connection error during the request to K8s.
+        m_requests.request(method, url, exc=exc)
         ret = square.k8s_request(client, method, url, None, None)
         assert ret == RetVal(None, True)
 
