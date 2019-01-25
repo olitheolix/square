@@ -53,6 +53,25 @@ def make_manifest(kind: str, name: str, namespace: str):
     return manifest
 
 
+class TestLogging:
+    def test_setup_logging(self):
+        """Basic tests - mostly ensure that function runs."""
+
+        # Define all valid log levels, in lower- and upper case.
+        levels = ("debug", "info", "warn")
+        levels = levels + tuple([_.upper() for _ in levels])
+
+        # Test function must accept all log levels.
+        for level in levels:
+            square.setup_logging(level)
+
+        # Test function must terminate program with exit code 1 if the log
+        # level name is invalid.
+        with pytest.raises(SystemExit) as mock_exit:
+            square.setup_logging("foo")
+        assert mock_exit.value.code == 1
+
+
 class TestBasic:
     @classmethod
     def setup_class(cls):
