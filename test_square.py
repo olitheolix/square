@@ -443,6 +443,7 @@ class TestK8sDeleteGetPatchPost:
         url = 'http://examples.com/'
         client = requests.Session()
 
+        # Construct a response with a corrupt JSON string.
         corrupt_json = "{this is not valid] json;"
         m_requests.request(
             method,
@@ -451,6 +452,7 @@ class TestK8sDeleteGetPatchPost:
             status_code=200,
         )
 
+        # Test function must not return a response but indicate an error.
         ret = square.k8s_request(client, method, url, None, None)
         assert ret == RetVal(None, True)
 
@@ -474,27 +476,39 @@ class TestK8sDeleteGetPatchPost:
 
     @mock.patch.object(square, "k8s_request")
     def test_k8s_delete_get_patch_post_ok(self, m_req):
+        """Simulate successful DELETE, GET, PATCH, POST requests.
+
+        This test is for the various wrappers around the `k8s_request`
+        function, which is why we mock it so as to return an HTTP code that
+        constitutes a successful transaction for the respective request.
+
+        """
+        # Dummy values.
         client = "client"
         path = "path"
         payload = "payload"
         response = "response"
 
+        # K8s DELETE request was successful iff its return status is 200.
         m_req.reset_mock()
         m_req.return_value = RetVal(response, 200)
         assert square.k8s_delete(client, path, payload) == RetVal(response, False)
         m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
 
+        # K8s GET request was successful iff its return status is 200.
         m_req.reset_mock()
         m_req.return_value = RetVal(response, 200)
         assert square.k8s_get(client, path) == RetVal(response, False)
         m_req.assert_called_once_with(client, "GET", path, payload=None, headers=None)
 
+        # K8s PATCH request was successful iff its return status is 200.
         m_req.reset_mock()
         m_req.return_value = RetVal(response, 200)
         assert square.k8s_patch(client, path, payload) == RetVal(response, False)
         patch_headers = {'Content-Type': 'application/json-patch+json'}
         m_req.assert_called_once_with(client, "PATCH", path, payload, patch_headers)
 
+        # K8s POST request was successful iff its return status is 201.
         m_req.reset_mock()
         m_req.return_value = RetVal(response, 201)
         assert square.k8s_post(client, path, payload) == RetVal(response, False)
@@ -502,29 +516,41 @@ class TestK8sDeleteGetPatchPost:
 
     @mock.patch.object(square, "k8s_request")
     def test_k8s_delete_get_patch_post_err(self, m_req):
+        """Simulate unsuccessful DELETE, GET, PATCH, POST requests.
+
+        This test is for the various wrappers around the `k8s_request`
+        function, which is why we mock it so as to return an HTTP code that
+        constitutes an unsuccessful transaction for the respective request.
+
+        """
+        # Dummy values.
         client = "client"
         path = "path"
         payload = "payload"
         response = "response"
 
+        # K8s DELETE request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
         m_req.return_value = RetVal(response, 400)
         assert square.k8s_delete(client, path, payload) == RetVal(response, True)
         m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
 
+        # K8s GET request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
         m_req.return_value = RetVal(response, 400)
         assert square.k8s_get(client, path) == RetVal(response, True)
         m_req.assert_called_once_with(client, "GET", path, payload=None, headers=None)
 
+        # K8s PATCH request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
         m_req.return_value = RetVal(response, 400)
         assert square.k8s_patch(client, path, payload) == RetVal(response, True)
         patch_headers = {'Content-Type': 'application/json-patch+json'}
         m_req.assert_called_once_with(client, "PATCH", path, payload, patch_headers)
 
+        # K8s POST request was unsuccessful because its returns status is not 201.
         m_req.reset_mock()
-        m_req.return_value = RetVal(response, 401)
+        m_req.return_value = RetVal(response, 400)
         assert square.k8s_post(client, path, payload) == RetVal(response, True)
         m_req.assert_called_once_with(client, "POST", path, payload, headers=None)
 
