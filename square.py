@@ -19,7 +19,7 @@ from pprint import pprint
 Patch = collections.namedtuple('Patch', 'url ops')
 RetVal = collections.namedtuple('RetVal', 'data err')
 DeploymentPlan = collections.namedtuple('DeploymentPlan', 'create patch delete')
-ManifestMeta = collections.namedtuple('ManifestMeta', 'apiVersion kind namespace name')
+MetaManifest = collections.namedtuple('MetaManifest', 'apiVersion kind namespace name')
 Delta = collections.namedtuple("Delta", "namespace name diff patch")
 DeltaCreate = collections.namedtuple("DeltaCreate", "meta url manifest")
 DeltaDelete = collections.namedtuple("DeltaDelete", "meta url manifest")
@@ -204,14 +204,14 @@ def list_parser(manifest_list: dict):
     """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
 
     Return a dictionary where each key uniquely identifies the resource via a
-    `ManifestMeta` tuple and the value is the actual JSON `manifest`.
+    `MetaManifest` tuple and the value is the actual JSON `manifest`.
 
     Input:
         manifest_list: dict
             K8s response from GET request for eg `deployments`.
 
     Returns:
-        dict[ManifestMeta:dict]
+        dict[MetaManifest:dict]
 
     """
     must_have = ("apiVersion", "kind", "items")
@@ -229,7 +229,7 @@ def list_parser(manifest_list: dict):
     kind = kind[:-4]
 
     apiversion = manifest_list["apiVersion"]
-    meta_ref = ManifestMeta(apiversion, kind, None, None)
+    meta_ref = MetaManifest(apiversion, kind, None, None)
 
     manifests = {}
     for manifest in manifest_list["items"]:
@@ -396,7 +396,7 @@ def load_manifest(fname):
     manifests = {}
 
     for manifest in raw:
-        key = ManifestMeta(
+        key = MetaManifest(
             apiVersion=manifest['apiVersion'],
             kind=manifest['kind'],
             namespace=manifest['metadata'].get('namespace', None),
@@ -455,10 +455,10 @@ def find_namespace_orphans(meta_manifests):
     their namespace field.
 
     Inputs:
-        meta_manifests: Iterable[ManifestMeta]
+        meta_manifests: Iterable[MetaManifest]
 
     Returns:
-        set[ManifestMeta]: orphaned resources.
+        set[MetaManifest]: orphaned resources.
 
     """
     # Turn the input into a set.
@@ -499,9 +499,9 @@ def compute_plan(local_manifests, server_manifests):
     patching to figure out the difference, if any.
 
     Inputs:
-        local_manifests: set[ManifestMeta]
+        local_manifests: set[MetaManifest]
             Usually the dictionary keys returned by `load_manifest`.
-        server_manifests: set[ManifestMeta]
+        server_manifests: set[MetaManifest]
             Usually the dictionary keys returned by `download_manifests`.
 
     Returns:

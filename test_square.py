@@ -15,7 +15,7 @@ import square
 # Convenience.
 pjoin = os.path.join
 RetVal, DeploymentPlan = square.RetVal, square.DeploymentPlan
-ManifestMeta = square.ManifestMeta
+MetaManifest = square.MetaManifest
 Patch = square.Patch
 requests = k8s_utils.requests
 
@@ -99,7 +99,7 @@ class TestBasic:
         forget to define that namespace (or mis-spell it).
 
         """
-        Meta = square.ManifestMeta
+        Meta = square.MetaManifest
         fun = square.find_namespace_orphans
 
         # Two deployments in the same non-existing Namespace. Both are orphaned
@@ -137,7 +137,7 @@ class TestBasic:
 
         """
         fun = square.compute_plan
-        Meta = square.ManifestMeta
+        Meta = square.MetaManifest
         Plan = square.DeploymentPlan
 
         # No change because local and cluster manifests are identical.
@@ -160,7 +160,7 @@ class TestBasic:
 
         """
         fun = square.compute_plan
-        Meta = square.ManifestMeta
+        Meta = square.MetaManifest
         Plan = square.DeploymentPlan
 
         # Local and cluster manifests are orthogonal.
@@ -196,7 +196,7 @@ class TestBasic:
 
         """
         fun = square.compute_plan
-        Meta = square.ManifestMeta
+        Meta = square.MetaManifest
         Plan = square.DeploymentPlan
 
         local_man = {
@@ -348,9 +348,9 @@ class TestFetchFromK8s:
         # Verify the Python dict.
         assert len(manifests) == 3
         assert ret.data == {
-            ManifestMeta('v1', 'Deployment', 'ns_0', 'name_0'): manifests[0],
-            ManifestMeta('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
-            ManifestMeta('v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
+            MetaManifest('v1', 'Deployment', 'ns_0', 'name_0'): manifests[0],
+            MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
+            MetaManifest('v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
         }
 
         # Function must return deep copies of the manifests to avoid difficult
