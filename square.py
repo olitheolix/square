@@ -577,7 +577,7 @@ def main():
     config, _ = get_k8s_version(config, client)
 
     # Hard coded variables due to lacking of command line support.
-    fname = '/tmp/manifests.yaml'
+    fname = 'manifests.yaml'
     kinds = ('namespace', 'service', 'deployment')
     namespace = None
 
