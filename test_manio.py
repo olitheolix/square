@@ -1,6 +1,7 @@
 import copy
 import tempfile
 
+import yaml
 import manio
 import square
 import test_square
@@ -16,9 +17,9 @@ class TestYamlManifestIO:
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
         meta = [square.make_meta(_) for _ in dply]
         fdata_test_in = {
-            "m0.yaml": [dply[0], dply[1], dply[2]],
-            "m1.yaml": [dply[3], dply[4]],
-            "m2.yaml": [dply[5]],
+            "m0.yaml": yaml.safe_dump_all([dply[0], dply[1], dply[2]]),
+            "m1.yaml": yaml.safe_dump_all([dply[3], dply[4]]),
+            "m2.yaml": yaml.safe_dump_all([dply[5]]),
         }
         expected_manifests = {meta[_]: dply[_] for _ in range(6)}
 
@@ -49,29 +50,28 @@ class TestYamlManifestIO:
         server_manifests[meta[1]]["metadata"] = {"new": "label"}
 
         # ---------- SYNC SERVER MANIFESTS BACK TO LOCAL YAML FILES ----------
-        # Merge the server manifests into the local ones.
+        # Merge the server manifests into the correct local YAML file dict.
         # * Upsert local with server values
         # * Delete all local manifests not on the server
-        # :: Dict[MetaManifests:YamlDict] -> Dict[MetaManifest:YamlDict]
-        updated_manifests = manio.sync(local_manifests, server_manifests)
-
-        # Associate the manifests with the local filenames.
         # :: Dict[MetaManifests:YamlDict] -> Dict[Filename:List[(MetaManifest, YamlDict)]]
-        fdata_meta_new = manio.pack(updated_manifests, fdata_meta)
+        updated_manifests, err = manio.sync(fdata_meta, server_manifests)
+        assert err is False
 
         # Strip the meta information
         # :: Dict[Filename:List[(MetaManifest, YamlDict)]] -> Dict[Filename:YamlStr]
-        fdata_raw_new = manio.unparse(fdata_meta_new)
+        fdata_raw_new, err = manio.unparse(updated_manifests)
+        assert err is False
 
         # Expected output after we merged back the changes (ie `dply[1]` is
         # different, `dply[{3,5}]` were deleted and `dply[{6,7}]` are new).
         # The new manifests must all end up in "default.yaml".
         fdata_test_out = {
-            "m0.yaml": [dply[0], server_manifests[meta[1]], dply[2]],
-            "m1.yaml": [dply[4]],
-            "default.yaml": [dply[6], dply[7]],
+            "m0.yaml": yaml.safe_dump_all([dply[0], server_manifests[meta[1]], dply[2]]),
+            "m1.yaml": yaml.safe_dump_all([dply[4]]),
+            "default.yaml": yaml.safe_dump_all([dply[6], dply[7]]),
         }
         assert fdata_raw_new == fdata_test_out
+        assert False
 
     def test_load(self):
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
