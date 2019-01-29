@@ -201,6 +201,16 @@ def manifest_metaspec(manifest: dict):
     return RetVal(utils.make_dotdict(ret), None)
 
 
+def make_meta(manifest: dict):
+    """Compile `MetaManifest` information from `manifest` and return it."""
+    return MetaManifest(
+        apiVersion=manifest['apiVersion'],
+        kind=manifest['kind'],
+        namespace=manifest['metadata'].get('namespace', None),
+        name=manifest['metadata']['name']
+    )
+
+
 def list_parser(manifest_list: dict):
     """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
 
@@ -230,18 +240,14 @@ def list_parser(manifest_list: dict):
     kind = kind[:-4]
 
     apiversion = manifest_list["apiVersion"]
-    meta_ref = MetaManifest(apiversion, kind, None, None)
 
     manifests = {}
     for manifest in manifest_list["items"]:
         manifest = copy.deepcopy(manifest)
-        ns = manifest['metadata'].get('namespace', None)
-        name = manifest['metadata']['name']
-        key = meta_ref._replace(namespace=ns, name=name)
+        manifest['apiVersion'] = apiversion
+        manifest['kind'] = kind
 
-        manifests[key] = manifest
-        manifests[key]['apiVersion'] = apiversion
-        manifests[key]['kind'] = kind
+        manifests[make_meta(manifest)] = manifest
     return RetVal(manifests, False)
 
 
@@ -450,13 +456,7 @@ def load_manifest(fname):
     manifests = {}
 
     for manifest in raw:
-        key = MetaManifest(
-            apiVersion=manifest['apiVersion'],
-            kind=manifest['kind'],
-            namespace=manifest['metadata'].get('namespace', None),
-            name=manifest['metadata']['name'],
-        )
-        manifests[key] = copy.deepcopy(manifest)
+        manifests[make_meta(manifest)] = copy.deepcopy(manifest)
     return manifests
 
 
