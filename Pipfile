@@ -16,6 +16,7 @@ pytest = "*"
 pyyaml = "==4.2b4"
 requests = "*"
 requests-mock = "*"
+pytest-cov = "*"
 
 [dev-packages]
 
