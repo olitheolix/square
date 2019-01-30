@@ -17,6 +17,25 @@ def mk_deploy(name: str):
 
 
 class TestYamlManifestIO:
+    def test_integration(self):
+        # Setup test.
+        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
+        meta = [square.make_meta(_) for _ in dply]
+        fdata_test_in = {
+            "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
+            "foo/m1.yaml": [(meta[2], dply[2])],
+        }
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            pattern = os.path.join(tempdir, "**", "*.yaml")
+            assert glob.glob(pattern, recursive=True) == []
+            fnames_abs = {pjoin(tempdir, _) for _ in fdata_test_in.keys()}
+
+            assert manio.save(tempdir, fdata_test_in) == RetVal(None, False)
+            assert manio.load(tempdir) == RetVal(fdata_test_in, False)
+
+            assert set(glob.glob(pattern, recursive=True)) == fnames_abs
+
     def test_manifest_lifecycle(self):
         # Setup test.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
