@@ -12,14 +12,44 @@ from square import RetVal
 logit = square.logging.getLogger("square")
 
 
-def parse(data: dict):
+def parse(file_yaml: dict):
+    """Parse all YAML strings in `file_yaml` and return result.
+
+    Inputs:
+        file_yaml: Dict[Filename, str]
+            Raw data as returned by `load_files`.
+
+    Returns:
+        Dict[Filename, Tuple(MetaManifest, dict)]: YAML parsed manifests in
+        each file.
+
+    """
+    # The output dict will have a list of tuples.
     out = {}
-    for fname, yaml_str in data.items():
-        manifests = yaml.safe_load_all(yaml_str)
-        out[fname] = []
-        for manifest in manifests:
-            key = square.make_meta(manifest)
-            out[fname].append((key, manifest))
+
+    # Parse the YAML documents from every file.
+    for fname, yaml_str in file_yaml.items():
+        logit.debug(f"Parsing <{fname}>")
+
+        # Decode the YAML documents in the current file.
+        try:
+            manifests = list(yaml.safe_load_all(yaml_str))
+        except yaml.scanner.ScannerError as err:
+            logit.error(
+                f"Cannot YAML parse <{fname}>"
+                f" - {err.problem} - Line {err.problem_mark.line}"
+            )
+            return RetVal(None, True)
+
+        # Convert List[manifest] into List[(MetaManifest, manifest)].
+        out[fname] = [(square.make_meta(_), _) for _ in manifests]
+
+    # Drop all files without manifests.
+    out = {k: v for k, v in out.items() if len(v) > 0}
+    num_manifests = [len(_) for _ in out.values()]
+    logit.debug(f"Parsed {sum(num_manifests)} in {len(num_manifests)} files")
+
+    # Return the YAML parsed manifests.
     return RetVal(out, False)
 
 

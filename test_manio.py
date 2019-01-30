@@ -17,6 +17,39 @@ def mk_deploy(name: str):
 
 
 class TestYamlManifestIO:
+    def yamlfy(self, data):
+        return {
+            k: yaml.safe_dump_all(v, default_flow_style=False)
+            for k, v in data.items()
+        }
+
+    def test_parse_ok(self):
+        """Test function must be able to parse the Yaml string and compile a dict."""
+        # Construct manifests in the way as `load_files` returns them.
+        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
+        meta = [square.make_meta(_) for _ in dply]
+        fdata_test_in = {
+            "m0.yaml": [dply[0], dply[1]],
+            "m2.yaml": [dply[2]],
+            "m3.yaml": [],
+        }
+        fdata_test_in = self.yamlfy(fdata_test_in)
+
+        # We expect a dict with the same keys as the input. The dict values
+        # must be a list of tuples, each of which contains the MetaManifest and
+        # actual manifest as a Python dict.
+        expected = {
+            "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
+            "m2.yaml": [(meta[2], dply[2])],
+        }
+        assert manio.parse(fdata_test_in) == RetVal(expected, False)
+
+    def test_parse_err(self):
+        """Intercept YAML decoding errors."""
+        # Construct manifests in the way as `load_files` returns them.
+        fdata_test_in = {"m0.yaml": "invalid :: - yaml"}
+        assert manio.parse(fdata_test_in) == RetVal(None, True)
+
     def test_manifest_lifecycle(self):
         """Load, sync and save manifests the hard way.
 
