@@ -591,31 +591,21 @@ def main():
     config, _ = get_k8s_version(config, client)
 
     # Hard coded variables due to lacking of command line support.
-    fname = 'manifests.yaml'
+    manifest_folder = "manifests"
     kinds = ('namespace', 'service', 'deployment')
     namespace = None
 
-    assert param.parser == "get"
-    manifest_folder = "manifests"
+    fdata_meta, err = manio.load(manifest_folder)
+    local_manifests, err = manio.unpack(fdata_meta)
+    server_manifests, err = download_manifests(config, client, kinds, namespace)
 
     if param.parser == "get":
-        fdata_meta, err = manio.load(manifest_folder)
-
-        local_manifests, err = manio.unpack(fdata_meta)
-
-        server_manifests, err = download_manifests(config, client, kinds, namespace)
-        updated_manifests, err = manio.sync(fdata_meta, server_manifests)
-
-        _, err = manio.save(manifest_folder, updated_manifests)
+        synced_manifests, err = manio.sync(fdata_meta, server_manifests)
+        _, err = manio.save(manifest_folder, synced_manifests)
     elif param.parser == "diff":
-        local_manifests = load_manifest(fname)
-        server_manifests, _ = download_manifests(config, client, kinds, namespace)
         plan, err = compile_plan(config, local_manifests, server_manifests)
         print_deltas(plan)
     elif param.parser == "patch":
-        local_manifests = load_manifest(fname)
-        server_manifests, _ = download_manifests(config, client, kinds, namespace)
-
         plan, err = compile_plan(config, local_manifests, server_manifests)
         print_deltas(plan)
 
