@@ -4,6 +4,7 @@ import copy
 
 import square
 import yaml
+import k8s_utils
 
 from square import RetVal
 
@@ -85,3 +86,16 @@ def load_files(folder, fnames: str):
         logit.debug(f"Loading {fname_abs}")
         out[fname_rel] = open(fname_abs, "r").read()
     return RetVal(out, False)
+
+
+def load(folder):
+    fnames = glob.glob(os.path.join(folder, "**", "*.yaml"), recursive=True)
+    fnames = [_[len(folder) + 1:] for _ in fnames]
+    fdata_raw, err = load_files(folder, fnames)
+    return parse(fdata_raw)
+
+
+def save(folder, manifests: dict):
+    manifests = k8s_utils.undo_dotdict(manifests)
+    fdata_raw, err = unparse(manifests)
+    return save_files(folder, fdata_raw)
