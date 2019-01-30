@@ -67,7 +67,7 @@ def unparse(file_manifests):
     return RetVal(out, False)
 
 
-def save(folder, data: dict):
+def save_files(folder, data: dict):
     for fname, yaml_str in data.items():
         fname = os.path.join(folder, fname)
         path, _ = os.path.split(fname)
@@ -78,7 +78,7 @@ def save(folder, data: dict):
     return RetVal(None, False)
 
 
-def load(folder, fnames: str):
+def load_files(folder, fnames: str):
     out = {}
     for fname_rel in fnames:
         fname_abs = os.path.join(folder, fname_rel)
