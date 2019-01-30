@@ -1,5 +1,6 @@
+import glob
+import os
 import copy
-import collections
 
 import square
 import yaml
@@ -59,4 +60,18 @@ def unparse(file_manifests):
     }
     out = {k: v for k, v in out.items() if len(v) > 0}
     out = {k: yaml.safe_dump_all(v) for k, v in out.items()}
+    return RetVal(out, False)
+
+
+def save(data: dict):
+    for fname, yaml_str in data.items():
+        open(fname, 'w').write(yaml_str)
+    return RetVal(None, False)
+
+
+def load(fnames: str):
+    out = {}
+    for fname in fnames:
+        assert os.path.exists(fname)
+        out[fname] = open(fname, "r").read()
     return RetVal(out, False)
