@@ -89,12 +89,12 @@ class TestYamlManifestIO:
 
             pattern = os.path.join(tempdir, "**", "*.yaml")
             assert glob.glob(pattern, recursive=True) == []
-            assert manio.save(tempdir, fdata_test_in) == RetVal(None, False)
+            assert manio.save_files(tempdir, fdata_test_in) == RetVal(None, False)
             assert set(glob.glob(pattern, recursive=True)) == set(fnames_abs)
 
             # Load files.
             # :: List[Filename] -> Dict[Filename:YamlStr]
-            fdata_raw, err = manio.load(tempdir, fnames_rel)
+            fdata_raw, err = manio.load_files(tempdir, fnames_rel)
             assert err is False
             assert fdata_raw == fdata_test_in
 
@@ -111,11 +111,11 @@ class TestYamlManifestIO:
 
             pattern = os.path.join(tempdir, "**", "*.yaml")
             assert glob.glob(pattern, recursive=True) == []
-            assert manio.save(tempdir, fdata_test_in) == RetVal(None, False)
+            assert manio.save_files(tempdir, fdata_test_in) == RetVal(None, False)
             assert set(glob.glob(pattern, recursive=True)) == set(fnames_abs)
 
             # Load files.
             # :: List[Filename] -> Dict[Filename:YamlStr]
-            fdata_raw, err = manio.load(tempdir, fnames_rel)
+            fdata_raw, err = manio.load_files(tempdir, fnames_rel)
             assert err is False
             assert fdata_raw == fdata_test_in
