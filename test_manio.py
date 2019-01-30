@@ -84,17 +84,17 @@ class TestYamlManifestIO:
                 "m1.yaml": "something 1",
                 "m2.yaml": "something 2",
             }
-            fdata_test_in = {pjoin(tempdir, k): v for k, v in fdata_test_in.items()}
-            fnames = list(fdata_test_in.keys())
+            fnames_rel = list(fdata_test_in.keys())
+            fnames_abs = [pjoin(tempdir, _) for _ in fnames_rel]
 
             pattern = os.path.join(tempdir, "**", "*.yaml")
             assert glob.glob(pattern, recursive=True) == []
-            assert manio.save(fdata_test_in) == RetVal(None, False)
-            assert set(glob.glob(pattern, recursive=True)) == set(fnames)
+            assert manio.save(tempdir, fdata_test_in) == RetVal(None, False)
+            assert set(glob.glob(pattern, recursive=True)) == set(fnames_abs)
 
             # Load files.
             # :: List[Filename] -> Dict[Filename:YamlStr]
-            fdata_raw, err = manio.load(fnames)
+            fdata_raw, err = manio.load(tempdir, fnames_rel)
             assert err is False
             assert fdata_raw == fdata_test_in
 
@@ -106,16 +106,16 @@ class TestYamlManifestIO:
                 "bar/m2.yaml": "something 2",
                 "foo/bar/blah/m2.yaml": "something 3",
             }
-            fdata_test_in = {pjoin(tempdir, k): v for k, v in fdata_test_in.items()}
-            fnames = list(fdata_test_in.keys())
+            fnames_rel = list(fdata_test_in.keys())
+            fnames_abs = [pjoin(tempdir, _) for _ in fnames_rel]
 
             pattern = os.path.join(tempdir, "**", "*.yaml")
             assert glob.glob(pattern, recursive=True) == []
-            assert manio.save(fdata_test_in) == RetVal(None, False)
-            assert set(glob.glob(pattern, recursive=True)) == set(fnames)
+            assert manio.save(tempdir, fdata_test_in) == RetVal(None, False)
+            assert set(glob.glob(pattern, recursive=True)) == set(fnames_abs)
 
             # Load files.
             # :: List[Filename] -> Dict[Filename:YamlStr]
-            fdata_raw, err = manio.load(fnames)
+            fdata_raw, err = manio.load(tempdir, fnames_rel)
             assert err is False
             assert fdata_raw == fdata_test_in
