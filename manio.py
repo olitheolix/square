@@ -64,7 +64,8 @@ def unparse(file_manifests):
         for fname, manifests in file_manifests.items()
     }
     out = {k: v for k, v in out.items() if len(v) > 0}
-    out = {k: yaml.safe_dump_all(v) for k, v in out.items()}
+    out = {k: k8s_utils.undo_dotdict(v) for k, v in out.items()}
+    out = {k: yaml.safe_dump_all(v, default_flow_style=False) for k, v in out.items()}
     return RetVal(out, False)
 
 
@@ -96,6 +97,5 @@ def load(folder):
 
 
 def save(folder, manifests: dict):
-    manifests = k8s_utils.undo_dotdict(manifests)
     fdata_raw, err = unparse(manifests)
     return save_files(folder, fdata_raw)

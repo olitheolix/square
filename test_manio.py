@@ -89,12 +89,16 @@ class TestYamlManifestIO:
         # Expected output after we merged back the changes (ie `dply[1]` is
         # different, `dply[{3,5}]` were deleted and `dply[{6,7}]` are new).
         # The new manifests must all end up in "default.yaml".
-        fdata_test_out = {
-            "m0.yaml": yaml.safe_dump_all([dply[0], server_manifests[meta[1]], dply[2]]),
-            "m1.yaml": yaml.safe_dump_all([dply[4]]),
-            "default.yaml": yaml.safe_dump_all([dply[6], dply[7]]),
+        expected = {
+            "m0.yaml": [dply[0], server_manifests[meta[1]], dply[2]],
+            "m1.yaml": [dply[4]],
+            "default.yaml": [dply[6], dply[7]],
         }
-        assert fdata_raw_new == fdata_test_out
+        expected = {
+            k: yaml.safe_dump_all(v, default_flow_style=False)
+            for k, v in expected.items()
+        }
+        assert fdata_raw_new == expected
 
     def test_load_and_save_single_dir(self):
         with tempfile.TemporaryDirectory() as tempdir:
