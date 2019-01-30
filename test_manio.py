@@ -77,7 +77,7 @@ class TestYamlManifestIO:
         }
         assert fdata_raw_new == fdata_test_out
 
-    def test_load_and_save(self):
+    def test_load_and_save_single_dir(self):
         with tempfile.TemporaryDirectory() as tempdir:
             fdata_test_in = {
                 "m0.yaml": "something 0",
@@ -87,9 +87,32 @@ class TestYamlManifestIO:
             fdata_test_in = {pjoin(tempdir, k): v for k, v in fdata_test_in.items()}
             fnames = list(fdata_test_in.keys())
 
-            assert glob.glob(pjoin(tempdir, "*.yaml")) == []
+            pattern = os.path.join(tempdir, "**", "*.yaml")
+            assert glob.glob(pattern, recursive=True) == []
             assert manio.save(fdata_test_in) == RetVal(None, False)
-            assert glob.glob(pjoin(tempdir, "*.yaml")) == fnames
+            assert set(glob.glob(pattern, recursive=True)) == set(fnames)
+
+            # Load files.
+            # :: List[Filename] -> Dict[Filename:YamlStr]
+            fdata_raw, err = manio.load(fnames)
+            assert err is False
+            assert fdata_raw == fdata_test_in
+
+    def test_load_and_save_sub_dir(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            fdata_test_in = {
+                "m0.yaml": "something 0",
+                "foo/m1.yaml": "something 1",
+                "bar/m2.yaml": "something 2",
+                "foo/bar/blah/m2.yaml": "something 3",
+            }
+            fdata_test_in = {pjoin(tempdir, k): v for k, v in fdata_test_in.items()}
+            fnames = list(fdata_test_in.keys())
+
+            pattern = os.path.join(tempdir, "**", "*.yaml")
+            assert glob.glob(pattern, recursive=True) == []
+            assert manio.save(fdata_test_in) == RetVal(None, False)
+            assert set(glob.glob(pattern, recursive=True)) == set(fnames)
 
             # Load files.
             # :: List[Filename] -> Dict[Filename:YamlStr]
