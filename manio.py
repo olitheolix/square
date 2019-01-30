@@ -65,6 +65,8 @@ def unparse(file_manifests):
 
 def save(data: dict):
     for fname, yaml_str in data.items():
+        path, _ = os.path.split(fname)
+        os.makedirs(path, exist_ok=True)
         open(fname, 'w').write(yaml_str)
     return RetVal(None, False)
 
