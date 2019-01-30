@@ -7,6 +7,9 @@ import yaml
 
 from square import RetVal
 
+# Convenience: global logger instance to avoid repetitive code.
+logit = square.logging.getLogger("square")
+
 
 def parse(data: dict):
     out = {}
@@ -35,7 +38,8 @@ def sync(local_manifests, server_manifests):
     # Make a copy of the local manifests so we can safely overwrite the local
     # manifests with the server ones.
     out = copy.deepcopy(local_manifests)
-    out["default.yaml"] = []
+    if "default.yaml" not in out:
+        out["default.yaml"] = []
     for meta, manifest in server_manifests.items():
         try:
             fname, idx = meta_to_fname[meta]
@@ -63,17 +67,21 @@ def unparse(file_manifests):
     return RetVal(out, False)
 
 
-def save(data: dict):
+def save(folder, data: dict):
     for fname, yaml_str in data.items():
+        fname = os.path.join(folder, fname)
         path, _ = os.path.split(fname)
+        logit.debug(f"Creating path for <{fname}>")
         os.makedirs(path, exist_ok=True)
+        logit.debug(f"Saving YAML file <{fname}>")
         open(fname, 'w').write(yaml_str)
     return RetVal(None, False)
 
 
-def load(fnames: str):
+def load(folder, fnames: str):
     out = {}
-    for fname in fnames:
-        assert os.path.exists(fname)
-        out[fname] = open(fname, "r").read()
+    for fname_rel in fnames:
+        fname_abs = os.path.join(folder, fname_rel)
+        logit.debug(f"Loading {fname_abs}")
+        out[fname_rel] = open(fname_abs, "r").read()
     return RetVal(out, False)
