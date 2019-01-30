@@ -17,6 +17,9 @@ def mk_deploy(name: str):
 
 
 class TestYamlManifestIO:
+    def setup_class(cls):
+        square.setup_logging(9)
+
     def yamlfy(self, data):
         return {
             k: yaml.safe_dump_all(v, default_flow_style=False)
@@ -49,6 +52,41 @@ class TestYamlManifestIO:
         # Construct manifests in the way as `load_files` returns them.
         fdata_test_in = {"m0.yaml": "invalid :: - yaml"}
         assert manio.parse(fdata_test_in) == RetVal(None, True)
+
+    def test_unpack_ok(self):
+        """Test function must remove the filename dimension.
+
+        All meta manifests are unique in this test. See `test_unpakc_err` for
+        what happens if not.
+
+        """
+        src = {
+            "file0.txt": [("meta0", "manifest0"), ("meta1", "manifest1")],
+            "file1.txt": [("meta2", "manifest2")],
+        }
+        ret, err = manio.unpack(src)
+        assert err is False
+        assert ret == {
+            "meta0": "manifest0",
+            "meta1": "manifest1",
+            "meta2": "manifest2",
+        }
+
+    def test_unpack_err(self):
+        """The MetaManifests must be unique across all source files."""
+
+        # Two resources with same meta information in same file.
+        src = {
+            "file0.txt": [("meta0", "manifest0"), ("meta0", "manifest0")],
+        }
+        assert manio.unpack(src) == RetVal(None, True)
+
+        # Two resources with same meta information in different files.
+        src = {
+            "file0.txt": [("meta0", "manifest0")],
+            "file1.txt": [("meta0", "manifest0")],
+        }
+        assert manio.unpack(src) == RetVal(None, True)
 
     def test_manifest_lifecycle(self):
         """Load, sync and save manifests the hard way.

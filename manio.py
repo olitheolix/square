@@ -1,6 +1,7 @@
 import glob
 import os
 import copy
+import collections
 
 import square
 import yaml
@@ -54,6 +55,40 @@ def parse(file_yaml: dict):
 
 
 def unpack(data: dict):
+    """Drop the "Filename" dimension from `data`.
+
+    Returns an error unless all resources are unique. For instance, return an
+    error if two files define the same namespace or the same deployment.
+
+    Inputs:
+        data: Dict[Filename, Tuple[MetaManifest, dict]]
+
+    Returns:
+        Dict[MetaManifest, dict]: flattened version of `data`.
+
+    """
+    # Compile a dict that shows which meta manifest was defined in which file.
+    # We will use this information short to determine if any resources were
+    # specified multiple times in either the same or different file.
+    all_meta = collections.defaultdict(list)
+    for fname in data:
+        for meta, _ in data[fname]:
+            all_meta[meta].append(fname)
+
+    # Find out if all meta manifests were unique. If not, log the culprits and
+    # return with an error.
+    is_unique = True
+    for meta, fnames in all_meta.items():
+        if len(fnames) > 1:
+            is_unique = False
+            logit.error(
+                f"Meta manifest {meta} was defined {len(fnames)} times: "
+                f"{str.join(', ', fnames)}"
+            )
+    if not is_unique:
+        return RetVal(None, True)
+
+    # Compile the input data into a new dict with the meta manifest as key.
     out = {k: v for fname in data for k, v in data[fname]}
     return RetVal(out, False)
 
