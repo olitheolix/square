@@ -12,8 +12,8 @@ from square import RetVal
 pjoin = os.path.join
 
 
-def mk_deploy(name: str):
-    return test_square.make_manifest("Deployment", name, "namespace")
+def mk_deploy(name: str, ns: str="namespace"):
+    return test_square.make_manifest("Deployment", name, ns)
 
 
 class TestYamlManifestIO:
@@ -88,7 +88,7 @@ class TestYamlManifestIO:
         }
         assert manio.unpack(src) == RetVal(None, True)
 
-    def test_sync_ok(self):
+    def test_sync_modify_delete_ok(self):
         """Add, modify and delete a few manifests.
 
         Create fake inputs for the test function, namely local- and remote
@@ -98,73 +98,98 @@ class TestYamlManifestIO:
 
         """
         # First, create the local manifests as `load_files` would return it.
-        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
-        meta = [square.make_meta(_) for _ in dply]
+        dply_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(10)]
+        meta_1 = [square.make_meta(_) for _ in dply_1]
+        dply_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(10)]
+        meta_2 = [square.make_meta(_) for _ in dply_2]
         loc_man = {
-            "m0.yaml": [(meta[0], "0"), (meta[1], "1"), (meta[2], "2")],
-            "m1.yaml": [(meta[3], "3"), (meta[4], "4")],
-            "m2.yaml": [(meta[5], "5")],
+            "m0.yaml": [(meta_1[0], "0"), (meta_1[1], "1"), (meta_2[2], "2")],
+            "m1.yaml": [(meta_2[3], "3"), (meta_1[4], "4")],
+            "m2.yaml": [(meta_1[5], "5")],
         }
 
-        # Create server manifests as `download_manifests` would return it. The
-        # resources are based on the local ones with the changes outlined in
-        # the comments.
+        # Create server manifests as `download_manifests` would return it. Only
+        # the MetaManifests (ie dict keys) are relevant whereas the dict values
+        # are not but serve to improve code readability here.
         srv_man = {
-            meta[0]: "0",         # same
-            meta[1]: "modified",  # modified
-            meta[2]: "2",         # same
-                                  # delete [3]
-            meta[4]: "4",         # same
-                                  # delete [5]
-            meta[6]: "new",       # new
+            meta_1[0]: "0",         # same
+            meta_1[1]: "modified",  # modified
+            meta_2[2]: "2",         # same
+                                    # delete [3]
+            meta_1[4]: "4",         # same
+                                    # delete [5]
+            meta_1[6]: "new",       # new
+            meta_2[7]: "new",       # new
+            meta_1[8]: "new",       # new
         }
 
         # The expected outcome is that the local manifests were updated,
         # either overwritten (modified), deleted or put into a default
         # manifest.
         expected = {
-            "m0.yaml": [(meta[0], "0"), (meta[1], "modified"), (meta[2], "2")],
-            "m1.yaml": [(meta[4], "4")],
+            "m0.yaml": [(meta_1[0], "0"), (meta_1[1], "modified"), (meta_2[2], "2")],
+            "m1.yaml": [(meta_1[4], "4")],
             "m2.yaml": [],
-            "default.yaml": [(meta[6], "new")]
+            "_ns1.yaml": [(meta_1[6], "new"), (meta_1[8], "new")],
+            "_ns2.yaml": [(meta_2[7], "new")],
         }
         assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
 
-    def test_sync_default(self):
-        """Verify that syncing the "default.yaml" works as expected.
+    def test_sync_catch_all_files(self):
+        """Verify that syncing the catch-all files works as expected.
 
-        This requires a special test because "default.yaml" is the dumpster
-        file for server manifests that do not exist locally yet.
+        This requires a special test to ensure these auto generated catch-all
+        files behave like their "normal" user created counterparts.
 
         """
         # First, create the local manifests as `load_files` would return it.
-        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
-        meta = [square.make_meta(_) for _ in dply]
+        dply_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(20)]
+        meta_1 = [square.make_meta(_) for _ in dply_1]
+        dply_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(20)]
+        meta_2 = [square.make_meta(_) for _ in dply_2]
         loc_man = {
-            "default.yaml": [
-                (meta[1], "1"), (meta[2], "2"), (meta[3], "3"), (meta[5], "5")
+            "_ns1.yaml": [
+                (meta_1[1], "1"), (meta_1[2], "2"), (meta_1[3], "3"), (meta_1[5], "5")
+            ],
+            "_ns2.yaml": [
+                (meta_2[2], "2"), (meta_2[6], "6"),
             ]
         }
 
-        # Create server manifests as `download_manifests` would return it. The
-        # resources are similar to the local ones but we modify [1], add [6]
-        # and drop [3] and [5] (ie we do not list [3] and [5] here).
+        # Create server manifests as `download_manifests` would return it. Only
+        # the MetaManifests (ie dict keys) are relevant whereas the dict values
+        # are not but serve to improve code readability here.
         srv_man = {
-            meta[0]: "0",         # new
-            meta[1]: "modified",  # modified
-            meta[2]: "2",         # same
-            # delete [3]
-            meta[4]: "4",         # new
-            meta[5]: "5",         # same
+            # --- _ns1.yaml ---
+            meta_1[0]: "0",         # new
+            meta_1[1]: "modified",  # modified
+            meta_1[2]: "2",         # same
+                                    # delete [3]
+                                    # [4] never existed
+                                    # delete [5]
+
+            # --- _ns2.yaml ---
+            meta_2[0]: "0",         # new
+            meta_2[9]: "9",         # new
+            meta_2[7]: "7",         # new
+            meta_2[6]: "modified",  # modified
+                                    # delete [2]
+            meta_2[5]: "5",         # new
+            meta_2[3]: "3",         # new
         }
 
         # The expected outcome is that the local manifests were updated,
         # either overwritten (modified), deleted or put into a default
         # manifest.
+        # NOTE: this test _assumes_ that the `srv_man` dict iterates over its
+        # keys in insertion order, which is guaranteed for Python 3.7.
         expected = {
-            "default.yaml": [
-                (meta[1], "modified"), (meta[2], "2"), (meta[5], "5"),
-                (meta[0], "0"), (meta[4], "4")
+            "_ns1.yaml": [
+                (meta_1[1], "modified"), (meta_1[2], "2"), (meta_1[0], "0"),
+            ],
+            "_ns2.yaml": [
+                (meta_2[6], "modified"), (meta_2[0], "0"), (meta_2[9], "9"),
+                (meta_2[7], "7"), (meta_2[5], "5"), (meta_2[3], "3"),
             ]
         }
         assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
@@ -179,7 +204,7 @@ class TestYamlManifestIO:
 
         """
         # Construct demo manifests in the same way as `load_files` would.
-        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
+        dply = [mk_deploy(f"d_{_}", "nsfoo") for _ in range(10)]
         meta = [square.make_meta(_) for _ in dply]
         fdata_test_in = {
             "m0.yaml": [dply[0], dply[1], dply[2]],
@@ -234,11 +259,12 @@ class TestYamlManifestIO:
 
         # Expected output after we merged back the changes (reminder: `dply[1]`
         # is different, `dply[{3,5}]` were deleted and `dply[{6,7}]` are new).
-        # The new manifests must all end up in "default.yaml".
+        # The new manifests must all end up in "_nsfoo.yaml" file because they
+        # specify resources in the `nsfoo` namespace.
         expected = {
             "m0.yaml": [dply[0], server_manifests[meta[1]], dply[2]],
             "m1.yaml": [dply[4]],
-            "default.yaml": [dply[6], dply[7]],
+            "_nsfoo.yaml": [dply[6], dply[7]],
         }
         expected = {
             k: yaml.safe_dump_all(v, default_flow_style=False)
