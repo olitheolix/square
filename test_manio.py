@@ -1,10 +1,15 @@
-import copy
+import os
+import glob
 import tempfile
 
 import yaml
 import manio
 import square
 import test_square
+
+from square import RetVal
+
+pjoin = os.path.join
 
 
 def mk_deploy(name: str):
@@ -71,48 +76,23 @@ class TestYamlManifestIO:
             "default.yaml": yaml.safe_dump_all([dply[6], dply[7]]),
         }
         assert fdata_raw_new == fdata_test_out
-        assert False
 
-    def test_load(self):
-        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
-        fdata_test_in = {
-            "m0.yaml": [dply[0], dply[1], dply[2]],
-            "m1.yaml": [dply[3], dply[4]],
-            "m2.yaml": [dply[5]],
-        }
+    def test_load_and_save(self):
         with tempfile.TemporaryDirectory() as tempdir:
-            self.save_test_files(tempdir, fdata_test_in)
+            fdata_test_in = {
+                "m0.yaml": "something 0",
+                "m1.yaml": "something 1",
+                "m2.yaml": "something 2",
+            }
+            fdata_test_in = {pjoin(tempdir, k): v for k, v in fdata_test_in.items()}
+            fnames = list(fdata_test_in.keys())
 
-            # Find the YAML files (does not actually load them) -> List[Str]
-            fnames, _ = manio.find(tempdir)
+            assert glob.glob(pjoin(tempdir, "*.yaml")) == []
+            assert manio.save(fdata_test_in) == RetVal(None, False)
+            assert glob.glob(pjoin(tempdir, "*.yaml")) == fnames
 
             # Load files.
             # :: List[Filename] -> Dict[Filename:YamlStr]
-            fdata_raw, _ = manio.load(fnames)
+            fdata_raw, err = manio.load(fnames)
+            assert err is False
             assert fdata_raw == fdata_test_in
-
-    def test_save(self):
-        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
-        fdata_test_in = {
-            "m0.yaml": [dply[0], dply[1], dply[2]],
-            "m1.yaml": [dply[3], dply[4]],
-            "m2.yaml": [dply[5]],
-        }
-
-        # Save the files. Explicitly delete all those files whose YAML string
-        # is empty.
-        with tempfile.TemporaryDirectory() as tempdir:
-            manio.save(tempdir, fdata_test_in)
-
-            # Load back the results.
-            assert False
-
-            # Create a new file.
-            fdata_test_in["new.yaml"] = dply[6]
-            manio.save(tempdir, fdata_test_in)
-            assert False
-
-            # Delete one of the files.
-            del fdata_test_in["m0.yaml"]
-            manio.save(tempdir, fdata_test_in)
-            assert False
