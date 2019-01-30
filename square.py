@@ -599,16 +599,14 @@ def main():
     manifest_folder = "manifests"
 
     if param.parser == "get":
-        fnames = glob.glob(os.path.join(manifest_folder, "**", "*.yaml"), recursive=True)
-        fnames = [_[len(manifest_folder) + 1:] for _ in fnames]
-        fdata_raw, err = manio.load_files(manifest_folder, fnames)
-        fdata_meta, err = manio.parse(fdata_raw)
+        fdata_meta, err = manio.load(manifest_folder)
+
         local_manifests, err = manio.unpack(fdata_meta)
+
         server_manifests, err = download_manifests(config, client, kinds, namespace)
         updated_manifests, err = manio.sync(fdata_meta, server_manifests)
-        updated_manifests = utils.undo_dotdict(updated_manifests)
-        fdata_raw, err = manio.unparse(updated_manifests)
-        _, err = manio.save_files(manifest_folder, fdata_raw)
+
+        _, err = manio.save(manifest_folder, updated_manifests)
     elif param.parser == "diff":
         local_manifests = load_manifest(fname)
         server_manifests, _ = download_manifests(config, client, kinds, namespace)
