@@ -117,23 +117,23 @@ def sync(local_manifests, server_manifests):
 
     # Make a copy of the local manifests to avoid side effects for the caller.
     # We can then safely overwrite the local manifests with the server ones.
-    out_add_mod = copy.deepcopy(local_manifests)
+    # Furthermore, put it into a default dict because me may have to add
+    # manifests to new files.
+    out_add_mod = collections.defaultdict(list)
+    out_add_mod.update(copy.deepcopy(local_manifests))
     del local_manifests
 
-    # Make sure the dict has a "default.yaml" file.
-    if "default.yaml" not in out_add_mod:
-        out_add_mod["default.yaml"] = []
-
     # If the meta manifest from the server also exists locally then update the
-    # respective manifest, otherwise add it to "default.yaml".
+    # respective manifest, otherwise add it to f"_{namespace}.yaml".
     for meta, manifest in server_manifests.items():
         try:
             # Find out the YAML document index and file that defined `meta`.
             fname, idx = meta_to_fname[meta]
         except KeyError:
-            # Append the manifest to the catch-all file "default.yaml" because
-            # it does not exists locally anywhere.
-            out_add_mod["default.yaml"].append((meta, manifest))
+            # Put the resource into a "catch-all" file for its namespace. This
+            # is necessary because none of the existing YAML files defined that
+            # resource.
+            out_add_mod[f"_{meta.namespace}.yaml"].append((meta, manifest))
         else:
             # Update the correct YAML document in the correct file.
             out_add_mod[fname][idx] = (meta, manifest)
