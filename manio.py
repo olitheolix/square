@@ -94,6 +94,20 @@ def unpack(data: dict):
 
 
 def sync(local_manifests, server_manifests):
+    """Update the local manifests with the server values and return the result.
+
+    Inputs:
+        local_manifests: Dict[Filename, Tuple[MetaManifest, dict]]
+        server_manifests: Dict[MetaManifest, dict]
+
+    Returns:
+        Dict[Filename, Tuple[MetaManifest, dict]]
+
+    """
+    # Create a dict to maps a given MetaManifest to the file which defined it.
+    # Do not only store the file but also the index of the YAML manifest inside
+    # the file. We will need that information later to find out which manifest
+    # in which file we need to update.
     meta_to_fname = {}
     for fname in local_manifests:
         for idx, (meta, _) in enumerate(local_manifests[fname]):
@@ -101,26 +115,39 @@ def sync(local_manifests, server_manifests):
             del meta
         del fname
 
-    # Make a copy of the local manifests so we can safely overwrite the local
-    # manifests with the server ones.
-    out = copy.deepcopy(local_manifests)
-    if "default.yaml" not in out:
-        out["default.yaml"] = []
+    # Make a copy of the local manifests to avoid side effects for the caller.
+    # We can then safely overwrite the local manifests with the server ones.
+    out_add_mod = copy.deepcopy(local_manifests)
+    del local_manifests
+
+    # Make sure the dict has a "default.yaml" file.
+    if "default.yaml" not in out_add_mod:
+        out_add_mod["default.yaml"] = []
+
+    # If the meta manifest from the server also exists locally then update the
+    # respective manifest, otherwise add it to "default.yaml".
     for meta, manifest in server_manifests.items():
         try:
+            # Find out the YAML document index and file that defined `meta`.
             fname, idx = meta_to_fname[meta]
-            out[fname][idx] = (meta, manifest)
         except KeyError:
-            out["default.yaml"].append((meta, manifest))
+            # Append the manifest to the catch-all file "default.yaml" because
+            # it does not exists locally anywhere.
+            out_add_mod["default.yaml"].append((meta, manifest))
+        else:
+            # Update the correct YAML document in the correct file.
+            out_add_mod[fname][idx] = (meta, manifest)
 
-    # Remove all the manifests that exist locally but not on the server
-    # anymore.
-    out2 = {}
-    for fname, manifests in out.items():
-        pruned = [_ for _ in manifests if _[0] in server_manifests]
-        out2[fname] = pruned
+    # Delete the meta manifests that do not exist on the server. To do just
+    # that, iterate over all meta manifests in all files and find out if we
+    # have that meta manifest locally anywhere. Only include that manifest in
+    # the new output if we do, otherwise skip it to, in effect, delete it.
+    out_add_mod_del = {}
+    for fname, manifests in out_add_mod.items():
+        pruned = [(meta, man) for (meta, man) in manifests if meta in server_manifests]
+        out_add_mod_del[fname] = pruned
 
-    return RetVal(out2, False)
+    return RetVal(out_add_mod_del, False)
 
 
 def unparse(file_manifests):

@@ -88,6 +88,87 @@ class TestYamlManifestIO:
         }
         assert manio.unpack(src) == RetVal(None, True)
 
+    def test_sync_ok(self):
+        """Add, modify and delete a few manifests.
+
+        Create fake inputs for the test function, namely local- and remote
+        manifests. Their structure is slightly different in that the local
+        manifests still carry the file name in their data structure whereas the
+        server ones do not.
+
+        """
+        # First, create the local manifests as `load_files` would return it.
+        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
+        meta = [square.make_meta(_) for _ in dply]
+        loc_man = {
+            "m0.yaml": [(meta[0], "0"), (meta[1], "1"), (meta[2], "2")],
+            "m1.yaml": [(meta[3], "3"), (meta[4], "4")],
+            "m2.yaml": [(meta[5], "5")],
+        }
+
+        # Create server manifests as `download_manifests` would return it. The
+        # resources are based on the local ones with the changes outlined in
+        # the comments.
+        srv_man = {
+            meta[0]: "0",         # same
+            meta[1]: "modified",  # modified
+            meta[2]: "2",         # same
+                                  # delete [3]
+            meta[4]: "4",         # same
+                                  # delete [5]
+            meta[6]: "new",       # new
+        }
+
+        # The expected outcome is that the local manifests were updated,
+        # either overwritten (modified), deleted or put into a default
+        # manifest.
+        expected = {
+            "m0.yaml": [(meta[0], "0"), (meta[1], "modified"), (meta[2], "2")],
+            "m1.yaml": [(meta[4], "4")],
+            "m2.yaml": [],
+            "default.yaml": [(meta[6], "new")]
+        }
+        assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
+
+    def test_sync_default(self):
+        """Verify that syncing the "default.yaml" works as expected.
+
+        This requires a special test because "default.yaml" is the dumpster
+        file for server manifests that do not exist locally yet.
+
+        """
+        # First, create the local manifests as `load_files` would return it.
+        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
+        meta = [square.make_meta(_) for _ in dply]
+        loc_man = {
+            "default.yaml": [
+                (meta[1], "1"), (meta[2], "2"), (meta[3], "3"), (meta[5], "5")
+            ]
+        }
+
+        # Create server manifests as `download_manifests` would return it. The
+        # resources are similar to the local ones but we modify [1], add [6]
+        # and drop [3] and [5] (ie we do not list [3] and [5] here).
+        srv_man = {
+            meta[0]: "0",         # new
+            meta[1]: "modified",  # modified
+            meta[2]: "2",         # same
+            # delete [3]
+            meta[4]: "4",         # new
+            meta[5]: "5",         # same
+        }
+
+        # The expected outcome is that the local manifests were updated,
+        # either overwritten (modified), deleted or put into a default
+        # manifest.
+        expected = {
+            "default.yaml": [
+                (meta[1], "modified"), (meta[2], "2"), (meta[5], "5"),
+                (meta[0], "0"), (meta[4], "4")
+            ]
+        }
+        assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
+
     def test_manifest_lifecycle(self):
         """Load, sync and save manifests the hard way.
 
