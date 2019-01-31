@@ -315,8 +315,10 @@ def load(folder):
     # relative to `folder`.
     fnames = [_.relative_to(folder) for _ in folder.rglob("*.yaml")]
 
-    # Load the files.
+    # Load the files and abort on error.
     fdata_raw, err = load_files(folder, fnames)
+    if err:
+        return RetVal(None, True)
 
     # Return the YAML parsed manifests.
     return parse(fdata_raw)
@@ -343,5 +345,10 @@ def save(folder, manifests: dict):
     # Python's `pathlib.Path` objects are simply nicer to work with...
     folder = pathlib.Path(folder)
 
+    # Convert the manifest to YAML strings. Abort on error.
     fdata_raw, err = unparse(manifests)
+    if err:
+        return RetVal(None, True)
+
+    # Save the files to disk.
     return save_files(folder, fdata_raw)
