@@ -10,7 +10,7 @@ from square import RetVal
 
 
 def mk_deploy(name: str, ns: str="namespace"):
-    return test_square.make_manifest("Deployment", name, ns)
+    return test_square.make_manifest("Deployment", ns, name)
 
 
 class TestYamlManifestIO:
@@ -205,13 +205,15 @@ class TestYamlManifestIO:
         def mm(*args):
             return square.make_meta(test_square.make_manifest(*args))
 
-        meta_ns_a = mm("Namespace", "a", None)
-        meta_ns_b = mm("Namespace", "b", None)
-        meta_svc_a = [mm("Service", f"s{_}", "a") for _ in range(10)]
-        meta_dply_a = [mm("Deployment", f"d{_}", "a") for _ in range(10)]
-        meta_svc_b = [mm("Service", f"s{_}", "b") for _ in range(10)]
-        meta_dply_b = [mm("Deployment", f"d{_}", "b") for _ in range(10)]
+        meta_ns_a = mm("Namespace", None, "a")
+        meta_ns_b = mm("Namespace", None, "b")
+        meta_svc_a = [mm("Service", "a", f"s{_}") for _ in range(10)]
+        meta_dply_a = [mm("Deployment", "a", f"d{_}") for _ in range(10)]
+        meta_svc_b = [mm("Service", "b", f"s{_}") for _ in range(10)]
+        meta_dply_b = [mm("Deployment", "b", f"d{_}") for _ in range(10)]
 
+        # For this test we can pretend that we do not have any local manifest
+        # files yet.
         loc_man = {}
 
         # Create server manifests as `download_manifests` would return it. Only
@@ -287,12 +289,12 @@ class TestYamlManifestIO:
             return square.make_meta(test_square.make_manifest(*args))
 
         # Create valid MetaManifests.
-        meta_ns_a = mm("Namespace", None, "a")
-        meta_ns_b = mm("Namespace", None, "b")
-        meta_svc_a = [mm("Service", f"d_{_}", "a") for _ in range(10)]
-        meta_dply_a = [mm("Deployment", f"d_{_}", "a") for _ in range(10)]
-        meta_svc_b = [mm("Service", f"d_{_}", "b") for _ in range(10)]
-        meta_dply_b = [mm("Deployment", f"d_{_}", "b") for _ in range(10)]
+        meta_ns_a = mm("Namespace", "a", None)
+        meta_ns_b = mm("Namespace", "b", None)
+        meta_svc_a = [mm("Service", "a", f"d_{_}") for _ in range(10)]
+        meta_dply_a = [mm("Deployment", "a", f"d_{_}") for _ in range(10)]
+        meta_svc_b = [mm("Service", "b", f"d_{_}") for _ in range(10)]
+        meta_dply_b = [mm("Deployment", "b", f"d_{_}") for _ in range(10)]
 
         # Define manifests in the correctly grouped and sorted order for three
         # YAML files.
@@ -367,7 +369,7 @@ class TestYamlManifestIO:
 
         # Test function must gracefully reject all invalid kinds.
         for kind in invalid_kinds:
-            file_manifests = {"m0.yaml": [(mm(kind, "name", "ns"), "0")]}
+            file_manifests = {"m0.yaml": [(mm(kind, "ns", "name"), "0")]}
             assert manio.unparse(file_manifests) == RetVal(None, True)
 
     def test_unparse_known_kinds(self):
@@ -378,7 +380,7 @@ class TestYamlManifestIO:
 
         # Test function must gracefully reject all invalid kinds.
         for kind in square.SUPPORTED_KINDS:
-            file_manifests = {"m0.yaml": [(mm(kind, "name", "ns"), "0")]}
+            file_manifests = {"m0.yaml": [(mm(kind, "ns", "name"), "0")]}
             assert manio.unparse(file_manifests).err is False
 
     def test_manifest_lifecycle(self):
