@@ -5,6 +5,7 @@ import manio
 import square
 import test_square
 
+import unittest.mock as mock
 from square import RetVal
 
 
@@ -441,3 +442,15 @@ class TestYamlManifestIOIntegration:
         # the `fdata_test_in` dict.
         fnames_abs = {str(tmp_path / fname) for fname in fdata_test_in.keys()}
         assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == fnames_abs
+
+    @mock.patch.object(manio, "load_files")
+    def test_load_err(self, m_load, tmp_path):
+        """Simulate an error in `load_files` function."""
+        m_load.return_value = RetVal(None, True)
+        assert manio.load(tmp_path) == RetVal(None, True)
+
+    @mock.patch.object(manio, "unparse")
+    def test_save_err(self, m_unparse, tmp_path):
+        """Simulate an error in `unparse` function."""
+        m_unparse.return_value = RetVal(None, True)
+        assert manio.save(tmp_path, "foo") == RetVal(None, True)
