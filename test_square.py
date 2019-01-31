@@ -62,7 +62,7 @@ class TestLogging:
 class TestBasic:
     @classmethod
     def setup_class(cls):
-        pass
+        square.setup_logging(9)
 
     @classmethod
     def teardown_class(cls):
@@ -207,6 +207,10 @@ class TestBasic:
 
 
 class TestManifestValidation:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
     def test_manifest_metaspec_basic_valid(self):
         valid_deployment_manifest = {
             'apiVersion': 'v1',
@@ -304,11 +308,15 @@ class TestManifestValidation:
 
 
 class TestFetchFromK8s:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
     def test_list_parser_ok(self):
         """Convert eg a DeploymentList into a Python dict of Deployments."""
         # Demo manifests.
         manifests = [
-            make_manifest('Deployment',  f'ns_{_}', f'name_{_}')
+            make_manifest('Deployment', f'ns_{_}', f'name_{_}')
             for _ in range(3)
         ]
 
@@ -369,6 +377,10 @@ class TestFetchFromK8s:
 
 
 class TestK8sDeleteGetPatchPost:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     def test_k8s_request_ok(self, method, m_requests):
         """Simulate a successful K8s response for GET request."""
@@ -523,6 +535,10 @@ class TestK8sDeleteGetPatchPost:
 
 
 class TestPatchK8s:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
     def test_compute_patch_empty(self):
         """Basic test: compute patch between two identical resources."""
         config = types.SimpleNamespace(url='http://examples.com/', version="1.10")
@@ -600,6 +616,10 @@ class TestPatchK8s:
 
 
 class TestK8sConfig:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
     @mock.patch.object(square, "k8s_get")
     def test_get_k8s_version_auto(self, m_get):
         """Get K8s version number from API server."""

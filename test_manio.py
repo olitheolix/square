@@ -14,6 +14,7 @@ def mk_deploy(name: str, ns: str="namespace"):
 
 
 class TestYamlManifestIO:
+    @classmethod
     def setup_class(cls):
         square.setup_logging(9)
 
@@ -458,6 +459,10 @@ class TestYamlManifestIO:
 
 class TestYamlManifestIOIntegration:
     """These integration tests all write files to temporary folders."""
+
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
 
     def test_load_save_files(self, tmp_path):
         """Basic file loading/saving tests."""
