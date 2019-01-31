@@ -73,20 +73,6 @@ class TestBasic:
         # assumptions about the location of the templates, tf, etc folder.
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-    @pytest.mark.xfail
-    def test_load_manifest_files(self):
-        """Recursively load all manifests in a given folder."""
-        assert False
-
-    @pytest.mark.xfail
-    def test_load_manifest_files_duplicate(self):
-        """Abort if the same resource is specified multiple times.
-
-        It does not matter if the duplicates occur in the same or different files.
-
-        """
-        assert False
-
     def test_find_namespace_orphans(self):
         """Return all resource manifests that belong to non-existing
         namespaces.
