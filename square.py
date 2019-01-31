@@ -1,4 +1,3 @@
-import glob
 import manio
 import logging
 import sys
