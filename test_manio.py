@@ -448,6 +448,50 @@ class TestYamlManifestIOIntegration:
         (tmp_path / "foo" / "delme.txt").touch()
         assert manio.load(tmp_path) == RetVal(fdata_test_in, False)
 
+    def test_save_delete_stale_yaml(self, tmp_path):
+        """`save_file` must remove all excess YAML files."""
+        # Create two YAML files, each with multiple manifests.
+        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
+        meta = [square.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
+        fdata_full = {
+            "m0.yaml": [(meta[0], dply[0])],
+            "m1.yaml": [(meta[1], dply[1])],
+            "foo/m2.yaml": [(meta[2], dply[2])],
+            "foo/m3.yaml": [(meta[3], dply[3])],
+            "bar/m4.yaml": [(meta[4], dply[4])],
+            "bar/m5.yaml": [(meta[5], dply[5])],
+        }
+        del dply, meta
+
+        # Save and load the test data.
+        assert manio.save(tmp_path, fdata_full) == RetVal(None, False)
+        assert manio.load(tmp_path) == RetVal(fdata_full, False)
+
+        # Save a reduced set of files. Compared to `fdata_full`, it is two
+        # files short and a third one ("bar/m4.yaml") is empty.
+        fdata_reduced = fdata_full.copy()
+        del fdata_reduced["m0.yaml"]
+        del fdata_reduced["foo/m3.yaml"]
+        fdata_reduced["bar/m4.yaml"] = []
+
+        # Verify that the files still exist from the last call to `save`.
+        assert (tmp_path / "m0.yaml").exists()
+        assert (tmp_path / "foo/m3.yaml").exists()
+        assert (tmp_path / "bar/m4.yaml").exists()
+
+        # Save and the reduced set.
+        assert manio.save(tmp_path, fdata_reduced) == RetVal(None, False)
+
+        # Load the data. It must neither contain the files we removed from the
+        # dict above, nor "bar/m4.yaml" which contained an empty manifest list.
+        del fdata_reduced["bar/m4.yaml"]
+        assert manio.load(tmp_path) == RetVal(fdata_reduced, False)
+
+        # Verify that the files physically do not exist anymore.
+        assert not (tmp_path / "m0.yaml").exists()
+        assert not (tmp_path / "foo/m3.yaml").exists()
+        assert not (tmp_path / "bar/m4.yaml").exists()
+
     @mock.patch.object(manio, "load_files")
     def test_load_err(self, m_load, tmp_path):
         """Simulate an error in `load_files` function."""

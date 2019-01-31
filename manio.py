@@ -227,8 +227,16 @@ def save_files(base_path, file_data: dict):
     # Python's `pathlib.Path` objects are simply nicer to work with...
     base_path = pathlib.Path(base_path)
 
+    # Delete all YAML files under `base_path`. This avoid stale manifests.
+    for fp in base_path.rglob("*.yaml"):
+        fp.unlink()
+
     # Iterate over the dict and write each file. Abort on error.
     for fname, yaml_str in file_data.items():
+        # Skip the file if its content would be empty.
+        if yaml_str == '':
+            continue
+
         # Construct absolute file path.
         fname_abs = base_path / fname
         logit.debug(f"Creating path for <{fname}>")
