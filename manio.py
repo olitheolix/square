@@ -291,16 +291,55 @@ def load_files(base_path, fnames: tuple):
 
 
 def load(folder):
+    """Load all "*.yaml" files under `folder` (recursively).
+
+    Ignores all files not ending in ".yaml".
+
+    Returns no data in the case of an error.
+
+    NOTE: this is merely a wrapper around the various low-level functions to
+    load and parse the YAML files.
+
+    Input:
+        folder: str|Path
+            Source folder.
+
+    Returns:
+        Dict[Filename, Tuple(MetaManifest, dict)]: parsed YAML files.
+
+    """
     # Python's `pathlib.Path` objects are simply nicer to work with...
     folder = pathlib.Path(folder)
 
-    fnames = folder.rglob("*.yaml")
-    fnames = [_.relative_to(folder) for _ in fnames]
+    # Compile the list of all YAML files in `folder` but only store their path
+    # relative to `folder`.
+    fnames = [_.relative_to(folder) for _ in folder.rglob("*.yaml")]
+
+    # Load the files.
     fdata_raw, err = load_files(folder, fnames)
+
+    # Return the YAML parsed manifests.
     return parse(fdata_raw)
 
 
 def save(folder, manifests: dict):
+    """Convert all `manifests` to YAML and save them.
+
+    Returns no data in the case of an error.
+
+    NOTE: this is merely a wrapper around the various low-level functions to
+    create YAML string and save the files.
+
+    Input:
+        folder: str|Path
+            Source folder.
+        file_manifests: Dict[Filename, Tuple(MetaManifest, dict)]
+            Names of files and their Python dicts to save as YAML.
+
+    Returns:
+        None
+
+    """
     # Python's `pathlib.Path` objects are simply nicer to work with...
     folder = pathlib.Path(folder)
 
