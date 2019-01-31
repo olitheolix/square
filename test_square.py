@@ -26,8 +26,6 @@ def m_requests(request):
 
 
 def make_manifest(kind: str, name: str, namespace: str):
-    kind = kind.capitalize()
-
     manifest = {
         'apiVersion': 'v1',
         'kind': kind,
