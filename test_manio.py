@@ -1,3 +1,4 @@
+import random
 import os
 import glob
 import tempfile
@@ -193,6 +194,122 @@ class TestYamlManifestIO:
             ]
         }
         assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
+
+    def test_unparse_ok(self):
+        """Basic use case: convert Python dicts to YAML strings."""
+        # Create valid MetaManifests.
+        meta = [square.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
+
+        # Input to test function and expected output.
+        file_manifests = {
+            "m0.yaml": [(meta[0], "0"), (meta[1], "1")],
+            "m1.yaml": [(meta[2], "2")],
+        }
+        expected = self.yamlfy({
+            "m0.yaml": ["0", "1"],
+            "m1.yaml": ["2"],
+        })
+
+        # Run the tests.
+        assert manio.unparse(file_manifests) == RetVal(expected, False)
+
+    def test_unparse_sorted_ok(self):
+        """The manifests in each file must be grouped and sorted.
+
+        Every YAML file we create must group all resource types in this order:
+        namespaces, services, deployment.
+
+        All resources must be sorted by name inside each group.
+
+        """
+        def mm(*args):
+            return square.make_meta(test_square.make_manifest(*args))
+
+        # Create valid MetaManifests.
+        meta_ns_a = [mm("Namespace", f"d_{_}", "a") for _ in range(10)]
+        meta_svc_a = [mm("Service", f"d_{_}", "a") for _ in range(10)]
+        meta_dply_a = [mm("Deployment", f"d_{_}", "a") for _ in range(10)]
+        meta_ns_b = [mm("Namespace", f"d_{_}", "b") for _ in range(10)]
+        meta_svc_b = [mm("Service", f"d_{_}", "b") for _ in range(10)]
+        meta_dply_b = [mm("Deployment", f"d_{_}", "b") for _ in range(10)]
+
+        # Define manifests in the correctly grouped and sorted order for three
+        # YAML files.
+        sorted_manifests_1 = [
+            (meta_ns_a[0], "ns_a_0"),
+            (meta_ns_a[1], "ns_a_1"),
+            (meta_ns_b[0], "ns_b_0"),
+            (meta_ns_b[1], "ns_b_1"),
+            (meta_svc_a[0], "svc_a_0"),
+            (meta_svc_a[1], "svc_a_1"),
+            (meta_svc_b[0], "svc_b_0"),
+            (meta_svc_b[1], "svc_b_1"),
+            (meta_dply_a[0], "dply_a_0"),
+            (meta_dply_a[1], "dply_a_1"),
+            (meta_dply_b[0], "dply_b_0"),
+            (meta_dply_b[1], "dply_b_1"),
+        ]
+        sorted_manifests_2 = [
+            (meta_svc_a[0], "svc_a_0"),
+            (meta_svc_a[1], "svc_a_1"),
+            (meta_dply_b[0], "dply_b_0"),
+            (meta_dply_b[1], "dply_b_1"),
+        ]
+        sorted_manifests_3 = [
+            (meta_ns_a[0], "ns_a_0"),
+            (meta_svc_b[0], "svc_b_0"),
+            (meta_dply_a[1], "dply_a_1"),
+        ]
+
+        # Compile input and expected output for test function.
+        file_manifests = {
+            "m0.yaml": sorted_manifests_1.copy(),
+            "m1.yaml": sorted_manifests_2.copy(),
+            "m2.yaml": sorted_manifests_3.copy(),
+        }
+        expected = {k: [man for _, man in v] for k, v in file_manifests.items()}
+        expected = self.yamlfy(expected)
+
+        # Shuffle the manifests in each file and verify that the test function
+        # always produces the correct order, ie NS, SVC, DEPLOY, and all
+        # manifests in each group sorted by namespace and name.
+        for i in range(10):
+            for fname in file_manifests:
+                random.shuffle(file_manifests[fname])
+            assert manio.unparse(file_manifests) == RetVal(expected, False)
+
+    def test_unparse_invalid_manifest(self):
+        """Must handle YAML errors gracefully."""
+        # Create valid MetaManifests.
+        meta = [square.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
+
+        # Input to test function where one "manifest" is garbage that cannot be
+        # converted to a YAML string, eg a Python frozenset.
+        file_manifests = {
+            "m0.yaml": [(meta[0], "0"), (meta[1], frozenset(("invalid", "input")))],
+            "m1.yaml": [(meta[2], "2")],
+        }
+
+        # Test function must return with an error.
+        assert manio.unparse(file_manifests) == RetVal(None, True)
+
+    def test_unparse_unknown_kinds(self):
+        """Must handle unknown resource kinds gracefully."""
+        invalid_kinds = (
+            "deployment",       # wrong capitalisation
+            "DEPLOYMENT",       # wrong capitalisation
+            "foo",              # unknown
+            "Pod",              # we do not support Pod manifests
+        )
+
+        # Convenience.
+        def mm(*args):
+            return square.make_meta(test_square.make_manifest(*args))
+
+        # Test function must gracefully reject all invalid kinds.
+        for kind in invalid_kinds:
+            file_manifests = {"m0.yaml": [(mm(kind, "name", "ns"), "0")]}
+            assert manio.unparse(file_manifests) == RetVal(None, True)
 
     def test_manifest_lifecycle(self):
         """Load, sync and save manifests the hard way.
