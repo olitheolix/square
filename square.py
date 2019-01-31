@@ -17,6 +17,10 @@ import colorama
 from pprint import pprint
 
 
+# We support these resource types. The order matters because it determines the
+# order in which the manifests will be grouped in the output files.
+SUPPORTED_KINDS = ("Namespace", "Service", "Deployment")
+
 Patch = collections.namedtuple('Patch', 'url ops')
 RetVal = collections.namedtuple('RetVal', 'data err')
 DeploymentPlan = collections.namedtuple('DeploymentPlan', 'create patch delete')
@@ -591,7 +595,7 @@ def main():
 
     # Hard coded variables due to lacking of command line support.
     manifest_folder = "manifests"
-    kinds = ('namespace', 'service', 'deployment')
+    kinds = SUPPORTED_KINDS
     namespace = None
 
     fdata_meta, err = manio.load(manifest_folder)
