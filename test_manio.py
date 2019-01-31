@@ -427,25 +427,24 @@ class TestYamlManifestIOIntegration:
         # Saving to non-writable folder must fail.
         assert manio.save_files("/proc", file_data) == RetVal(None, True)
 
-    def test_integration(self):
-        """Save manifests then load them back."""
+    def test_integration(self, tmp_path):
+        """Basic test that uses the {load,save} convenience functions."""
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
-        meta = [square.make_meta(_) for _ in dply]
+        meta = [square.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
         fdata_test_in = {
             "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
             "foo/m1.yaml": [(meta[2], dply[2])],
         }
         del dply, meta
 
-        with tempfile.TemporaryDirectory() as tempdir:
-            # Save test file in temporary folder.
-            fnames_abs = {pjoin(tempdir, _) for _ in fdata_test_in.keys()}
+        # Save test file in temporary folder.
+        fnames_abs = {pjoin(tmp_path, _) for _ in fdata_test_in.keys()}
 
-            # Save the test data, then load it back and verify.
-            assert manio.save(tempdir, fdata_test_in) == RetVal(None, False)
-            assert manio.load(tempdir) == RetVal(fdata_test_in, False)
+        # Save the test data, then load it back and verify.
+        assert manio.save(tmp_path, fdata_test_in) == RetVal(None, False)
+        assert manio.load(tmp_path) == RetVal(fdata_test_in, False)
 
-            # Use `glob` to verify the files ended up in the correct location.
-            pattern = os.path.join(tempdir, "**", "*.yaml")
-            assert set(glob.glob(pattern, recursive=True)) == fnames_abs
+        # Use `glob` to verify the files ended up in the correct location.
+        pattern = os.path.join(tmp_path, "**", "*.yaml")
+        assert set(glob.glob(pattern, recursive=True)) == fnames_abs
