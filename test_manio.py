@@ -1,7 +1,4 @@
 import random
-import os
-import glob
-import tempfile
 
 import yaml
 import manio
@@ -9,8 +6,6 @@ import square
 import test_square
 
 from square import RetVal
-
-pjoin = os.path.join
 
 
 def mk_deploy(name: str, ns: str="namespace"):
@@ -438,13 +433,11 @@ class TestYamlManifestIOIntegration:
         }
         del dply, meta
 
-        # Save test file in temporary folder.
-        fnames_abs = {pjoin(tmp_path, _) for _ in fdata_test_in.keys()}
-
         # Save the test data, then load it back and verify.
         assert manio.save(tmp_path, fdata_test_in) == RetVal(None, False)
         assert manio.load(tmp_path) == RetVal(fdata_test_in, False)
 
-        # Use `glob` to verify the files ended up in the correct location.
-        pattern = os.path.join(tmp_path, "**", "*.yaml")
-        assert set(glob.glob(pattern, recursive=True)) == fnames_abs
+        # Glob the folder and ensure it contains exactly the files specified in
+        # the `fdata_test_in` dict.
+        fnames_abs = {str(tmp_path / fname) for fname in fdata_test_in.keys()}
+        assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == fnames_abs
