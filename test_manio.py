@@ -422,7 +422,7 @@ class TestYamlManifestIOIntegration:
         # Saving to non-writable folder must fail.
         assert manio.save_files("/proc", file_data) == RetVal(None, True)
 
-    def test_integration(self, tmp_path):
+    def test_load_save_ok(self, tmp_path):
         """Basic test that uses the {load,save} convenience functions."""
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
