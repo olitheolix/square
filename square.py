@@ -375,64 +375,76 @@ def compile_plan(config, local_manifests, server_manifests):
     """Return the `DeploymentPlan` to transition K8s to state of `local_manifests`.
 
     The deployment plan is a named tuple. It specifies which resources to
-    create, patch and delete to ensure that the K8s state (specified by
-    `server_manifests` usually returned by `download_manifests`) will match the
-    state specified in the `local_manifests`.
+    create, patch and delete to ensure that the state of K8s matches that
+    specified in `local_manifests`.
 
     Inputs:
         config: k8s_utils.Config
-        local_manifests: set[MetaManifest]
-            Usually the dictionary keys returned by `load_manifest`.
-        server_manifests: set[MetaManifest]
-            Usually the dictionary keys returned by `download_manifests`.
+        local_manifests: Dict[MetaManifest, dict]
+            Should be output from `load_manifest` or `load`.
+        server_manifests: Dict[MetaManifest, dict]
+            Should be output from `download_manifests`.
 
     Returns:
         DeploymentPlan
 
     """
-    plan, _ = partition_manifests(local_manifests, server_manifests)
+    # Partition the set of meta manifests into create/delete/patch groups.
+    plan, err = partition_manifests(local_manifests, server_manifests)
+    if err:
+        return RetVal(None, True)
 
+    # Sanity check: the resources to patch *must* exist in both local and
+    # server manifests. This is a bug if not.
+    assert set(plan.patch).issubset(set(local_manifests.keys()))
+    assert set(plan.patch).issubset(set(server_manifests.keys()))
+
+    # Compile the Deltas to create the missing resources.
     create = []
     for meta in plan.create:
         url = urlpath_builder(config, meta.kind, namespace=meta.namespace)
         create.append(DeltaCreate(meta, url, local_manifests[meta]))
 
-    delete = []
+    # Compile the Deltas to delete the excess resources. Every DELETE request
+    # will have to pass along a `DeleteOptions` manifest (see below).
     del_opts = {
         "apiVersion": "v1",
         "kind": "DeleteOptions",
         "gracePeriodSeconds": 0,
         "orphanDependents": False,
     }
+    delete = []
     for meta in plan.delete:
+        # Resource URL.
         url = urlpath_builder(config, meta.kind, namespace=meta.namespace)
-        url = f"{url}/{meta.name}"
-        delete.append(DeltaDelete(meta, url, copy.deepcopy(del_opts)))
 
+        # DELETE requests must specify the resource name in the path.
+        url = f"{url}/{meta.name}"
+
+        # Assemble the delta and add it to the list.
+        delete.append(DeltaDelete(meta, url, del_opts.copy()))
+
+    # Iterate over each manifest that needs patching and determine the
+    # necessary JSON Patch to transition K8s into the state specified in the
+    # local manifests.
     patches = []
     for meta in plan.patch:
-        name = f'{meta.namespace}/{meta.name}'
-        try:
-            loc = local_manifests[meta]
-            srv = server_manifests[meta]
-        except KeyError:
-            # fixme: ensure beforehand that keys exist and compile the list of
-            # resources to add/delete on the server.
-            print(f'Mismatch for ingress {name}')
-            continue
+        loc = local_manifests[meta]
+        srv = server_manifests[meta]
 
         # Compute textual diff (only useful for the user to study the diff).
         diff_str, err = diff_manifests(srv, loc)
         if err:
             return RetVal(None, True)
 
+        # Compute the JSON patch that will match K8s to the local manifest.
         patch, err = compute_patch(config, loc, srv)
         if err:
             return RetVal(None, True)
         patches.append(DeltaPatch(meta, diff_str, patch))
 
-    new_plan = DeploymentPlan(create, patches, delete)
-    return RetVal(new_plan, False)
+    # Assemble and return the deployment plan.
+    return RetVal(DeploymentPlan(create, patches, delete), False)
 
 
 def print_deltas(plan):
