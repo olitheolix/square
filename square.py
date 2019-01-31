@@ -456,25 +456,6 @@ def print_deltas(plan):
     return RetVal(None, None)
 
 
-def load_manifest(fname):
-    raw = yaml.safe_load_all(open(fname))
-    manifests = {}
-
-    for manifest in raw:
-        manifests[make_meta(manifest)] = copy.deepcopy(manifest)
-    return manifests
-
-
-def save_manifests(manifests, fname):
-    # Undo the DotDicts for the YAML parser.
-    manifests = utils.undo_dotdict(copy.deepcopy(manifests))
-    yaml.safe_dump_all(
-        manifests.values(),
-        open(fname, 'w'),
-        default_flow_style=False,
-    )
-
-
 def get_k8s_version(config: utils.Config, client):
     """Return new `config` with version number of K8s API.
 
