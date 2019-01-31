@@ -443,6 +443,11 @@ class TestYamlManifestIOIntegration:
         fnames_abs = {str(tmp_path / fname) for fname in fdata_test_in.keys()}
         assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == fnames_abs
 
+        # Create non-YAML files. The `load_files` function must skip those.
+        (tmp_path / "delme.txt").touch()
+        (tmp_path / "foo" / "delme.txt").touch()
+        assert manio.load(tmp_path) == RetVal(fdata_test_in, False)
+
     @mock.patch.object(manio, "load_files")
     def test_load_err(self, m_load, tmp_path):
         """Simulate an error in `load_files` function."""
