@@ -483,8 +483,8 @@ class TestYamlManifestIOIntegration:
             assert fp.exists()
             assert fp.read_text() == file_data[fname]
 
-        # Saving to non-writable folder must fail.
-        assert manio.save_files("/proc", file_data) == RetVal(None, True)
+        # Saving to non-writable (or non-existing) folder must fail.
+        assert manio.save_files("/does/not/exist", file_data) == RetVal(None, True)
 
     def test_load_save_ok(self, tmp_path):
         """Basic test that uses the {load,save} convenience functions."""
