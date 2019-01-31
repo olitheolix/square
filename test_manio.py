@@ -404,6 +404,29 @@ class TestYamlManifestIO:
 class TestYamlManifestIOIntegration:
     """These integration tests all write files to temporary folders."""
 
+    def test_load_save_files(self, tmp_path):
+        """Basic file loading/saving tests."""
+        # Demo file names and content.
+        fnames = ("m0.yaml", "m1.yaml", "foo/m2.yaml", "foo/bar/m3.yaml")
+        file_data = {fname: f"Data in {fname}" for fname in fnames}
+
+        # Asking for non-existing files must return an error.
+        assert manio.load_files(tmp_path, fnames) == RetVal(None, True)
+
+        # Saving files to the temporary folder and loading them afterwards
+        # again must work.
+        assert manio.save_files(tmp_path, file_data) == RetVal(None, False)
+        assert manio.load_files(tmp_path, fnames) == RetVal(file_data, False)
+
+        # Manually verify the files.
+        for fname in fnames:
+            fp = tmp_path / fname
+            assert fp.exists()
+            assert fp.read_text() == file_data[fname]
+
+        # Saving to non-writable folder must fail.
+        assert manio.save_files("/proc", file_data) == RetVal(None, True)
+
     def test_integration(self):
         """Save manifests then load them back."""
         # Create two YAML files, each with multiple manifests.
@@ -426,29 +449,3 @@ class TestYamlManifestIOIntegration:
             # Use `glob` to verify the files ended up in the correct location.
             pattern = os.path.join(tempdir, "**", "*.yaml")
             assert set(glob.glob(pattern, recursive=True)) == fnames_abs
-
-    def test_load_and_save_file_single_dir(self):
-        """Use low level functions to save and load files."""
-        with tempfile.TemporaryDirectory() as tempdir:
-            # Demo input for `save_files` below (content is irrelevant).
-            fdata = {
-                "m0.yaml": "something 0",
-                "foo/m1.yaml": "something 1",
-                "bar/m2.yaml": "something 2",
-                "foo/bar/blah/m2.yaml": "something 3",
-            }
-
-            # Convenience: extract absolute and relative file names.
-            fnames_rel = list(fdata.keys())
-            fnames_abs = [pjoin(tempdir, _) for _ in fnames_rel]
-
-            # The target folder must be empty before we save the files.
-            pattern = os.path.join(tempdir, "**", "*.yaml")
-            assert glob.glob(pattern, recursive=True) == []
-
-            # The target folder must now contain the expected files.
-            assert manio.save_files(tempdir, fdata) == RetVal(None, False)
-            assert set(glob.glob(pattern, recursive=True)) == set(fnames_abs)
-
-            # Load the files from the temporary folder again.
-            assert manio.load_files(tempdir, fnames_rel) == RetVal(fdata, False)

@@ -1,3 +1,4 @@
+import pathlib
 import glob
 import os
 import copy
@@ -209,23 +210,83 @@ def unparse(file_manifests):
     return RetVal(out, False)
 
 
-def save_files(folder, data: dict):
-    for fname, yaml_str in data.items():
-        fname = os.path.join(folder, fname)
-        path, _ = os.path.split(fname)
+def save_files(base_path, file_data: dict):
+    """Save all `file_data` under `base_path`.
+
+    All paths in `file_data` are relative to `base_path`.
+
+    Inputs:
+        base_path: Path
+        file_data: Dict[Filename, str]
+            The file name (relative to `base_path`) and its content.
+
+    Returns:
+        None
+
+    """
+    # Python's `pathlib.Path` objects are simply nicer to work with...
+    base_path = pathlib.Path(base_path)
+
+    # Iterate over the dict and write each file. Abort on error.
+    for fname, yaml_str in file_data.items():
+        # Construct absolute file path.
+        fname_abs = base_path / fname
         logit.debug(f"Creating path for <{fname}>")
-        os.makedirs(path, exist_ok=True)
-        logit.debug(f"Saving YAML file <{fname}>")
-        open(fname, 'w').write(yaml_str)
+
+        # Create the necessary parent directories so we can write the file
+        # afterwards.
+        fname_abs.parent.mkdir(parents=True, exist_ok=True)
+        logit.debug(f"Saving YAML file <{fname_abs}>")
+
+        # Write the file. Abort on error.
+        try:
+            fname_abs.write_text(yaml_str)
+        except FileNotFoundError:
+            logit.error(f"Could not find <{fname_abs}>")
+            return RetVal(None, True)
+
+    # Tell caller that all files were successfully written.
     return RetVal(None, False)
 
 
-def load_files(folder, fnames: str):
+def load_files(base_path, fnames: tuple):
+    """Load all `fnames` relative `base_path`.
+
+    The elements of `fname` can have sub-paths, eg `foo/bar/file.txt` is valid
+    and would ultimately open f"{base_path}/foo/bar/file.txt".
+
+    Either returns the content of all files or returns with an error and no
+    data. It will not return only a sub-set of the files.
+
+    Inputs:
+        base_path: Path
+        fnames: Iterable[str|Path]
+            The file names relative to `base_path`.
+
+    Returns:
+        Dict[Filename, str]: the file names (relative to `base_path`) and their
+        content as a string.
+
+    """
+    # Python's `pathlib.Path` objects are simply nicer to work with...
+    base_path = pathlib.Path(base_path)
+
+    # Load each file and store its name and content in the `out` dictionary.
     out = {}
     for fname_rel in fnames:
-        fname_abs = os.path.join(folder, fname_rel)
+        # Construct absolute file path.
+        fname_abs = base_path / fname_rel
         logit.debug(f"Loading {fname_abs}")
-        out[fname_rel] = open(fname_abs, "r").read()
+
+        # Read the file. Abort on error.
+        try:
+            # The str() is necessary because `fname_rel` may be a `pathlib.Path`.
+            out[str(fname_rel)] = fname_abs.read_text()
+        except FileNotFoundError:
+            logit.error(f"Could not find <{fname_abs}>")
+            return RetVal(None, True)
+
+    # Return the read files.
     return RetVal(out, False)
 
 
