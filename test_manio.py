@@ -191,6 +191,71 @@ class TestYamlManifestIO:
         }
         assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
 
+    def test_sync_new_namespaces(self):
+        """Create catch-all files for new namespaces.
+
+        This tests verifies that namespace resources end up in the correct
+        catch-all files. This is a corner case because the correct catch-all
+        file for namespaces is based on the `name` attributed of that
+        namespace's `MetaManifest`, not the `namespace` attribute which is None
+        for namespaces.
+
+        """
+        # Convenience to improve readability.
+        def mm(*args):
+            return square.make_meta(test_square.make_manifest(*args))
+
+        meta_ns_a = mm("Namespace", "a", None)
+        meta_ns_b = mm("Namespace", "b", None)
+        meta_svc_a = [mm("Service", f"s{_}", "a") for _ in range(10)]
+        meta_dply_a = [mm("Deployment", f"d{_}", "a") for _ in range(10)]
+        meta_svc_b = [mm("Service", f"s{_}", "b") for _ in range(10)]
+        meta_dply_b = [mm("Deployment", f"d{_}", "b") for _ in range(10)]
+
+        loc_man = {}
+
+        # Create server manifests as `download_manifests` would return it. Only
+        # the MetaManifests (ie dict keys) are relevant whereas the dict values
+        # are not but serve to improve code readability here.
+        srv_man = {
+            # --- _a.yaml ---
+            meta_ns_a: "ns_a",
+            meta_svc_a[0]: "svc_a_0",
+            meta_svc_a[1]: "svc_a_1",
+            meta_dply_a[3]: "dply_a_3",
+            meta_dply_a[4]: "dply_a_4",
+
+            # --- _b.yaml ---
+            meta_ns_b: "ns_b",
+            meta_svc_b[0]: "svc_b_0",
+            meta_svc_b[1]: "svc_b_1",
+            meta_dply_b[3]: "dply_b_3",
+            meta_dply_b[4]: "dply_b_4",
+        }
+
+        # The expected outcome is that the local manifests were updated,
+        # either overwritten (modified), deleted or put into a default
+        # manifest.
+        # NOTE: this test _assumes_ that the `srv_man` dict iterates over its
+        # keys in insertion order, which is guaranteed for Python 3.7.
+        expected = {
+            "_a.yaml": [
+                (meta_ns_a, "ns_a"),
+                (meta_svc_a[0], "svc_a_0"),
+                (meta_svc_a[1], "svc_a_1"),
+                (meta_dply_a[3], "dply_a_3"),
+                (meta_dply_a[4], "dply_a_4"),
+            ],
+            "_b.yaml": [
+                (meta_ns_b, "ns_b"),
+                (meta_svc_b[0], "svc_b_0"),
+                (meta_svc_b[1], "svc_b_1"),
+                (meta_dply_b[3], "dply_b_3"),
+                (meta_dply_b[4], "dply_b_4"),
+            ],
+        }
+        assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
+
     def test_unparse_ok(self):
         """Basic use case: convert Python dicts to YAML strings."""
         # Create valid MetaManifests.
