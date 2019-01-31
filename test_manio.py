@@ -398,10 +398,7 @@ class TestYamlManifestIO:
             "m1.yaml": [dply[3], dply[4]],
             "m2.yaml": [dply[5]],
         }
-        fdata_test_in = {
-            k: yaml.safe_dump_all(v, default_flow_style=False)
-            for k, v in fdata_test_in.items()
-        }
+        fdata_test_in = self.yamlfy(fdata_test_in)
         expected_manifests = {meta[_]: dply[_] for _ in range(6)}
 
         # ---------- PARSE YAML FILES ----------
@@ -453,10 +450,7 @@ class TestYamlManifestIO:
             "m1.yaml": [dply[4]],
             "_nsfoo.yaml": [dply[6], dply[7]],
         }
-        expected = {
-            k: yaml.safe_dump_all(v, default_flow_style=False)
-            for k, v in expected.items()
-        }
+        expected = self.yamlfy(expected)
         assert fdata_raw_new == expected
 
 
