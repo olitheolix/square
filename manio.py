@@ -163,16 +163,11 @@ def unparse(file_manifests):
         Dict[Filename:YamlStr]: Yaml representation of all manifests.
 
     """
-    # Group the manifest kinds in this order.
-    # Fixme: import this from a global variable in `square.py` that specifies
-    #        the resource kinds we support.
-    supported_kinds = ("Namespace", "Service", "Deployment")
-
     out = {}
     for fname, manifests in file_manifests.items():
         # Verify that this file contains only supported resource kinds.
         kinds = {meta.kind for meta, _ in manifests}
-        diff = kinds - set(supported_kinds)
+        diff = kinds - set(square.SUPPORTED_KINDS)
         if len(diff) > 0:
             logit.error(f"Found unsupported resource kinds when writing <{fname}>: {diff}")
             return RetVal(None, True)
@@ -180,7 +175,7 @@ def unparse(file_manifests):
         # Group the manifests by their "kind", sort each group and compile a
         # new list of grouped and sorted manifests.
         man_sorted = []
-        for kind in supported_kinds:
+        for kind in square.SUPPORTED_KINDS:
             man_sorted += sorted([_ for _ in manifests if _[0].kind == kind])
         assert len(man_sorted) == len(manifests)
 
