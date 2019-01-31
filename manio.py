@@ -245,16 +245,13 @@ def save_files(base_path, file_data: dict):
         fname_abs = base_path / fname
         logit.debug(f"Creating path for <{fname}>")
 
-        # Create the necessary parent directories so we can write the file
-        # afterwards.
-        fname_abs.parent.mkdir(parents=True, exist_ok=True)
+        # Create the parent directories and write the file. Abort on error.
         logit.debug(f"Saving YAML file <{fname_abs}>")
-
-        # Write the file. Abort on error.
         try:
+            fname_abs.parent.mkdir(parents=True, exist_ok=True)
             fname_abs.write_text(yaml_str)
-        except FileNotFoundError:
-            logit.error(f"Could not find <{fname_abs}>")
+        except IOError as err:
+            logit.error(f"{err}")
             return RetVal(None, True)
 
     # Tell caller that all files were successfully written.
