@@ -654,3 +654,192 @@ class TestK8sConfig:
         # The return `Config` tuple must be identical to the input except for
         # the version number.
         assert config._replace(version=None) == config2._replace(version=None)
+
+
+class TestPlan:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
+    def test_compile_plan_create_delete(self):
+        """Test a plan that creates and deletes resource, but not patches any.
+
+        To do this, the local and server resources are all distinct. As a
+        result, the returned plan must dictate that all local resources shall
+        be created, all server resources deleted, and none patched.
+
+        """
+        # Create vanilla `Config` instance.
+        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+
+        # Allocate arrays for the MetaManifests and resource URLs.
+        meta = [None] * 5
+        url = [None] * 5
+
+        # Define Namespace "ns1" with 1 deployment.
+        meta[0] = MetaManifest('v1', 'Namespace', None, 'ns1')
+        meta[1] = MetaManifest('v1', 'Deployment', 'ns1', 'res_0')
+
+        # Define Namespace "ns2" with 2 deployments.
+        meta[2] = MetaManifest('v1', 'Namespace', None, 'ns2')
+        meta[3] = MetaManifest('v1', 'Deployment', 'ns2', 'res_1')
+        meta[4] = MetaManifest('v1', 'Deployment', 'ns2', 'res_2')
+
+        # Determine the K8s resource urls for those that will be added.
+        builder = square.urlpath_builder
+        url[0] = builder(config, meta[0].kind, meta[0].namespace)
+        url[1] = builder(config, meta[1].kind, meta[1].namespace)
+
+        # Determine the K8s resource URLs for those that will be deleted. They
+        # are slightly different because DELETE requests expect a URL path that
+        # ends with the resource, eg
+        # "/api/v1/namespaces/ns2"
+        # instead of
+        # "/api/v1/namespaces".
+        url[2] = builder(config, meta[2].kind, meta[2].namespace) + "/" + meta[2].name
+        url[3] = builder(config, meta[3].kind, meta[3].namespace) + "/" + meta[3].name
+        url[4] = builder(config, meta[4].kind, meta[4].namespace) + "/" + meta[4].name
+
+        # Compile local and server manifests that have no resource overlap.
+        # This will ensure that we have to create all the local resources,
+        # delete all the server resources and path nothing.
+        loc_man = {meta[0]: "0", meta[1]: "1"}
+        srv_man = {meta[2]: "2", meta[3]: "3", meta[4]: "4"}
+
+        # The resources require a manifest to specify the terms of deletion.
+        # This is currently hard coded into the function.
+        del_opts = {
+            "apiVersion": "v1",
+            "kind": "DeleteOptions",
+            "gracePeriodSeconds": 0,
+            "orphanDependents": False,
+        }
+
+        # Resources from local files must be created, resources on server must
+        # be deleted.
+        expected = square.DeploymentPlan(
+            create=[
+                square.DeltaCreate(meta[0], url[0], loc_man[meta[0]]),
+                square.DeltaCreate(meta[1], url[1], loc_man[meta[1]]),
+            ],
+            patch=[],
+            delete=[
+                square.DeltaDelete(meta[2], url[2], del_opts),
+                square.DeltaDelete(meta[3], url[3], del_opts),
+                square.DeltaDelete(meta[4], url[4], del_opts),
+            ],
+        )
+        assert square.compile_plan(config, loc_man, srv_man) == RetVal(expected, False)
+
+    def test_compile_plan_patch_no_diff(self):
+        """Test a plan that patches all resources.
+
+        To do this, the local and server resources are identical. As a
+        result, the returned plan must nominate all manifests for patching, and
+        none to create and delete.
+
+        """
+        # Create vanilla `Config` instance.
+        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+
+        # Allocate arrays for the MetaManifests.
+        meta = [None] * 4
+
+        # Define two Namespace with 1 deployment each.
+        meta[0] = MetaManifest('v1', 'Namespace', None, 'ns1')
+        meta[1] = MetaManifest('v1', 'Deployment', 'ns1', 'res_0')
+        meta[2] = MetaManifest('v1', 'Namespace', None, 'ns2')
+        meta[3] = MetaManifest('v1', 'Deployment', 'ns2', 'res_1')
+
+        # Determine the K8s resource URLs for patching. Those URLs must contain
+        # the resource name as the last path element, eg "/api/v1/namespaces/ns1"
+        builder = square.urlpath_builder
+        url = [builder(config, _.kind, _.namespace) + f"/{_.name}" for _ in meta]
+
+        # Local and server manifests are identical. The plan must therefore
+        # only nominate patches but nothing to create or delete.
+        loc_man = srv_man = {
+            meta[0]: make_manifest("Namespace", None, "ns1"),
+            meta[1]: make_manifest("Deployment", "ns1", "res_0"),
+            meta[2]: make_manifest("Namespace", None, "ns2"),
+            meta[3]: make_manifest("Deployment", "ns2", "res_1"),
+        }
+        expected = square.DeploymentPlan(
+            create=[],
+            patch=[
+                square.DeltaPatch(meta[0], "", square.Patch(url[0], [])),
+                square.DeltaPatch(meta[1], "", square.Patch(url[1], [])),
+                square.DeltaPatch(meta[2], "", square.Patch(url[2], [])),
+                square.DeltaPatch(meta[3], "", square.Patch(url[3], [])),
+            ],
+            delete=[]
+        )
+        assert square.compile_plan(config, loc_man, srv_man) == RetVal(expected, False)
+
+    def test_compile_plan_patch_with_diff(self):
+        """Test a plan that patches all resources.
+
+        To do this, the local and server resources are identical. As a
+        result, the returned plan must nominate all manifests for patching, and
+        none to create and delete.
+
+        """
+        # Create vanilla `Config` instance.
+        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+
+        # Define a single resource.
+        meta = MetaManifest('v1', 'Namespace', None, 'ns1')
+
+        # Local and server manifests have the same resources but their
+        # definition differs. This will ensure a non-empty patch in the plan.
+        loc_man = {meta: make_manifest("Namespace", None, "ns1")}
+        srv_man = {meta: make_manifest("Namespace", None, "ns1")}
+        loc_man[meta]["metadata"]["labels"] = {"foo": "foo"}
+        srv_man[meta]["metadata"]["labels"] = {"bar": "bar"}
+
+        # Compute the JSON patch and textual diff to populated the expected
+        # output structure below.
+        patch, err = square.compute_patch(config, loc_man[meta], srv_man[meta])
+        assert not err
+        diff_str, err = square.diff_manifests(srv_man[meta], loc_man[meta])
+        assert not err
+
+        # Verify the test function returns the correct Patch and diff.
+        expected = square.DeploymentPlan(
+            create=[],
+            patch=[square.DeltaPatch(meta, diff_str, patch)],
+            delete=[]
+        )
+        assert square.compile_plan(config, loc_man, srv_man) == RetVal(expected, False)
+
+    @mock.patch.object(square, "partition_manifests")
+    @mock.patch.object(square, "diff_manifests")
+    @mock.patch.object(square, "compute_patch")
+    def test_compile_plan_err(self, m_patch, m_diff, m_part):
+        """Use mocks for the internal function calls to simulate errors."""
+        # Create vanilla `Config` instance.
+        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+
+        # Define a single resource and valid dummy return value for
+        # `square.partition_manifests`.
+        meta = MetaManifest('v1', 'Namespace', None, 'ns1')
+        plan = square.DeploymentPlan(create=[], patch=[meta], delete=[])
+
+        # Local and server manifests have the same resources but their
+        # definition differs. This will ensure a non-empty patch in the plan.
+        loc_man = srv_man = {meta: make_manifest("Namespace", None, "ns1")}
+
+        # Simulate an error in `compile_plan`.
+        m_part.return_value = RetVal(None, True)
+        assert square.compile_plan(config, loc_man, srv_man) == RetVal(None, True)
+
+        # Simulate an error in `diff_manifests`.
+        m_part.return_value = RetVal(plan, False)
+        m_diff.return_value = RetVal(None, True)
+        assert square.compile_plan(config, loc_man, srv_man) == RetVal(None, True)
+
+        # Simulate an error in `compute_patch`.
+        m_part.return_value = RetVal(plan, False)
+        m_diff.return_value = RetVal("some string", False)
+        m_patch.return_value = RetVal(None, True)
+        assert square.compile_plan(config, loc_man, srv_man) == RetVal(None, True)
