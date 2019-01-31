@@ -151,13 +151,66 @@ def sync(local_manifests, server_manifests):
 
 
 def unparse(file_manifests):
-    out = {
-        fname: [manifest for _, manifest in manifests]
-        for fname, manifests in file_manifests.items()
-    }
+    """Convert the Python dict to a Yaml string for each file and return it.
+
+    The output dict can be passed directly to `save_files` to write the files.
+
+    Inputs:
+        file_manifests: Dict[Filename:Tuple[MetaManifest, manifest]]
+            Typically the output from eg `manio.sync`.
+
+    Returns:
+        Dict[Filename:YamlStr]: Yaml representation of all manifests.
+
+    """
+    # Group the manifest kinds in this order.
+    # Fixme: import this from a global variable in `square.py` that specifies
+    #        the resource kinds we support.
+    supported_kinds = ("Namespace", "Service", "Deployment")
+
+    out = {}
+    for fname, manifests in file_manifests.items():
+        # Verify that this file contains only supported resource kinds.
+        kinds = {meta.kind for meta, _ in manifests}
+        diff = kinds - set(supported_kinds)
+        if len(diff) > 0:
+            logit.error(f"Found unsupported resource kinds when writing <{fname}>: {diff}")
+            return RetVal(None, True)
+
+        # Group the manifests by their "kind", sort each group and compile a
+        # new list of grouped and sorted manifests.
+        man_sorted = []
+        for kind in supported_kinds:
+            man_sorted += sorted([_ for _ in manifests if _[0].kind == kind])
+        assert len(man_sorted) == len(manifests)
+
+        # Drop the MetaManifest, ie
+        # Dict[Filename:Tuple[MetaManifest, manifest]] -> Dict[Filename:manifest]
+        man_clean = [manifest for _, manifest in man_sorted]
+
+        # Assign the grouped and sorted list of manifests to the output dict.
+        out[fname] = man_clean
+        del fname, manifests, man_sorted, man_clean
+
+    # Ignore all files whose manifest list is empty.
     out = {k: v for k, v in out.items() if len(v) > 0}
-    out = {k: k8s_utils.undo_dotdict(v) for k, v in out.items()}
-    out = {k: yaml.safe_dump_all(v, default_flow_style=False) for k, v in out.items()}
+
+    # Ensure that all dicts are pure Python dicts or there will be problems
+    # with the YAML generation below.
+    out_clean = {k: k8s_utils.undo_dotdict(v) for k, v in out.items()}
+
+    # Convert all manifest dicts into YAML strings.
+    out = {}
+    try:
+        for fname, v in out_clean.items():
+            out[fname] = yaml.safe_dump_all(v, default_flow_style=False)
+    except yaml.YAMLError as err:
+        logit.error(
+            f"YAML error. Cannot create <{fname}>: {err.args[0]} <{str(err.args[1])}>"
+        )
+        return RetVal(None, True)
+
+    # Return the Dict[Filename:YamlStr]
     return RetVal(out, False)
 
 
