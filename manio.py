@@ -291,12 +291,18 @@ def load_files(base_path, fnames: tuple):
 
 
 def load(folder):
-    fnames = glob.glob(os.path.join(folder, "**", "*.yaml"), recursive=True)
-    fnames = [_[len(folder) + 1:] for _ in fnames]
+    # Python's `pathlib.Path` objects are simply nicer to work with...
+    folder = pathlib.Path(folder)
+
+    fnames = folder.rglob("*.yaml")
+    fnames = [_.relative_to(folder) for _ in fnames]
     fdata_raw, err = load_files(folder, fnames)
     return parse(fdata_raw)
 
 
 def save(folder, manifests: dict):
+    # Python's `pathlib.Path` objects are simply nicer to work with...
+    folder = pathlib.Path(folder)
+
     fdata_raw, err = unparse(manifests)
     return save_files(folder, fdata_raw)
