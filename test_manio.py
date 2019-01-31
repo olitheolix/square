@@ -287,20 +287,18 @@ class TestYamlManifestIO:
             return square.make_meta(test_square.make_manifest(*args))
 
         # Create valid MetaManifests.
-        meta_ns_a = [mm("Namespace", f"d_{_}", "a") for _ in range(10)]
+        meta_ns_a = mm("Namespace", None, "a")
+        meta_ns_b = mm("Namespace", None, "b")
         meta_svc_a = [mm("Service", f"d_{_}", "a") for _ in range(10)]
         meta_dply_a = [mm("Deployment", f"d_{_}", "a") for _ in range(10)]
-        meta_ns_b = [mm("Namespace", f"d_{_}", "b") for _ in range(10)]
         meta_svc_b = [mm("Service", f"d_{_}", "b") for _ in range(10)]
         meta_dply_b = [mm("Deployment", f"d_{_}", "b") for _ in range(10)]
 
         # Define manifests in the correctly grouped and sorted order for three
         # YAML files.
         sorted_manifests_1 = [
-            (meta_ns_a[0], "ns_a_0"),
-            (meta_ns_a[1], "ns_a_1"),
-            (meta_ns_b[0], "ns_b_0"),
-            (meta_ns_b[1], "ns_b_1"),
+            (meta_ns_a, "ns_a"),
+            (meta_ns_b, "ns_b"),
             (meta_svc_a[0], "svc_a_0"),
             (meta_svc_a[1], "svc_a_1"),
             (meta_svc_b[0], "svc_b_0"),
@@ -317,7 +315,7 @@ class TestYamlManifestIO:
             (meta_dply_b[1], "dply_b_1"),
         ]
         sorted_manifests_3 = [
-            (meta_ns_a[0], "ns_a_0"),
+            (meta_ns_a, "ns_a"),
             (meta_svc_b[0], "svc_b_0"),
             (meta_dply_a[1], "dply_a_1"),
         ]
