@@ -131,10 +131,14 @@ def sync(local_manifests, server_manifests):
             # Find out the YAML document index and file that defined `meta`.
             fname, idx = meta_to_fname[meta]
         except KeyError:
-            # Put the resource into a "catch-all" file for its namespace. This
-            # is necessary because none of the existing YAML files defined that
-            # resource.
-            out_add_mod[f"_{meta.namespace}.yaml"].append((meta, manifest))
+            # Put the resource into the correct "catch-all" file. However, we
+            # first need to determine the namespace, which differs depending on
+            # whether the resource is a Namespace or other resource.
+            if meta.kind == "Namespace":
+                catch_all = f"_{meta.name}.yaml"
+            else:
+                catch_all = f"_{meta.namespace}.yaml"
+            out_add_mod[catch_all].append((meta, manifest))
         else:
             # Update the correct YAML document in the correct file.
             out_add_mod[fname][idx] = (meta, manifest)
