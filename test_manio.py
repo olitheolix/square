@@ -311,6 +311,17 @@ class TestYamlManifestIO:
             file_manifests = {"m0.yaml": [(mm(kind, "name", "ns"), "0")]}
             assert manio.unparse(file_manifests) == RetVal(None, True)
 
+    def test_unparse_known_kinds(self):
+        """Must handle all known resource kinds without error."""
+        # Convenience.
+        def mm(*args):
+            return square.make_meta(test_square.make_manifest(*args))
+
+        # Test function must gracefully reject all invalid kinds.
+        for kind in square.SUPPORTED_KINDS:
+            file_manifests = {"m0.yaml": [(mm(kind, "name", "ns"), "0")]}
+            assert manio.unparse(file_manifests).err is False
+
     def test_manifest_lifecycle(self):
         """Load, sync and save manifests the hard way.
 
