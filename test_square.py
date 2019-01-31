@@ -25,7 +25,7 @@ def m_requests(request):
         yield m
 
 
-def make_manifest(kind: str, name: str, namespace: str):
+def make_manifest(kind: str, namespace: str, name: str):
     manifest = {
         'apiVersion': 'v1',
         'kind': kind,
@@ -272,15 +272,15 @@ class TestManifestValidation:
         assert square.manifest_metaspec(invalid_manifest) == RetVal(None, True)
 
     def test_manifest_metaspec_automanifests(self):
-        manifest = make_manifest('Deployment', f'name_0', f'ns_0')
+        manifest = make_manifest('Deployment', f'ns_0', f'name_0')
         ret = square.manifest_metaspec(manifest)
         assert ret.err is None
 
-        manifest = make_manifest('Namespace', f'name_0', None)
+        manifest = make_manifest('Namespace', None, f'name_0')
         ret = square.manifest_metaspec(manifest)
         assert ret.err is None
 
-        manifest = make_manifest('Namespace', f'name_0', 'ns')
+        manifest = make_manifest('Namespace', "ns", f'name_0')
         assert square.manifest_metaspec(manifest) == RetVal(None, True)
 
     def test_manifest_metaspec_missing_fields(self):
@@ -308,7 +308,7 @@ class TestFetchFromK8s:
         """Convert eg a DeploymentList into a Python dict of Deployments."""
         # Demo manifests.
         manifests = [
-            make_manifest('Deployment', f'name_{_}', f'ns_{_}')
+            make_manifest('Deployment',  f'ns_{_}', f'name_{_}')
             for _ in range(3)
         ]
 
@@ -530,7 +530,7 @@ class TestPatchK8s:
 
         url = square.urlpath_builder(config, kind, ns) + f'/{name}'
 
-        loc = srv = make_manifest(kind, name, ns)
+        loc = srv = make_manifest(kind, ns, name)
         ret = square.compute_patch(config, loc, srv)
         assert ret == RetVal(Patch(url, []), None)
         assert isinstance(ret.data, Patch)
@@ -539,7 +539,7 @@ class TestPatchK8s:
         config = types.SimpleNamespace(url='http://examples.com/')
         kind, ns, name = 'Deployment', 'ns', 'foo'
 
-        srv = make_manifest(kind, name, ns)
+        srv = make_manifest(kind, ns, name)
 
         # `apiVersion` must match.
         loc = copy.deepcopy(srv)
@@ -577,21 +577,21 @@ class TestPatchK8s:
         url = square.urlpath_builder(config, kind, None) + f'/{name}'
 
         # Identical namespace manifests.
-        loc = make_manifest(kind, name, None)
+        loc = make_manifest(kind, None, name)
         srv = copy.deepcopy(loc)
         ret = square.compute_patch(config, loc, srv)
         assert ret == RetVal((url, []), None)
 
         # Second manifest specifies a `metadata.namespace` attribute. This is
         # invalid and must result in an error.
-        loc = make_manifest(kind, name, None)
+        loc = make_manifest(kind, None, name)
         srv = copy.deepcopy(loc)
         loc['metadata']['namespace'] = 'foo'
         ret = square.compute_patch(config, loc, srv)
         assert ret.data is None and ret.err is not None
 
         # Different namespace manifests (second one has labels).
-        loc = make_manifest(kind, name, None)
+        loc = make_manifest(kind, None, name)
         srv = copy.deepcopy(loc)
         loc['metadata']['labels'] = {"key": "value"}
 
