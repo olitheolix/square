@@ -20,6 +20,7 @@ from pprint import pprint
 # We support these resource types. The order matters because it determines the
 # order in which the manifests will be grouped in the output files.
 SUPPORTED_KINDS = ("Namespace", "Service", "Deployment")
+SUPPORTED_VERSIONS = ("1.9", "1.10")
 
 Patch = collections.namedtuple('Patch', 'url ops')
 RetVal = collections.namedtuple('RetVal', 'data err')
@@ -113,24 +114,42 @@ def diff_manifests(src: dict, dst: dict):
 
 
 def urlpath_builder(config, resource, namespace):
-    _ns_ = '' if namespace is None else f'namespaces/{namespace}/'
-    resource = resource.lower()
+    """Return complete URL to K8s resource.
 
+    Inputs:
+        config: k8s_utils.Config
+        resource: str
+            Eg "Deployment", "Namespace", ... (case sensitive).
+        namespace: str
+            Must be None for "Namespace" resources.
+
+    Returns:
+        str: Full path K8s resource, eg https://1.2.3.4/api/v1/namespace/foo/services.
+
+    """
+    # Namespaces are special because they lack the `namespaces/` path prefix.
+    _ns_ = '' if namespace is None else f'namespaces/{namespace}/'
+
+    # The HTTP request path names by K8s version and resource kind.
+    # The keys in this dict must cover all those specified in
+    # `SUPPORTED_VERSIONS` and `SUPPORTED_KINDS`.
     resources = {
         '1.9': {
-            'deployment': f'apis/extensions/v1beta1/{_ns_}deployments',
-            'service': f'api/v1/{_ns_}services',
-            'namespace': f'api/v1/namespaces',
+            'Deployment': f'apis/extensions/v1beta1/{_ns_}deployments',
+            'Service': f'api/v1/{_ns_}services',
+            'Namespace': f'api/v1/namespaces',
         },
         '1.10': {
-            'deployment': f'apis/apps/v1/{_ns_}deployments',
-            'service': f'api/v1/{_ns_}services',
-            'namespace': f'api/v1/namespaces',
+            'Deployment': f'apis/apps/v1/{_ns_}deployments',
+            'Service': f'api/v1/{_ns_}services',
+            'Namespace': f'api/v1/namespaces',
         },
     }
 
+    # Look up the resource path and prefix it with the K8s API URL.
     path = resources[config.version][resource]
-    return f'{config.url}/{path}'
+    url = f"{config.url}/{path}"
+    return url
 
 
 def compute_patch(config, local: dict, server: dict):
