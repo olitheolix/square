@@ -113,12 +113,12 @@ def diff_manifests(src: dict, dst: dict):
     return RetVal(str.join('\n', out), None)
 
 
-def urlpath_builder(config, resource, namespace):
+def urlpath_builder(config, kind, namespace):
     """Return complete URL to K8s resource.
 
     Inputs:
         config: k8s_utils.Config
-        resource: str
+        kind: str
             Eg "Deployment", "Namespace", ... (case sensitive).
         namespace: str
             Must be None for "Namespace" resources.
@@ -128,28 +128,49 @@ def urlpath_builder(config, resource, namespace):
 
     """
     # Namespaces are special because they lack the `namespaces/` path prefix.
-    _ns_ = '' if namespace is None else f'namespaces/{namespace}/'
+    if kind == "Namespace":
+        if namespace is not None:
+            logit.error(f"Namespace kinds must not specify a namespace argument.")
+            return RetVal(None, True)
+        namespace = ""
+    else:
+        namespace = f"namespaces/{namespace}/"
+
+    # Namespace name must conform to K8s standards.
+    if namespace.lower() != namespace:
+        logit.error(f"Invalid namespace name <{namespace}>.")
+        return RetVal(None, True)
+
+    # We must support the specified resource kind.
+    if kind not in SUPPORTED_KINDS:
+        logit.error(f"Unsupported resource <{kind}>.")
+        return RetVal(None, True)
+
+    # We must support the specified K8s version.
+    if config.version not in SUPPORTED_VERSIONS:
+        logit.error(f"Unsupported K8s version <{config.version}>.")
+        return RetVal(None, True)
 
     # The HTTP request path names by K8s version and resource kind.
     # The keys in this dict must cover all those specified in
     # `SUPPORTED_VERSIONS` and `SUPPORTED_KINDS`.
     resources = {
         '1.9': {
-            'Deployment': f'apis/extensions/v1beta1/{_ns_}deployments',
-            'Service': f'api/v1/{_ns_}services',
+            'Deployment': f'apis/extensions/v1beta1/{namespace}deployments',
+            'Service': f'api/v1/{namespace}services',
             'Namespace': f'api/v1/namespaces',
         },
         '1.10': {
-            'Deployment': f'apis/apps/v1/{_ns_}deployments',
-            'Service': f'api/v1/{_ns_}services',
+            'Deployment': f'apis/apps/v1/{namespace}deployments',
+            'Service': f'api/v1/{namespace}services',
             'Namespace': f'api/v1/namespaces',
         },
     }
 
     # Look up the resource path and prefix it with the K8s API URL.
-    path = resources[config.version][resource]
+    path = resources[config.version][kind]
     url = f"{config.url}/{path}"
-    return url
+    return RetVal(url, False)
 
 
 def compute_patch(config, local: dict, server: dict):
@@ -191,7 +212,9 @@ def compute_patch(config, local: dict, server: dict):
 
     # Determine the PATCH URL for the resource.
     namespace = server.metadata.get("namespace", None)
-    url = urlpath_builder(config, server.kind, namespace)
+    url, err = urlpath_builder(config, server.kind, namespace)
+    if err:
+        return RetVal(None, True)
     full_url = f'{url}/{server.metadata.name}'
 
     # Compute JSON patch.
@@ -388,7 +411,9 @@ def k8s_post(client, path: str, payload: dict):
 def download_manifests(config, client, kinds, namespace):
     server_manifests = {}
     for kind in kinds:
-        url = urlpath_builder(config, kind, namespace=namespace)
+        url, err = urlpath_builder(config, kind, namespace=namespace)
+        if err:
+            return RetVal(None, True)
         manifest_list, _ = k8s_get(client, url)
         manifests, _ = list_parser(manifest_list)
         manifests = {k: manifest_metaspec(man)[0] for k, man in manifests.items()}
@@ -468,7 +493,9 @@ def compile_plan(config, local_manifests, server_manifests):
     # Compile the Deltas to create the missing resources.
     create = []
     for meta in plan.create:
-        url = urlpath_builder(config, meta.kind, namespace=meta.namespace)
+        url, err = urlpath_builder(config, meta.kind, namespace=meta.namespace)
+        if err:
+            return RetVal(None, True)
         create.append(DeltaCreate(meta, url, local_manifests[meta]))
 
     # Compile the Deltas to delete the excess resources. Every DELETE request
@@ -482,7 +509,9 @@ def compile_plan(config, local_manifests, server_manifests):
     delete = []
     for meta in plan.delete:
         # Resource URL.
-        url = urlpath_builder(config, meta.kind, namespace=meta.namespace)
+        url, err = urlpath_builder(config, meta.kind, namespace=meta.namespace)
+        if err:
+            return RetVal(None, True)
 
         # DELETE requests must specify the resource name in the path.
         url = f"{url}/{meta.name}"
