@@ -184,9 +184,27 @@ def compute_patch(config, local: dict, server: dict):
 
 
 def manifest_metaspec(manifest: dict):
-    manifest = copy.deepcopy(manifest)
-    manifest = utils.make_dotdict(manifest)
+    """Return a copy of `manifest` with only the salient keys.
 
+    The salient keys are: `apiVersion`, `kind`, `metadata` and `spec`.
+
+    All other fields, eg `status` or `events` are irrelevant (and detrimental)
+    when we compute diffs and patches. Only the fields mentioned above matter
+    for that purpose.
+
+    Inputs:
+        manifest: dict
+
+    Returns:
+        dict: A strict subset of `manifest`.
+
+    """
+    # Avoid side effects for the caller. The DotDict improves the readability
+    # of this function.
+    manifest = utils.make_dotdict(copy.deepcopy(manifest))
+
+    # Sanity check: `manifest` must have at least these fields in order to be
+    # valid. Abort if it lacks one or more of them.
     must_have = {'apiVersion', 'kind', 'metadata', 'spec'}
     if not must_have.issubset(set(manifest.keys())):
         missing = must_have - set(manifest.keys())
@@ -194,37 +212,45 @@ def manifest_metaspec(manifest: dict):
         return RetVal(None, True)
     del must_have
 
+    # Return with an error if the manifest specifies an unsupported resource type.
+    if manifest.kind not in SUPPORTED_KINDS:
+        logit.error(f"Unsupported resource kind <{manifest.kind}> in <{manifest}>")
+        return RetVal(None, True)
+
+    # Manifests must also have certain keys in their metadata structure. Which
+    # ones depends on whether or not it is a namespace manifest or not.
     if manifest.kind == "Namespace":
         if "namespace" in manifest.metadata:
-            logit.error("Namespace must not have a `metadata.namespace` attribute")
+            logit.error(
+                f"Namespace must not have a `metadata.namespace` attribute: <{manifest}>"
+            )
             return RetVal(None, True)
         must_have = {"name"}
     else:
         must_have = {"name", "namespace"}
 
+    # Ensure the metadata field has the necessary fields.
     if not must_have.issubset(set(manifest.metadata.keys())):
         missing = must_have - set(manifest.metadata.keys())
-        logit.error(f"Manifest metadata is missing these keys: {missing}")
+        logit.error(f"Manifest metadata is missing these keys: {missing}: <{manifest}>")
         return RetVal(None, True)
     del must_have
 
-    if manifest.kind.lower().capitalize() != manifest.kind:
-        logit.error(f"Invalid capitalisation: {manifest.kind}")
-        return RetVal(None, True)
-
-    new_meta = {'name': manifest.metadata.name}
-    if 'namespace' in manifest.metadata:
+    # Compile the salient metadata fields into a new dict.
+    new_meta = {"name": manifest.metadata.name}
+    if "namespace" in manifest.metadata:
         new_meta["namespace"] = manifest.metadata.namespace
-    if 'labels' in manifest.metadata:
+    if "labels" in manifest.metadata:
         new_meta["labels"] = manifest.metadata.labels
 
+    # Compile a new manifest with the salient keys only.
     ret = {
-        'apiVersion': manifest.apiVersion,
-        'kind': manifest.kind,
-        'metadata': new_meta,
-        'spec': manifest.spec,
+        "apiVersion": manifest.apiVersion,
+        "kind": manifest.kind,
+        "metadata": new_meta,
+        "spec": manifest.spec,
     }
-    return RetVal(utils.make_dotdict(ret), None)
+    return RetVal(utils.make_dotdict(ret), False)
 
 
 def make_meta(manifest: dict):
