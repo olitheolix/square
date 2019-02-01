@@ -540,62 +540,68 @@ class TestPatchK8s:
 
     def test_compute_patch_empty(self):
         """Basic test: compute patch between two identical resources."""
-        config = types.SimpleNamespace(url='http://examples.com/', version="1.10")
+        # Setup.
         kind, ns, name = 'Deployment', 'ns', 'foo'
+        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
+        # PATCH URLs require the resource name at the end of the request path.
         url = square.urlpath_builder(config, kind, ns) + f'/{name}'
 
+        # The patch must be empty for identical manifests.
         loc = srv = make_manifest(kind, ns, name)
         ret = square.compute_patch(config, loc, srv)
-        assert ret == RetVal(Patch(url, []), None)
+        assert ret == RetVal(Patch(url, []), False)
         assert isinstance(ret.data, Patch)
 
     def test_compute_patch_incompatible(self):
-        config = types.SimpleNamespace(url='http://examples.com/')
-        kind, ns, name = 'Deployment', 'ns', 'foo'
+        """Must not try to compute diffs for incompatible manifests.
 
-        srv = make_manifest(kind, ns, name)
+        For instance, refuse to compute a patch when one manifest has kind
+        "Namespace" and the other "Deployment". The same is true for
+        "apiVersion", "metadata.name" and "metadata.namespace".
+
+        """
+        # Setup.
+        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+
+        # Demo manifest.
+        srv = make_manifest('Deployment', 'namespace', 'name')
 
         # `apiVersion` must match.
         loc = copy.deepcopy(srv)
         loc['apiVersion'] = 'mismatch'
-        ret = square.compute_patch(config, loc, srv)
-        assert ret == RetVal(None, True)
+        assert square.compute_patch(config, loc, srv) == RetVal(None, True)
 
         # `kind` must match.
         loc = copy.deepcopy(srv)
         loc['kind'] = 'Mismatch'
-        ret = square.compute_patch(config, loc, srv)
-        assert ret == RetVal(None, True)
+        assert square.compute_patch(config, loc, srv) == RetVal(None, True)
 
         # `name` must match.
         loc = copy.deepcopy(srv)
         loc['metadata']['name'] = 'mismatch'
-        ret = square.compute_patch(config, loc, srv)
-        assert ret == RetVal(None, True)
+        assert square.compute_patch(config, loc, srv) == RetVal(None, True)
 
         # `namespace` must match.
         loc = copy.deepcopy(srv)
         loc['metadata']['namespace'] = 'mismatch'
-        ret = square.compute_patch(config, loc, srv)
-        assert ret == RetVal(None, True)
+        assert square.compute_patch(config, loc, srv) == RetVal(None, True)
 
     def test_compute_patch_namespace(self):
-        """Corner cases that are specific to `Namespace` resources.
+        """`Namespace` specific corner cases.
 
         Namespaces are special because, by definition, they must not contain a
-        `Namespace` attribute.
+        `metadata.Namespace` attribute.
+
         """
         config = types.SimpleNamespace(url='http://examples.com/', version="1.10")
         kind, name = 'Namespace', 'foo'
 
         url = square.urlpath_builder(config, kind, None) + f'/{name}'
 
-        # Identical namespace manifests.
-        loc = make_manifest(kind, None, name)
-        srv = copy.deepcopy(loc)
-        ret = square.compute_patch(config, loc, srv)
-        assert ret == RetVal((url, []), None)
+        # Must succeed and return an empty patch for identical manifests.
+        loc = srv = make_manifest(kind, None, name)
+        assert square.compute_patch(config, loc, srv) == RetVal((url, []), False)
 
         # Second manifest specifies a `metadata.namespace` attribute. This is
         # invalid and must result in an error.
@@ -605,13 +611,14 @@ class TestPatchK8s:
         ret = square.compute_patch(config, loc, srv)
         assert ret.data is None and ret.err is not None
 
-        # Different namespace manifests (second one has labels).
+        # Must not return an error if the input are the same namespace resource
+        # but with different labels.
         loc = make_manifest(kind, None, name)
         srv = copy.deepcopy(loc)
         loc['metadata']['labels'] = {"key": "value"}
 
         ret = square.compute_patch(config, loc, srv)
-        assert ret.err is None and len(ret.data) > 0
+        assert ret.err is False and len(ret.data) > 0
 
 
 class TestK8sConfig:
