@@ -550,6 +550,37 @@ class TestK8sDeleteGetPatchPost:
         m_req.assert_called_once_with(client, "POST", path, payload, headers=None)
 
 
+class TestUrlPathBuilder:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
+    def test_supported_resources_versions(self):
+        """Verify the global variables.
+
+        Those variables specify the supported K8s versions and resource types.
+
+        """
+        assert square.SUPPORTED_VERSIONS == ("1.9", "1.10")
+        assert square.SUPPORTED_KINDS == ("Namespace", "Service", "Deployment")
+
+    def test_urlpath_builder_ok(self):
+        """Must work for all supported K8s versions and resources."""
+        Config = k8s_utils.Config
+        for version in square.SUPPORTED_VERSIONS:
+            cfg = Config("url", "token", "ca_cert", "client_cert", version)
+            for kind in square.SUPPORTED_KINDS:
+                if kind == "Namespace":
+                    path = square.urlpath_builder(cfg, kind, None)
+                else:
+                    path = square.urlpath_builder(cfg, kind, "namespace")
+
+                # Must return a lower case string, irrespective of the
+                # capitalisation of the namespace name.
+                assert isinstance(path, str)
+                assert path.lower() == path
+
+
 class TestPatchK8s:
     @classmethod
     def setup_class(cls):
