@@ -1,3 +1,4 @@
+import re
 import manio
 import logging
 import sys
@@ -134,12 +135,12 @@ def urlpath_builder(config, kind, namespace):
             return RetVal(None, True)
         namespace = ""
     else:
-        namespace = f"namespaces/{namespace}/"
+        # Namespace name must conform to K8s standards.
+        if re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", namespace) is None:
+            logit.error(f"Invalid namespace name <{namespace}>.")
+            return RetVal(None, True)
 
-    # Namespace name must conform to K8s standards.
-    if namespace.lower() != namespace:
-        logit.error(f"Invalid namespace name <{namespace}>.")
-        return RetVal(None, True)
+        namespace = f"namespaces/{namespace}/"
 
     # We must support the specified resource kind.
     if kind not in SUPPORTED_KINDS:

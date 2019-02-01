@@ -575,11 +575,9 @@ class TestUrlPathBuilder:
                 else:
                     path, err = square.urlpath_builder(cfg, kind, "namespace")
 
-                # Must return a lower case string, irrespective of the
-                # capitalisation of the namespace name.
+                # Verify.
                 assert err is False
                 assert isinstance(path, str)
-                assert path.lower() == path
 
     def test_urlpath_builder_err(self):
         """Test variuos error scenarios."""
