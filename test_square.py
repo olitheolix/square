@@ -570,10 +570,8 @@ class TestUrlPathBuilder:
         for version in square.SUPPORTED_VERSIONS:
             cfg = Config("url", "token", "ca_cert", "client_cert", version)
             for kind in square.SUPPORTED_KINDS:
-                if kind == "Namespace":
-                    path, err = square.urlpath(cfg, kind, None)
-                else:
-                    path, err = square.urlpath(cfg, kind, "namespace")
+                for ns in (None, "foo-namespace"):
+                    path, err = square.urlpath(cfg, kind, ns)
 
                 # Verify.
                 assert err is False
@@ -589,11 +587,8 @@ class TestUrlPathBuilder:
             # Invalid resource kind.
             assert square.urlpath(cfg, "fooresource", "ns") == RetVal(None, True)
 
-            # Invalid: Namespace resources must supply None for the "namespace" argument.
-            assert square.urlpath(cfg, "Namespace", "ns") == RetVal(None, True)
-
-            # Namespace names must be all lower case (K8s imposes this).
-            assert square.urlpath(cfg, "Namespace", "namEspACe") == RetVal(None, True)
+            # Namespace names must be all lower case (K8s imposes this)...
+            assert square.urlpath(cfg, "Deployment", "namEspACe") == RetVal(None, True)
 
 
 class TestPatchK8s:

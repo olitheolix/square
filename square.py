@@ -129,14 +129,12 @@ def urlpath(config, kind, namespace):
 
     """
     # Namespaces are special because they lack the `namespaces/` path prefix.
-    if kind == "Namespace":
-        if namespace is not None:
-            logit.error(f"Namespace kinds must not specify a namespace argument.")
-            return RetVal(None, True)
+    if kind == "Namespace" or namespace is None:
         namespace = ""
     else:
         # Namespace name must conform to K8s standards.
-        if re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", namespace) is None:
+        match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", namespace)
+        if match is None or match.group() != namespace:
             logit.error(f"Invalid namespace name <{namespace}>.")
             return RetVal(None, True)
 
