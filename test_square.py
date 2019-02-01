@@ -571,14 +571,32 @@ class TestUrlPathBuilder:
             cfg = Config("url", "token", "ca_cert", "client_cert", version)
             for kind in square.SUPPORTED_KINDS:
                 if kind == "Namespace":
-                    path = square.urlpath_builder(cfg, kind, None)
+                    path, err = square.urlpath_builder(cfg, kind, None)
                 else:
-                    path = square.urlpath_builder(cfg, kind, "namespace")
+                    path, err = square.urlpath_builder(cfg, kind, "namespace")
 
                 # Must return a lower case string, irrespective of the
                 # capitalisation of the namespace name.
+                assert err is False
                 assert isinstance(path, str)
                 assert path.lower() == path
+
+    def test_urlpath_builder_err(self):
+        """Test variuos error scenarios."""
+        Config = k8s_utils.Config
+        builder = square.urlpath_builder
+
+        for version in square.SUPPORTED_VERSIONS:
+            cfg = Config("url", "token", "ca_cert", "client_cert", version)
+
+            # Invalid resource kind.
+            assert builder(cfg, "fooresource", "ns") == RetVal(None, True)
+
+            # Invalid: Namespace resources must supply None for the "namespace" argument.
+            assert builder(cfg, "Namespace", "ns") == RetVal(None, True)
+
+            # Namespace names must be all lower case (K8s imposes this).
+            assert builder(cfg, "Namespace", "namEspACe") == RetVal(None, True)
 
 
 class TestPatchK8s:
@@ -593,7 +611,7 @@ class TestPatchK8s:
         config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
         # PATCH URLs require the resource name at the end of the request path.
-        url = square.urlpath_builder(config, kind, ns) + f'/{name}'
+        url = square.urlpath_builder(config, kind, ns).data + f'/{name}'
 
         # The patch must be empty for identical manifests.
         loc = srv = make_manifest(kind, ns, name)
@@ -645,7 +663,7 @@ class TestPatchK8s:
         config = types.SimpleNamespace(url='http://examples.com/', version="1.10")
         kind, name = 'Namespace', 'foo'
 
-        url = square.urlpath_builder(config, kind, None) + f'/{name}'
+        url = square.urlpath_builder(config, kind, None).data + f'/{name}'
 
         # Must succeed and return an empty patch for identical manifests.
         loc = srv = make_manifest(kind, None, name)
@@ -741,9 +759,9 @@ class TestPlan:
         meta[4] = MetaManifest('v1', 'Deployment', 'ns2', 'res_2')
 
         # Determine the K8s resource urls for those that will be added.
-        builder = square.urlpath_builder
-        url[0] = builder(config, meta[0].kind, meta[0].namespace)
-        url[1] = builder(config, meta[1].kind, meta[1].namespace)
+        upb = square.urlpath_builder
+        url[0] = upb(config, meta[0].kind, meta[0].namespace).data
+        url[1] = upb(config, meta[1].kind, meta[1].namespace).data
 
         # Determine the K8s resource URLs for those that will be deleted. They
         # are slightly different because DELETE requests expect a URL path that
@@ -751,9 +769,9 @@ class TestPlan:
         # "/api/v1/namespaces/ns2"
         # instead of
         # "/api/v1/namespaces".
-        url[2] = builder(config, meta[2].kind, meta[2].namespace) + "/" + meta[2].name
-        url[3] = builder(config, meta[3].kind, meta[3].namespace) + "/" + meta[3].name
-        url[4] = builder(config, meta[4].kind, meta[4].namespace) + "/" + meta[4].name
+        url[2] = upb(config, meta[2].kind, meta[2].namespace).data + "/" + meta[2].name
+        url[3] = upb(config, meta[3].kind, meta[3].namespace).data + "/" + meta[3].name
+        url[4] = upb(config, meta[4].kind, meta[4].namespace).data + "/" + meta[4].name
 
         # Compile local and server manifests that have no resource overlap.
         # This will ensure that we have to create all the local resources,
@@ -809,7 +827,7 @@ class TestPlan:
         # Determine the K8s resource URLs for patching. Those URLs must contain
         # the resource name as the last path element, eg "/api/v1/namespaces/ns1"
         builder = square.urlpath_builder
-        url = [builder(config, _.kind, _.namespace) + f"/{_.name}" for _ in meta]
+        url = [builder(config, _.kind, _.namespace).data + f"/{_.name}" for _ in meta]
 
         # Local and server manifests are identical. The plan must therefore
         # only nominate patches but nothing to create or delete.
