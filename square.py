@@ -331,38 +331,44 @@ def download_manifests(config, client, kinds, namespace):
 
 
 def partition_manifests(local_manifests, server_manifests):
-    """Partition `{local,server_manifests}` into resource to CREATE, PATCH and DELETE.
+    """Compile `{local,server}_manifests` into CREATE, PATCH and DELETE groups.
 
-    The returned deployment plan will contain *every resource in
-    `local_manifests` and `server_manifests` exactly once*.
+    The returned deployment plan will contain *every* resource in
+    `local_manifests` and `server_manifests` *exactly once*. Their relative
+    order will also be preserved.
 
     Create: all resources that exist in `local_manifests` but not in `server_manifests`.
     Delete: all resources that exist in `server_manifests` but not in `local_manifests`.
     Patch : all resources that exist in both and therefore *may* need patching.
 
     Inputs:
-        local_manifests: set[MetaManifest]
+        local_manifests: Dict[MetaManifest:str]
             Usually the dictionary keys returned by `load_manifest`.
-        server_manifests: set[MetaManifest]
+        server_manifests: Dict[MetaManifest:str]
             Usually the dictionary keys returned by `download_manifests`.
 
     Returns:
         DeploymentPlan
 
     """
-    # Ensure the input is a genuine set and remove all duplicates.
-    local_manifests = set(local_manifests)
-    server_manifests = set(server_manifests)
-
     # Determine what needs adding, removing and patching to steer the K8s setup
     # towards the setup specified in `local_manifests`.
-    create = local_manifests - server_manifests
-    patch = local_manifests.intersection(server_manifests)
-    delete = server_manifests - local_manifests
+    loc = set(local_manifests.keys())
+    srv = set(server_manifests.keys())
+    create = loc - srv
+    patch = loc.intersection(srv)
+    delete = srv - loc
+
+    # We cannot use the sets because we need to preserve the relative
+    # order of the elements in each group. Therefore, compile the stable output
+    # into new lists and return those.
+    create = [_ for _ in local_manifests if _ in create]
+    patch = [_ for _ in local_manifests if _ in patch]
+    delete = [_ for _ in server_manifests if _ in delete]
 
     # Return the deployment plan.
     plan = DeploymentPlan(create, patch, delete)
-    return RetVal(plan, None)
+    return RetVal(plan, False)
 
 
 def compile_plan(config, local_manifests, server_manifests):
