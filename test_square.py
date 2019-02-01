@@ -564,37 +564,36 @@ class TestUrlPathBuilder:
         assert square.SUPPORTED_VERSIONS == ("1.9", "1.10")
         assert square.SUPPORTED_KINDS == ("Namespace", "Service", "Deployment")
 
-    def test_urlpath_builder_ok(self):
+    def test_urlpath_ok(self):
         """Must work for all supported K8s versions and resources."""
         Config = k8s_utils.Config
         for version in square.SUPPORTED_VERSIONS:
             cfg = Config("url", "token", "ca_cert", "client_cert", version)
             for kind in square.SUPPORTED_KINDS:
                 if kind == "Namespace":
-                    path, err = square.urlpath_builder(cfg, kind, None)
+                    path, err = square.urlpath(cfg, kind, None)
                 else:
-                    path, err = square.urlpath_builder(cfg, kind, "namespace")
+                    path, err = square.urlpath(cfg, kind, "namespace")
 
                 # Verify.
                 assert err is False
                 assert isinstance(path, str)
 
-    def test_urlpath_builder_err(self):
+    def test_urlpath_err(self):
         """Test variuos error scenarios."""
         Config = k8s_utils.Config
-        builder = square.urlpath_builder
 
         for version in square.SUPPORTED_VERSIONS:
             cfg = Config("url", "token", "ca_cert", "client_cert", version)
 
             # Invalid resource kind.
-            assert builder(cfg, "fooresource", "ns") == RetVal(None, True)
+            assert square.urlpath(cfg, "fooresource", "ns") == RetVal(None, True)
 
             # Invalid: Namespace resources must supply None for the "namespace" argument.
-            assert builder(cfg, "Namespace", "ns") == RetVal(None, True)
+            assert square.urlpath(cfg, "Namespace", "ns") == RetVal(None, True)
 
             # Namespace names must be all lower case (K8s imposes this).
-            assert builder(cfg, "Namespace", "namEspACe") == RetVal(None, True)
+            assert square.urlpath(cfg, "Namespace", "namEspACe") == RetVal(None, True)
 
 
 class TestPatchK8s:
@@ -609,7 +608,7 @@ class TestPatchK8s:
         config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
         # PATCH URLs require the resource name at the end of the request path.
-        url = square.urlpath_builder(config, kind, ns).data + f'/{name}'
+        url = square.urlpath(config, kind, ns).data + f'/{name}'
 
         # The patch must be empty for identical manifests.
         loc = srv = make_manifest(kind, ns, name)
@@ -661,7 +660,7 @@ class TestPatchK8s:
         config = types.SimpleNamespace(url='http://examples.com/', version="1.10")
         kind, name = 'Namespace', 'foo'
 
-        url = square.urlpath_builder(config, kind, None).data + f'/{name}'
+        url = square.urlpath(config, kind, None).data + f'/{name}'
 
         # Must succeed and return an empty patch for identical manifests.
         loc = srv = make_manifest(kind, None, name)
@@ -757,7 +756,7 @@ class TestPlan:
         meta[4] = MetaManifest('v1', 'Deployment', 'ns2', 'res_2')
 
         # Determine the K8s resource urls for those that will be added.
-        upb = square.urlpath_builder
+        upb = square.urlpath
         url[0] = upb(config, meta[0].kind, meta[0].namespace).data
         url[1] = upb(config, meta[1].kind, meta[1].namespace).data
 
@@ -824,8 +823,10 @@ class TestPlan:
 
         # Determine the K8s resource URLs for patching. Those URLs must contain
         # the resource name as the last path element, eg "/api/v1/namespaces/ns1"
-        builder = square.urlpath_builder
-        url = [builder(config, _.kind, _.namespace).data + f"/{_.name}" for _ in meta]
+        url = [
+            square.urlpath(config, _.kind, _.namespace).data + f"/{_.name}"
+            for _ in meta
+        ]
 
         # Local and server manifests are identical. The plan must therefore
         # only nominate patches but nothing to create or delete.
