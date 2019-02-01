@@ -591,6 +591,96 @@ class TestUrlPathBuilder:
             assert square.urlpath(cfg, "Deployment", "namEspACe") == RetVal(None, True)
 
 
+class TestDownloadManifests:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
+    @mock.patch.object(square, 'k8s_get')
+    def test_download_manifests_ok(self, m_get):
+        """Download two kinds of manifests: Deployments and Namespaces.
+
+        The test only mocks the call to the K8s API. All other functions
+        actually execute.
+
+        """
+        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        mm = make_manifest
+
+        meta = [
+            mm("Namespace", None, "ns0"),
+            mm("Namespace", None, "ns1"),
+            mm("Deployment", "ns0", "d0"),
+            mm("Deployment", "ns1", "d1"),
+        ]
+
+        # Demo lists as K8s would return them (we will make m_get return them).
+        man_list_ns = {
+            'apiVersion': 'v1',
+            'kind': 'NamespaceList',
+            'items': [meta[0], meta[1]],
+        }
+        man_list_deploy = {
+            'apiVersion': 'v1',
+            'kind': 'DeploymentList',
+            'items': [meta[2], meta[3]],
+        }
+        m_get.side_effect = [RetVal(man_list_ns, False), RetVal(man_list_deploy, False)]
+
+        # The request URLs. We will need them to validate the `k8s_get` arguments.
+        url_ns, err1 = square.urlpath(config, "Namespace", None)
+        url_deploy, err2 = square.urlpath(config, "Deployment", None)
+        assert not err1 and not err2
+
+        # The expected outcome is a Dict[MetaManifest:dict] of all the items in
+        # DeploymentList and NamespaceList.
+        expected = {
+            square.make_meta(_): square.manifest_metaspec(_).data
+            for _ in meta
+        }
+
+        # Run test function and verify its output.
+        ret = square.download_manifests(
+            config, "client", ["Namespace", "Deployment"], None
+        )
+        assert ret == RetVal(expected, False)
+        assert m_get.call_args_list == [
+            mock.call("client", url_ns),
+            mock.call("client", url_deploy),
+        ]
+
+    @mock.patch.object(square, 'k8s_get')
+    def test_download_manifests_err(self, m_get):
+        """Simulate a download error."""
+        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+
+        # A valid NamespaceList with one element.
+        man_list_ns = {
+            'apiVersion': 'v1',
+            'kind': 'NamespaceList',
+            'items': [make_manifest("Namespace", None, "ns0")],
+        }
+
+        # The first call to k8s_get will succeed whereas the second will not.
+        m_get.side_effect = [RetVal(man_list_ns, False), RetVal(None, True)]
+
+        # The request URLs. We will need them to validate the `k8s_get` arguments.
+        url_ns, err1 = square.urlpath(config, "Namespace", None)
+        url_deploy, err2 = square.urlpath(config, "Deployment", None)
+        assert not err1 and not err2
+
+        # Run test function and verify it returns an error and no data, despite
+        # a successful `NamespaceList` download.
+        ret = square.download_manifests(
+            config, "client", ["Namespace", "Deployment"], None
+        )
+        assert ret == RetVal(None, True)
+        assert m_get.call_args_list == [
+            mock.call("client", url_ns),
+            mock.call("client", url_deploy),
+        ]
+
+
 class TestPatchK8s:
     @classmethod
     def setup_class(cls):
