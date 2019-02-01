@@ -118,20 +118,18 @@ class TestBasic:
         that is not something `partition_manifests` concerns itself with.
 
         """
-        fun = square.partition_manifests
-        Plan = square.DeploymentPlan
-
-        # No change because local and cluster manifests are identical.
-        local_man = {
-            MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar'),
-            MetaManifest('v1', 'Namespace', None, 'ns1'),
-            MetaManifest('v1', 'Namespace', None, 'ns2'),
-            MetaManifest('v1', 'Namespace', None, 'ns3'),
+        # Local and cluster manifests are identical - the Plan must not
+        # create/add anything but mark all resources for (possible)
+        # patching.
+        local_man = cluster_man = {
+            MetaManifest('v1', 'Namespace', None, 'ns3'): "0",
+            MetaManifest('v1', 'Namespace', None, 'ns1'): "1",
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar'): "2",
+            MetaManifest('v1', 'Namespace', None, 'ns2'): "3",
+            MetaManifest('v1', 'Deployment', 'ns1', 'foo'): "4",
         }
-        cluster_man = local_man
-        plan = Plan(create=set(), patch=local_man, delete=set())
-        assert fun(local_man, cluster_man) == RetVal(plan, None)
+        plan = square.DeploymentPlan(create=[], patch=list(local_man.keys()), delete=[])
+        assert square.partition_manifests(local_man, cluster_man) == RetVal(plan, False)
 
     def test_partition_manifests_add_delete(self):
         """Local and server manifests are orthogonal sets.
@@ -141,31 +139,30 @@ class TestBasic:
 
         """
         fun = square.partition_manifests
-        Plan = square.DeploymentPlan
 
         # Local and cluster manifests are orthogonal.
         local_man = {
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar'),
-            MetaManifest('v1', 'Namespace', None, 'ns2'),
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar'): "0",
+            MetaManifest('v1', 'Namespace', None, 'ns2'): "1",
         }
         cluster_man = {
-            MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
-            MetaManifest('v1', 'Namespace', None, 'ns1'),
-            MetaManifest('v1', 'Namespace', None, 'ns3'),
+            MetaManifest('v1', 'Deployment', 'ns1', 'foo'): "2",
+            MetaManifest('v1', 'Namespace', None, 'ns1'): "3",
+            MetaManifest('v1', 'Namespace', None, 'ns3'): "4",
         }
-        plan = Plan(
-            create={
+        plan = square.DeploymentPlan(
+            create=[
                 MetaManifest('v1', 'Deployment', 'ns2', 'bar'),
                 MetaManifest('v1', 'Namespace', None, 'ns2'),
-            },
-            patch=set(),
-            delete={
+            ],
+            patch=[],
+            delete=[
                 MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
                 MetaManifest('v1', 'Namespace', None, 'ns1'),
                 MetaManifest('v1', 'Namespace', None, 'ns3'),
-            }
+            ]
         )
-        assert fun(local_man, cluster_man) == RetVal(plan, None)
+        assert fun(local_man, cluster_man) == RetVal(plan, False)
 
     def test_partition_manifests_patch_delete(self):
         """Create plan with resources to delete and patch.
@@ -176,34 +173,36 @@ class TestBasic:
 
         """
         fun = square.partition_manifests
-        Plan = square.DeploymentPlan
 
+        # The local manifests are a subset of the server'. Therefore, the plan
+        # must contain patches for those resources that exist locally and on
+        # the server. All the other manifest on the server are obsolete.
         local_man = {
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar1'),
-            MetaManifest('v1', 'Namespace', None, 'ns2'),
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar1'): "0",
+            MetaManifest('v1', 'Namespace', None, 'ns2'): "1",
         }
         cluster_man = {
-            MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar1'),
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar2'),
-            MetaManifest('v1', 'Namespace', None, 'ns1'),
-            MetaManifest('v1', 'Namespace', None, 'ns2'),
-            MetaManifest('v1', 'Namespace', None, 'ns3'),
+            MetaManifest('v1', 'Deployment', 'ns1', 'foo'): "2",
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar1'): "3",
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar2'): "4",
+            MetaManifest('v1', 'Namespace', None, 'ns1'): "5",
+            MetaManifest('v1', 'Namespace', None, 'ns2'): "6",
+            MetaManifest('v1', 'Namespace', None, 'ns3'): "7",
         }
-        plan = Plan(
-            create=set(),
-            patch={
+        plan = square.DeploymentPlan(
+            create=[],
+            patch=[
                 MetaManifest('v1', 'Deployment', 'ns2', 'bar1'),
                 MetaManifest('v1', 'Namespace', None, 'ns2'),
-            },
-            delete={
+            ],
+            delete=[
                 MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
                 MetaManifest('v1', 'Deployment', 'ns2', 'bar2'),
                 MetaManifest('v1', 'Namespace', None, 'ns1'),
                 MetaManifest('v1', 'Namespace', None, 'ns3'),
-            }
+            ]
         )
-        assert fun(local_man, cluster_man) == RetVal(plan, None)
+        assert fun(local_man, cluster_man) == RetVal(plan, False)
 
 
 class TestManifestValidation:
