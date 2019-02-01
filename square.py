@@ -114,7 +114,7 @@ def diff_manifests(src: dict, dst: dict):
     return RetVal(str.join('\n', out), None)
 
 
-def urlpath_builder(config, kind, namespace):
+def urlpath(config, kind, namespace):
     """Return complete URL to K8s resource.
 
     Inputs:
@@ -213,7 +213,7 @@ def compute_patch(config, local: dict, server: dict):
 
     # Determine the PATCH URL for the resource.
     namespace = server.metadata.get("namespace", None)
-    url, err = urlpath_builder(config, server.kind, namespace)
+    url, err = urlpath(config, server.kind, namespace)
     if err:
         return RetVal(None, True)
     full_url = f'{url}/{server.metadata.name}'
@@ -412,7 +412,7 @@ def k8s_post(client, path: str, payload: dict):
 def download_manifests(config, client, kinds, namespace):
     server_manifests = {}
     for kind in kinds:
-        url, err = urlpath_builder(config, kind, namespace=namespace)
+        url, err = urlpath(config, kind, namespace=namespace)
         if err:
             return RetVal(None, True)
         manifest_list, _ = k8s_get(client, url)
@@ -494,7 +494,7 @@ def compile_plan(config, local_manifests, server_manifests):
     # Compile the Deltas to create the missing resources.
     create = []
     for meta in plan.create:
-        url, err = urlpath_builder(config, meta.kind, namespace=meta.namespace)
+        url, err = urlpath(config, meta.kind, namespace=meta.namespace)
         if err:
             return RetVal(None, True)
         create.append(DeltaCreate(meta, url, local_manifests[meta]))
@@ -510,7 +510,7 @@ def compile_plan(config, local_manifests, server_manifests):
     delete = []
     for meta in plan.delete:
         # Resource URL.
-        url, err = urlpath_builder(config, meta.kind, namespace=meta.namespace)
+        url, err = urlpath(config, meta.kind, namespace=meta.namespace)
         if err:
             return RetVal(None, True)
 
