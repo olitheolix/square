@@ -211,6 +211,10 @@ class TestManifestValidation:
         square.setup_logging(9)
 
     def test_manifest_metaspec_basic_valid(self):
+        """Ensure it returns only the salient fields of valid manifests."""
+
+        # Minimal Deployment manifest with just the salient fields. Test
+        # function must return a deepcopy of it.
         valid_deployment_manifest = {
             'apiVersion': 'v1',
             'kind': 'Deployment',
@@ -218,9 +222,11 @@ class TestManifestValidation:
             'spec': {'some': 'thing'},
         }
         ret = square.manifest_metaspec(valid_deployment_manifest)
-        assert ret == RetVal(valid_deployment_manifest, None)
+        assert ret == RetVal(valid_deployment_manifest, False)
         assert valid_deployment_manifest is not ret.data
 
+        # Minimal Namespace manifest with just the salient fields. Test
+        # function must return a deepcopy of it.
         valid_namespace_manifest = {
             'apiVersion': 'v1',
             'kind': 'Namespace',
@@ -228,81 +234,92 @@ class TestManifestValidation:
             'spec': {'some': 'thing'},
         }
         ret = square.manifest_metaspec(valid_namespace_manifest)
-        assert ret == RetVal(valid_namespace_manifest, None)
+        assert ret == RetVal(valid_namespace_manifest, False)
         assert valid_namespace_manifest is not ret.data
 
-        # Function must accept additional entries but not return them.
+        # Function must accept additional entries (eg "additional" in example
+        # below) but not return them. It must not matter whether those
+        # additional entries are actually valid keys in the manifest.
         valid_namespace_manifest_add = {
             'apiVersion': 'v1',
             'kind': 'Namespace',
             'metadata': {'name': 'foo', 'additional': 'entry'},
             'spec': {'some': 'thing'},
+            'status': {"some": "status"},
             'additional': 'entry',
         }
         ret = square.manifest_metaspec(valid_namespace_manifest_add)
-        assert ret == RetVal(valid_namespace_manifest, None)
-
-    def test_manifest_metaspec_basic_invalid(self):
-        ret = square.manifest_metaspec({'invalid': 'manifest'})
-        assert ret == RetVal(None, True)
-
-        # Namespace manifest must not have a `metadata.namespace` attribute.
-        invalid_manifest = {
-            'apiVersion': 'v1',
-            'kind': 'Namespace',
-            'metadata': {'name': 'foo', 'namespace': 'bar'},
-            'spec': {'some': 'thing'},
-        }
-        assert square.manifest_metaspec(invalid_manifest) == RetVal(None, True)
-
-        # The `kind` attribute must be all lower case with a capital first letter.
-        invalid_manifest = {
-            'apiVersion': 'v1',
-            'kind': 'deployment',
-            'metadata': {'name': 'foo', 'namespace': 'bar'},
-            'spec': {'some': 'thing'},
-        }
-        assert square.manifest_metaspec(invalid_manifest) == RetVal(None, True)
-
-        # Same test again: the `kind` attribute must be all lower case with a
-        # capital first letter.
-        invalid_manifest = {
-            'apiVersion': 'v1',
-            'kind': 'dePLOYment',
-            'metadata': {'name': 'foo', 'namespace': 'bar'},
-            'spec': {'some': 'thing'},
-        }
-        assert square.manifest_metaspec(invalid_manifest) == RetVal(None, True)
+        assert ret == RetVal(valid_namespace_manifest, False)
 
     def test_manifest_metaspec_automanifests(self):
-        manifest = make_manifest('Deployment', f'ns_0', f'name_0')
-        ret = square.manifest_metaspec(manifest)
-        assert ret.err is None
+        """Verify that it works with the `make_manifest` test function.
 
-        manifest = make_manifest('Namespace', None, f'name_0')
-        ret = square.manifest_metaspec(manifest)
-        assert ret.err is None
+        This test merely validates that the output of the `make_manifest`
+        function used in various tests produces valid manifests as far as
+        `manifest_metaspec` is concerned.
 
-        manifest = make_manifest('Namespace', "ns", f'name_0')
+        """
+        # Create a valid manifest for each supported resource kind and verify
+        # that the test function accepts it.
+        for kind in square.SUPPORTED_KINDS:
+            if kind == "Namespace":
+                manifest = make_manifest(kind, None, "name")
+            else:
+                manifest = make_manifest(kind, "ns", "name")
+
+            ret = square.manifest_metaspec(manifest)
+            assert ret.err is False and len(ret.data) > 0
+
+        # Invalid Namespace manifest: metadata.namespace field is not None.
+        manifest = make_manifest("Namespace", "ns", "name")
+        assert square.manifest_metaspec(manifest) == RetVal(None, True)
+
+        # Unknown resource kind "foo".
+        manifest = make_manifest("foo", "ns", "name")
         assert square.manifest_metaspec(manifest) == RetVal(None, True)
 
     def test_manifest_metaspec_missing_fields(self):
-        valid_deployment_manifest = {
-            'apiVersion': 'v1',
-            'kind': 'Deployment',
-            'metadata': {'name': 'foo', 'namespace': 'bar'},
-            'spec': {'some': 'thing'},
+        """Incomplete manifests must be rejected."""
+        # A valid deployment manifest.
+        valid = {
+            "apiVersion": "v1",
+            "kind": "Deployment",
+            "metadata": {"name": "foo", "namespace": "bar"},
+            "spec": {"some": "thing"},
         }
 
-        for field in valid_deployment_manifest:
-            invalid = copy.deepcopy(valid_deployment_manifest)
-            invalid.pop(field)
-            ret = square.manifest_metaspec(invalid)
-            assert ret == RetVal(None, True)
+        # Create stunted manifests by creating a copy of `valid` that misses
+        # one key in each iteration. The test function must reject all those
+        # manifests and return an error.
+        for field in valid:
+            invalid = {k: v for k, v in valid.items() if k != field}
+            assert square.manifest_metaspec(invalid) == RetVal(None, True)
 
-        # Metadata must contain at least 'name' field.
-        invalid = copy.deepcopy(valid_deployment_manifest)
-        del invalid['metadata']['name']
+        # Metadata for Namespace manifests must contain a "name" field.
+        invalid = {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {"foo": "bar"},
+            "spec": {"some": "thing"},
+        }
+        assert square.manifest_metaspec(invalid) == RetVal(None, True)
+
+        # Metadata for Namespace manifests must not contain a "namespace" field.
+        invalid = {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {"namespace": "namespace"},
+            "spec": {"some": "thing"},
+        }
+        assert square.manifest_metaspec(invalid) == RetVal(None, True)
+
+        # Metadata for non-namespace manifests must contain "name" and "namespace".
+        invalid = {
+            "apiVersion": "v1",
+            "kind": "Deployment",
+            "metadata": {"name": "name"},
+            "spec": {"some": "thing"},
+        }
         assert square.manifest_metaspec(invalid) == RetVal(None, True)
 
 
