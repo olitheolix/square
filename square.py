@@ -133,14 +133,26 @@ def urlpath_builder(config, resource, namespace):
     return f'{config.url}/{path}'
 
 
-def compute_patch(config, local, server):
-    server, err = manifest_metaspec(server)
-    if err:
-        return RetVal(None, True)
-    local, err = manifest_metaspec(local)
-    if err:
+def compute_patch(config, local: dict, server: dict):
+    """
+    Inputs:
+        local_manifests: dict
+            Usually the dictionary keys returned by `load_manifest`.
+        server_manifests: dict
+            Usually the dictionary keys returned by `download_manifests`.
+
+    Returns:
+        Patch: the JSON patch and human readable diff in a `Patch` tuple.
+
+    """
+    # Reduce local and server manifests to salient fields (ie apiVersion, kind,
+    # metadata and spec). Abort on error.
+    local, err1 = manifest_metaspec(local)
+    server, err2 = manifest_metaspec(server)
+    if err1 or err2:
         return RetVal(None, True)
 
+    # Sanity checks: abort if the manifests do not specify the same resource.
     try:
         assert server.apiVersion == local.apiVersion
         assert server.kind == local.kind
@@ -148,18 +160,27 @@ def compute_patch(config, local, server):
         if server.kind != "Namespace":
             assert server.metadata.namespace == local.metadata.namespace
     except AssertionError:
-        logit.error("Cannot compute JSON patch for incompatible manifests")
+        # Log the invalid manifests and return with an error.
+        keys = ("apiVersion", "kind", "metadata")
+        local = utils.undo_dotdict({k: local[k] for k in keys})
+        server = utils.undo_dotdict({k: server[k] for k in keys})
+        logit.error(
+            "Cannot compute JSON patch for incompatible manifests. "
+            f"Local: <{local}>  Server: <{server}>"
+        )
         return RetVal(None, True)
 
-    namespace = server.metadata.get('namespace', None)
-
+    # Determine the PATCH URL for the resource.
+    namespace = server.metadata.get("namespace", None)
     url = urlpath_builder(config, server.kind, namespace)
-
-    patch = jsonpatch.make_patch(server, local)
-    patch = json.loads(patch.to_string())
     full_url = f'{url}/{server.metadata.name}'
 
-    return RetVal(Patch(full_url, patch), None)
+    # Compute JSON patch.
+    patch = jsonpatch.make_patch(server, local)
+    patch = json.loads(patch.to_string())
+
+    # Return the patch.
+    return RetVal(Patch(full_url, patch), False)
 
 
 def manifest_metaspec(manifest: dict):
