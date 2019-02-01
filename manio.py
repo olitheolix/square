@@ -49,7 +49,7 @@ def parse(file_yaml: dict):
     # Drop all files without manifests.
     out = {k: v for k, v in out.items() if len(v) > 0}
     num_manifests = [len(_) for _ in out.values()]
-    logit.debug(f"Parsed {sum(num_manifests)} in {len(num_manifests)} files")
+    logit.debug(f"Parsed {sum(num_manifests)} manifests in {len(num_manifests)} files")
 
     # Return the YAML parsed manifests.
     return RetVal(out, False)
