@@ -653,8 +653,8 @@ class TestDiff:
         loc = make_manifest("Deployment", "namespace", "name2")
 
         # Test function must able to cope with `DotDicts`.
-        srv = dotdict.make_dotdict(srv)
-        loc = dotdict.make_dotdict(loc)
+        srv = dotdict.make(srv)
+        loc = dotdict.make(loc)
 
         # Diff the manifests. Must not return an error.
         diff_str, err = manio.diff(loc, srv)

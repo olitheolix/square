@@ -28,13 +28,13 @@ class DotDict(dict):
         # To copy a `DotDict`, first convert it to a normal Python dict, then
         # let the `copy` module do its work and afterwards return a `DotDict`
         # version of that copy.
-        return make_dotdict(copy.deepcopy(dict(self)))
+        return make(copy.deepcopy(dict(self)))
 
     def __copy__(self, *args, **kwargs):
         return self.__deepcopy__(*args, **kwargs)
 
 
-def make_dotdict(data):
+def make(data):
     """Return `data` as a `DotDict`.
 
     This function will recursively replace all dictionary. It will also replace
@@ -48,12 +48,12 @@ def make_dotdict(data):
 
     # Recursively convert all elements in lists and dicts.
     if isinstance(data, (list, tuple)):
-        return [make_dotdict(_) for _ in data]
+        return [make(_) for _ in data]
     else:
-        return DotDict({k: make_dotdict(v) for k, v in data.items()})
+        return DotDict({k: make(v) for k, v in data.items()})
 
 
-def undo_dotdict(data):
+def undo(data):
     """Remove all `DotDict` instances from `data`.
 
     This function will recursively replace all `DotDict` instances with their
@@ -65,6 +65,6 @@ def undo_dotdict(data):
 
     # Recursively convert all elements in lists and dicts.
     if isinstance(data, (list, tuple)):
-        return [undo_dotdict(_) for _ in data]
+        return [undo(_) for _ in data]
     else:
-        return dict({k: undo_dotdict(v) for k, v in data.items()})
+        return dict({k: undo(v) for k, v in data.items()})
