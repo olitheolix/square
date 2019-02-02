@@ -592,7 +592,7 @@ class TestUrlPathBuilder:
             assert square.urlpath(cfg, "Deployment", "namEspACe") == RetVal(None, True)
 
         # Invalid version.
-        cfg = Config("url", "token", "ca_cert", "client_cert", "200.30")
+        cfg = Config("url", "token", "ca_cert", "client_cert", "invalid")
         assert square.urlpath(cfg, "Deployment", "valid-ns") == RetVal(None, True)
 
 
