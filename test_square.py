@@ -110,6 +110,12 @@ class TestBasic:
             err=None,
         )
 
+
+class TestPartition:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
     def test_partition_manifests_patch(self):
         """Local and server manifests match.
 
