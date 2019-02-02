@@ -856,6 +856,11 @@ def main_get(manifest_folder, local_fdata, server_manifests):
 def main():
     param = parse_commandline_args()
 
+    # Hard coded variables due to lacking command line support.
+    manifest_folder = "manifests"
+    kinds = SUPPORTED_KINDS
+    namespace = None
+
     # Initialise logging.
     setup_logging(param.verbosity)
 
@@ -868,15 +873,12 @@ def main():
     # Update the config with the correct K8s API version.
     config, _ = get_k8s_version(config, client)
 
-    # Hard coded variables due to lacking of command line support.
-    manifest_folder = "manifests"
-    kinds = SUPPORTED_KINDS
-    namespace = None
-
+    # Import local and server manifests.
     fdata_meta, err = manio.load(manifest_folder)
     local_manifests, err = manio.unpack(fdata_meta)
     server_manifests, err = download_manifests(config, client, kinds, namespace)
 
+    # Do what user asked us to do.
     if param.parser == "get":
         _, err = main_get(manifest_folder, fdata_meta, server_manifests)
     elif param.parser == "diff":
