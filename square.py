@@ -339,7 +339,7 @@ def compile_plan(config, local_manifests, server_manifests):
         srv = server_manifests[delta]
 
         # Compute textual diff (only useful for the user to study the diff).
-        diff_str, err = manio.diff_manifests(loc, srv)
+        diff_str, err = manio.diff(loc, srv)
         if err:
             return RetVal(None, True)
 

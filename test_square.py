@@ -654,7 +654,7 @@ class TestPlan:
         # output structure below.
         patch, err = square.compute_patch(config, loc_man[meta], srv_man[meta])
         assert not err
-        diff_str, err = manio.diff_manifests(loc_man[meta], srv_man[meta])
+        diff_str, err = manio.diff(loc_man[meta], srv_man[meta])
         assert not err
 
         # Verify the test function returns the correct Patch and diff.
@@ -666,7 +666,7 @@ class TestPlan:
         assert square.compile_plan(config, loc_man, srv_man) == RetVal(expected, False)
 
     @mock.patch.object(square, "partition_manifests")
-    @mock.patch.object(manio, "diff_manifests")
+    @mock.patch.object(manio, "diff")
     @mock.patch.object(square, "compute_patch")
     def test_compile_plan_err(self, m_patch, m_diff, m_part):
         """Use mocks for the internal function calls to simulate errors."""
@@ -686,7 +686,7 @@ class TestPlan:
         m_part.return_value = RetVal(None, True)
         assert square.compile_plan(config, loc_man, srv_man) == RetVal(None, True)
 
-        # Simulate an error in `diff_manifests`.
+        # Simulate an error in `diff`.
         m_part.return_value = RetVal(plan, False)
         m_diff.return_value = RetVal(None, True)
         assert square.compile_plan(config, loc_man, srv_man) == RetVal(None, True)
