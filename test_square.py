@@ -1,31 +1,19 @@
 import manio
 import copy
 import os
-import random
 import types
 import unittest.mock as mock
-import k8s_utils
-
-import requests_mock
-
-import pytest
+import k8s
 
 import square
 
-from test_helpers import make_manifest, mk_deploy
+from test_helpers import make_manifest
 
 # Convenience.
 pjoin = os.path.join
 RetVal, DeploymentPlan = square.RetVal, square.DeploymentPlan
 MetaManifest = square.MetaManifest
 Patch = square.Patch
-requests = k8s_utils.requests
-
-
-@pytest.fixture
-def m_requests(request):
-    with requests_mock.Mocker() as m:
-        yield m
 
 
 class TestLogging:
@@ -212,164 +200,6 @@ class TestPartition:
         assert fun(local_man, cluster_man) == RetVal(plan, False)
 
 
-class TestK8sDeleteGetPatchPost:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
-    @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    def test_k8s_request_ok(self, method, m_requests):
-        """Simulate a successful K8s response for GET request."""
-        # Dummy values for the K8s API request.
-        url = 'http://examples.com/'
-        client = requests.Session()
-        headers = {"some": "headers"}
-        payload = {"some": "payload"}
-        response = {"some": "response"}
-
-        # Verify the makeup of the actual request.
-        def additional_matcher(req):
-            assert req.method == method
-            assert req.url == url
-            assert req.json() == payload
-            assert req.headers["some"] == headers["some"]
-            assert req.timeout == 30
-            return True
-
-        # Assign a random HTTP status code.
-        status_code = random.randint(100, 510)
-        m_requests.request(
-            method,
-            url,
-            json=response,
-            status_code=status_code,
-            additional_matcher=additional_matcher,
-        )
-
-        # Verify that the function makes the correct request and returns the
-        # expected result and HTTP status code.
-        ret = square.k8s_request(client, method, url, payload, headers)
-        assert ret == RetVal(response, status_code)
-
-    @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    def test_k8s_request_err_json(self, method, m_requests):
-        """Simulate a corrupt JSON response from K8s."""
-        # Dummies for K8s API URL and `requests` session.
-        url = 'http://examples.com/'
-        client = requests.Session()
-
-        # Construct a response with a corrupt JSON string.
-        corrupt_json = "{this is not valid] json;"
-        m_requests.request(
-            method,
-            url,
-            text=corrupt_json,
-            status_code=200,
-        )
-
-        # Test function must not return a response but indicate an error.
-        ret = square.k8s_request(client, method, url, None, None)
-        assert ret == RetVal(None, True)
-
-    @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    def test_k8s_request_connection_err(self, method, m_requests):
-        """Simulate an unsuccessful K8s response for GET request."""
-        # Dummies for K8s API URL and `requests` session.
-        url = 'http://examples.com/'
-        client = requests.Session()
-
-        # Construct the ConnectionError exception with a fake request object.
-        # The fake is necessary to ensure that the exception handler extracts
-        # the correct pieces of information from it.
-        req = types.SimpleNamespace(method=method, url=url)
-        exc = k8s_utils.requests.exceptions.ConnectionError(request=req)
-
-        # Simulate a connection error during the request to K8s.
-        m_requests.request(method, url, exc=exc)
-        ret = square.k8s_request(client, method, url, None, None)
-        assert ret == RetVal(None, True)
-
-    @mock.patch.object(square, "k8s_request")
-    def test_k8s_delete_get_patch_post_ok(self, m_req):
-        """Simulate successful DELETE, GET, PATCH, POST requests.
-
-        This test is for the various wrappers around the `k8s_request`
-        function, which is why we mock it so as to return an HTTP code that
-        constitutes a successful transaction for the respective request.
-
-        """
-        # Dummy values.
-        client = "client"
-        path = "path"
-        payload = "payload"
-        response = "response"
-
-        # K8s DELETE request was successful iff its return status is 200.
-        m_req.reset_mock()
-        m_req.return_value = RetVal(response, 200)
-        assert square.k8s_delete(client, path, payload) == RetVal(response, False)
-        m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
-
-        # K8s GET request was successful iff its return status is 200.
-        m_req.reset_mock()
-        m_req.return_value = RetVal(response, 200)
-        assert square.k8s_get(client, path) == RetVal(response, False)
-        m_req.assert_called_once_with(client, "GET", path, payload=None, headers=None)
-
-        # K8s PATCH request was successful iff its return status is 200.
-        m_req.reset_mock()
-        m_req.return_value = RetVal(response, 200)
-        assert square.k8s_patch(client, path, payload) == RetVal(response, False)
-        patch_headers = {'Content-Type': 'application/json-patch+json'}
-        m_req.assert_called_once_with(client, "PATCH", path, payload, patch_headers)
-
-        # K8s POST request was successful iff its return status is 201.
-        m_req.reset_mock()
-        m_req.return_value = RetVal(response, 201)
-        assert square.k8s_post(client, path, payload) == RetVal(response, False)
-        m_req.assert_called_once_with(client, "POST", path, payload, headers=None)
-
-    @mock.patch.object(square, "k8s_request")
-    def test_k8s_delete_get_patch_post_err(self, m_req):
-        """Simulate unsuccessful DELETE, GET, PATCH, POST requests.
-
-        This test is for the various wrappers around the `k8s_request`
-        function, which is why we mock it so as to return an HTTP code that
-        constitutes an unsuccessful transaction for the respective request.
-
-        """
-        # Dummy values.
-        client = "client"
-        path = "path"
-        payload = "payload"
-        response = "response"
-
-        # K8s DELETE request was unsuccessful because its returns status is not 200.
-        m_req.reset_mock()
-        m_req.return_value = RetVal(response, 400)
-        assert square.k8s_delete(client, path, payload) == RetVal(response, True)
-        m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
-
-        # K8s GET request was unsuccessful because its returns status is not 200.
-        m_req.reset_mock()
-        m_req.return_value = RetVal(response, 400)
-        assert square.k8s_get(client, path) == RetVal(response, True)
-        m_req.assert_called_once_with(client, "GET", path, payload=None, headers=None)
-
-        # K8s PATCH request was unsuccessful because its returns status is not 200.
-        m_req.reset_mock()
-        m_req.return_value = RetVal(response, 400)
-        assert square.k8s_patch(client, path, payload) == RetVal(response, True)
-        patch_headers = {'Content-Type': 'application/json-patch+json'}
-        m_req.assert_called_once_with(client, "PATCH", path, payload, patch_headers)
-
-        # K8s POST request was unsuccessful because its returns status is not 201.
-        m_req.reset_mock()
-        m_req.return_value = RetVal(response, 400)
-        assert square.k8s_post(client, path, payload) == RetVal(response, True)
-        m_req.assert_called_once_with(client, "POST", path, payload, headers=None)
-
-
 class TestUrlPathBuilder:
     @classmethod
     def setup_class(cls):
@@ -386,7 +216,7 @@ class TestUrlPathBuilder:
 
     def test_urlpath_ok(self):
         """Must work for all supported K8s versions and resources."""
-        Config = k8s_utils.Config
+        Config = k8s.Config
         for version in square.SUPPORTED_VERSIONS:
             cfg = Config("url", "token", "ca_cert", "client_cert", version)
             for kind in square.SUPPORTED_KINDS:
@@ -399,7 +229,7 @@ class TestUrlPathBuilder:
 
     def test_urlpath_err(self):
         """Test various error scenarios."""
-        Config = k8s_utils.Config
+        Config = k8s.Config
 
         # Valid version but invalid resource kind or invalid namespace spelling.
         for version in square.SUPPORTED_VERSIONS:
@@ -421,7 +251,7 @@ class TestDownloadManifests:
     def setup_class(cls):
         square.setup_logging(9)
 
-    @mock.patch.object(square, 'k8s_get')
+    @mock.patch.object(k8s, 'k8s_get')
     def test_download_manifests_ok(self, m_get):
         """Download two kinds of manifests: Deployments and Namespaces.
 
@@ -429,7 +259,7 @@ class TestDownloadManifests:
         actually execute.
 
         """
-        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
         mm = make_manifest
 
         meta = [
@@ -474,10 +304,10 @@ class TestDownloadManifests:
             mock.call("client", url_deploy),
         ]
 
-    @mock.patch.object(square, 'k8s_get')
+    @mock.patch.object(k8s, 'k8s_get')
     def test_download_manifests_err(self, m_get):
         """Simulate a download error."""
-        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
         # A valid NamespaceList with one element.
         man_list_ns = {
@@ -515,7 +345,7 @@ class TestPatchK8s:
         """Basic test: compute patch between two identical resources."""
         # Setup.
         kind, ns, name = 'Deployment', 'ns', 'foo'
-        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
         # PATCH URLs require the resource name at the end of the request path.
         url = square.urlpath(config, kind, ns).data + f'/{name}'
@@ -535,7 +365,7 @@ class TestPatchK8s:
 
         """
         # Setup.
-        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
         # Demo manifest.
         srv = make_manifest('Deployment', 'namespace', 'name')
@@ -599,7 +429,7 @@ class TestK8sConfig:
     def setup_class(cls):
         square.setup_logging(9)
 
-    @mock.patch.object(square, "k8s_get")
+    @mock.patch.object(k8s, "k8s_get")
     def test_get_k8s_version_auto_ok(self, m_get):
         """Get K8s version number from API server."""
 
@@ -617,13 +447,13 @@ class TestK8sConfig:
 
         # Create vanilla `Config` instance.
         m_client = mock.MagicMock()
-        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", None)
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", None)
 
         # Test function must contact the K8s API and return a `Config` tuple
         # with the correct version number.
         config2, err = square.get_k8s_version(config, client=m_client)
         assert err is None
-        assert isinstance(config2, k8s_utils.Config)
+        assert isinstance(config2, k8s.Config)
         assert config2.version == "1.10"
 
         # Test function must have called out to `k8s_get` to retrieve the
@@ -635,13 +465,13 @@ class TestK8sConfig:
         # the version number.
         assert config._replace(version=None) == config2._replace(version=None)
 
-    @mock.patch.object(square, "k8s_get")
+    @mock.patch.object(k8s, "k8s_get")
     def test_get_k8s_version_auto_err(self, m_get):
         """Simulate an error when fetching the K8s version."""
 
         # Create vanilla `Config` instance.
         m_client = mock.MagicMock()
-        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", None)
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", None)
 
         # Simulate an error in `k8s_get`.
         m_get.return_value = RetVal(None, True)
@@ -664,7 +494,7 @@ class TestPlan:
         label and one to add the new ones.
 
         """
-        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
         # Two valid manifests.
         kind, namespace, name = "Deployment", "namespace", "name"
@@ -693,8 +523,8 @@ class TestPlan:
 
     def test_compute_patch_err(self):
         """Verify error cases with invalid or incompatible manifests."""
-        valid_cfg = k8s_utils.Config("url", "token", "cert", "client_cert", "1.10")
-        invalid_cfg = k8s_utils.Config("url", "token", "cert", "client_cert", "invalid")
+        valid_cfg = k8s.Config("url", "token", "cert", "client_cert", "1.10")
+        invalid_cfg = k8s.Config("url", "token", "cert", "client_cert", "invalid")
 
         # Create two valid manifests, then stunt one in such a way that
         # `manifest_metaspec` will reject it.
@@ -726,7 +556,7 @@ class TestPlan:
 
         """
         # Create vanilla `Config` instance.
-        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
         # Allocate arrays for the MetaManifests and resource URLs.
         meta = [None] * 5
@@ -791,7 +621,7 @@ class TestPlan:
     def test_compile_plan_create_delete_err(self, m_part):
         """Simulate `urlpath` errors"""
         # Invalid configuration. We will use it to trigger an error in `urlpath`.
-        cfg_invalid = k8s_utils.Config("url", "token", "cert", "cert", "invalid")
+        cfg_invalid = k8s.Config("url", "token", "cert", "cert", "invalid")
 
         # Valid ManifestMeta and dummy manifest dict.
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
@@ -822,7 +652,7 @@ class TestPlan:
 
         """
         # Create vanilla `Config` instance.
-        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
         # Allocate arrays for the MetaManifests.
         meta = [None] * 4
@@ -869,7 +699,7 @@ class TestPlan:
 
         """
         # Create vanilla `Config` instance.
-        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
         # Define a single resource.
         meta = MetaManifest('v1', 'Namespace', None, 'ns1')
@@ -902,7 +732,7 @@ class TestPlan:
     def test_compile_plan_err(self, m_patch, m_diff, m_part):
         """Use mocks for the internal function calls to simulate errors."""
         # Create vanilla `Config` instance.
-        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
         # Define a single resource and valid dummy return value for
         # `square.partition_manifests`.
@@ -979,9 +809,9 @@ class TestMain:
 
     @mock.patch.object(square, "local_server_manifests")
     @mock.patch.object(square, "compile_plan")
-    @mock.patch.object(square, "k8s_post")
-    @mock.patch.object(square, "k8s_patch")
-    @mock.patch.object(square, "k8s_delete")
+    @mock.patch.object(k8s, "k8s_post")
+    @mock.patch.object(k8s, "k8s_patch")
+    @mock.patch.object(k8s, "k8s_delete")
     def test_main_patch(self, m_delete, m_patch, m_post, m_plan, m_lsm):
         """Simulate a successful resource update (add, patch delete).
 
@@ -992,7 +822,7 @@ class TestMain:
         test because it shares virtually all the boiler plate code.
         """
         # Valid client config and MetaManifest.
-        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
 
         # Valid Patch.

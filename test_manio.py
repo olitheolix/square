@@ -6,7 +6,7 @@ import square
 from test_helpers import make_manifest, mk_deploy
 
 import unittest.mock as mock
-import k8s_utils
+import dotdict
 
 
 # Convenience.
@@ -658,8 +658,8 @@ class TestDiff:
         loc = make_manifest("Deployment", "namespace", "name2")
 
         # Test function must able to cope with `DotDicts`.
-        srv = k8s_utils.make_dotdict(srv)
-        loc = k8s_utils.make_dotdict(loc)
+        srv = dotdict.make_dotdict(srv)
+        loc = dotdict.make_dotdict(loc)
 
         # Diff the manifests. Must not return an error.
         diff_str, err = manio.diff_manifests(loc, srv)
