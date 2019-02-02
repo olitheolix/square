@@ -747,7 +747,7 @@ def setup_logging(level: int):
     logger.addHandler(ch)
 
 
-def local_server_manifests(config, client, manifest_folder, kinds, namespace):
+def local_server_manifests(config, client, folder, kinds, namespace):
     """Return local-, server- and augmented local manifests.
 
     NOTE: This is a convenience wrapper around `manio.load`, `manio.unpack` and
@@ -773,7 +773,7 @@ def local_server_manifests(config, client, manifest_folder, kinds, namespace):
     """
     # Import local and server manifests.
     try:
-        fdata_meta, err = manio.load(manifest_folder)
+        fdata_meta, err = manio.load(folder)
         assert not err
 
         local_manifests, err = manio.unpack(fdata_meta)
@@ -788,7 +788,7 @@ def local_server_manifests(config, client, manifest_folder, kinds, namespace):
     return RetVal(data, False)
 
 
-def main_patch(config, client, manifest_folder, kinds, namespace):
+def main_patch(config, client, folder, kinds, namespace):
     """Update K8s to match the specifications in `local_manifests`.
 
     Create a deployment plan that will transition the K8s state
@@ -808,45 +808,47 @@ def main_patch(config, client, manifest_folder, kinds, namespace):
         None
 
     """
-    # Load local and remote manifests.
-    data, err = local_server_manifests(config, client, manifest_folder, kinds, namespace)
-    if err:
+    try:
+        # Load local and remote manifests.
+        data, err = local_server_manifests(config, client, folder, kinds, namespace)
+        assert not err
+
+        local_manifests, server_manifests, fdata_meta = data
+
+        # Create the deployment plan.
+        plan, err = compile_plan(config, local_manifests, server_manifests)
+        assert not err
+
+        # Present the plan confirm to go ahead with the user.
+        print_deltas(plan)
+
+        # Create the missing resources.
+        for data in plan.create:
+            print(f"Creating {data.meta.namespace}/{data.meta.name}")
+            _, err = k8s_post(client, data.url, data.manifest)
+            assert not err
+
+        # Patch the server resources.
+        patches = [_.patch for _ in plan.patch if len(_.patch.ops) > 0]
+        print(f"Compiled {len(patches)} patches.")
+        for patch in patches:
+            pprint(patch)
+            _, err = k8s_patch(client, patch.url, patch.ops)
+            assert not err
+
+        # Delete the excess resources.
+        for data in plan.delete:
+            print(f"Deleting {data.meta.namespace}/{data.meta.name}")
+            _, err = k8s_delete(client, data.url, data.manifest)
+            assert not err
+    except AssertionError:
         return RetVal(None, True)
-    local_manifests, server_manifests, fdata_meta = data
-
-    # Create the deployment plan.
-    plan, err = compile_plan(config, local_manifests, server_manifests)
-    if err:
-        return RetVal(None, True)
-
-    # Present the plan confirm to go ahead with the user.
-    print_deltas(plan)
-
-    # Create the missing resources.
-    for data in plan.create:
-        print(f"Creating {data.meta.namespace}/{data.meta.name}")
-        if k8s_post(client, data.url, data.manifest).err:
-            return RetVal(None, True)
-
-    # Patch the server resources.
-    patches = [_.patch for _ in plan.patch if len(_.patch.ops) > 0]
-    print(f"Compiled {len(patches)} patches.")
-    for patch in patches:
-        pprint(patch)
-        if k8s_patch(client, patch.url, patch.ops).err:
-            return RetVal(None, True)
-
-    # Delete the excess resources.
-    for data in plan.delete:
-        print(f"Deleting {data.meta.namespace}/{data.meta.name}")
-        if k8s_delete(client, data.url, data.manifest).err:
-            return RetVal(None, True)
 
     # All good.
     return RetVal(None, False)
 
 
-def main_diff(config, client, manifest_folder, kinds, namespace):
+def main_diff(config, client, folder, kinds, namespace):
     """Print the diff between `local_manifests` and `server_manifests`.
 
     The diff shows what would have to change on the K8s server in order for it
@@ -883,7 +885,7 @@ def main_diff(config, client, manifest_folder, kinds, namespace):
     return RetVal(None, False)
 
 
-def main_get(config, client, manifest_folder, kinds, namespace):
+def main_get(config, client, folder, kinds, namespace):
     """Download all K8s manifests and merge them into local files.
 
     Inputs:
@@ -900,21 +902,21 @@ def main_get(config, client, manifest_folder, kinds, namespace):
         None
 
     """
-    # Load local and remote manifests.
-    data, err = local_server_manifests(config, client, manifest_folder, kinds, namespace)
-    if err:
-        return RetVal(None, True)
-    local_manifests, server_manifests, fdata_meta = data
+    try:
+        # Load local and remote manifests.
+        data, err = local_server_manifests(config, client, folder, kinds, namespace)
+        assert not err
+        local_manifests, server_manifests, fdata_meta = data
 
-    # Sync the server manifests into the local manfifests. All this happens in
-    # memory and no files will be modified here - see next step.
-    synced_manifests, err = manio.sync(fdata_meta, server_manifests)
-    if err:
-        return RetVal(None, True)
+        # Sync the server manifests into the local manfifests. All this happens in
+        # memory and no files will be modified here - see next step.
+        synced_manifests, err = manio.sync(fdata_meta, server_manifests)
+        assert not err
 
-    # Write the new manifest files.
-    _, err = manio.save(manifest_folder, synced_manifests)
-    if err:
+        # Write the new manifest files.
+        _, err = manio.save(folder, synced_manifests)
+        assert not err
+    except AssertionError:
         return RetVal(None, True)
 
     # Success.
