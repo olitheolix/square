@@ -84,22 +84,41 @@ def parse_commandline_args():
     return parser.parse_args()
 
 
-def diff_manifests(dst: dict, src: dict):
-    src, err = manifest_metaspec(src)
-    if err:
+def diff_manifests(local: dict, server: dict):
+    """Return the human readable diff between the `local` and `server`.
+
+    The diff shows the necessary changes to transition the `server` manifest
+    into the state of the `local` manifest.
+
+    Inputs:
+        local: dict
+            Local manifest.
+        server: dict
+            Local manifest.
+
+    Returns:
+        str: human readable diff string as the Unix `diff` utility would
+        produce it.
+
+    """
+    # Clean up the input manifests because we do not want to diff the eg
+    # `status` fields.
+    srv, err1 = manifest_metaspec(server)
+    loc, err2 = manifest_metaspec(local)
+    if err1 or err2:
         return RetVal(None, True)
-    dst, err = manifest_metaspec(dst)
-    if err:
-        return RetVal(None, True)
 
-    # Undo the DotDicts for the YAML parser.
-    src = utils.undo_dotdict(src)
-    dst = utils.undo_dotdict(dst)
-    src_lines = yaml.dump(src, default_flow_style=False).splitlines()
-    dst_lines = yaml.dump(dst, default_flow_style=False).splitlines()
+    # Undo the DotDicts. This is a pre-caution because the YAML parser can
+    # otherwise not dump the manifests.
+    srv = utils.undo_dotdict(srv)
+    loc = utils.undo_dotdict(loc)
+    srv_lines = yaml.dump(srv, default_flow_style=False).splitlines()
+    loc_lines = yaml.dump(loc, default_flow_style=False).splitlines()
 
-    diff_lines = difflib.unified_diff(src_lines, dst_lines, lineterm='')
+    # Compute the diff.
+    diff_lines = difflib.unified_diff(srv_lines, loc_lines, lineterm='')
 
+    # Add some terminal colours to make it look prettier.
     out = []
     for line in diff_lines:
         if line.startswith('+'):
@@ -111,6 +130,7 @@ def diff_manifests(dst: dict, src: dict):
         else:
             out.append(line)
 
+    # Return the diff.
     return RetVal(str.join('\n', out), False)
 
 
