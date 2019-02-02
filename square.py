@@ -9,7 +9,7 @@ import yaml
 import os
 import textwrap
 import jsonpatch
-import k8s_utils as utils
+import k8s
 from IPython import embed
 
 import colorama
@@ -87,7 +87,7 @@ def urlpath(config, kind, namespace):
     """Return complete URL to K8s resource.
 
     Inputs:
-        config: k8s_utils.Config
+        config: k8s.Config
         kind: str
             Eg "Deployment", "Namespace", ... (case sensitive).
         namespace: str
@@ -193,69 +193,6 @@ def compute_patch(config, local: dict, server: dict):
     return RetVal(Patch(full_url, patch), False)
 
 
-def k8s_request(client, method, path, payload, headers):
-    """Return response of web request made with `client`.
-
-    Inputs:
-        client: `requests` session with correct K8s certificates.
-        path: str
-            Path to K8s resource (eg `/api/v1/namespaces`).
-        payload: dict
-            Anything that can be JSON encoded, usually a K8s manifest.
-        headers: dict
-            Request headers. These will *not* replace the existing request
-            headers dictionary (eg the access tokens), but augment them.
-
-    Returns:
-        RetVal(dict, int): the JSON response and the HTTP status code.
-
-    """
-    try:
-        ret = client.request(method, path, json=payload, headers=headers, timeout=30)
-    except utils.requests.exceptions.ConnectionError as err:
-        method = err.request.method
-        url = err.request.url
-        logit.error(f"Connection error: {method} {url}")
-        return RetVal(None, True)
-
-    try:
-        response = ret.json()
-    except json.decoder.JSONDecodeError as err:
-        msg = (
-            f"JSON error: {err.msg} in line {err.lineno} column {err.colno}",
-            "-" * 80 + "\n" + err.doc + "\n" + "-" * 80,
-        )
-        logit.error(str.join("\n", msg))
-        return RetVal(None, True)
-
-    return RetVal(response, ret.status_code)
-
-
-def k8s_delete(client, path: str, payload: dict):
-    """Make DELETE requests to K8s (see `k8s_request`)."""
-    resp, code = k8s_request(client, 'DELETE', path, payload, headers=None)
-    return RetVal(resp, code != 200)
-
-
-def k8s_get(client, path: str):
-    """Make GET requests to K8s (see `k8s_request`)."""
-    resp, code = k8s_request(client, 'GET', path, payload=None, headers=None)
-    return RetVal(resp, code != 200)
-
-
-def k8s_patch(client, path: str, payload: dict):
-    """Make PATCH requests to K8s (see `k8s_request`)."""
-    headers = {'Content-Type': 'application/json-patch+json'}
-    resp, code = k8s_request(client, 'PATCH', path, payload, headers)
-    return RetVal(resp, code != 200)
-
-
-def k8s_post(client, path: str, payload: dict):
-    """Make POST requests to K8s (see `k8s_request`)."""
-    resp, code = k8s_request(client, 'POST', path, payload, headers=None)
-    return RetVal(resp, code != 201)
-
-
 def download_manifests(config, client, kinds, namespace):
     """Download and return the specified resource `kinds`.
 
@@ -264,7 +201,7 @@ def download_manifests(config, client, kinds, namespace):
     Either returns all the data or an error, never partial results.
 
     Inputs:
-        config: k8s_utils.Config
+        config: k8s.Config
         client: `requests` session with correct K8s certificates.
         kinds: Iterable
             The resource kinds, eg ["Deployment", "Namespace"]
@@ -286,7 +223,7 @@ def download_manifests(config, client, kinds, namespace):
             assert not err
 
             # Make HTTP request.
-            manifest_list, err = k8s_get(client, url)
+            manifest_list, err = k8s.k8s_get(client, url)
             assert not err
 
             # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a
@@ -357,7 +294,7 @@ def compile_plan(config, local_manifests, server_manifests):
     specified in `local_manifests`.
 
     Inputs:
-        config: k8s_utils.Config
+        config: k8s.Config
         local_manifests: Dict[MetaManifest, dict]
             Should be output from `load_manifest` or `load`.
         server_manifests: Dict[MetaManifest, dict]
@@ -475,7 +412,7 @@ def print_deltas(plan):
     return RetVal(None, False)
 
 
-def get_k8s_version(config: utils.Config, client):
+def get_k8s_version(config: k8s.Config, client):
     """Return new `config` with version number of K8s API.
 
     Contact the K8s API, query its version via `client` and return `config`
@@ -483,16 +420,16 @@ def get_k8s_version(config: utils.Config, client):
     intact.
 
     Inputs:
-        config: k8s_utils.Config
+        config: k8s.Config
         client: `requests` session with correct K8s certificates.
 
     Returns:
-        k8s_utils.Config
+        k8s.Config
 
     """
     # Ask the K8s API for its version and check for errors.
     url = f"{config.url}/version"
-    ret = k8s_get(client, url)
+    ret = k8s.k8s_get(client, url)
     if ret.err:
         return ret
 
@@ -585,7 +522,7 @@ def local_server_manifests(config, client, folder, kinds, namespace):
     `download_manifest` to minimise code duplication.
 
     Inputs:
-        config: k8s_utils.Config
+        config: k8s.Config
         client: `requests` session with correct K8s certificates.
         folder: Path
             Path to local manifests eg "./foo"
@@ -626,7 +563,7 @@ def main_patch(config, client, folder, kinds, namespace):
     `server_manifests` to the desired `local_manifests`.
 
     Inputs:
-        config: k8s_utils.Config
+        config: k8s.Config
         client: `requests` session with correct K8s certificates.
         folder: Path
             Path to local manifests eg "./foo"
@@ -654,7 +591,7 @@ def main_patch(config, client, folder, kinds, namespace):
         # Create the missing resources.
         for data in plan.create:
             print(f"Creating {data.meta.namespace}/{data.meta.name}")
-            _, err = k8s_post(client, data.url, data.manifest)
+            _, err = k8s.k8s_post(client, data.url, data.manifest)
             assert not err
 
         # Patch the server resources.
@@ -662,13 +599,13 @@ def main_patch(config, client, folder, kinds, namespace):
         print(f"Compiled {len(patches)} patches.")
         for patch in patches:
             pprint(patch)
-            _, err = k8s_patch(client, patch.url, patch.ops)
+            _, err = k8s.k8s_patch(client, patch.url, patch.ops)
             assert not err
 
         # Delete the excess resources.
         for data in plan.delete:
             print(f"Deleting {data.meta.namespace}/{data.meta.name}")
-            _, err = k8s_delete(client, data.url, data.manifest)
+            _, err = k8s.k8s_delete(client, data.url, data.manifest)
             assert not err
     except AssertionError:
         return RetVal(None, True)
@@ -684,7 +621,7 @@ def main_diff(config, client, folder, kinds, namespace):
     to match the setup defined in `local_manifests`.
 
     Inputs:
-        config: k8s_utils.Config
+        config: k8s.Config
         client: `requests` session with correct K8s certificates.
         folder: Path
             Path to local manifests eg "./foo"
@@ -717,7 +654,7 @@ def main_get(config, client, folder, kinds, namespace):
     """Download all K8s manifests and merge them into local files.
 
     Inputs:
-        config: k8s_utils.Config
+        config: k8s.Config
         client: `requests` session with correct K8s certificates.
         folder: Path
             Path to local manifests eg "./foo"
@@ -764,8 +701,8 @@ def main():
     # Create a `requests` client with proper security certificates to access
     # K8s API.
     kubeconf = os.path.expanduser('~/.kube/config')
-    config = utils.load_auto_config(kubeconf, disable_warnings=True)
-    client = utils.setup_requests(config)
+    config = k8s.load_auto_config(kubeconf, disable_warnings=True)
+    client = k8s.setup_requests(config)
 
     # Update the config with the correct K8s API version.
     config, _ = get_k8s_version(config, client)
