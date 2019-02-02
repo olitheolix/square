@@ -210,7 +210,7 @@ def download_manifests(config, client, kinds, namespace):
             assert not err
 
             # Make HTTP request.
-            manifest_list, err = k8s.k8s_get(client, url)
+            manifest_list, err = k8s.get(client, url)
             assert not err
 
             # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a
@@ -399,36 +399,6 @@ def print_deltas(plan):
     return RetVal(None, False)
 
 
-def get_k8s_version(config: k8s.Config, client):
-    """Return new `config` with version number of K8s API.
-
-    Contact the K8s API, query its version via `client` and return `config`
-    with an updated `version` field. All other field in `config` will remain
-    intact.
-
-    Inputs:
-        config: k8s.Config
-        client: `requests` session with correct K8s certificates.
-
-    Returns:
-        k8s.Config
-
-    """
-    # Ask the K8s API for its version and check for errors.
-    url = f"{config.url}/version"
-    ret = k8s.k8s_get(client, url)
-    if ret.err:
-        return ret
-
-    # Construct the version number of the K8s API.
-    major, minor = ret.data['major'], ret.data['minor']
-    version = f"{major}.{minor}"
-
-    # Return an updated `Config` tuple.
-    config = config._replace(version=version)
-    return RetVal(config, None)
-
-
 def find_namespace_orphans(meta_manifests):
     """Return all orphaned resources in the `meta_manifest` set.
 
@@ -578,7 +548,7 @@ def main_patch(config, client, folder, kinds, namespace):
         # Create the missing resources.
         for data in plan.create:
             print(f"Creating {data.meta.namespace}/{data.meta.name}")
-            _, err = k8s.k8s_post(client, data.url, data.manifest)
+            _, err = k8s.post(client, data.url, data.manifest)
             assert not err
 
         # Patch the server resources.
@@ -586,13 +556,13 @@ def main_patch(config, client, folder, kinds, namespace):
         print(f"Compiled {len(patches)} patches.")
         for patch in patches:
             pprint(patch)
-            _, err = k8s.k8s_patch(client, patch.url, patch.ops)
+            _, err = k8s.patch(client, patch.url, patch.ops)
             assert not err
 
         # Delete the excess resources.
         for data in plan.delete:
             print(f"Deleting {data.meta.namespace}/{data.meta.name}")
-            _, err = k8s.k8s_delete(client, data.url, data.manifest)
+            _, err = k8s.delete(client, data.url, data.manifest)
             assert not err
     except AssertionError:
         return RetVal(None, True)
@@ -692,7 +662,7 @@ def main():
     client = k8s.setup_requests(config)
 
     # Update the config with the correct K8s API version.
-    config, _ = get_k8s_version(config, client)
+    config, _ = k8s.get_version(config, client)
 
     # Do what user asked us to do.
     if param.parser == "get":
