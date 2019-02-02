@@ -472,7 +472,7 @@ def setup_logging(level: int):
     logger.addHandler(ch)
 
 
-def local_server_manifests(config, client, folder, kinds, namespace):
+def get_manifests(config, client, folder, kinds, namespace):
     """Return local-, server- and augmented local manifests.
 
     NOTE: This is a convenience wrapper around `manio.load`, `manio.unpack` and
@@ -535,7 +535,7 @@ def main_patch(config, client, folder, kinds, namespace):
     """
     try:
         # Load local and remote manifests.
-        manifests, err = local_server_manifests(config, client, folder, kinds, namespace)
+        manifests, err = get_manifests(config, client, folder, kinds, namespace)
         assert not err
 
         # Create the deployment plan.
@@ -593,7 +593,7 @@ def main_diff(config, client, folder, kinds, namespace):
     """
     try:
         # Load local and remote manifests.
-        manifests, err = local_server_manifests(config, client, folder, kinds, namespace)
+        manifests, err = get_manifests(config, client, folder, kinds, namespace)
         assert not err
 
         # Create deployment plan.
@@ -626,7 +626,7 @@ def main_get(config, client, folder, kinds, namespace):
     """
     try:
         # Load local and remote manifests.
-        manifests, err = local_server_manifests(config, client, folder, kinds, namespace)
+        manifests, err = get_manifests(config, client, folder, kinds, namespace)
         assert not err
 
         # Sync the server manifests into the local manfifests. All this happens in

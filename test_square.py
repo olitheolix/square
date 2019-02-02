@@ -706,7 +706,7 @@ class TestLocalServerManfiests:
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "unpack")
     @mock.patch.object(square, "download_manifests")
-    def test_local_server_manifests(self, m_download, m_unpack, m_load):
+    def test_get_manifests(self, m_download, m_unpack, m_load):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -722,7 +722,7 @@ class TestLocalServerManfiests:
         # The arguments to the test function will always be the same in this test.
         args = "config", "client", "folder", "kinds", "ns"
 
-        fun = square.local_server_manifests
+        fun = square.get_manifests
         assert fun(*args) == RetVal(("loc", "srv", "fdata_meta"), False)
         m_load.assert_called_once_with("folder")
         m_unpack.assert_called_once_with("fdata_meta")
@@ -746,7 +746,7 @@ class TestMain:
     def setup_class(cls):
         square.setup_logging(9)
 
-    @mock.patch.object(square, "local_server_manifests")
+    @mock.patch.object(square, "get_manifests")
     @mock.patch.object(square, "compile_plan")
     @mock.patch.object(k8s, "post")
     @mock.patch.object(k8s, "patch")
@@ -818,11 +818,11 @@ class TestMain:
         m_plan.return_value = RetVal(None, True)
         assert square.main_patch(*args) == RetVal(None, True)
 
-        # Make `local_server_manifests` fail.
+        # Make `get_manifests` fail.
         m_lsm.return_value = RetVal(None, True)
         assert square.main_patch(*args) == RetVal(None, True)
 
-    @mock.patch.object(square, "local_server_manifests")
+    @mock.patch.object(square, "get_manifests")
     @mock.patch.object(square, "compile_plan")
     def test_main_diff(self, m_plan, m_lsm):
         """Basic test.
@@ -851,11 +851,11 @@ class TestMain:
         m_plan.return_value = RetVal(None, True)
         assert square.main_diff(*args) == RetVal(None, True)
 
-        # Simulate an error in `local_server_manifests`.
+        # Simulate an error in `get_manifests`.
         m_lsm.return_value = RetVal(None, True)
         assert square.main_diff(*args) == RetVal(None, True)
 
-    @mock.patch.object(square, "local_server_manifests")
+    @mock.patch.object(square, "get_manifests")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
     def test_main_get(self, m_save, m_sync, m_lsm):
@@ -888,6 +888,6 @@ class TestMain:
         m_sync.return_value = RetVal(None, True)
         assert square.main_get(*args) == RetVal(None, True)
 
-        # Simulate an error in `local_server_manifests`.
+        # Simulate an error in `get_manifests`.
         m_lsm.return_value = RetVal(None, True)
         assert square.main_get(*args) == RetVal(None, True)
