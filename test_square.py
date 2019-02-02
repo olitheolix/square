@@ -212,124 +212,6 @@ class TestPartition:
         assert fun(local_man, cluster_man) == RetVal(plan, False)
 
 
-class TestManifestValidation:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
-    def test_manifest_metaspec_basic_valid(self):
-        """Ensure it returns only the salient fields of valid manifests."""
-
-        # Minimal Deployment manifest with just the salient fields. Test
-        # function must return a deepcopy of it.
-        valid_deployment_manifest = {
-            'apiVersion': 'v1',
-            'kind': 'Deployment',
-            'metadata': {'name': 'foo', 'namespace': 'bar'},
-            'spec': {'some': 'thing'},
-        }
-        ret = square.manifest_metaspec(valid_deployment_manifest)
-        assert ret == RetVal(valid_deployment_manifest, False)
-        assert valid_deployment_manifest is not ret.data
-
-        # Minimal Namespace manifest with just the salient fields. Test
-        # function must return a deepcopy of it.
-        valid_namespace_manifest = {
-            'apiVersion': 'v1',
-            'kind': 'Namespace',
-            'metadata': {'name': 'foo'},
-            'spec': {'some': 'thing'},
-        }
-        ret = square.manifest_metaspec(valid_namespace_manifest)
-        assert ret == RetVal(valid_namespace_manifest, False)
-        assert valid_namespace_manifest is not ret.data
-
-        # Function must accept additional entries (eg "additional" in example
-        # below) but not return them. It must not matter whether those
-        # additional entries are actually valid keys in the manifest.
-        valid_namespace_manifest_add = {
-            'apiVersion': 'v1',
-            'kind': 'Namespace',
-            'metadata': {'name': 'foo', 'additional': 'entry'},
-            'spec': {'some': 'thing'},
-            'status': {"some": "status"},
-            'additional': 'entry',
-        }
-        ret = square.manifest_metaspec(valid_namespace_manifest_add)
-        assert ret == RetVal(valid_namespace_manifest, False)
-
-    def test_manifest_metaspec_automanifests(self):
-        """Verify that it works with the `make_manifest` test function.
-
-        This test merely validates that the output of the `make_manifest`
-        function used in various tests produces valid manifests as far as
-        `manifest_metaspec` is concerned.
-
-        """
-        # Create a valid manifest for each supported resource kind and verify
-        # that the test function accepts it.
-        for kind in square.SUPPORTED_KINDS:
-            if kind == "Namespace":
-                manifest = make_manifest(kind, None, "name")
-            else:
-                manifest = make_manifest(kind, "ns", "name")
-
-            ret = square.manifest_metaspec(manifest)
-            assert ret.err is False and len(ret.data) > 0
-
-        # Invalid Namespace manifest: metadata.namespace field is not None.
-        manifest = make_manifest("Namespace", "ns", "name")
-        assert square.manifest_metaspec(manifest) == RetVal(None, True)
-
-        # Unknown resource kind "foo".
-        manifest = make_manifest("foo", "ns", "name")
-        assert square.manifest_metaspec(manifest) == RetVal(None, True)
-
-    def test_manifest_metaspec_missing_fields(self):
-        """Incomplete manifests must be rejected."""
-        # A valid deployment manifest.
-        valid = {
-            "apiVersion": "v1",
-            "kind": "Deployment",
-            "metadata": {"name": "foo", "namespace": "bar"},
-            "spec": {"some": "thing"},
-        }
-
-        # Create stunted manifests by creating a copy of `valid` that misses
-        # one key in each iteration. The test function must reject all those
-        # manifests and return an error.
-        for field in valid:
-            invalid = {k: v for k, v in valid.items() if k != field}
-            assert square.manifest_metaspec(invalid) == RetVal(None, True)
-
-        # Metadata for Namespace manifests must contain a "name" field.
-        invalid = {
-            "apiVersion": "v1",
-            "kind": "Namespace",
-            "metadata": {"foo": "bar"},
-            "spec": {"some": "thing"},
-        }
-        assert square.manifest_metaspec(invalid) == RetVal(None, True)
-
-        # Metadata for Namespace manifests must not contain a "namespace" field.
-        invalid = {
-            "apiVersion": "v1",
-            "kind": "Namespace",
-            "metadata": {"namespace": "namespace"},
-            "spec": {"some": "thing"},
-        }
-        assert square.manifest_metaspec(invalid) == RetVal(None, True)
-
-        # Metadata for non-namespace manifests must contain "name" and "namespace".
-        invalid = {
-            "apiVersion": "v1",
-            "kind": "Deployment",
-            "metadata": {"name": "name"},
-            "spec": {"some": "thing"},
-        }
-        assert square.manifest_metaspec(invalid) == RetVal(None, True)
-
-
 class TestK8sDeleteGetPatchPost:
     @classmethod
     def setup_class(cls):
@@ -578,7 +460,7 @@ class TestDownloadManifests:
         # The expected outcome is a Dict[MetaManifest:dict] of all the items in
         # DeploymentList and NamespaceList.
         expected = {
-            manio.make_meta(_): square.manifest_metaspec(_).data
+            manio.make_meta(_): manio.manifest_metaspec(_).data
             for _ in meta
         }
 
@@ -772,40 +654,6 @@ class TestPlan:
     @classmethod
     def setup_class(cls):
         square.setup_logging(9)
-
-    def test_diff_manifests_ok(self):
-        """Diff two valid manifests and (roughly) verify the output."""
-        # Two valid manifests.
-        srv = make_manifest("Deployment", "namespace", "name1")
-        loc = make_manifest("Deployment", "namespace", "name2")
-
-        # Test function must able to cope with `DotDicts`.
-        srv = k8s_utils.make_dotdict(srv)
-        loc = k8s_utils.make_dotdict(loc)
-
-        # Diff the manifests. Must not return an error.
-        diff_str, err = square.diff_manifests(loc, srv)
-        assert err is False
-
-        # Since it is difficult to compare the correct diff string due to
-        # formatting characters, we will only verify that the string contains
-        # a line that removes the old "names1" and one line to add "name2".
-        assert "-  name: name1" in diff_str
-        assert "+  name: name2" in diff_str
-
-    def test_diff_manifests_err(self):
-        """Diff two valid manifests and verify the output."""
-        # Create two valid manifests, then stunt one in such a way that
-        # `manifest_metaspec` will reject it.
-        valid = make_manifest("Deployment", "namespace", "name1")
-        invalid = make_manifest("Deployment", "namespace", "name2")
-        del invalid["kind"]
-
-        # Test function must return with an error, irrespective of which
-        # manifest was invalid.
-        assert square.diff_manifests(valid, invalid) == RetVal(None, True)
-        assert square.diff_manifests(invalid, valid) == RetVal(None, True)
-        assert square.diff_manifests(invalid, invalid) == RetVal(None, True)
 
     def test_compute_patch_ok(self):
         """Compute patch between two manifests.
@@ -1037,7 +885,7 @@ class TestPlan:
         # output structure below.
         patch, err = square.compute_patch(config, loc_man[meta], srv_man[meta])
         assert not err
-        diff_str, err = square.diff_manifests(loc_man[meta], srv_man[meta])
+        diff_str, err = manio.diff_manifests(loc_man[meta], srv_man[meta])
         assert not err
 
         # Verify the test function returns the correct Patch and diff.
@@ -1049,7 +897,7 @@ class TestPlan:
         assert square.compile_plan(config, loc_man, srv_man) == RetVal(expected, False)
 
     @mock.patch.object(square, "partition_manifests")
-    @mock.patch.object(square, "diff_manifests")
+    @mock.patch.object(manio, "diff_manifests")
     @mock.patch.object(square, "compute_patch")
     def test_compile_plan_err(self, m_patch, m_diff, m_part):
         """Use mocks for the internal function calls to simulate errors."""

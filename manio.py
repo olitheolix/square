@@ -1,3 +1,5 @@
+import colorama
+import difflib
 import pathlib
 import copy
 import collections
@@ -409,3 +411,121 @@ def save(folder, manifests: dict):
 
     # Save the files to disk.
     return save_files(folder, fdata_raw)
+
+
+def manifest_metaspec(manifest: dict):
+    """Return a copy of `manifest` with only the salient keys.
+
+    The salient keys are: `apiVersion`, `kind`, `metadata` and `spec`.
+
+    All other fields, eg `status` or `events` are irrelevant (and detrimental)
+    when we compute diffs and patches. Only the fields mentioned above matter
+    for that purpose.
+
+    Inputs:
+        manifest: dict
+
+    Returns:
+        dict: A strict subset of `manifest`.
+
+    """
+    # Avoid side effects for the caller. The DotDict improves the readability
+    # of this function.
+    manifest = k8s_utils.make_dotdict(copy.deepcopy(manifest))
+
+    # Sanity check: `manifest` must have at least these fields in order to be
+    # valid. Abort if it lacks one or more of them.
+    must_have = {'apiVersion', 'kind', 'metadata', 'spec'}
+    if not must_have.issubset(set(manifest.keys())):
+        missing = must_have - set(manifest.keys())
+        logit.error(f"Missing keys <{missing}> in manifest: <{manifest}>")
+        return RetVal(None, True)
+    del must_have
+
+    # Return with an error if the manifest specifies an unsupported resource type.
+    if manifest.kind not in square.SUPPORTED_KINDS:
+        logit.error(f"Unsupported resource kind <{manifest.kind}> in <{manifest}>")
+        return RetVal(None, True)
+
+    # Manifests must also have certain keys in their metadata structure. Which
+    # ones depends on whether or not it is a namespace manifest or not.
+    if manifest.kind == "Namespace":
+        if "namespace" in manifest.metadata:
+            logit.error(
+                f"Namespace must not have a `metadata.namespace` attribute: <{manifest}>"
+            )
+            return RetVal(None, True)
+        must_have = {"name"}
+    else:
+        must_have = {"name", "namespace"}
+
+    # Ensure the metadata field has the necessary fields.
+    if not must_have.issubset(set(manifest.metadata.keys())):
+        missing = must_have - set(manifest.metadata.keys())
+        logit.error(f"Manifest metadata is missing these keys: {missing}: <{manifest}>")
+        return RetVal(None, True)
+    del must_have
+
+    # Compile the salient metadata fields into a new dict.
+    new_meta = {"name": manifest.metadata.name}
+    if "namespace" in manifest.metadata:
+        new_meta["namespace"] = manifest.metadata.namespace
+    if "labels" in manifest.metadata:
+        new_meta["labels"] = manifest.metadata.labels
+
+    # Compile a new manifest with the salient keys only.
+    ret = {
+        "apiVersion": manifest.apiVersion,
+        "kind": manifest.kind,
+        "metadata": new_meta,
+        "spec": manifest.spec,
+    }
+    return RetVal(k8s_utils.make_dotdict(ret), False)
+
+
+def diff_manifests(local: dict, server: dict):
+    """Return the human readable diff between the `local` and `server`.
+
+    The diff shows the necessary changes to transition the `server` manifest
+    into the state of the `local` manifest.
+
+    Inputs:
+        local: dict
+            Local manifest.
+        server: dict
+            Local manifest.
+
+    Returns:
+        str: human readable diff string as the Unix `diff` utility would
+        produce it.
+
+    """
+    # Clean up the input manifests because we do not want to diff the eg
+    # `status` fields.
+    srv, err1 = manifest_metaspec(server)
+    loc, err2 = manifest_metaspec(local)
+    if err1 or err2:
+        return RetVal(None, True)
+
+    # Undo the DotDicts. This is a pre-caution because the YAML parser can
+    # otherwise not dump the manifests.
+    srv = k8s_utils.undo_dotdict(srv)
+    loc = k8s_utils.undo_dotdict(loc)
+    srv_lines = yaml.dump(srv, default_flow_style=False).splitlines()
+    loc_lines = yaml.dump(loc, default_flow_style=False).splitlines()
+
+    # Compute the diff.
+    diff_lines = difflib.unified_diff(srv_lines, loc_lines, lineterm='')
+
+    # Add some terminal colours to make it look prettier.
+    out = []
+    for line in diff_lines:
+        if line.startswith('+'):
+            out.append(colorama.Fore.GREEN + line + colorama.Fore.RESET)
+        elif line.startswith('-'):
+            out.append(colorama.Fore.RED + line + colorama.Fore.RESET)
+        else:
+            out.append(line)
+
+    # Return the diff.
+    return RetVal(str.join('\n', out), False)
