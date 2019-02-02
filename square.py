@@ -128,7 +128,7 @@ def urlpath(config, kind, namespace):
     return RetVal(url, False)
 
 
-def compute_patch(config, local: dict, server: dict):
+def make_patch(config, local: dict, server: dict):
     """
     Inputs:
         local_manifests: dict
@@ -344,7 +344,7 @@ def compile_plan(config, local_manifests, server_manifests):
             return RetVal(None, True)
 
         # Compute the JSON patch that will match K8s to the local manifest.
-        patch, err = compute_patch(config, loc, srv)
+        patch, err = make_patch(config, loc, srv)
         if err:
             return RetVal(None, True)
         patches.append(DeltaPatch(delta, diff_str, patch))
