@@ -5,12 +5,10 @@ import pathlib
 import copy
 import collections
 
-import square
 import yaml
 import dotdict
-
-
-RetVal = collections.namedtuple('RetVal', 'data err')
+from dtypes import SUPPORTED_KINDS
+from dtypes import RetVal, MetaManifest
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
@@ -18,7 +16,7 @@ logit = logging.getLogger("square")
 
 def make_meta(manifest: dict):
     """Compile `MetaManifest` information from `manifest` and return it."""
-    return square.MetaManifest(
+    return MetaManifest(
         apiVersion=manifest['apiVersion'],
         kind=manifest['kind'],
         namespace=manifest['metadata'].get('namespace', None),
@@ -224,15 +222,15 @@ def unparse(file_manifests):
     for fname, manifests in file_manifests.items():
         # Verify that this file contains only supported resource kinds.
         kinds = {meta.kind for meta, _ in manifests}
-        diff = kinds - set(square.SUPPORTED_KINDS)
+        diff = kinds - set(SUPPORTED_KINDS)
         if len(diff) > 0:
-            logit.error(f"Found unsupported resource kinds when writing <{fname}>: {diff}")
+            logit.error(f"Found unsupported KIND when writing <{fname}>: {diff}")
             return RetVal(None, True)
 
         # Group the manifests by their "kind", sort each group and compile a
         # new list of grouped and sorted manifests.
         man_sorted = []
-        for kind in square.SUPPORTED_KINDS:
+        for kind in SUPPORTED_KINDS:
             man_sorted += sorted([_ for _ in manifests if _[0].kind == kind])
         assert len(man_sorted) == len(manifests)
 
@@ -445,7 +443,7 @@ def manifest_metaspec(manifest: dict):
     del must_have
 
     # Return with an error if the manifest specifies an unsupported resource type.
-    if manifest.kind not in square.SUPPORTED_KINDS:
+    if manifest.kind not in SUPPORTED_KINDS:
         logit.error(f"Unsupported resource kind <{manifest.kind}> in <{manifest}>")
         return RetVal(None, True)
 

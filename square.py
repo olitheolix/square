@@ -3,7 +3,6 @@ import manio
 import logging
 import sys
 import argparse
-import collections
 import json
 import yaml
 import os
@@ -14,21 +13,9 @@ from IPython import embed
 
 import colorama
 from pprint import pprint
-
-
-# We support these resource types. The order matters because it determines the
-# order in which the manifests will be grouped in the output files.
-SUPPORTED_KINDS = ("Namespace", "Service", "Deployment")
-SUPPORTED_VERSIONS = ("1.9", "1.10")
-
-Patch = collections.namedtuple('Patch', 'url ops')
-RetVal = collections.namedtuple('RetVal', 'data err')
-DeploymentPlan = collections.namedtuple('DeploymentPlan', 'create patch delete')
-Manifests = collections.namedtuple('Manifests', 'local server files')
-MetaManifest = collections.namedtuple('MetaManifest', 'apiVersion kind namespace name')
-DeltaPatch = collections.namedtuple("Delta", "meta diff patch")
-DeltaCreate = collections.namedtuple("DeltaCreate", "meta url manifest")
-DeltaDelete = collections.namedtuple("DeltaDelete", "meta url manifest")
+from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS
+from dtypes import (DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+                    Manifests, Patch, RetVal)
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
