@@ -821,6 +821,40 @@ class TestPlan:
     def setup_class(cls):
         square.setup_logging(9)
 
+    def test_diff_manifests_ok(self):
+        """Diff two valid manifests and (roughly) verify the output."""
+        # Two valid manifests.
+        srv = make_manifest("Deployment", "namespace", "name1")
+        loc = make_manifest("Deployment", "namespace", "name2")
+
+        # Test function must able to cope with `DotDicts`.
+        srv = k8s_utils.make_dotdict(srv)
+        loc = k8s_utils.make_dotdict(loc)
+
+        # Diff the manifests. Must not return an error.
+        diff_str, err = square.diff_manifests(srv, loc)
+        assert err is False
+
+        # Since it is difficult to compare the correct diff string due to
+        # formatting characters, we will only verify that the string contains
+        # a line that removes the old "names1" and one line to add "name2".
+        assert "-  name: name1" in diff_str
+        assert "+  name: name2" in diff_str
+
+    def test_diff_manifests_err(self):
+        """Diff two valid manifests and verify the output."""
+        # Create two valid manifests, then stunt one in such a way that
+        # `manifest_metaspec` will reject it.
+        valid = make_manifest("Deployment", "namespace", "name1")
+        invalid = make_manifest("Deployment", "namespace", "name2")
+        del invalid["kind"]
+
+        # Test function must return with an error, irrespective of which
+        # manifest was invalid.
+        assert square.diff_manifests(valid, invalid) == RetVal(None, True)
+        assert square.diff_manifests(invalid, valid) == RetVal(None, True)
+        assert square.diff_manifests(invalid, invalid) == RetVal(None, True)
+
     def test_compile_plan_create_delete(self):
         """Test a plan that creates and deletes resource, but not patches any.
 
