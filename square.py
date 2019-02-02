@@ -84,7 +84,7 @@ def parse_commandline_args():
     return parser.parse_args()
 
 
-def diff_manifests(src: dict, dst: dict):
+def diff_manifests(dst: dict, src: dict):
     src, err = manifest_metaspec(src)
     if err:
         return RetVal(None, True)
@@ -566,7 +566,7 @@ def compile_plan(config, local_manifests, server_manifests):
         srv = server_manifests[meta]
 
         # Compute textual diff (only useful for the user to study the diff).
-        diff_str, err = diff_manifests(srv, loc)
+        diff_str, err = diff_manifests(loc, srv)
         if err:
             return RetVal(None, True)
 

@@ -832,7 +832,7 @@ class TestPlan:
         loc = k8s_utils.make_dotdict(loc)
 
         # Diff the manifests. Must not return an error.
-        diff_str, err = square.diff_manifests(srv, loc)
+        diff_str, err = square.diff_manifests(loc, srv)
         assert err is False
 
         # Since it is difficult to compare the correct diff string due to
@@ -997,7 +997,7 @@ class TestPlan:
         # output structure below.
         patch, err = square.compute_patch(config, loc_man[meta], srv_man[meta])
         assert not err
-        diff_str, err = square.diff_manifests(srv_man[meta], loc_man[meta])
+        diff_str, err = square.diff_manifests(loc_man[meta], srv_man[meta])
         assert not err
 
         # Verify the test function returns the correct Patch and diff.
