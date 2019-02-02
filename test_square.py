@@ -917,7 +917,7 @@ class TestPlan:
         valid_b = make_manifest(kind, namespace, "foo")
         assert square.compute_patch(valid_cfg, valid_a, valid_b) == RetVal(None, True)
 
-    def test_compile_plan_create_delete(self):
+    def test_compile_plan_create_delete_ok(self):
         """Test a plan that creates and deletes resource, but not patches any.
 
         To do this, the local and server resources are all distinct. As a
@@ -986,6 +986,32 @@ class TestPlan:
             ],
         )
         assert square.compile_plan(config, loc_man, srv_man) == RetVal(expected, False)
+
+    @mock.patch.object(square, "partition_manifests")
+    def test_compile_plan_create_delete_err(self, m_part):
+        """Simulate `urlpath` errors"""
+        # Invalid configuration. We will use it to trigger an error in `urlpath`.
+        cfg_invalid = k8s_utils.Config("url", "token", "cert", "cert", "invalid")
+
+        # Valid ManifestMeta and dummy manifest dict.
+        meta = square.make_meta(make_manifest("Deployment", "ns", "name"))
+        man = {meta: None}
+
+        # Pretend we only have to "create" resources, and then trigger the
+        # `urlpath` error in its code path.
+        m_part.return_value = RetVal(
+            data=square.DeploymentPlan(create=[meta], patch=[], delete=[]),
+            err=False,
+        )
+        assert square.compile_plan(cfg_invalid, man, man) == RetVal(None, True)
+
+        # Pretend we only have to "delete" resources, and then trigger the
+        # `urlpath` error in its code path.
+        m_part.return_value = RetVal(
+            data=square.DeploymentPlan(create=[], patch=[], delete=[meta]),
+            err=False,
+        )
+        assert square.compile_plan(cfg_invalid, man, man) == RetVal(None, True)
 
     def test_compile_plan_patch_no_diff(self):
         """Test a plan that patches all resources.
