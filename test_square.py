@@ -1173,6 +1173,49 @@ class TestPlan:
         assert square.compile_plan(config, loc_man, srv_man) == RetVal(None, True)
 
 
+class TestLocalServerManfiests:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
+    @mock.patch.object(manio, "load")
+    @mock.patch.object(manio, "unpack")
+    @mock.patch.object(square, "download_manifests")
+    def test_local_server_manifests(self, m_download, m_unpack, m_load):
+        """Basic test.
+
+        This function does hardly anything to begin with, so we will merely
+        verify it calls the correct functions with the correct arguments and
+        handles errors correctly.
+
+        """
+        # Pretend that all auxiliary functions succeed.
+        m_load.return_value = RetVal("fdata_meta", False)
+        m_unpack.return_value = RetVal("loc", False)
+        m_download.return_value = RetVal("srv", False)
+
+        # The arguments to the test function will always be the same in this test.
+        args = "config", "client", "folder", "kinds", "ns"
+
+        fun = square.local_server_manifests
+        assert fun(*args) == RetVal(("loc", "srv", "fdata_meta"), False)
+        m_load.assert_called_once_with("folder")
+        m_unpack.assert_called_once_with("fdata_meta")
+        m_download.assert_called_once_with("config", "client", "kinds", "ns")
+
+        # Simulate an error with `manio.load`.
+        m_load.return_value = RetVal(None, True)
+        assert fun(*args) == RetVal(None, True)
+
+        # Simulate an error with `manio.unpack`.
+        m_unpack.return_value = RetVal(None, True)
+        assert fun(*args) == RetVal(None, True)
+
+        # Simulate an error with `square.download_manifests`.
+        m_download.return_value = RetVal(None, True)
+        assert fun(*args) == RetVal(None, True)
+
+
 class TestMain:
     @classmethod
     def setup_class(cls):
