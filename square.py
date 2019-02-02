@@ -129,7 +129,8 @@ def urlpath(config, kind, namespace):
 
 
 def make_patch(config, local: dict, server: dict):
-    """
+    """Return JSON patch to transition `server` to `local`.
+
     Inputs:
         local_manifests: dict
             Usually the dictionary keys returned by `load_manifest`.
