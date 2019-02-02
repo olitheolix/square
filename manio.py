@@ -247,7 +247,7 @@ def unparse(file_manifests):
 
     # Ensure that all dicts are pure Python dicts or there will be problems
     # with the YAML generation below.
-    out_clean = {k: dotdict.undo_dotdict(v) for k, v in out.items()}
+    out_clean = {k: dotdict.undo(v) for k, v in out.items()}
 
     # Convert all manifest dicts into YAML strings.
     out = {}
@@ -431,7 +431,7 @@ def metaspec(manifest: dict):
     """
     # Avoid side effects for the caller. The DotDict improves the readability
     # of this function.
-    manifest = dotdict.make_dotdict(copy.deepcopy(manifest))
+    manifest = dotdict.make(copy.deepcopy(manifest))
 
     # Sanity check: `manifest` must have at least these fields in order to be
     # valid. Abort if it lacks one or more of them.
@@ -480,7 +480,7 @@ def metaspec(manifest: dict):
         "metadata": new_meta,
         "spec": manifest.spec,
     }
-    return RetVal(dotdict.make_dotdict(ret), False)
+    return RetVal(dotdict.make(ret), False)
 
 
 def diff(local: dict, server: dict):
@@ -509,8 +509,8 @@ def diff(local: dict, server: dict):
 
     # Undo the DotDicts. This is a pre-caution because the YAML parser can
     # otherwise not dump the manifests.
-    srv = dotdict.undo_dotdict(srv)
-    loc = dotdict.undo_dotdict(loc)
+    srv = dotdict.undo(srv)
+    loc = dotdict.undo(loc)
     srv_lines = yaml.dump(srv, default_flow_style=False).splitlines()
     loc_lines = yaml.dump(loc, default_flow_style=False).splitlines()
 
