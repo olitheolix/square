@@ -413,7 +413,7 @@ def save(folder, manifests: dict):
     return save_files(folder, fdata_raw)
 
 
-def manifest_metaspec(manifest: dict):
+def metaspec(manifest: dict):
     """Return a copy of `manifest` with only the salient keys.
 
     The salient keys are: `apiVersion`, `kind`, `metadata` and `spec`.
@@ -502,8 +502,8 @@ def diff_manifests(local: dict, server: dict):
     """
     # Clean up the input manifests because we do not want to diff the eg
     # `status` fields.
-    srv, err1 = manifest_metaspec(server)
-    loc, err2 = manifest_metaspec(local)
+    srv, err1 = metaspec(server)
+    loc, err2 = metaspec(local)
     if err1 or err2:
         return RetVal(None, True)
 

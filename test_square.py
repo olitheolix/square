@@ -285,7 +285,7 @@ class TestDownloadManifests:
         # The expected outcome is a Dict[MetaManifest:dict] of all the items in
         # DeploymentList and NamespaceList.
         expected = {
-            manio.make_meta(_): manio.manifest_metaspec(_).data
+            manio.make_meta(_): manio.metaspec(_).data
             for _ in meta
         }
 
@@ -466,13 +466,13 @@ class TestPlan:
         invalid_cfg = k8s.Config("url", "token", "cert", "client_cert", "invalid")
 
         # Create two valid manifests, then stunt one in such a way that
-        # `manifest_metaspec` will reject it.
+        # `metaspec` will reject it.
         kind, namespace, name = "Deployment", "namespace", "name"
         valid = make_manifest(kind, namespace, name)
         invalid = make_manifest(kind, namespace, name)
         del invalid["kind"]
 
-        # Must handle errors from `manifest_metaspec`.
+        # Must handle errors from `metaspec`.
         assert square.compute_patch(valid_cfg, valid, invalid) == RetVal(None, True)
         assert square.compute_patch(valid_cfg, invalid, valid) == RetVal(None, True)
         assert square.compute_patch(valid_cfg, invalid, invalid) == RetVal(None, True)
