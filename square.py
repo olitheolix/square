@@ -747,7 +747,40 @@ def setup_logging(level: int):
     logger.addHandler(ch)
 
 
-def main_patch(config, client, local_manifests, server_manifests):
+def local_server_manifests(config, client, manifest_folder, kinds, namespace):
+    """Return local-, server- and augmented local manifests.
+
+    NOTE: This is a convenience wrapper around `manio.load`, `manio.unpack` and
+    `download_manifest` to minimise code duplication.
+
+    Inputs:
+        config: k8s_utils.Config
+        client: `requests` session with correct K8s certificates.
+        folder: Path
+            Path to local manifests eg "./foo"
+        kinds: Iterable
+            Resource types to fetch, eg ["Deployment", "Namespace"]
+        namespace:
+            Set to None to load all namespaces.
+
+    Returns:
+        (
+            Dict[MetaManifest, dict],  # Local manifests.
+            Dict[MetaManifest, dict],  # Server manifests.
+            Dict[Filename, Tuple[MetaManifest, dict]]  # Local manifests with file names
+        )
+
+    """
+    # Import local and server manifests.
+    fdata_meta, err = manio.load(manifest_folder)
+    local_manifests, err = manio.unpack(fdata_meta)
+    server_manifests, err = download_manifests(config, client, kinds, namespace)
+
+    data = (local_manifests, server_manifests, fdata_meta)
+    return RetVal(data, False)
+
+
+def main_patch(config, client, manifest_folder, kinds, namespace):
     """Update K8s to match the specifications in `local_manifests`.
 
     Create a deployment plan that will transition the K8s state
@@ -765,6 +798,12 @@ def main_patch(config, client, local_manifests, server_manifests):
         None
 
     """
+    # Load local and remote manifests.
+    data, err = local_server_manifests(config, client, manifest_folder, kinds, namespace)
+    if err:
+        return RetVal(None, True)
+    local_manifests, server_manifests, fdata_meta = data
+
     # Create the deployment plan.
     plan, err = compile_plan(config, local_manifests, server_manifests)
     if err:
@@ -797,7 +836,7 @@ def main_patch(config, client, local_manifests, server_manifests):
     return RetVal(None, False)
 
 
-def main_diff(config, local_manifests, server_manifests):
+def main_diff(config, client, manifest_folder, kinds, namespace):
     """Print the diff between `local_manifests` and `server_manifests`.
 
     The diff shows what would have to change on the K8s server in order for it
@@ -814,6 +853,12 @@ def main_diff(config, local_manifests, server_manifests):
         None
 
     """
+    # Load local and remote manifests.
+    data, err = local_server_manifests(config, client, manifest_folder, kinds, namespace)
+    if err:
+        return RetVal(None, True)
+    local_manifests, server_manifests, fdata_meta = data
+
     # Create deployment plan.
     plan, err = compile_plan(config, local_manifests, server_manifests)
     if err:
@@ -824,7 +869,7 @@ def main_diff(config, local_manifests, server_manifests):
     return RetVal(None, False)
 
 
-def main_get(manifest_folder, local_fdata, server_manifests):
+def main_get(config, client, manifest_folder, kinds, namespace):
     """Download all K8s manifests and merge them into local files.
 
     Inputs:
@@ -838,9 +883,15 @@ def main_get(manifest_folder, local_fdata, server_manifests):
         None
 
     """
+    # Load local and remote manifests.
+    data, err = local_server_manifests(config, client, manifest_folder, kinds, namespace)
+    if err:
+        return RetVal(None, True)
+    local_manifests, server_manifests, fdata_meta = data
+
     # Sync the server manifests into the local manfifests. All this happens in
     # memory and no files will be modified here - see next step.
-    synced_manifests, err = manio.sync(local_fdata, server_manifests)
+    synced_manifests, err = manio.sync(fdata_meta, server_manifests)
     if err:
         return RetVal(None, True)
 
@@ -873,18 +924,13 @@ def main():
     # Update the config with the correct K8s API version.
     config, _ = get_k8s_version(config, client)
 
-    # Import local and server manifests.
-    fdata_meta, err = manio.load(manifest_folder)
-    local_manifests, err = manio.unpack(fdata_meta)
-    server_manifests, err = download_manifests(config, client, kinds, namespace)
-
     # Do what user asked us to do.
     if param.parser == "get":
-        _, err = main_get(manifest_folder, fdata_meta, server_manifests)
+        _, err = main_get(config, client, manifest_folder, kinds, namespace)
     elif param.parser == "diff":
-        _, err = main_diff(config, local_manifests, server_manifests)
+        _, err = main_diff(config, client, manifest_folder, kinds, namespace)
     elif param.parser == "patch":
-        _, err = main_patch(config, client, local_manifests, server_manifests)
+        _, err = main_patch(config, client, manifest_folder, kinds, namespace)
     else:
         print(f"Unknown command <{param.parser}>")
         sys.exit(1)
