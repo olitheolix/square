@@ -1178,11 +1178,12 @@ class TestMain:
     def setup_class(cls):
         square.setup_logging(9)
 
+    @mock.patch.object(square, "local_server_manifests")
     @mock.patch.object(square, "compile_plan")
     @mock.patch.object(square, "k8s_post")
     @mock.patch.object(square, "k8s_patch")
     @mock.patch.object(square, "k8s_delete")
-    def test_main_patch(self, m_delete, m_patch, m_post, m_plan):
+    def test_main_patch(self, m_delete, m_patch, m_post, m_plan, m_lsm):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -1212,14 +1213,19 @@ class TestMain:
         )
 
         # Pretend that all K8s requests succeed.
+        m_lsm.return_value = RetVal(("loc", "srv", "files"), False)
         m_plan.return_value = RetVal(plan, False)
         m_post.return_value = RetVal(None, False)
         m_patch.return_value = RetVal(None, False)
         m_delete.return_value = RetVal(None, False)
 
+        # The arguments to the test function will always be the same in this test.
+        args = config, "client", "folder", "kinds", "ns"
+
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
-        assert square.main_patch(config, "client", "loc", "srv") == RetVal(None, False)
+        assert square.main_patch(*args) == RetVal(None, False)
+        m_lsm.assert_called_once_with(*args)
         m_plan.assert_called_once_with(config, "loc", "srv")
         m_post.assert_called_once_with("client", "create_url", "create_man")
         m_patch.assert_called_once_with("client", patch.url, patch.ops)
@@ -1230,22 +1236,27 @@ class TestMain:
         # -----------------------------------------------------------------
         # Make `k8s_delete` fail.
         m_delete.return_value = RetVal(None, True)
-        assert square.main_patch(config, "client", "loc", "srv") == RetVal(None, True)
+        assert square.main_patch(*args) == RetVal(None, True)
 
         # Make `k8s_patch` fail.
         m_patch.return_value = RetVal(None, True)
-        assert square.main_patch(config, "client", "loc", "srv") == RetVal(None, True)
+        assert square.main_patch(*args) == RetVal(None, True)
 
         # Make `k8s_post` fail.
         m_post.return_value = RetVal(None, True)
-        assert square.main_patch(config, "client", "loc", "srv") == RetVal(None, True)
+        assert square.main_patch(*args) == RetVal(None, True)
 
         # Make `compile_plan` fail.
         m_plan.return_value = RetVal(None, True)
-        assert square.main_patch(config, "client", "loc", "srv") == RetVal(None, True)
+        assert square.main_patch(*args) == RetVal(None, True)
 
+        # Make `local_server_manifests` fail.
+        m_lsm.return_value = RetVal(None, True)
+        assert square.main_patch(*args) == RetVal(None, True)
+
+    @mock.patch.object(square, "local_server_manifests")
     @mock.patch.object(square, "compile_plan")
-    def test_main_diff(self, m_plan):
+    def test_main_diff(self, m_plan, m_lsm):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -1256,17 +1267,30 @@ class TestMain:
         # Valid deployment plan.
         plan = square.DeploymentPlan(create=[], patch=[], delete=[])
 
-        # A successfull DIFF only computes and prints the plan.
+        # All auxiliary functions will succeed.
+        m_lsm.return_value = RetVal(("loc", "srv", "files"), False)
         m_plan.return_value = RetVal(plan, False)
-        assert square.main_diff("cfg", "local", "server") == RetVal(None, False)
+
+        # The arguments to the test function will always be the same in this test.
+        args = "config", "client", "folder", "kinds", "ns"
+
+        # A successfull DIFF only computes and prints the plan.
+        assert square.main_diff(*args) == RetVal(None, False)
+        m_lsm.assert_called_once_with(*args)
+        m_plan.assert_called_once_with("config", "loc", "srv")
 
         # Simulate an error in `compute_plan`.
         m_plan.return_value = RetVal(None, True)
-        assert square.main_diff("cfg", "local", "server") == RetVal(None, True)
+        assert square.main_diff(*args) == RetVal(None, True)
 
+        # Simulate an error in `local_server_manifests`.
+        m_lsm.return_value = RetVal(None, True)
+        assert square.main_diff(*args) == RetVal(None, True)
+
+    @mock.patch.object(square, "local_server_manifests")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
-    def test_main_get(self, m_save, m_sync):
+    def test_main_get(self, m_save, m_sync, m_lsm):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -1275,18 +1299,27 @@ class TestMain:
 
         """
         # Simulate successful responses from the two auxiliary functions.
+        m_lsm.return_value = RetVal(("loc", "srv", "files"), False)
         m_sync.return_value = RetVal("synced", False)
         m_save.return_value = RetVal(None, False)
 
+        # The arguments to the test function will always be the same in this test.
+        args = "config", "client", "folder", "kinds", "ns"
+
         # Call test function and verify it passed the correct arguments.
-        assert square.main_get("folder", "local", "server") == RetVal(None, False)
-        m_sync.assert_called_once_with("local", "server")
+        assert square.main_get(*args) == RetVal(None, False)
+        m_lsm.assert_called_once_with(*args)
+        m_sync.assert_called_once_with("files", "srv")
         m_save.assert_called_once_with("folder", "synced")
 
         # Simulate an error with `manio.save`.
         m_save.return_value = RetVal(None, True)
-        assert square.main_get("folder", "local", "server") == RetVal(None, True)
+        assert square.main_get(*args) == RetVal(None, True)
 
         # Simulate an error with `manio.sync`.
-        m_sync.return_value = RetVal("synced", True)
-        assert square.main_get("folder", "local", "server") == RetVal(None, True)
+        m_sync.return_value = RetVal(None, True)
+        assert square.main_get(*args) == RetVal(None, True)
+
+        # Simulate an error in `local_server_manifests`.
+        m_lsm.return_value = RetVal(None, True)
+        assert square.main_get(*args) == RetVal(None, True)
