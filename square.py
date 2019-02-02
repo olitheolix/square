@@ -798,8 +798,30 @@ def main_patch(config, client, local_manifests, server_manifests):
 
 
 def main_diff(config, local_manifests, server_manifests):
+    """Print the diff between `local_manifests` and `server_manifests`.
+
+    The diff shows what would have to change on the K8s server in order for it
+    to match the setup defined in `local_manifests`.
+
+    Inputs:
+        config: k8s_utils.Config
+        local_manifests: Dict[MetaManifest, dict]
+            Typically the output from `load_manifest` or `load`.
+        server_manifests: Dict[MetaManifest, dict]
+            Typically the output from `download_manifests`.
+
+    Returns:
+        None
+
+    """
+    # Create deployment plan.
     plan, err = compile_plan(config, local_manifests, server_manifests)
+    if err:
+        return RetVal(None, True)
+
+    # Print the plan and return.
     print_deltas(plan)
+    return RetVal(None, False)
 
 
 def main_get(manifest_folder, fdata_meta, server_manifests):

@@ -1242,3 +1242,23 @@ class TestMain:
         # Make `compile_plan` fail.
         m_plan.return_value = RetVal(None, True)
         assert square.main_patch(config, "client", "loc", "srv") == RetVal(None, True)
+
+    @mock.patch.object(square, "compile_plan")
+    def test_main_diff(self, m_plan):
+        """Basic test.
+
+        This function does hardly anything to begin with, so we will merely
+        verify it calls the correct functions with the correct arguments and
+        handles errors correctly.
+
+        """
+        # Valid deployment plan.
+        plan = square.DeploymentPlan(create=[], patch=[], delete=[])
+
+        # A successfull DIFF only computes and prints the plan.
+        m_plan.return_value = RetVal(plan, False)
+        assert square.main_diff("cfg", "local", "server") == RetVal(None, False)
+
+        # Simulate an error in `compute_plan`.
+        m_plan.return_value = RetVal(None, True)
+        assert square.main_diff("cfg", "local", "server") == RetVal(None, True)
