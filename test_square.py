@@ -246,7 +246,7 @@ class TestDownloadManifests:
     def setup_class(cls):
         square.setup_logging(9)
 
-    @mock.patch.object(k8s, 'k8s_get')
+    @mock.patch.object(k8s, 'get')
     def test_download_manifests_ok(self, m_get):
         """Download two kinds of manifests: Deployments and Namespaces.
 
@@ -277,7 +277,7 @@ class TestDownloadManifests:
         }
         m_get.side_effect = [RetVal(man_list_ns, False), RetVal(man_list_deploy, False)]
 
-        # The request URLs. We will need them to validate the `k8s_get` arguments.
+        # The request URLs. We will need them to validate the `get` arguments.
         url_ns, err1 = square.urlpath(config, "Namespace", None)
         url_deploy, err2 = square.urlpath(config, "Deployment", None)
         assert not err1 and not err2
@@ -299,7 +299,7 @@ class TestDownloadManifests:
             mock.call("client", url_deploy),
         ]
 
-    @mock.patch.object(k8s, 'k8s_get')
+    @mock.patch.object(k8s, 'get')
     def test_download_manifests_err(self, m_get):
         """Simulate a download error."""
         config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
@@ -311,10 +311,10 @@ class TestDownloadManifests:
             'items': [make_manifest("Namespace", None, "ns0")],
         }
 
-        # The first call to k8s_get will succeed whereas the second will not.
+        # The first call to get will succeed whereas the second will not.
         m_get.side_effect = [RetVal(man_list_ns, False), RetVal(None, True)]
 
-        # The request URLs. We will need them to validate the `k8s_get` arguments.
+        # The request URLs. We will need them to validate the `get` arguments.
         url_ns, err1 = square.urlpath(config, "Namespace", None)
         url_deploy, err2 = square.urlpath(config, "Deployment", None)
         assert not err1 and not err2
@@ -417,62 +417,6 @@ class TestPatchK8s:
 
         ret = square.compute_patch(config, loc, srv)
         assert ret.err is False and len(ret.data) > 0
-
-
-class TestK8sConfig:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
-    @mock.patch.object(k8s, "k8s_get")
-    def test_get_k8s_version_auto_ok(self, m_get):
-        """Get K8s version number from API server."""
-
-        # This is a genuine K8s response from Minikube.
-        response = {
-            'major': '1', 'minor': '10',
-            'gitVersion': 'v1.10.0',
-            'gitCommit': 'fc32d2f3698e36b93322a3465f63a14e9f0eaead',
-            'gitTreeState': 'clean',
-            'buildDate': '2018-03-26T16:44:10Z',
-            'goVersion': 'go1.9.3',
-            'compiler': 'gc', 'platform': 'linux/amd64'
-        }
-        m_get.return_value = RetVal(response, None)
-
-        # Create vanilla `Config` instance.
-        m_client = mock.MagicMock()
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", None)
-
-        # Test function must contact the K8s API and return a `Config` tuple
-        # with the correct version number.
-        config2, err = square.get_k8s_version(config, client=m_client)
-        assert err is None
-        assert isinstance(config2, k8s.Config)
-        assert config2.version == "1.10"
-
-        # Test function must have called out to `k8s_get` to retrieve the
-        # version. Here we ensure it called the correct URL.
-        m_get.assert_called_once_with(m_client, f"{config.url}/version")
-        assert not m_client.called
-
-        # The return `Config` tuple must be identical to the input except for
-        # the version number.
-        assert config._replace(version=None) == config2._replace(version=None)
-
-    @mock.patch.object(k8s, "k8s_get")
-    def test_get_k8s_version_auto_err(self, m_get):
-        """Simulate an error when fetching the K8s version."""
-
-        # Create vanilla `Config` instance.
-        m_client = mock.MagicMock()
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", None)
-
-        # Simulate an error in `k8s_get`.
-        m_get.return_value = RetVal(None, True)
-
-        # Test function must abort gracefully.
-        assert square.get_k8s_version(config, m_client) == RetVal(None, True)
 
 
 class TestPlan:
@@ -804,14 +748,14 @@ class TestMain:
 
     @mock.patch.object(square, "local_server_manifests")
     @mock.patch.object(square, "compile_plan")
-    @mock.patch.object(k8s, "k8s_post")
-    @mock.patch.object(k8s, "k8s_patch")
-    @mock.patch.object(k8s, "k8s_delete")
+    @mock.patch.object(k8s, "post")
+    @mock.patch.object(k8s, "patch")
+    @mock.patch.object(k8s, "delete")
     def test_main_patch(self, m_delete, m_patch, m_post, m_plan, m_lsm):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
-        k8s_* calls, and verify that all the necessary calls are made.
+        * calls, and verify that all the necessary calls are made.
 
         The second part of the test simulates errors. This is not a separate
         test because it shares virtually all the boiler plate code.
@@ -858,15 +802,15 @@ class TestMain:
         # -----------------------------------------------------------------
         #                   Simulate Error Scenarios
         # -----------------------------------------------------------------
-        # Make `k8s_delete` fail.
+        # Make `delete` fail.
         m_delete.return_value = RetVal(None, True)
         assert square.main_patch(*args) == RetVal(None, True)
 
-        # Make `k8s_patch` fail.
+        # Make `patch` fail.
         m_patch.return_value = RetVal(None, True)
         assert square.main_patch(*args) == RetVal(None, True)
 
-        # Make `k8s_post` fail.
+        # Make `post` fail.
         m_post.return_value = RetVal(None, True)
         assert square.main_patch(*args) == RetVal(None, True)
 
