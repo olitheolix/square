@@ -660,7 +660,7 @@ def main():
     # K8s API.
     kubeconf = os.path.expanduser('~/.kube/config')
     config = k8s.load_auto_config(kubeconf, disable_warnings=True)
-    client = k8s.setup_requests(config)
+    client = k8s.session(config)
 
     # Update the config with the correct K8s API version.
     config, _ = k8s.get_version(config, client)
