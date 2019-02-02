@@ -26,6 +26,7 @@ SUPPORTED_VERSIONS = ("1.9", "1.10")
 Patch = collections.namedtuple('Patch', 'url ops')
 RetVal = collections.namedtuple('RetVal', 'data err')
 DeploymentPlan = collections.namedtuple('DeploymentPlan', 'create patch delete')
+Manifests = collections.namedtuple('Manifests', 'local server files')
 MetaManifest = collections.namedtuple('MetaManifest', 'apiVersion kind namespace name')
 DeltaPatch = collections.namedtuple("Delta", "meta diff patch")
 DeltaCreate = collections.namedtuple("DeltaCreate", "meta url manifest")
@@ -784,7 +785,7 @@ def local_server_manifests(config, client, folder, kinds, namespace):
     except AssertionError:
         return RetVal(None, True)
 
-    data = (local_manifests, server_manifests, fdata_meta)
+    data = Manifests(local_manifests, server_manifests, fdata_meta)
     return RetVal(data, False)
 
 
@@ -810,13 +811,11 @@ def main_patch(config, client, folder, kinds, namespace):
     """
     try:
         # Load local and remote manifests.
-        data, err = local_server_manifests(config, client, folder, kinds, namespace)
+        manifests, err = local_server_manifests(config, client, folder, kinds, namespace)
         assert not err
 
-        local_manifests, server_manifests, fdata_meta = data
-
         # Create the deployment plan.
-        plan, err = compile_plan(config, local_manifests, server_manifests)
+        plan, err = compile_plan(config, manifests.local, manifests.server)
         assert not err
 
         # Present the plan confirm to go ahead with the user.
@@ -870,12 +869,11 @@ def main_diff(config, client, folder, kinds, namespace):
     """
     try:
         # Load local and remote manifests.
-        data, err = local_server_manifests(config, client, folder, kinds, namespace)
+        manifests, err = local_server_manifests(config, client, folder, kinds, namespace)
         assert not err
-        local_manifests, server_manifests, fdata_meta = data
 
         # Create deployment plan.
-        plan, err = compile_plan(config, local_manifests, server_manifests)
+        plan, err = compile_plan(config, manifests.local, manifests.server)
         assert not err
     except AssertionError:
         return RetVal(None, True)
@@ -904,13 +902,12 @@ def main_get(config, client, folder, kinds, namespace):
     """
     try:
         # Load local and remote manifests.
-        data, err = local_server_manifests(config, client, folder, kinds, namespace)
+        manifests, err = local_server_manifests(config, client, folder, kinds, namespace)
         assert not err
-        local_manifests, server_manifests, fdata_meta = data
 
         # Sync the server manifests into the local manfifests. All this happens in
         # memory and no files will be modified here - see next step.
-        synced_manifests, err = manio.sync(fdata_meta, server_manifests)
+        synced_manifests, err = manio.sync(manifests.files, manifests.server)
         assert not err
 
         # Write the new manifest files.

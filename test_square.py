@@ -1256,7 +1256,7 @@ class TestMain:
         )
 
         # Pretend that all K8s requests succeed.
-        m_lsm.return_value = RetVal(("loc", "srv", "files"), False)
+        m_lsm.return_value = RetVal(square.Manifests("loc", "srv", "files"), False)
         m_plan.return_value = RetVal(plan, False)
         m_post.return_value = RetVal(None, False)
         m_patch.return_value = RetVal(None, False)
@@ -1311,7 +1311,7 @@ class TestMain:
         plan = square.DeploymentPlan(create=[], patch=[], delete=[])
 
         # All auxiliary functions will succeed.
-        m_lsm.return_value = RetVal(("loc", "srv", "files"), False)
+        m_lsm.return_value = RetVal(square.Manifests("loc", "srv", "files"), False)
         m_plan.return_value = RetVal(plan, False)
 
         # The arguments to the test function will always be the same in this test.
@@ -1342,7 +1342,7 @@ class TestMain:
 
         """
         # Simulate successful responses from the two auxiliary functions.
-        m_lsm.return_value = RetVal(("loc", "srv", "files"), False)
+        m_lsm.return_value = RetVal(square.Manifests("loc", "srv", "files"), False)
         m_sync.return_value = RetVal("synced", False)
         m_save.return_value = RetVal(None, False)
 
