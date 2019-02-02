@@ -599,18 +599,36 @@ def compile_plan(config, local_manifests, server_manifests):
 
 
 def print_deltas(plan):
+    """Print human readable version of `plan` to terminal.
+
+    Inputs:
+        plan: DeploymentPlan
+
+    Returns:
+        None
+
+    """
+    # Terminal colours for convenience.
     cGreen = colorama.Fore.GREEN
     cRed = colorama.Fore.RED
     cReset = colorama.Fore.RESET
 
+    # Use Green to list all the resources that we should create.
     for delta in plan.create:
         name = f'{delta.meta.namespace}/{delta.meta.name}'
+
+        # Convert manifest to YAML string and print every line in Green.
         txt = yaml.dump(delta.manifest, default_flow_style=False)
         txt = [cGreen + line + cReset for line in txt.splitlines()]
-        txt.insert(0, cGreen + f"--- {name} ---" + cReset)
-        txt = str.join('\n', txt)
-        print(txt + '\n')
 
+        # Add header line.
+        txt.insert(0, cGreen + f"--- {name} ---" + cReset)
+
+        # Print the reassembled string.
+        print(str.join('\n', txt) + '\n')
+
+    # Print the diff (already contains terminal colours) for all the resources
+    # that we should patch.
     deltas = plan.patch
     for delta in deltas:
         if len(delta.diff) > 0:
@@ -618,11 +636,12 @@ def print_deltas(plan):
             print('-' * 80 + '\n' + f'{name.upper()}\n' + '-' * 80)
             print(delta.diff)
 
+    # Use Red to list all the resources that we should delete.
     for delta in plan.delete:
         name = f'--- {delta.meta.namespace}/{delta.meta.name} ---'
         print(cRed + name + cReset + "\n")
 
-    return RetVal(None, None)
+    return RetVal(None, False)
 
 
 def get_k8s_version(config: utils.Config, client):

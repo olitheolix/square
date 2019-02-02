@@ -110,6 +110,29 @@ class TestBasic:
             err=None,
         )
 
+    def test_print_deltas(self):
+        """Just verify it runs.
+
+        There is nothing really to tests here because the function only prints
+        strings to the terminal. Therefore, we will merely ensure that all code
+        paths run without error.
+
+        """
+        meta = square.make_meta(make_manifest("Deployment", "ns", "name"))
+        patch = square.Patch(
+            url="url",
+            ops=[
+                {'op': 'remove', 'path': '/metadata/labels/old'},
+                {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'}
+            ],
+        )
+        plan = square.DeploymentPlan(
+            create=[square.DeltaCreate(meta, "url", "manifest")],
+            patch=[square.DeltaPatch(meta, "diff", patch)],
+            delete=[square.DeltaDelete(meta, "url", "manifest")],
+        )
+        assert square.print_deltas(plan) == RetVal(None, False)
+
 
 class TestPartition:
     @classmethod
