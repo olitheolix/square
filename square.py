@@ -267,7 +267,7 @@ def manifest_metaspec(manifest: dict):
     must_have = {'apiVersion', 'kind', 'metadata', 'spec'}
     if not must_have.issubset(set(manifest.keys())):
         missing = must_have - set(manifest.keys())
-        logit.error(f"Manifest is missing these keys: {missing}")
+        logit.error(f"Missing keys <{missing}> in manifest: <{manifest}>")
         return RetVal(None, True)
     del must_have
 
