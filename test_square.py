@@ -855,6 +855,68 @@ class TestPlan:
         assert square.diff_manifests(invalid, valid) == RetVal(None, True)
         assert square.diff_manifests(invalid, invalid) == RetVal(None, True)
 
+    def test_compute_patch_ok(self):
+        """Compute patch between two manifests.
+
+        This test function first verifies that the patch between two identical
+        manifests is empty. The second used two manifests that have different
+        labels. This must produce two patch operations, one to remove the old
+        label and one to add the new ones.
+
+        """
+        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+
+        # Two valid manifests.
+        kind, namespace, name = "Deployment", "namespace", "name"
+        srv = make_manifest(kind, namespace, name)
+        loc = make_manifest(kind, namespace, name)
+        srv["metadata"]["labels"] = {"old": "old"}
+        loc["metadata"]["labels"] = {"new": "new"}
+
+        # The Patch between two identical manifests must be a No-Op.
+        expected = square.Patch(
+            url=square.urlpath(config, kind, namespace).data + f"/{name}",
+            ops=[],
+        )
+        assert square.compute_patch(config, loc, loc) == RetVal(expected, False)
+
+        # The patch between `srv` and `loc` must remove the old label and add
+        # the new one.
+        expected = square.Patch(
+            url=square.urlpath(config, kind, namespace).data + f"/{name}",
+            ops=[
+                {'op': 'remove', 'path': '/metadata/labels/old'},
+                {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'}
+            ]
+        )
+        assert square.compute_patch(config, loc, srv) == RetVal(expected, False)
+
+    def test_compute_patch_err(self):
+        """Verify error cases with invalid or incompatible manifests."""
+        valid_cfg = k8s_utils.Config("url", "token", "cert", "client_cert", "1.10")
+        invalid_cfg = k8s_utils.Config("url", "token", "cert", "client_cert", "invalid")
+
+        # Create two valid manifests, then stunt one in such a way that
+        # `manifest_metaspec` will reject it.
+        kind, namespace, name = "Deployment", "namespace", "name"
+        valid = make_manifest(kind, namespace, name)
+        invalid = make_manifest(kind, namespace, name)
+        del invalid["kind"]
+
+        # Must handle errors from `manifest_metaspec`.
+        assert square.compute_patch(valid_cfg, valid, invalid) == RetVal(None, True)
+        assert square.compute_patch(valid_cfg, invalid, valid) == RetVal(None, True)
+        assert square.compute_patch(valid_cfg, invalid, invalid) == RetVal(None, True)
+
+        # Must handle `urlpath` errors.
+        assert square.compute_patch(invalid_cfg, valid, valid) == RetVal(None, True)
+
+        # Must handle incompatible manifests, ie manifests that do not belong
+        # to the same resource.
+        valid_a = make_manifest(kind, namespace, "bar")
+        valid_b = make_manifest(kind, namespace, "foo")
+        assert square.compute_patch(valid_cfg, valid_a, valid_b) == RetVal(None, True)
+
     def test_compile_plan_create_delete(self):
         """Test a plan that creates and deletes resource, but not patches any.
 
