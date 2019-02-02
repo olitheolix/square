@@ -14,7 +14,7 @@ import manio
 import yaml
 from dtypes import (
     SUPPORTED_KINDS, SUPPORTED_VERSIONS, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, Manifests, Patch, RetVal,
+    DeploymentPlan, JsonPatch, Manifests, RetVal,
 )
 from IPython import embed
 
@@ -179,7 +179,7 @@ def make_patch(config, local: dict, server: dict):
     patch = json.loads(patch.to_string())
 
     # Return the patch.
-    return RetVal(Patch(full_url, patch), False)
+    return RetVal(JsonPatch(full_url, patch), False)
 
 
 def download_manifests(config, client, kinds, namespace):
