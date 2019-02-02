@@ -111,7 +111,7 @@ def diff_manifests(src: dict, dst: dict):
         else:
             out.append(line)
 
-    return RetVal(str.join('\n', out), None)
+    return RetVal(str.join('\n', out), False)
 
 
 def urlpath(config, kind, namespace):
