@@ -222,9 +222,9 @@ def unparse(file_manifests):
     for fname, manifests in file_manifests.items():
         # Verify that this file contains only supported resource kinds.
         kinds = {meta.kind for meta, _ in manifests}
-        diff = kinds - set(SUPPORTED_KINDS)
-        if len(diff) > 0:
-            logit.error(f"Found unsupported KIND when writing <{fname}>: {diff}")
+        delta = kinds - set(SUPPORTED_KINDS)
+        if len(delta) > 0:
+            logit.error(f"Found unsupported KIND when writing <{fname}>: {delta}")
             return RetVal(None, True)
 
         # Group the manifests by their "kind", sort each group and compile a
