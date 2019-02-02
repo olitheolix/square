@@ -1,15 +1,15 @@
+import base64
 import json
 import logging
-import base64
 import os
 import tempfile
 import warnings
 from collections import namedtuple
-from dtypes import RetVal
 
 import google.auth.transport.requests
 import requests
 import yaml
+from dtypes import RetVal
 
 Config = namedtuple('Config', 'url token ca_cert client_cert version')
 ClientCert = namedtuple('ClientCert', 'crt key')

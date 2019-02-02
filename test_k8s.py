@@ -1,14 +1,11 @@
-import types
-import k8s
-import square
 import random
-import pytest
-
+import types
 import unittest.mock as mock
 
+import k8s
+import pytest
 import requests_mock
-
-
+import square
 from k8s import RetVal
 
 
