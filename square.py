@@ -772,9 +772,17 @@ def local_server_manifests(config, client, manifest_folder, kinds, namespace):
 
     """
     # Import local and server manifests.
-    fdata_meta, err = manio.load(manifest_folder)
-    local_manifests, err = manio.unpack(fdata_meta)
-    server_manifests, err = download_manifests(config, client, kinds, namespace)
+    try:
+        fdata_meta, err = manio.load(manifest_folder)
+        assert not err
+
+        local_manifests, err = manio.unpack(fdata_meta)
+        assert not err
+
+        server_manifests, err = download_manifests(config, client, kinds, namespace)
+        assert not err
+    except AssertionError:
+        return RetVal(None, True)
 
     data = (local_manifests, server_manifests, fdata_meta)
     return RetVal(data, False)
