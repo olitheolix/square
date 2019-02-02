@@ -268,7 +268,7 @@ def post(client, path: str, payload: dict):
     return RetVal(resp, code != 201)
 
 
-def get_version(config: Config, client):
+def version(config: Config, client):
     """Return new `config` with version number of K8s API.
 
     Contact the K8s API, query its version via `client` and return `config`

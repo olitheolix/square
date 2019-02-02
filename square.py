@@ -663,7 +663,7 @@ def main():
     client = k8s.session(config)
 
     # Update the config with the correct K8s API version.
-    config, _ = k8s.get_version(config, client)
+    config, _ = k8s.version(config, client)
 
     # Do what user asked us to do.
     if param.parser == "get":

@@ -182,7 +182,7 @@ class TestK8sConfig:
         square.setup_logging(9)
 
     @mock.patch.object(k8s, "get")
-    def test_get_version_auto_ok(self, m_get):
+    def test_version_auto_ok(self, m_get):
         """Get K8s version number from API server."""
 
         # This is a genuine K8s response from Minikube.
@@ -203,7 +203,7 @@ class TestK8sConfig:
 
         # Test function must contact the K8s API and return a `Config` tuple
         # with the correct version number.
-        config2, err = k8s.get_version(config, client=m_client)
+        config2, err = k8s.version(config, client=m_client)
         assert err is None
         assert isinstance(config2, k8s.Config)
         assert config2.version == "1.10"
@@ -218,7 +218,7 @@ class TestK8sConfig:
         assert config._replace(version=None) == config2._replace(version=None)
 
     @mock.patch.object(k8s, "get")
-    def test_get_version_auto_err(self, m_get):
+    def test_version_auto_err(self, m_get):
         """Simulate an error when fetching the K8s version."""
 
         # Create vanilla `Config` instance.
@@ -229,4 +229,4 @@ class TestK8sConfig:
         m_get.return_value = RetVal(None, True)
 
         # Test function must abort gracefully.
-        assert k8s.get_version(config, m_client) == RetVal(None, True)
+        assert k8s.version(config, m_client) == RetVal(None, True)
