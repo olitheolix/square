@@ -6,7 +6,10 @@ import unittest.mock as mock
 import k8s
 import manio
 import square
-from dtypes import MetaManifest, Patch, RetVal
+from dtypes import (
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, DeltaCreate, DeltaDelete, DeltaPatch,
+    DeploymentPlan, Manifests, MetaManifest, Patch, RetVal,
+)
 from test_helpers import make_manifest
 
 
@@ -79,17 +82,17 @@ class TestBasic:
 
         """
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
-        patch = square.Patch(
+        patch = Patch(
             url="url",
             ops=[
                 {'op': 'remove', 'path': '/metadata/labels/old'},
                 {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'}
             ],
         )
-        plan = square.DeploymentPlan(
-            create=[square.DeltaCreate(meta, "url", "manifest")],
-            patch=[square.DeltaPatch(meta, "diff", patch)],
-            delete=[square.DeltaDelete(meta, "url", "manifest")],
+        plan = DeploymentPlan(
+            create=[DeltaCreate(meta, "url", "manifest")],
+            patch=[DeltaPatch(meta, "diff", patch)],
+            delete=[DeltaDelete(meta, "url", "manifest")],
         )
         assert square.print_deltas(plan) == RetVal(None, False)
 
@@ -117,7 +120,7 @@ class TestPartition:
             MetaManifest('v1', 'Namespace', None, 'ns2'): "3",
             MetaManifest('v1', 'Deployment', 'ns1', 'foo'): "4",
         }
-        plan = square.DeploymentPlan(create=[], patch=list(local_man.keys()), delete=[])
+        plan = DeploymentPlan(create=[], patch=list(local_man.keys()), delete=[])
         assert square.partition_manifests(local_man, cluster_man) == RetVal(plan, False)
 
     def test_partition_manifests_add_delete(self):
@@ -139,7 +142,7 @@ class TestPartition:
             MetaManifest('v1', 'Namespace', None, 'ns1'): "3",
             MetaManifest('v1', 'Namespace', None, 'ns3'): "4",
         }
-        plan = square.DeploymentPlan(
+        plan = DeploymentPlan(
             create=[
                 MetaManifest('v1', 'Deployment', 'ns2', 'bar'),
                 MetaManifest('v1', 'Namespace', None, 'ns2'),
@@ -178,7 +181,7 @@ class TestPartition:
             MetaManifest('v1', 'Namespace', None, 'ns2'): "6",
             MetaManifest('v1', 'Namespace', None, 'ns3'): "7",
         }
-        plan = square.DeploymentPlan(
+        plan = DeploymentPlan(
             create=[],
             patch=[
                 MetaManifest('v1', 'Deployment', 'ns2', 'bar1'),
@@ -205,15 +208,15 @@ class TestUrlPathBuilder:
         Those variables specify the supported K8s versions and resource types.
 
         """
-        assert square.SUPPORTED_VERSIONS == ("1.9", "1.10")
-        assert square.SUPPORTED_KINDS == ("Namespace", "Service", "Deployment")
+        assert SUPPORTED_VERSIONS == ("1.9", "1.10")
+        assert SUPPORTED_KINDS == ("Namespace", "Service", "Deployment")
 
     def test_urlpath_ok(self):
         """Must work for all supported K8s versions and resources."""
         Config = k8s.Config
-        for version in square.SUPPORTED_VERSIONS:
+        for version in SUPPORTED_VERSIONS:
             cfg = Config("url", "token", "ca_cert", "client_cert", version)
-            for kind in square.SUPPORTED_KINDS:
+            for kind in SUPPORTED_KINDS:
                 for ns in (None, "foo-namespace"):
                     path, err = square.urlpath(cfg, kind, ns)
 
@@ -226,7 +229,7 @@ class TestUrlPathBuilder:
         Config = k8s.Config
 
         # Valid version but invalid resource kind or invalid namespace spelling.
-        for version in square.SUPPORTED_VERSIONS:
+        for version in SUPPORTED_VERSIONS:
             cfg = Config("url", "token", "ca_cert", "client_cert", version)
 
             # Invalid resource kind.
@@ -442,7 +445,7 @@ class TestPlan:
         loc["metadata"]["labels"] = {"new": "new"}
 
         # The Patch between two identical manifests must be a No-Op.
-        expected = square.Patch(
+        expected = Patch(
             url=square.urlpath(config, kind, namespace).data + f"/{name}",
             ops=[],
         )
@@ -450,7 +453,7 @@ class TestPlan:
 
         # The patch between `srv` and `loc` must remove the old label and add
         # the new one.
-        expected = square.Patch(
+        expected = Patch(
             url=square.urlpath(config, kind, namespace).data + f"/{name}",
             ops=[
                 {'op': 'remove', 'path': '/metadata/labels/old'},
@@ -541,16 +544,16 @@ class TestPlan:
 
         # Resources from local files must be created, resources on server must
         # be deleted.
-        expected = square.DeploymentPlan(
+        expected = DeploymentPlan(
             create=[
-                square.DeltaCreate(meta[0], url[0], loc_man[meta[0]]),
-                square.DeltaCreate(meta[1], url[1], loc_man[meta[1]]),
+                DeltaCreate(meta[0], url[0], loc_man[meta[0]]),
+                DeltaCreate(meta[1], url[1], loc_man[meta[1]]),
             ],
             patch=[],
             delete=[
-                square.DeltaDelete(meta[2], url[2], del_opts),
-                square.DeltaDelete(meta[3], url[3], del_opts),
-                square.DeltaDelete(meta[4], url[4], del_opts),
+                DeltaDelete(meta[2], url[2], del_opts),
+                DeltaDelete(meta[3], url[3], del_opts),
+                DeltaDelete(meta[4], url[4], del_opts),
             ],
         )
         assert square.compile_plan(config, loc_man, srv_man) == RetVal(expected, False)
@@ -568,7 +571,7 @@ class TestPlan:
         # Pretend we only have to "create" resources, and then trigger the
         # `urlpath` error in its code path.
         m_part.return_value = RetVal(
-            data=square.DeploymentPlan(create=[meta], patch=[], delete=[]),
+            data=DeploymentPlan(create=[meta], patch=[], delete=[]),
             err=False,
         )
         assert square.compile_plan(cfg_invalid, man, man) == RetVal(None, True)
@@ -576,7 +579,7 @@ class TestPlan:
         # Pretend we only have to "delete" resources, and then trigger the
         # `urlpath` error in its code path.
         m_part.return_value = RetVal(
-            data=square.DeploymentPlan(create=[], patch=[], delete=[meta]),
+            data=DeploymentPlan(create=[], patch=[], delete=[meta]),
             err=False,
         )
         assert square.compile_plan(cfg_invalid, man, man) == RetVal(None, True)
@@ -616,13 +619,13 @@ class TestPlan:
             meta[2]: make_manifest("Namespace", None, "ns2"),
             meta[3]: make_manifest("Deployment", "ns2", "res_1"),
         }
-        expected = square.DeploymentPlan(
+        expected = DeploymentPlan(
             create=[],
             patch=[
-                square.DeltaPatch(meta[0], "", square.Patch(url[0], [])),
-                square.DeltaPatch(meta[1], "", square.Patch(url[1], [])),
-                square.DeltaPatch(meta[2], "", square.Patch(url[2], [])),
-                square.DeltaPatch(meta[3], "", square.Patch(url[3], [])),
+                DeltaPatch(meta[0], "", Patch(url[0], [])),
+                DeltaPatch(meta[1], "", Patch(url[1], [])),
+                DeltaPatch(meta[2], "", Patch(url[2], [])),
+                DeltaPatch(meta[3], "", Patch(url[3], [])),
             ],
             delete=[]
         )
@@ -657,9 +660,9 @@ class TestPlan:
         assert not err
 
         # Verify the test function returns the correct Patch and diff.
-        expected = square.DeploymentPlan(
+        expected = DeploymentPlan(
             create=[],
-            patch=[square.DeltaPatch(meta, diff_str, patch)],
+            patch=[DeltaPatch(meta, diff_str, patch)],
             delete=[]
         )
         assert square.compile_plan(config, loc_man, srv_man) == RetVal(expected, False)
@@ -675,7 +678,7 @@ class TestPlan:
         # Define a single resource and valid dummy return value for
         # `square.partition_manifests`.
         meta = MetaManifest('v1', 'Namespace', None, 'ns1')
-        plan = square.DeploymentPlan(create=[], patch=[meta], delete=[])
+        plan = DeploymentPlan(create=[], patch=[meta], delete=[])
 
         # Local and server manifests have the same resources but their
         # definition differs. This will ensure a non-empty patch in the plan.
@@ -764,7 +767,7 @@ class TestMain:
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
 
         # Valid Patch.
-        patch = square.Patch(
+        patch = Patch(
             url="patch_url",
             ops=[
                 {'op': 'remove', 'path': '/metadata/labels/old'},
@@ -773,14 +776,14 @@ class TestMain:
         )
 
         # Valid deployment plan.
-        plan = square.DeploymentPlan(
-            create=[square.DeltaCreate(meta, "create_url", "create_man")],
-            patch=[square.DeltaPatch(meta, "diff", patch)],
-            delete=[square.DeltaDelete(meta, "delete_url", "delete_man")],
+        plan = DeploymentPlan(
+            create=[DeltaCreate(meta, "create_url", "create_man")],
+            patch=[DeltaPatch(meta, "diff", patch)],
+            delete=[DeltaDelete(meta, "delete_url", "delete_man")],
         )
 
         # Pretend that all K8s requests succeed.
-        m_lsm.return_value = RetVal(square.Manifests("loc", "srv", "files"), False)
+        m_lsm.return_value = RetVal(Manifests("loc", "srv", "files"), False)
         m_plan.return_value = RetVal(plan, False)
         m_post.return_value = RetVal(None, False)
         m_patch.return_value = RetVal(None, False)
@@ -832,10 +835,10 @@ class TestMain:
 
         """
         # Valid deployment plan.
-        plan = square.DeploymentPlan(create=[], patch=[], delete=[])
+        plan = DeploymentPlan(create=[], patch=[], delete=[])
 
         # All auxiliary functions will succeed.
-        m_lsm.return_value = RetVal(square.Manifests("loc", "srv", "files"), False)
+        m_lsm.return_value = RetVal(Manifests("loc", "srv", "files"), False)
         m_plan.return_value = RetVal(plan, False)
 
         # The arguments to the test function will always be the same in this test.
@@ -866,7 +869,7 @@ class TestMain:
 
         """
         # Simulate successful responses from the two auxiliary functions.
-        m_lsm.return_value = RetVal(square.Manifests("loc", "srv", "files"), False)
+        m_lsm.return_value = RetVal(Manifests("loc", "srv", "files"), False)
         m_sync.return_value = RetVal("synced", False)
         m_save.return_value = RetVal(None, False)
 
