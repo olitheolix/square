@@ -8,12 +8,7 @@ import k8s
 import square
 
 from test_helpers import make_manifest
-
-# Convenience.
-pjoin = os.path.join
-RetVal, DeploymentPlan = square.RetVal, square.DeploymentPlan
-MetaManifest = square.MetaManifest
-Patch = square.Patch
+from dtypes import RetVal, MetaManifest, Patch
 
 
 class TestLogging:

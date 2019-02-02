@@ -7,12 +7,7 @@ from test_helpers import make_manifest, mk_deploy
 
 import unittest.mock as mock
 import dotdict
-
-
-# Convenience.
-RetVal, DeploymentPlan = square.RetVal, square.DeploymentPlan
-MetaManifest = square.MetaManifest
-Patch = square.Patch
+from dtypes import RetVal, MetaManifest
 
 
 class TestUnpackParse:
@@ -684,7 +679,6 @@ class TestDiff:
         assert manio.diff_manifests(valid, invalid) == RetVal(None, True)
         assert manio.diff_manifests(invalid, valid) == RetVal(None, True)
         assert manio.diff_manifests(invalid, invalid) == RetVal(None, True)
-
 
 
 class TestYamlManifestIOIntegration:
