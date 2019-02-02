@@ -578,9 +578,10 @@ class TestUrlPathBuilder:
                 assert isinstance(path, str)
 
     def test_urlpath_err(self):
-        """Test variuos error scenarios."""
+        """Test various error scenarios."""
         Config = k8s_utils.Config
 
+        # Valid version but invalid resource kind or invalid namespace spelling.
         for version in square.SUPPORTED_VERSIONS:
             cfg = Config("url", "token", "ca_cert", "client_cert", version)
 
@@ -589,6 +590,10 @@ class TestUrlPathBuilder:
 
             # Namespace names must be all lower case (K8s imposes this)...
             assert square.urlpath(cfg, "Deployment", "namEspACe") == RetVal(None, True)
+
+        # Invalid version.
+        cfg = Config("url", "token", "ca_cert", "client_cert", "200.30")
+        assert square.urlpath(cfg, "Deployment", "valid-ns") == RetVal(None, True)
 
 
 class TestDownloadManifests:
