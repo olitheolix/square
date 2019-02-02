@@ -12,6 +12,8 @@ import pytest
 
 import square
 
+from test_helpers import make_manifest, mk_deploy
+
 # Convenience.
 pjoin = os.path.join
 RetVal, DeploymentPlan = square.RetVal, square.DeploymentPlan
@@ -24,31 +26,6 @@ requests = k8s_utils.requests
 def m_requests(request):
     with requests_mock.Mocker() as m:
         yield m
-
-
-def make_manifest(kind: str, namespace: str, name: str):
-    manifest = {
-        'apiVersion': 'v1',
-        'kind': kind,
-        'metadata': {
-            'name': name,
-            'labels': {'key': 'val'},
-            'foo': 'bar',
-        },
-        'spec': {
-            'finalizers': ['kubernetes']
-        },
-        'status': {
-            'some': 'status',
-        },
-        'garbage': 'more garbage',
-    }
-
-    # Only create namespace entry if one was specified.
-    if namespace is not None:
-        manifest['metadata']['namespace'] = namespace
-
-    return manifest
 
 
 class TestLogging:
@@ -119,7 +96,7 @@ class TestBasic:
         paths run without error.
 
         """
-        meta = square.make_meta(make_manifest("Deployment", "ns", "name"))
+        meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
         patch = square.Patch(
             url="url",
             ops=[
@@ -351,75 +328,6 @@ class TestManifestValidation:
             "spec": {"some": "thing"},
         }
         assert square.manifest_metaspec(invalid) == RetVal(None, True)
-
-
-class TestFetchFromK8s:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
-    def test_list_parser_ok(self):
-        """Convert eg a DeploymentList into a Python dict of Deployments."""
-        # Demo manifests.
-        manifests = [
-            make_manifest('Deployment', f'ns_{_}', f'name_{_}')
-            for _ in range(3)
-        ]
-
-        # The actual DeploymentList returned from K8s.
-        manifest_list = {
-            'apiVersion': 'v1',
-            'kind': 'DeploymentList',
-            'items': manifests,
-        }
-
-        # Parse the DeploymentList into a dict. The keys are ManifestTuples and
-        # the values are the Deployment (*not* DeploymentList) manifests.
-        ret = square.list_parser(manifest_list)
-        assert ret.err is False
-
-        # Verify the Python dict.
-        assert len(manifests) == 3
-        assert ret.data == {
-            MetaManifest('v1', 'Deployment', 'ns_0', 'name_0'): manifests[0],
-            MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
-            MetaManifest('v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
-        }
-
-        # Function must return deep copies of the manifests to avoid difficult
-        # to debug reference bugs.
-        for src, out_key in zip(manifests, ret.data):
-            assert src == ret.data[out_key]
-            assert src is not ret.data[out_key]
-
-    def test_list_parser_invalid_list_manifest(self):
-        """The input manifest must have `apiVersion`, `kind` and `items`.
-
-        Furthermore, the `kind` *must* be capitalised and end in `List`, eg
-        `DeploymentList`.
-
-        """
-        # Valid input.
-        src = {'apiVersion': 'v1', 'kind': 'DeploymentList', 'items': []}
-        ret = square.list_parser(src)
-        assert ret == RetVal({}, False)
-
-        # Missing `apiVersion`.
-        src = {'kind': 'DeploymentList', 'items': []}
-        assert square.list_parser(src) == RetVal(None, True)
-
-        # Missing `kind`.
-        src = {'apiVersion': 'v1', 'items': []}
-        assert square.list_parser(src) == RetVal(None, True)
-
-        # Missing `items`.
-        src = {'apiVersion': 'v1', 'kind': 'DeploymentList'}
-        assert square.list_parser(src) == RetVal(None, True)
-
-        # All fields present but `kind` does not end in List (case sensitive).
-        for invalid_kind in ('Deploymentlist', 'Deployment'):
-            src = {'apiVersion': 'v1', 'kind': invalid_kind, 'items': []}
-            assert square.list_parser(src) == RetVal(None, True)
 
 
 class TestK8sDeleteGetPatchPost:
@@ -670,7 +578,7 @@ class TestDownloadManifests:
         # The expected outcome is a Dict[MetaManifest:dict] of all the items in
         # DeploymentList and NamespaceList.
         expected = {
-            square.make_meta(_): square.manifest_metaspec(_).data
+            manio.make_meta(_): square.manifest_metaspec(_).data
             for _ in meta
         }
 
@@ -1038,7 +946,7 @@ class TestPlan:
         cfg_invalid = k8s_utils.Config("url", "token", "cert", "cert", "invalid")
 
         # Valid ManifestMeta and dummy manifest dict.
-        meta = square.make_meta(make_manifest("Deployment", "ns", "name"))
+        meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
         man = {meta: None}
 
         # Pretend we only have to "create" resources, and then trigger the
@@ -1237,7 +1145,7 @@ class TestMain:
         """
         # Valid client config and MetaManifest.
         config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
-        meta = square.make_meta(make_manifest("Deployment", "ns", "name"))
+        meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
 
         # Valid Patch.
         patch = square.Patch(

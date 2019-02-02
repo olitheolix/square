@@ -313,56 +313,6 @@ def manifest_metaspec(manifest: dict):
     return RetVal(utils.make_dotdict(ret), False)
 
 
-def make_meta(manifest: dict):
-    """Compile `MetaManifest` information from `manifest` and return it."""
-    return MetaManifest(
-        apiVersion=manifest['apiVersion'],
-        kind=manifest['kind'],
-        namespace=manifest['metadata'].get('namespace', None),
-        name=manifest['metadata']['name']
-    )
-
-
-def list_parser(manifest_list: dict):
-    """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
-
-    Return a dictionary where each key uniquely identifies the resource via a
-    `MetaManifest` tuple and the value is the actual JSON `manifest`.
-
-    Input:
-        manifest_list: dict
-            K8s response from GET request for eg `deployments`.
-
-    Returns:
-        dict[MetaManifest:dict]
-
-    """
-    must_have = ("apiVersion", "kind", "items")
-    missing = [key for key in must_have if key not in manifest_list]
-    if len(missing) > 0:
-        kind = manifest_list.get("kind", "UNKNOWN")
-        logit.error(f"{kind} manifest is missing these keys: {missing}")
-        return RetVal(None, True)
-    del must_have, missing
-
-    kind = manifest_list["kind"]
-    if not kind.endswith('List'):
-        logit.error(f"Kind {kind} is not a list")
-        return RetVal(None, True)
-    kind = kind[:-4]
-
-    apiversion = manifest_list["apiVersion"]
-
-    manifests = {}
-    for manifest in manifest_list["items"]:
-        manifest = copy.deepcopy(manifest)
-        manifest['apiVersion'] = apiversion
-        manifest['kind'] = kind
-
-        manifests[make_meta(manifest)] = manifest
-    return RetVal(manifests, False)
-
-
 def k8s_request(client, method, path, payload, headers):
     """Return response of web request made with `client`.
 
@@ -461,7 +411,7 @@ def download_manifests(config, client, kinds, namespace):
 
             # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a
             # Dict[MetaManifest, dict] dictionary.
-            manifests, err = list_parser(manifest_list)
+            manifests, err = manio.unpack_list(manifest_list)
             assert not err
 
             # Drop all manifest fields except "apiVersion", "metadata" and "spec".
