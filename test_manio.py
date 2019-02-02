@@ -646,7 +646,7 @@ class TestDiff:
     def setup_class(cls):
         square.setup_logging(9)
 
-    def test_diff_manifests_ok(self):
+    def test_diff_ok(self):
         """Diff two valid manifests and (roughly) verify the output."""
         # Two valid manifests.
         srv = make_manifest("Deployment", "namespace", "name1")
@@ -657,7 +657,7 @@ class TestDiff:
         loc = dotdict.make_dotdict(loc)
 
         # Diff the manifests. Must not return an error.
-        diff_str, err = manio.diff_manifests(loc, srv)
+        diff_str, err = manio.diff(loc, srv)
         assert err is False
 
         # Since it is difficult to compare the correct diff string due to
@@ -666,7 +666,7 @@ class TestDiff:
         assert "-  name: name1" in diff_str
         assert "+  name: name2" in diff_str
 
-    def test_diff_manifests_err(self):
+    def test_diff_err(self):
         """Diff two valid manifests and verify the output."""
         # Create two valid manifests, then stunt one in such a way that
         # `metaspec` will reject it.
@@ -676,9 +676,9 @@ class TestDiff:
 
         # Test function must return with an error, irrespective of which
         # manifest was invalid.
-        assert manio.diff_manifests(valid, invalid) == RetVal(None, True)
-        assert manio.diff_manifests(invalid, valid) == RetVal(None, True)
-        assert manio.diff_manifests(invalid, invalid) == RetVal(None, True)
+        assert manio.diff(valid, invalid) == RetVal(None, True)
+        assert manio.diff(invalid, valid) == RetVal(None, True)
+        assert manio.diff(invalid, invalid) == RetVal(None, True)
 
 
 class TestYamlManifestIOIntegration:

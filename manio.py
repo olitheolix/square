@@ -483,7 +483,7 @@ def metaspec(manifest: dict):
     return RetVal(dotdict.make_dotdict(ret), False)
 
 
-def diff_manifests(local: dict, server: dict):
+def diff(local: dict, server: dict):
     """Return the human readable diff between the `local` and `server`.
 
     The diff shows the necessary changes to transition the `server` manifest
