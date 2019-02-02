@@ -1,3 +1,4 @@
+import manio
 import copy
 import os
 import random
@@ -1262,3 +1263,30 @@ class TestMain:
         # Simulate an error in `compute_plan`.
         m_plan.return_value = RetVal(None, True)
         assert square.main_diff("cfg", "local", "server") == RetVal(None, True)
+
+    @mock.patch.object(manio, "sync")
+    @mock.patch.object(manio, "save")
+    def test_main_get(self, m_save, m_sync):
+        """Basic test.
+
+        This function does hardly anything to begin with, so we will merely
+        verify it calls the correct functions with the correct arguments and
+        handles errors correctly.
+
+        """
+        # Simulate successful responses from the two auxiliary functions.
+        m_sync.return_value = RetVal("synced", False)
+        m_save.return_value = RetVal(None, False)
+
+        # Call test function and verify it passed the correct arguments.
+        assert square.main_get("folder", "local", "server") == RetVal(None, False)
+        m_sync.assert_called_once_with("local", "server")
+        m_save.assert_called_once_with("folder", "synced")
+
+        # Simulate an error with `manio.save`.
+        m_save.return_value = RetVal(None, True)
+        assert square.main_get("folder", "local", "server") == RetVal(None, True)
+
+        # Simulate an error with `manio.sync`.
+        m_sync.return_value = RetVal("synced", True)
+        assert square.main_get("folder", "local", "server") == RetVal(None, True)

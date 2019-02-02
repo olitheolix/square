@@ -824,9 +824,33 @@ def main_diff(config, local_manifests, server_manifests):
     return RetVal(None, False)
 
 
-def main_get(manifest_folder, fdata_meta, server_manifests):
-    synced_manifests, err = manio.sync(fdata_meta, server_manifests)
+def main_get(manifest_folder, local_fdata, server_manifests):
+    """Download all K8s manifests and merge them into local files.
+
+    Inputs:
+        manifest_folder: Path
+        local_fdata: Dict[Filename, Tuple[MetaManifest, dict]]
+            Typically the output from `manio.load`.
+        server_manifests: Dict[MetaManifest, dict]
+            Typically the output from `download_manifests`.
+
+    Returns:
+        None
+
+    """
+    # Sync the server manifests into the local manfifests. All this happens in
+    # memory and no files will be modified here - see next step.
+    synced_manifests, err = manio.sync(local_fdata, server_manifests)
+    if err:
+        return RetVal(None, True)
+
+    # Write the new manifest files.
     _, err = manio.save(manifest_folder, synced_manifests)
+    if err:
+        return RetVal(None, True)
+
+    # Success.
+    return RetVal(None, False)
 
 
 def main():
