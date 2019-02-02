@@ -3,14 +3,84 @@ import random
 import yaml
 import manio
 import square
-import test_square
+from test_helpers import make_manifest, mk_deploy
 
 import unittest.mock as mock
-from square import RetVal
 
 
-def mk_deploy(name: str, ns: str="namespace"):
-    return test_square.make_manifest("Deployment", ns, name)
+# Convenience.
+RetVal, DeploymentPlan = square.RetVal, square.DeploymentPlan
+MetaManifest = square.MetaManifest
+Patch = square.Patch
+
+
+class TestUnpackParse:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
+    def test_unpack_list_ok(self):
+        """Convert eg a DeploymentList into a Python dict of Deployments."""
+        # Demo manifests.
+        manifests = [
+            make_manifest('Deployment', f'ns_{_}', f'name_{_}')
+            for _ in range(3)
+        ]
+
+        # The actual DeploymentList returned from K8s.
+        manifest_list = {
+            'apiVersion': 'v1',
+            'kind': 'DeploymentList',
+            'items': manifests,
+        }
+
+        # Parse the DeploymentList into a dict. The keys are ManifestTuples and
+        # the values are the Deployment (*not* DeploymentList) manifests.
+        ret = manio.unpack_list(manifest_list)
+        assert ret.err is False
+
+        # Verify the Python dict.
+        assert len(manifests) == 3
+        assert ret.data == {
+            MetaManifest('v1', 'Deployment', 'ns_0', 'name_0'): manifests[0],
+            MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
+            MetaManifest('v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
+        }
+
+        # Function must return deep copies of the manifests to avoid difficult
+        # to debug reference bugs.
+        for src, out_key in zip(manifests, ret.data):
+            assert src == ret.data[out_key]
+            assert src is not ret.data[out_key]
+
+    def test_unpack_list_invalid_list_manifest(self):
+        """The input manifest must have `apiVersion`, `kind` and `items`.
+
+        Furthermore, the `kind` *must* be capitalised and end in `List`, eg
+        `DeploymentList`.
+
+        """
+        # Valid input.
+        src = {'apiVersion': 'v1', 'kind': 'DeploymentList', 'items': []}
+        ret = manio.unpack_list(src)
+        assert ret == RetVal({}, False)
+
+        # Missing `apiVersion`.
+        src = {'kind': 'DeploymentList', 'items': []}
+        assert manio.unpack_list(src) == RetVal(None, True)
+
+        # Missing `kind`.
+        src = {'apiVersion': 'v1', 'items': []}
+        assert manio.unpack_list(src) == RetVal(None, True)
+
+        # Missing `items`.
+        src = {'apiVersion': 'v1', 'kind': 'DeploymentList'}
+        assert manio.unpack_list(src) == RetVal(None, True)
+
+        # All fields present but `kind` does not end in List (case sensitive).
+        for invalid_kind in ('Deploymentlist', 'Deployment'):
+            src = {'apiVersion': 'v1', 'kind': invalid_kind, 'items': []}
+            assert manio.unpack_list(src) == RetVal(None, True)
 
 
 class TestYamlManifestIO:
@@ -28,7 +98,7 @@ class TestYamlManifestIO:
         """Test function must be able to parse the Yaml string and compile a dict."""
         # Construct manifests in the way as `load_files` returns them.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
-        meta = [square.make_meta(_) for _ in dply]
+        meta = [manio.make_meta(_) for _ in dply]
         fdata_test_in = {
             "m0.yaml": [dply[0], dply[1]],
             "m2.yaml": [dply[2]],
@@ -97,9 +167,9 @@ class TestYamlManifestIO:
         """
         # First, create the local manifests as `load_files` would return it.
         dply_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(10)]
-        meta_1 = [square.make_meta(_) for _ in dply_1]
+        meta_1 = [manio.make_meta(_) for _ in dply_1]
         dply_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(10)]
-        meta_2 = [square.make_meta(_) for _ in dply_2]
+        meta_2 = [manio.make_meta(_) for _ in dply_2]
         loc_man = {
             "m0.yaml": [(meta_1[0], "0"), (meta_1[1], "1"), (meta_2[2], "2")],
             "m1.yaml": [(meta_2[3], "3"), (meta_1[4], "4")],
@@ -142,9 +212,9 @@ class TestYamlManifestIO:
         """
         # First, create the local manifests as `load_files` would return it.
         dply_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(20)]
-        meta_1 = [square.make_meta(_) for _ in dply_1]
+        meta_1 = [manio.make_meta(_) for _ in dply_1]
         dply_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(20)]
-        meta_2 = [square.make_meta(_) for _ in dply_2]
+        meta_2 = [manio.make_meta(_) for _ in dply_2]
         loc_man = {
             "_ns1.yaml": [
                 (meta_1[1], "1"), (meta_1[2], "2"), (meta_1[3], "3"), (meta_1[5], "5")
@@ -204,7 +274,7 @@ class TestYamlManifestIO:
         """
         # Convenience to improve readability.
         def mm(*args):
-            return square.make_meta(test_square.make_manifest(*args))
+            return manio.make_meta(make_manifest(*args))
 
         meta_ns_a = mm("Namespace", None, "a")
         meta_ns_b = mm("Namespace", None, "b")
@@ -262,7 +332,7 @@ class TestYamlManifestIO:
     def test_unparse_ok(self):
         """Basic use case: convert Python dicts to YAML strings."""
         # Create valid MetaManifests.
-        meta = [square.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
+        meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
 
         # Input to test function and expected output.
         file_manifests = {
@@ -287,7 +357,7 @@ class TestYamlManifestIO:
 
         """
         def mm(*args):
-            return square.make_meta(test_square.make_manifest(*args))
+            return manio.make_meta(make_manifest(*args))
 
         # Create valid MetaManifests.
         meta_ns_a = mm("Namespace", "a", None)
@@ -343,7 +413,7 @@ class TestYamlManifestIO:
     def test_unparse_invalid_manifest(self):
         """Must handle YAML errors gracefully."""
         # Create valid MetaManifests.
-        meta = [square.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
+        meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
 
         # Input to test function where one "manifest" is garbage that cannot be
         # converted to a YAML string, eg a Python frozenset.
@@ -366,7 +436,7 @@ class TestYamlManifestIO:
 
         # Convenience.
         def mm(*args):
-            return square.make_meta(test_square.make_manifest(*args))
+            return manio.make_meta(make_manifest(*args))
 
         # Test function must gracefully reject all invalid kinds.
         for kind in invalid_kinds:
@@ -377,7 +447,7 @@ class TestYamlManifestIO:
         """Must handle all known resource kinds without error."""
         # Convenience.
         def mm(*args):
-            return square.make_meta(test_square.make_manifest(*args))
+            return manio.make_meta(make_manifest(*args))
 
         # Test function must gracefully reject all invalid kinds.
         for kind in square.SUPPORTED_KINDS:
@@ -395,7 +465,7 @@ class TestYamlManifestIO:
         """
         # Construct demo manifests in the same way as `load_files` would.
         dply = [mk_deploy(f"d_{_}", "nsfoo") for _ in range(10)]
-        meta = [square.make_meta(_) for _ in dply]
+        meta = [manio.make_meta(_) for _ in dply]
         fdata_test_in = {
             "m0.yaml": [dply[0], dply[1], dply[2]],
             "m1.yaml": [dply[3], dply[4]],
@@ -491,7 +561,7 @@ class TestYamlManifestIOIntegration:
         """Basic test that uses the {load,save} convenience functions."""
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
-        meta = [square.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
+        meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
         fdata_test_in = {
             "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
             "foo/m1.yaml": [(meta[2], dply[2])],
@@ -516,7 +586,7 @@ class TestYamlManifestIOIntegration:
         """`save_file` must remove all excess YAML files."""
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
-        meta = [square.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
+        meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
         fdata_full = {
             "m0.yaml": [(meta[0], dply[0])],
             "m1.yaml": [(meta[1], dply[1])],

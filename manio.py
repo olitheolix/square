@@ -12,6 +12,56 @@ from square import RetVal
 logit = square.logging.getLogger("square")
 
 
+def make_meta(manifest: dict):
+    """Compile `MetaManifest` information from `manifest` and return it."""
+    return square.MetaManifest(
+        apiVersion=manifest['apiVersion'],
+        kind=manifest['kind'],
+        namespace=manifest['metadata'].get('namespace', None),
+        name=manifest['metadata']['name']
+    )
+
+
+def unpack_list(manifest_list: dict):
+    """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
+
+    Return a dictionary where each key uniquely identifies the resource via a
+    `MetaManifest` tuple and the value is the actual JSON `manifest`.
+
+    Input:
+        manifest_list: dict
+            K8s response from GET request for eg `deployments`.
+
+    Returns:
+        dict[MetaManifest:dict]
+
+    """
+    must_have = ("apiVersion", "kind", "items")
+    missing = [key for key in must_have if key not in manifest_list]
+    if len(missing) > 0:
+        kind = manifest_list.get("kind", "UNKNOWN")
+        logit.error(f"{kind} manifest is missing these keys: {missing}")
+        return RetVal(None, True)
+    del must_have, missing
+
+    kind = manifest_list["kind"]
+    if not kind.endswith('List'):
+        logit.error(f"Kind {kind} is not a list")
+        return RetVal(None, True)
+    kind = kind[:-4]
+
+    apiversion = manifest_list["apiVersion"]
+
+    manifests = {}
+    for manifest in manifest_list["items"]:
+        manifest = copy.deepcopy(manifest)
+        manifest['apiVersion'] = apiversion
+        manifest['kind'] = kind
+
+        manifests[make_meta(manifest)] = manifest
+    return RetVal(manifests, False)
+
+
 def parse(file_yaml: dict):
     """Parse all YAML strings in `file_yaml` and return result.
 
@@ -42,7 +92,7 @@ def parse(file_yaml: dict):
             return RetVal(None, True)
 
         # Convert List[manifest] into List[(MetaManifest, manifest)].
-        out[fname] = [(square.make_meta(_), _) for _ in manifests]
+        out[fname] = [(make_meta(_), _) for _ in manifests]
 
     # Drop all files without manifests.
     out = {k: v for k, v in out.items() if len(v) > 0}
