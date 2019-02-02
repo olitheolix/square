@@ -336,7 +336,7 @@ class TestPatchK8s:
     def setup_class(cls):
         square.setup_logging(9)
 
-    def test_compute_patch_empty(self):
+    def test_make_patch_empty(self):
         """Basic test: compute patch between two identical resources."""
         # Setup.
         kind, ns, name = 'Deployment', 'ns', 'foo'
@@ -347,11 +347,11 @@ class TestPatchK8s:
 
         # The patch must be empty for identical manifests.
         loc = srv = make_manifest(kind, ns, name)
-        ret = square.compute_patch(config, loc, srv)
+        ret = square.make_patch(config, loc, srv)
         assert ret == RetVal(Patch(url, []), False)
         assert isinstance(ret.data, Patch)
 
-    def test_compute_patch_incompatible(self):
+    def test_make_patch_incompatible(self):
         """Must not try to compute diffs for incompatible manifests.
 
         For instance, refuse to compute a patch when one manifest has kind
@@ -368,24 +368,24 @@ class TestPatchK8s:
         # `apiVersion` must match.
         loc = copy.deepcopy(srv)
         loc['apiVersion'] = 'mismatch'
-        assert square.compute_patch(config, loc, srv) == RetVal(None, True)
+        assert square.make_patch(config, loc, srv) == RetVal(None, True)
 
         # `kind` must match.
         loc = copy.deepcopy(srv)
         loc['kind'] = 'Mismatch'
-        assert square.compute_patch(config, loc, srv) == RetVal(None, True)
+        assert square.make_patch(config, loc, srv) == RetVal(None, True)
 
         # `name` must match.
         loc = copy.deepcopy(srv)
         loc['metadata']['name'] = 'mismatch'
-        assert square.compute_patch(config, loc, srv) == RetVal(None, True)
+        assert square.make_patch(config, loc, srv) == RetVal(None, True)
 
         # `namespace` must match.
         loc = copy.deepcopy(srv)
         loc['metadata']['namespace'] = 'mismatch'
-        assert square.compute_patch(config, loc, srv) == RetVal(None, True)
+        assert square.make_patch(config, loc, srv) == RetVal(None, True)
 
-    def test_compute_patch_namespace(self):
+    def test_make_patch_namespace(self):
         """`Namespace` specific corner cases.
 
         Namespaces are special because, by definition, they must not contain a
@@ -399,14 +399,14 @@ class TestPatchK8s:
 
         # Must succeed and return an empty patch for identical manifests.
         loc = srv = make_manifest(kind, None, name)
-        assert square.compute_patch(config, loc, srv) == RetVal((url, []), False)
+        assert square.make_patch(config, loc, srv) == RetVal((url, []), False)
 
         # Second manifest specifies a `metadata.namespace` attribute. This is
         # invalid and must result in an error.
         loc = make_manifest(kind, None, name)
         srv = copy.deepcopy(loc)
         loc['metadata']['namespace'] = 'foo'
-        ret = square.compute_patch(config, loc, srv)
+        ret = square.make_patch(config, loc, srv)
         assert ret.data is None and ret.err is not None
 
         # Must not return an error if the input are the same namespace resource
@@ -415,7 +415,7 @@ class TestPatchK8s:
         srv = copy.deepcopy(loc)
         loc['metadata']['labels'] = {"key": "value"}
 
-        ret = square.compute_patch(config, loc, srv)
+        ret = square.make_patch(config, loc, srv)
         assert ret.err is False and len(ret.data) > 0
 
 
@@ -424,7 +424,7 @@ class TestPlan:
     def setup_class(cls):
         square.setup_logging(9)
 
-    def test_compute_patch_ok(self):
+    def test_make_patch_ok(self):
         """Compute patch between two manifests.
 
         This test function first verifies that the patch between two identical
@@ -447,7 +447,7 @@ class TestPlan:
             url=square.urlpath(config, kind, namespace).data + f"/{name}",
             ops=[],
         )
-        assert square.compute_patch(config, loc, loc) == RetVal(expected, False)
+        assert square.make_patch(config, loc, loc) == RetVal(expected, False)
 
         # The patch between `srv` and `loc` must remove the old label and add
         # the new one.
@@ -458,9 +458,9 @@ class TestPlan:
                 {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'}
             ]
         )
-        assert square.compute_patch(config, loc, srv) == RetVal(expected, False)
+        assert square.make_patch(config, loc, srv) == RetVal(expected, False)
 
-    def test_compute_patch_err(self):
+    def test_make_patch_err(self):
         """Verify error cases with invalid or incompatible manifests."""
         valid_cfg = k8s.Config("url", "token", "cert", "client_cert", "1.10")
         invalid_cfg = k8s.Config("url", "token", "cert", "client_cert", "invalid")
@@ -473,18 +473,18 @@ class TestPlan:
         del invalid["kind"]
 
         # Must handle errors from `metaspec`.
-        assert square.compute_patch(valid_cfg, valid, invalid) == RetVal(None, True)
-        assert square.compute_patch(valid_cfg, invalid, valid) == RetVal(None, True)
-        assert square.compute_patch(valid_cfg, invalid, invalid) == RetVal(None, True)
+        assert square.make_patch(valid_cfg, valid, invalid) == RetVal(None, True)
+        assert square.make_patch(valid_cfg, invalid, valid) == RetVal(None, True)
+        assert square.make_patch(valid_cfg, invalid, invalid) == RetVal(None, True)
 
         # Must handle `urlpath` errors.
-        assert square.compute_patch(invalid_cfg, valid, valid) == RetVal(None, True)
+        assert square.make_patch(invalid_cfg, valid, valid) == RetVal(None, True)
 
         # Must handle incompatible manifests, ie manifests that do not belong
         # to the same resource.
         valid_a = make_manifest(kind, namespace, "bar")
         valid_b = make_manifest(kind, namespace, "foo")
-        assert square.compute_patch(valid_cfg, valid_a, valid_b) == RetVal(None, True)
+        assert square.make_patch(valid_cfg, valid_a, valid_b) == RetVal(None, True)
 
     def test_compile_plan_create_delete_ok(self):
         """Test a plan that creates and deletes resource, but not patches any.
@@ -652,7 +652,7 @@ class TestPlan:
 
         # Compute the JSON patch and textual diff to populated the expected
         # output structure below.
-        patch, err = square.compute_patch(config, loc_man[meta], srv_man[meta])
+        patch, err = square.make_patch(config, loc_man[meta], srv_man[meta])
         assert not err
         diff_str, err = manio.diff(loc_man[meta], srv_man[meta])
         assert not err
@@ -667,7 +667,7 @@ class TestPlan:
 
     @mock.patch.object(square, "partition_manifests")
     @mock.patch.object(manio, "diff")
-    @mock.patch.object(square, "compute_patch")
+    @mock.patch.object(square, "make_patch")
     def test_compile_plan_err(self, m_patch, m_diff, m_part):
         """Use mocks for the internal function calls to simulate errors."""
         # Create vanilla `Config` instance.
@@ -691,7 +691,7 @@ class TestPlan:
         m_diff.return_value = RetVal(None, True)
         assert square.compile_plan(config, loc_man, srv_man) == RetVal(None, True)
 
-        # Simulate an error in `compute_patch`.
+        # Simulate an error in `make_patch`.
         m_part.return_value = RetVal(plan, False)
         m_diff.return_value = RetVal("some string", False)
         m_patch.return_value = RetVal(None, True)
