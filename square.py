@@ -125,8 +125,6 @@ def diff_manifests(local: dict, server: dict):
             out.append(colorama.Fore.GREEN + line + colorama.Fore.RESET)
         elif line.startswith('-'):
             out.append(colorama.Fore.RED + line + colorama.Fore.RESET)
-        elif line.startswith('^'):
-            out.append(colorama.Fore.BLUE + line + colorama.Fore.RESET)
         else:
             out.append(line)
 
