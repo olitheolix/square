@@ -8,7 +8,7 @@ import manio
 import square
 from dtypes import (
     SUPPORTED_KINDS, SUPPORTED_VERSIONS, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, Manifests, MetaManifest, Patch, RetVal,
+    DeploymentPlan, JsonPatch, Manifests, MetaManifest, RetVal,
 )
 from test_helpers import make_manifest
 
@@ -82,7 +82,7 @@ class TestBasic:
 
         """
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
-        patch = Patch(
+        patch = JsonPatch(
             url="url",
             ops=[
                 {'op': 'remove', 'path': '/metadata/labels/old'},
@@ -350,8 +350,8 @@ class TestPatchK8s:
         # The patch must be empty for identical manifests.
         loc = srv = make_manifest(kind, ns, name)
         ret = square.make_patch(config, loc, srv)
-        assert ret == RetVal(Patch(url, []), False)
-        assert isinstance(ret.data, Patch)
+        assert ret == RetVal(JsonPatch(url, []), False)
+        assert isinstance(ret.data, JsonPatch)
 
     def test_make_patch_incompatible(self):
         """Must not try to compute diffs for incompatible manifests.
@@ -445,7 +445,7 @@ class TestPlan:
         loc["metadata"]["labels"] = {"new": "new"}
 
         # The Patch between two identical manifests must be a No-Op.
-        expected = Patch(
+        expected = JsonPatch(
             url=square.urlpath(config, kind, namespace).data + f"/{name}",
             ops=[],
         )
@@ -453,7 +453,7 @@ class TestPlan:
 
         # The patch between `srv` and `loc` must remove the old label and add
         # the new one.
-        expected = Patch(
+        expected = JsonPatch(
             url=square.urlpath(config, kind, namespace).data + f"/{name}",
             ops=[
                 {'op': 'remove', 'path': '/metadata/labels/old'},
@@ -622,10 +622,10 @@ class TestPlan:
         expected = DeploymentPlan(
             create=[],
             patch=[
-                DeltaPatch(meta[0], "", Patch(url[0], [])),
-                DeltaPatch(meta[1], "", Patch(url[1], [])),
-                DeltaPatch(meta[2], "", Patch(url[2], [])),
-                DeltaPatch(meta[3], "", Patch(url[3], [])),
+                DeltaPatch(meta[0], "", JsonPatch(url[0], [])),
+                DeltaPatch(meta[1], "", JsonPatch(url[1], [])),
+                DeltaPatch(meta[2], "", JsonPatch(url[2], [])),
+                DeltaPatch(meta[3], "", JsonPatch(url[3], [])),
             ],
             delete=[]
         )
@@ -767,7 +767,7 @@ class TestMain:
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
 
         # Valid Patch.
-        patch = Patch(
+        patch = JsonPatch(
             url="patch_url",
             ops=[
                 {'op': 'remove', 'path': '/metadata/labels/old'},
