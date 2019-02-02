@@ -748,31 +748,53 @@ def setup_logging(level: int):
 
 
 def main_patch(config, client, local_manifests, server_manifests):
+    """Update K8s to match the specifications in `local_manifests`.
+
+    Create a deployment plan that will transition the K8s state
+    `server_manifests` to the desired `local_manifests`.
+
+    Inputs:
+        config: k8s_utils.Config
+        client: `requests` session with correct K8s certificates.
+        local_manifests: Dict[MetaManifest, dict]
+            Typically the output from `load_manifest` or `load`.
+        server_manifests: Dict[MetaManifest, dict]
+            Typically the output from `download_manifests`.
+
+    Returns:
+        None
+
+    """
+    # Create the deployment plan.
     plan, err = compile_plan(config, local_manifests, server_manifests)
+    if err:
+        return RetVal(None, True)
+
+    # Present the plan confirm to go ahead with the user.
     print_deltas(plan)
 
+    # Create the missing resources.
     for data in plan.create:
         print(f"Creating {data.meta.namespace}/{data.meta.name}")
-        ret = k8s_post(client, data.url, data.manifest)
-        if ret.err:
-            print(ret)
-            return
+        if k8s_post(client, data.url, data.manifest).err:
+            return RetVal(None, True)
 
+    # Patch the server resources.
     patches = [_.patch for _ in plan.patch if len(_.patch.ops) > 0]
     print(f"Compiled {len(patches)} patches.")
     for patch in patches:
         pprint(patch)
-        ret = k8s_patch(client, patch.url, patch.ops)
-        if ret.err:
-            print(ret)
-            return
+        if k8s_patch(client, patch.url, patch.ops).err:
+            return RetVal(None, True)
 
+    # Delete the excess resources.
     for data in plan.delete:
         print(f"Deleting {data.meta.namespace}/{data.meta.name}")
-        ret = k8s_delete(client, data.url, data.manifest)
-        if ret.err:
-            print(ret)
-            return
+        if k8s_delete(client, data.url, data.manifest).err:
+            return RetVal(None, True)
+
+    # All good.
+    return RetVal(None, False)
 
 
 def main_diff(config, local_manifests, server_manifests):

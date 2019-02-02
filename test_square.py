@@ -1170,3 +1170,75 @@ class TestPlan:
         m_diff.return_value = RetVal("some string", False)
         m_patch.return_value = RetVal(None, True)
         assert square.compile_plan(config, loc_man, srv_man) == RetVal(None, True)
+
+
+class TestMain:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
+    @mock.patch.object(square, "compile_plan")
+    @mock.patch.object(square, "k8s_post")
+    @mock.patch.object(square, "k8s_patch")
+    @mock.patch.object(square, "k8s_delete")
+    def test_main_patch(self, m_delete, m_patch, m_post, m_plan):
+        """Simulate a successful resource update (add, patch delete).
+
+        To this end, create a valid (mocked) deployment plan, mock out all
+        k8s_* calls, and verify that all the necessary calls are made.
+
+        The second part of the test simulates errors. This is not a separate
+        test because it shares virtually all the boiler plate code.
+        """
+        # Valid client config and MetaManifest.
+        config = k8s_utils.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        meta = square.make_meta(make_manifest("Deployment", "ns", "name"))
+
+        # Valid Patch.
+        patch = square.Patch(
+            url="patch_url",
+            ops=[
+                {'op': 'remove', 'path': '/metadata/labels/old'},
+                {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'}
+            ],
+        )
+
+        # Valid deployment plan.
+        plan = square.DeploymentPlan(
+            create=[square.DeltaCreate(meta, "create_url", "create_man")],
+            patch=[square.DeltaPatch(meta, "diff", patch)],
+            delete=[square.DeltaDelete(meta, "delete_url", "delete_man")],
+        )
+
+        # Pretend that all K8s requests succeed.
+        m_plan.return_value = RetVal(plan, False)
+        m_post.return_value = RetVal(None, False)
+        m_patch.return_value = RetVal(None, False)
+        m_delete.return_value = RetVal(None, False)
+
+        # Update the K8s resources and verify that the test functions made the
+        # corresponding calls to K8s.
+        assert square.main_patch(config, "client", "loc", "srv") == RetVal(None, False)
+        m_plan.assert_called_once_with(config, "loc", "srv")
+        m_post.assert_called_once_with("client", "create_url", "create_man")
+        m_patch.assert_called_once_with("client", patch.url, patch.ops)
+        m_delete.assert_called_once_with("client", "delete_url", "delete_man")
+
+        # -----------------------------------------------------------------
+        #                   Simulate Error Scenarios
+        # -----------------------------------------------------------------
+        # Make `k8s_delete` fail.
+        m_delete.return_value = RetVal(None, True)
+        assert square.main_patch(config, "client", "loc", "srv") == RetVal(None, True)
+
+        # Make `k8s_patch` fail.
+        m_patch.return_value = RetVal(None, True)
+        assert square.main_patch(config, "client", "loc", "srv") == RetVal(None, True)
+
+        # Make `k8s_post` fail.
+        m_post.return_value = RetVal(None, True)
+        assert square.main_patch(config, "client", "loc", "srv") == RetVal(None, True)
+
+        # Make `compile_plan` fail.
+        m_plan.return_value = RetVal(None, True)
+        assert square.main_patch(config, "client", "loc", "srv") == RetVal(None, True)
