@@ -797,10 +797,12 @@ def main_patch(config, client, manifest_folder, kinds, namespace):
     Inputs:
         config: k8s_utils.Config
         client: `requests` session with correct K8s certificates.
-        local_manifests: Dict[MetaManifest, dict]
-            Typically the output from `load_manifest` or `load`.
-        server_manifests: Dict[MetaManifest, dict]
-            Typically the output from `download_manifests`.
+        folder: Path
+            Path to local manifests eg "./foo"
+        kinds: Iterable
+            Resource types to fetch, eg ["Deployment", "Namespace"]
+        namespace:
+            Set to None to load all namespaces.
 
     Returns:
         None
@@ -852,24 +854,28 @@ def main_diff(config, client, manifest_folder, kinds, namespace):
 
     Inputs:
         config: k8s_utils.Config
-        local_manifests: Dict[MetaManifest, dict]
-            Typically the output from `load_manifest` or `load`.
-        server_manifests: Dict[MetaManifest, dict]
-            Typically the output from `download_manifests`.
+        client: `requests` session with correct K8s certificates.
+        folder: Path
+            Path to local manifests eg "./foo"
+        kinds: Iterable
+            Resource types to fetch, eg ["Deployment", "Namespace"]
+        namespace:
+            Set to None to load all namespaces.
 
     Returns:
         None
 
     """
-    # Load local and remote manifests.
-    data, err = local_server_manifests(config, client, manifest_folder, kinds, namespace)
-    if err:
-        return RetVal(None, True)
-    local_manifests, server_manifests, fdata_meta = data
+    try:
+        # Load local and remote manifests.
+        data, err = local_server_manifests(config, client, folder, kinds, namespace)
+        assert not err
+        local_manifests, server_manifests, fdata_meta = data
 
-    # Create deployment plan.
-    plan, err = compile_plan(config, local_manifests, server_manifests)
-    if err:
+        # Create deployment plan.
+        plan, err = compile_plan(config, local_manifests, server_manifests)
+        assert not err
+    except AssertionError:
         return RetVal(None, True)
 
     # Print the plan and return.
@@ -881,11 +887,14 @@ def main_get(config, client, manifest_folder, kinds, namespace):
     """Download all K8s manifests and merge them into local files.
 
     Inputs:
-        manifest_folder: Path
-        local_fdata: Dict[Filename, Tuple[MetaManifest, dict]]
-            Typically the output from `manio.load`.
-        server_manifests: Dict[MetaManifest, dict]
-            Typically the output from `download_manifests`.
+        config: k8s_utils.Config
+        client: `requests` session with correct K8s certificates.
+        folder: Path
+            Path to local manifests eg "./foo"
+        kinds: Iterable
+            Resource types to fetch, eg ["Deployment", "Namespace"]
+        namespace:
+            Set to None to load all namespaces.
 
     Returns:
         None
