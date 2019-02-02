@@ -747,6 +747,44 @@ def setup_logging(level: int):
     logger.addHandler(ch)
 
 
+def main_patch(config, client, local_manifests, server_manifests):
+    plan, err = compile_plan(config, local_manifests, server_manifests)
+    print_deltas(plan)
+
+    for data in plan.create:
+        print(f"Creating {data.meta.namespace}/{data.meta.name}")
+        ret = k8s_post(client, data.url, data.manifest)
+        if ret.err:
+            print(ret)
+            return
+
+    patches = [_.patch for _ in plan.patch if len(_.patch.ops) > 0]
+    print(f"Compiled {len(patches)} patches.")
+    for patch in patches:
+        pprint(patch)
+        ret = k8s_patch(client, patch.url, patch.ops)
+        if ret.err:
+            print(ret)
+            return
+
+    for data in plan.delete:
+        print(f"Deleting {data.meta.namespace}/{data.meta.name}")
+        ret = k8s_delete(client, data.url, data.manifest)
+        if ret.err:
+            print(ret)
+            return
+
+
+def main_diff(config, local_manifests, server_manifests):
+    plan, err = compile_plan(config, local_manifests, server_manifests)
+    print_deltas(plan)
+
+
+def main_get(manifest_folder, fdata_meta, server_manifests):
+    synced_manifests, err = manio.sync(fdata_meta, server_manifests)
+    _, err = manio.save(manifest_folder, synced_manifests)
+
+
 def main():
     param = parse_commandline_args()
 
@@ -772,37 +810,11 @@ def main():
     server_manifests, err = download_manifests(config, client, kinds, namespace)
 
     if param.parser == "get":
-        synced_manifests, err = manio.sync(fdata_meta, server_manifests)
-        _, err = manio.save(manifest_folder, synced_manifests)
+        _, err = main_get(manifest_folder, fdata_meta, server_manifests)
     elif param.parser == "diff":
-        plan, err = compile_plan(config, local_manifests, server_manifests)
-        print_deltas(plan)
+        _, err = main_diff(config, local_manifests, server_manifests)
     elif param.parser == "patch":
-        plan, err = compile_plan(config, local_manifests, server_manifests)
-        print_deltas(plan)
-
-        for data in plan.create:
-            print(f"Creating {data.meta.namespace}/{data.meta.name}")
-            ret = k8s_post(client, data.url, data.manifest)
-            if ret.err:
-                print(ret)
-                return
-
-        patches = [_.patch for _ in plan.patch if len(_.patch.ops) > 0]
-        print(f"Compiled {len(patches)} patches.")
-        for patch in patches:
-            pprint(patch)
-            ret = k8s_patch(client, patch.url, patch.ops)
-            if ret.err:
-                print(ret)
-                return
-
-        for data in plan.delete:
-            print(f"Deleting {data.meta.namespace}/{data.meta.name}")
-            ret = k8s_delete(client, data.url, data.manifest)
-            if ret.err:
-                print(ret)
-                return
+        _, err = main_patch(config, client, local_manifests, server_manifests)
     else:
         print(f"Unknown command <{param.parser}>")
         sys.exit(1)
