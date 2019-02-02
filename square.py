@@ -1,21 +1,22 @@
-import re
-import manio
-import logging
-import sys
 import argparse
 import json
-import yaml
+import logging
 import os
+import re
+import sys
 import textwrap
-import jsonpatch
-import k8s
-from IPython import embed
+from pprint import pprint
 
 import colorama
-from pprint import pprint
-from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS
-from dtypes import (DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-                    Manifests, Patch, RetVal)
+import jsonpatch
+import k8s
+import manio
+import yaml
+from dtypes import (
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, DeltaCreate, DeltaDelete, DeltaPatch,
+    DeploymentPlan, Manifests, Patch, RetVal,
+)
+from IPython import embed
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")

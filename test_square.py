@@ -1,14 +1,13 @@
-import manio
 import copy
 import os
 import types
 import unittest.mock as mock
+
 import k8s
-
+import manio
 import square
-
+from dtypes import MetaManifest, Patch, RetVal
 from test_helpers import make_manifest
-from dtypes import RetVal, MetaManifest, Patch
 
 
 class TestLogging:

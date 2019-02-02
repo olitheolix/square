@@ -1,14 +1,13 @@
-import logging
-import colorama
-import difflib
-import pathlib
-import copy
 import collections
+import copy
+import difflib
+import logging
+import pathlib
 
-import yaml
+import colorama
 import dotdict
-from dtypes import SUPPORTED_KINDS
-from dtypes import RetVal, MetaManifest
+import yaml
+from dtypes import SUPPORTED_KINDS, MetaManifest, RetVal
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")

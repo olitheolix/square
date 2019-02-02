@@ -1,13 +1,12 @@
 import random
+import unittest.mock as mock
 
-import yaml
+import dotdict
 import manio
 import square
+import yaml
+from dtypes import MetaManifest, RetVal
 from test_helpers import make_manifest, mk_deploy
-
-import unittest.mock as mock
-import dotdict
-from dtypes import RetVal, MetaManifest
 
 
 class TestUnpackParse:
