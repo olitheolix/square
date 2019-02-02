@@ -219,8 +219,8 @@ def compute_patch(config, local: dict, server: dict):
     except AssertionError:
         # Log the invalid manifests and return with an error.
         keys = ("apiVersion", "kind", "metadata")
-        local = utils.undo_dotdict({k: local[k] for k in keys})
-        server = utils.undo_dotdict({k: server[k] for k in keys})
+        local = {k: local[k] for k in keys}
+        server = {k: server[k] for k in keys}
         logit.error(
             "Cannot compute JSON patch for incompatible manifests. "
             f"Local: <{local}>  Server: <{server}>"
