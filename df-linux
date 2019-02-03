@@ -1,0 +1,60 @@
+# CentOS 7.2 was released in Nov 2015. If your OS uses an older glibc version than
+# this distro then the `square` binary will (probably) not work for you.
+FROM centos:7.2.1511
+
+RUN yum update -y
+RUN yum groupinstall -y "Development Tools"
+RUN yum install -y \
+    bzip2-devel \
+    db4-devel \
+    expat-devel \
+    gdbm-devel \
+    libffi-devel \
+    libpcap-devel \
+    ncurses-devel \
+    openssl-devel \
+    readline-devel \
+    sqlite-devel \
+    tk-devel \
+    wget \
+    xz-devel \
+    zlib-devel
+
+# Build Python 3.7.2 from source.
+ARG PYTHONVERSION=3.7.2
+RUN mkdir /src \
+  && cd /src \
+  && wget https://www.python.org/ftp/python/$PYTHONVERSION/Python-$PYTHONVERSION.tgz \
+  && tar -xzvf Python-$PYTHONVERSION.tgz \
+  && cd Python-$PYTHONVERSION \
+  && ./configure --enable-shared \
+  && make -j8 \
+  && make install
+
+# Add shared Python libraries to linker path.
+ENV LD_LIBRARY_PATH=/usr/local/lib
+
+# Install Python packages for "square".
+RUN pip3 install \
+  colorama \
+  flake8 \
+  flake8-isort \
+  google \
+  google-api-python-client \
+  ipython \
+  isort \
+  jsonpatch \
+  pyinstaller \
+  pytest \
+  pytest-cov \
+  pyyaml==4.2b4 \
+  requests \
+  requests-mock
+
+# Create dedicated project folder.
+ARG HOME=/home/square
+RUN mkdir $HOME
+ADD . $HOME
+
+# Build the Linux binary.
+RUN cd $HOME && pyinstaller square.py --onefile
