@@ -707,8 +707,35 @@ class TestYamlManifestIOIntegration:
             assert fp.exists()
             assert fp.read_text() == file_data[fname]
 
-        # Saving to non-writable (or non-existing) folder must fail.
-        assert manio.save_files("/does/not/exist", file_data) == RetVal(None, True)
+    def test_save_err_permissions(self, tmp_path):
+        """Make temp folder readonly and try to save the manifests."""
+        file_data = {"m0.yaml": "Some data"}
+        tmp_path.chmod(0o555)
+        assert manio.save_files(tmp_path, file_data) == RetVal(None, True)
+        assert not (tmp_path / "m0.yaml").exists()
+
+    def test_save_remove_stale_err_permissions(self, tmp_path):
+        """Place a read-only YAML file into the output folder.
+
+        The test function must abort because it will try to delete that file
+        before it writes anything else.
+
+        """
+        # Create a dummy file and save an empty set of files. This must delete
+        # the dummy file because the test function will first clean out all
+        # stale manifests.
+        tmp_file = (tmp_path / "foo.yaml")
+        tmp_file.touch()
+        assert manio.save_files(tmp_path, {}) == RetVal(None, False)
+        assert not tmp_file.exists()
+
+        # Create the dummy file again, then make its folder read-only. This
+        # time, the function must abort with an error because it cannot delete
+        # files inside a read-only folder.
+        tmp_file.touch()
+        tmp_path.chmod(0o555)
+        assert manio.save_files(tmp_path, {}) == RetVal(None, True)
+        assert tmp_file.exists()
 
     def test_load_save_ok(self, tmp_path):
         """Basic test that uses the {load,save} convenience functions."""
