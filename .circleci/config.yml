@@ -1,0 +1,72 @@
+# Python CircleCI 2.0 configuration file
+version: 2
+jobs:
+  build:
+    docker:
+      - image: python:3.7
+      
+    # This will be </root/repo>.
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "Pipfile" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+
+      - run:
+          name: install dependencies
+          command: |
+            # Create a non-root user because the file permission tests
+            # will otherwise since root always has access to all files.
+            apt update && apt install -y sudo
+            groupadd square
+            useradd -g square square
+
+            # Make sure the non-privileged user owns the repo files.
+            chown square:square -R /root
+
+            # Install the Python dependencies.
+            pip install pipenv
+            pipenv install --system --deploy --dev
+
+      - save_cache:
+          paths:
+            - ~/.local/share/virtualenvs
+          key: v1-dependencies-{{ checksum "Pipfile" }}
+
+      - run:
+          name: run tests
+          command: |
+            # Run the pytest suite as an unprivileged user.
+            sudo -u square pytest
+
+      - store_artifacts:
+          path: test-reports
+          destination: test-reports
+
+  binaries:
+    docker:
+      - image: python:3.7
+
+    # This will be </root/repo>.
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+
+      - run:
+          name: install dependencies
+          command: |
+            echo "Hello world"
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
+      - binaries
