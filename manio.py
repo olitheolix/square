@@ -280,9 +280,14 @@ def save_files(base_path, file_data: dict):
     # Python's `pathlib.Path` objects are simply nicer to work with...
     base_path = pathlib.Path(base_path)
 
-    # Delete all YAML files under `base_path`. This avoid stale manifests.
-    for fp in base_path.rglob("*.yaml"):
-        fp.unlink()
+    # Delete all YAML files under `base_path`. This avoids stale manifests.
+    try:
+        for fp in base_path.rglob("*.yaml"):
+            logit.info(f"Removing stale <{fp}>")
+            fp.unlink()
+    except (IOError, PermissionError) as err:
+        logit.error(f"{err}")
+        return RetVal(None, True)
 
     # Iterate over the dict and write each file. Abort on error.
     for fname, yaml_str in file_data.items():
@@ -295,11 +300,11 @@ def save_files(base_path, file_data: dict):
         logit.debug(f"Creating path for <{fname}>")
 
         # Create the parent directories and write the file. Abort on error.
-        logit.debug(f"Saving YAML file <{fname_abs}>")
+        logit.info(f"Saving YAML file <{fname_abs}>")
         try:
             fname_abs.parent.mkdir(parents=True, exist_ok=True)
             fname_abs.write_text(yaml_str)
-        except IOError as err:
+        except (IOError, PermissionError) as err:
             logit.error(f"{err}")
             return RetVal(None, True)
 
