@@ -1,3 +1,4 @@
+import pytest
 import copy
 import os
 import types
@@ -893,3 +894,71 @@ class TestMain:
         # Simulate an error in `get_manifests`.
         m_lsm.return_value = RetVal(None, True)
         assert square.main_get(*args) == RetVal(None, True)
+
+    @mock.patch.object(square, "k8s")
+    @mock.patch.object(square, "main_get")
+    @mock.patch.object(square, "main_diff")
+    @mock.patch.object(square, "main_patch")
+    def test_main_valid_options(self, m_patch, m_diff, m_get, m_k8s):
+        """Simulate sane program invocation.
+
+        This test verifies that the bootstrapping works and the correct
+        `main_*` function will be called with the correct parameters.
+
+        """
+        # Mock all calls to the K8s API.
+        m_k8s.load_auto_config.return_value = "config"
+        m_k8s.session.return_value = "client"
+        m_k8s.version.return_value = RetVal("config", False)
+
+        # Pretend all main functions return success.
+        m_get.return_value = RetVal(None, False)
+        m_diff.return_value = RetVal(None, False)
+        m_patch.return_value = RetVal(None, False)
+
+        # Simulate all input options.
+        for option in ["get", "diff", "patch"]:
+            with mock.patch("sys.argv", ["square.py", option]):
+                square.main()
+
+        # Every main function must have been called exactly once.
+        args = "config", "client", "manifests", square.SUPPORTED_KINDS, None
+        m_get.assert_called_once_with(*args)
+        m_diff.assert_called_once_with(*args)
+        m_patch.assert_called_once_with(*args)
+
+    @mock.patch("sys.argv", ["square.py", "invalid-option"])
+    @mock.patch.object(square, "k8s")
+    def test_main_invalid_option(self, m_k8s):
+        """Simulate an unknown option. Program must abort with non-zero exit code."""
+        with pytest.raises(SystemExit) as err:
+            square.main()
+        assert err.value.code != 0
+
+    @mock.patch.object(square, "k8s")
+    @mock.patch.object(square, "main_get")
+    @mock.patch.object(square, "main_diff")
+    @mock.patch.object(square, "main_patch")
+    def test_main_valid_options(self, m_patch, m_diff, m_get, m_k8s):
+        """Simulate sane program invocation.
+
+        This test verifies that the bootstrapping works and the correct
+        `main_*` function will be called with the correct parameters.
+
+        """
+        # Mock all calls to the K8s API.
+        m_k8s.load_auto_config.return_value = "config"
+        m_k8s.session.return_value = "client"
+        m_k8s.version.return_value = RetVal("config", False)
+
+        # Pretend all main functions return errors.
+        m_get.return_value = RetVal(None, True)
+        m_diff.return_value = RetVal(None, True)
+        m_patch.return_value = RetVal(None, True)
+
+        # Simulate all input options.
+        for option in ["get", "diff", "patch"]:
+            with mock.patch("sys.argv", ["square.py", option]):
+                with pytest.raises(SystemExit) as err:
+                    square.main()
+                assert err.value.code != 0
