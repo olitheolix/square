@@ -15,11 +15,3 @@ RUN wine pip install \
   pyyaml==4.2b4 \
   requests \
   requests-mock
-
-# Create dedicated project folder.
-ARG HOME=/home/square
-RUN mkdir $HOME
-ADD . $HOME
-
-# Build the Windows binary.
-RUN cd $HOME && wine pyinstaller --onefile --noupx square.py
