@@ -2,59 +2,42 @@
 # this distro then the `square` binary will (probably) not work for you.
 FROM centos:7.2.1511
 
-RUN yum update -y
-RUN yum groupinstall -y "Development Tools"
-RUN yum install -y \
-    bzip2-devel \
-    db4-devel \
-    expat-devel \
-    gdbm-devel \
-    libffi-devel \
-    libpcap-devel \
-    ncurses-devel \
-    openssl-devel \
-    readline-devel \
-    sqlite-devel \
-    tk-devel \
-    wget \
-    xz-devel \
-    zlib-devel
-
 # Build Python 3.7.2 from source.
 ARG PYTHONVERSION=3.7.2
-RUN mkdir /src \
+
+RUN yum install -y \
+     bzip2-devel \
+     db4-devel \
+     expat-devel \
+     gdbm-devel \
+     libffi-devel \
+     libpcap-devel \
+     ncurses-devel \
+     openssl-devel \
+     readline-devel \
+     sqlite-devel \
+     tk-devel \
+     wget \
+     which \
+     xz-devel \
+     zlib-devel \
+  && yum groupinstall -y "Development Tools" \
+  && mkdir /src \
   && cd /src \
   && wget https://www.python.org/ftp/python/$PYTHONVERSION/Python-$PYTHONVERSION.tgz \
   && tar -xzvf Python-$PYTHONVERSION.tgz \
   && cd Python-$PYTHONVERSION \
   && ./configure --enable-shared \
-  && make -j8 \
-  && make install
+  && make -j2 \
+  && make install \
+  && rm -rf Python-$PYTHONVERSION \
+  && rm /etc/yum/protected.d/systemd.conf \
+  && yum history undo 4 -y \
+  && yum clean all \
+  && rm -rf /var/cache/yum
 
 # Add shared Python libraries to linker path.
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
-# Install Python packages for "square".
-RUN pip3 install \
-  colorama \
-  flake8 \
-  flake8-isort \
-  google \
-  google-api-python-client \
-  ipython \
-  isort \
-  jsonpatch \
-  pyinstaller \
-  pytest \
-  pytest-cov \
-  pyyaml==4.2b4 \
-  requests \
-  requests-mock
-
-# Create dedicated project folder.
-ARG HOME=/home/square
-RUN mkdir $HOME
-ADD . $HOME
-
-# Build the Linux binary.
-RUN cd $HOME && pyinstaller square.py --onefile
+# Utility packages for Python.
+RUN pip3 install pipenv pyinstaller
