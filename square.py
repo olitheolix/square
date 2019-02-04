@@ -674,7 +674,11 @@ def main():
     elif param.parser == "patch":
         _, err = main_patch(config, client, manifest_folder, kinds, namespace)
     else:
-        print(f"Unknown command <{param.parser}>")
+        logit.error(f"Unknown command <{param.parser}>")
+        err = True
+
+    # Abort with non-zero exit code if there was an error.
+    if err:
         sys.exit(1)
 
 
