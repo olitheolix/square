@@ -31,7 +31,7 @@ jobs:
             chown square:square -R /root
 
             # Install the Python dependencies.
-            pip install pipenv
+            pip install pipenv codecov
             pipenv install --system --deploy --dev
 
       - save_cache:
@@ -43,7 +43,8 @@ jobs:
           name: run tests
           command: |
             # Run the pytest suite as an unprivileged user.
-            sudo -u square pytest
+            sudo -u square pytest --cov=./
+            codecov
 
   linux-binary:
     docker:
