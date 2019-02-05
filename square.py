@@ -391,10 +391,23 @@ def print_deltas(plan):
     # that we should patch.
     deltas = plan.patch
     for delta in deltas:
-        if len(delta.diff) > 0:
-            name = f'{delta.meta.namespace}/{delta.meta.name}'
-            print('-' * 80 + '\n' + f'{name.upper()}\n' + '-' * 80)
-            print(delta.diff)
+        if len(delta.diff) == 0:
+            continue
+
+        # Add some terminal colours to make it look prettier.
+        formatted_diff = []
+        for line in delta.diff.splitlines():
+            if line.startswith('+'):
+                formatted_diff.append(colorama.Fore.GREEN + line + colorama.Fore.RESET)
+            elif line.startswith('-'):
+                formatted_diff.append(colorama.Fore.RED + line + colorama.Fore.RESET)
+            else:
+                formatted_diff.append(line)
+        formatted_diff = str.join('\n', formatted_diff)
+
+        name = f'{delta.meta.namespace}/{delta.meta.name}'
+        print('-' * 80 + '\n' + f'{name.upper()}\n' + '-' * 80)
+        print(formatted_diff)
 
     # Use Red to list all the resources that we should delete.
     for delta in plan.delete:

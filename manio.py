@@ -4,7 +4,6 @@ import difflib
 import logging
 import pathlib
 
-import colorama
 import dotdict
 import yaml
 from dtypes import SUPPORTED_KINDS, MetaManifest, RetVal
@@ -518,18 +517,6 @@ def diff(local: dict, server: dict):
     srv_lines = yaml.dump(srv, default_flow_style=False).splitlines()
     loc_lines = yaml.dump(loc, default_flow_style=False).splitlines()
 
-    # Compute the diff.
+    # Compute and return the lines of the diff.
     diff_lines = difflib.unified_diff(srv_lines, loc_lines, lineterm='')
-
-    # Add some terminal colours to make it look prettier.
-    out = []
-    for line in diff_lines:
-        if line.startswith('+'):
-            out.append(colorama.Fore.GREEN + line + colorama.Fore.RESET)
-        elif line.startswith('-'):
-            out.append(colorama.Fore.RED + line + colorama.Fore.RESET)
-        else:
-            out.append(line)
-
-    # Return the diff.
-    return RetVal(str.join('\n', out), False)
+    return RetVal(str.join("\n", diff_lines), False)
