@@ -707,6 +707,16 @@ class TestYamlManifestIOIntegration:
             assert fp.exists()
             assert fp.read_text() == file_data[fname]
 
+    def test_load_save_files_empty(self, tmp_path):
+        """Only non-empty files must be written."""
+        # Add an empty file.
+        file_data = {"empty.yaml": "", "nonempty.yaml": "some content"}
+
+        # Saving the files. Verify that the empty one was not created.
+        assert manio.save_files(tmp_path, file_data) == RetVal(None, False)
+        assert (tmp_path / "nonempty.yaml").exists()
+        assert not (tmp_path / "empty.yaml").exists()
+
     def test_save_err_permissions(self, tmp_path):
         """Make temp folder readonly and try to save the manifests."""
         file_data = {"m0.yaml": "Some data"}
