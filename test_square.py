@@ -1,4 +1,3 @@
-import pytest
 import copy
 import os
 import types
@@ -6,6 +5,7 @@ import unittest.mock as mock
 
 import k8s
 import manio
+import pytest
 import square
 from dtypes import (
     SUPPORTED_KINDS, SUPPORTED_VERSIONS, DeltaCreate, DeltaDelete, DeltaPatch,
