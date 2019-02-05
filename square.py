@@ -42,7 +42,10 @@ def parse_commandline_args():
     parent.add_argument("-v", "--verbosity", action="count", default=0)
 
     parser = argparse.ArgumentParser(add_help=True)
-    subparsers = parser.add_subparsers(help='Mode', dest='parser', title="Operation")
+    subparsers = parser.add_subparsers(
+        help='Mode', dest='parser', metavar="ACTION",
+        title="Operation", required=True
+    )
 
     # Sub-command GET.
     parser_get = subparsers.add_parser(
