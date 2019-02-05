@@ -939,7 +939,7 @@ class TestMain:
     @mock.patch.object(square, "main_get")
     @mock.patch.object(square, "main_diff")
     @mock.patch.object(square, "main_patch")
-    def test_main_valid_options(self, m_patch, m_diff, m_get, m_k8s):
+    def test_main_nonzero_exit_on_error(self, m_patch, m_diff, m_get, m_k8s):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
