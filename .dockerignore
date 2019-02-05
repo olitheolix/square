@@ -1,5 +1,9 @@
+# Temporary files.
 **/*~
 **/__pycache__
+
+# Do not include repository.
+.git
 
 # Unit tests.
 htmlcov/
