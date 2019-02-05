@@ -3,6 +3,7 @@ import copy
 import difflib
 import logging
 import pathlib
+import schemas
 
 import dotdict
 import yaml
@@ -520,3 +521,100 @@ def diff(local: dict, server: dict):
     # Compute and return the lines of the diff.
     diff_lines = difflib.unified_diff(srv_lines, loc_lines, lineterm='')
     return RetVal(str.join("\n", diff_lines), False)
+
+
+def strip(config, manifest):
+    """Return stripped version of `manifest` with only the essential keys.
+
+    The "essential" keys for each supported resource type are defined in the
+    `schemas` module. In the context of `square`, essential keys are those that
+    specify a resource (eg "kind" or "metadata.name") but not derivative
+    information like "metadata.creationTimestamp" or "status".
+
+    Inputs:
+        config: k8s.Config
+        manifest: dict
+
+    Returns:
+        dict: subset of `manifest`.
+
+    """
+    # Avoid side effects.
+    manifest = copy.deepcopy(manifest)
+
+    # Every manifest must specify its "apiVersion" and "kind".
+    try:
+        kind, version = manifest["kind"], manifest["apiVersion"]
+    except KeyError as err:
+        logit.error(f"Manifest is missing the <{err.args[0]}> key.")
+        return RetVal(None, True)
+
+    def _update(schema, manifest, out):
+        """Recursively traverse the `schema` dict and add `manifest` keys into `out`.
+
+        Incorporate the mandatory and optional keys.
+
+        Raise `KeyError` if an invalid key was found.
+
+        """
+        # Iterate over every key/value pair of the schema and copy the
+        # mandatory and optional keys. Raise an error if we find a key in
+        # `manifest` that should not be there according to the schema.
+        for k, v in schema.items():
+            if v is True:
+                # This key must exist in `manifest` and will be included.
+                if k not in manifest:
+                    logit.error(f"<{kind}> manifest must have a <{k}> key")
+                    raise KeyError
+                out[k] = manifest[k]
+            elif v is False:
+                # This key must not exist in `manifest` and will be excluded.
+                if k in manifest:
+                    logit.error(f"<{kind}> manifest must not have a <{k}> key")
+                    raise KeyError
+            elif v is None:
+                # This key may exist in `manifest` and will be included in the
+                # output if it does.
+                if k in manifest:
+                    out[k] = manifest[k]
+            elif isinstance(v, dict):
+                # The schema does not specify {True, False, None} but contains
+                # another dict, which means we have to recurse into it.
+
+                # Create a new dict level in the output dict. We will populate
+                # it in when we recurse.
+                out[k] = {}
+
+                # Create a dummy dict in the input manifest if it lacks the
+                # key. This is a corner case where the schema specifies a key
+                # that contains only optional sub-keys. Since we do not know
+                # yet if they will all be optional, we create an empty dict so
+                # that the function can recurse.
+                if k not in manifest:
+                    manifest[k] = {}
+
+                # Traverse all dicts down by one level and repeat the process.
+                _update(schema[k], manifest[k], out[k])
+
+                # If all keys in `schema[k]` were optional then it is possible
+                # that `out[k]` will be empty. If so, delete it because we do
+                # not want to keep empty dicts around.
+                if out[k] == {}:
+                    del out[k]
+            else:
+                logit.error(f"This is a bug: type(v) = <{type(v)}")
+                raise KeyError
+
+    # Create preliminary output manifest.
+    stripped = {"apiVersion": version, "kind": kind}
+
+    # Convenience: this is the schema for the current resource.
+    schema = schemas.RESOURCE_SCHEMA[config.version][manifest["kind"]]
+
+    # Strip down the manifest to its essential parts and return it.
+    try:
+        _update(schema, manifest, stripped)
+    except KeyError:
+        return RetVal(None, True)
+    else:
+        return RetVal(stripped, False)
