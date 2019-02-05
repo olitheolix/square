@@ -304,12 +304,12 @@ def version(config: Config, client):
     """
     # Ask the K8s API for its version and check for errors.
     url = f"{config.url}/version"
-    ret = get(client, url)
-    if ret.err:
-        return ret
+    resp, err = get(client, url)
+    if err:
+        return RetVal(None, True)
 
     # Construct the version number of the K8s API.
-    major, minor = ret.data['major'], ret.data['minor']
+    major, minor = resp['major'], resp['minor']
     version = f"{major}.{minor}"
 
     # Return an updated `Config` tuple.
