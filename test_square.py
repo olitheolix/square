@@ -962,3 +962,25 @@ class TestMain:
                 with pytest.raises(SystemExit) as err:
                     square.main()
                 assert err.value.code != 0
+
+    @mock.patch.object(square, "k8s")
+    @mock.patch.object(square, "parse_commandline_args")
+    def test_main_invalid_option_in_main(self, m_cmd, m_k8s):
+        """Simulate an option that `square` does not know about.
+
+        This is a somewhat pathological test and exists primarily to close a
+        harmless gap in the test coverage.
+
+        """
+        # Mock all calls to the K8s API.
+        m_k8s.load_auto_config.return_value = "config"
+        m_k8s.session.return_value = "client"
+        m_k8s.version.return_value = RetVal("config", False)
+
+        # Pretend all main functions return errors.
+        m_cmd.return_value = types.SimpleNamespace(verbosity=0, parser="invalid")
+
+        # Simulate all input options.
+        with pytest.raises(SystemExit) as err:
+            square.main()
+        assert err.value.code != 0
