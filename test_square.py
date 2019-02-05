@@ -92,7 +92,10 @@ class TestBasic:
         )
         plan = DeploymentPlan(
             create=[DeltaCreate(meta, "url", "manifest")],
-            patch=[DeltaPatch(meta, "", patch), DeltaPatch(meta, "diff", patch)],
+            patch=[
+                DeltaPatch(meta, "", patch),
+                DeltaPatch(meta, "  normal\n+  add\n-  remove", patch)
+            ],
             delete=[DeltaDelete(meta, "url", "manifest")],
         )
         assert square.print_deltas(plan) == RetVal(None, False)
