@@ -23,5 +23,5 @@ def make_manifest(kind: str, namespace: str, name: str):
     return manifest
 
 
-def mk_deploy(name: str, ns: str="namespace"):
+def mk_deploy(name: str, ns: str = "namespace"):
     return make_manifest("Deployment", ns, name)
