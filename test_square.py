@@ -927,13 +927,24 @@ class TestMain:
         m_diff.assert_called_once_with(*args)
         m_patch.assert_called_once_with(*args)
 
-    @mock.patch("sys.argv", ["square.py", "invalid-option"])
     @mock.patch.object(square, "k8s")
     def test_main_invalid_option(self, m_k8s):
-        """Simulate an unknown option. Program must abort with non-zero exit code."""
-        with pytest.raises(SystemExit) as err:
-            square.main()
-        assert err.value.code != 0
+        """Simulate a missing or unknown option.
+
+        Either way, the program must abort with a non-zero exit code.
+
+        """
+        # Do not pass any option.
+        with mock.patch("sys.argv", ["square.py"]):
+            with pytest.raises(SystemExit) as err:
+                square.main()
+            assert err.value.code != 0
+
+        # Pass an invalid option.
+        with mock.patch("sys.argv", ["square.py", "invalid-option"]):
+            with pytest.raises(SystemExit) as err:
+                square.main()
+            assert err.value.code != 0
 
     @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "main_get")
