@@ -240,32 +240,51 @@ def request(client, method, path, payload, headers):
         logit.error(str.join("\n", msg))
         return RetVal(None, True)
 
+    # Log the entire request in debug mode.
+    logit.debug(
+        f"{method} {ret.status_code} {ret.url}\n"
+        f"Headers: {headers}\n"
+        f"Payload: {payload}\n"
+        f"Response: {response}\n"
+    )
     return RetVal(response, ret.status_code)
 
 
 def delete(client, path: str, payload: dict):
     """Make DELETE requests to K8s (see `k8s_request`)."""
     resp, code = request(client, 'DELETE', path, payload, headers=None)
-    return RetVal(resp, code != 200)
+    err = (code != 200)
+    if err:
+        logit.error(f"{code} - DELETE - {path}")
+    return RetVal(resp, err)
 
 
 def get(client, path: str):
     """Make GET requests to K8s (see `request`)."""
     resp, code = request(client, 'GET', path, payload=None, headers=None)
-    return RetVal(resp, code != 200)
+    err = (code != 200)
+    if err:
+        logit.error(f"{code} - GET - {path}")
+    return RetVal(resp, err)
 
 
 def patch(client, path: str, payload: dict):
     """Make PATCH requests to K8s (see `request`)."""
     headers = {'Content-Type': 'application/json-patch+json'}
     resp, code = request(client, 'PATCH', path, payload, headers)
-    return RetVal(resp, code != 200)
+    err = (code != 200)
+    if err:
+        logit.error(f"{code} - PATCH - {path}")
+    return RetVal(resp, err)
 
 
 def post(client, path: str, payload: dict):
     """Make POST requests to K8s (see `request`)."""
     resp, code = request(client, 'POST', path, payload, headers=None)
-    return RetVal(resp, code != 201)
+    err = (code != 201)
+    if err:
+        logit.error(f"{code} - POST - {path}")
+    return RetVal(resp, err)
 
 
 def version(config: Config, client):
