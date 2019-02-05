@@ -527,7 +527,7 @@ class TestManifestValidation:
     def setup_class(cls):
         square.setup_logging(9)
 
-    def test_metaspec_basic_valid(self):
+    def test_essential_basic_valid(self):
         """Ensure it returns only the salient fields of valid manifests."""
 
         # Minimal Deployment manifest with just the salient fields. Test
@@ -538,7 +538,7 @@ class TestManifestValidation:
             'metadata': {'name': 'foo', 'namespace': 'bar'},
             'spec': {'some': 'thing'},
         }
-        ret = manio.metaspec(valid_deployment_manifest)
+        ret = manio.essential(valid_deployment_manifest)
         assert ret == RetVal(valid_deployment_manifest, False)
         assert valid_deployment_manifest is not ret.data
 
@@ -550,7 +550,7 @@ class TestManifestValidation:
             'metadata': {'name': 'foo'},
             'spec': {'some': 'thing'},
         }
-        ret = manio.metaspec(valid_namespace_manifest)
+        ret = manio.essential(valid_namespace_manifest)
         assert ret == RetVal(valid_namespace_manifest, False)
         assert valid_namespace_manifest is not ret.data
 
@@ -565,15 +565,15 @@ class TestManifestValidation:
             'status': {"some": "status"},
             'additional': 'entry',
         }
-        ret = manio.metaspec(valid_namespace_manifest_add)
+        ret = manio.essential(valid_namespace_manifest_add)
         assert ret == RetVal(valid_namespace_manifest, False)
 
-    def test_metaspec_automanifests(self):
+    def test_essential_automanifests(self):
         """Verify that it works with the `make_manifest` test function.
 
         This test merely validates that the output of the `make_manifest`
         function used in various tests produces valid manifests as far as
-        `metaspec` is concerned.
+        `essential` is concerned.
 
         """
         # Create a valid manifest for each supported resource kind and verify
@@ -584,18 +584,18 @@ class TestManifestValidation:
             else:
                 manifest = make_manifest(kind, "ns", "name")
 
-            ret = manio.metaspec(manifest)
+            ret = manio.essential(manifest)
             assert ret.err is False and len(ret.data) > 0
 
         # Invalid Namespace manifest: metadata.namespace field is not None.
         manifest = make_manifest("Namespace", "ns", "name")
-        assert manio.metaspec(manifest) == RetVal(None, True)
+        assert manio.essential(manifest) == RetVal(None, True)
 
         # Unknown resource kind "foo".
         manifest = make_manifest("foo", "ns", "name")
-        assert manio.metaspec(manifest) == RetVal(None, True)
+        assert manio.essential(manifest) == RetVal(None, True)
 
-    def test_metaspec_missing_fields(self):
+    def test_essential_missing_fields(self):
         """Incomplete manifests must be rejected."""
         # A valid deployment manifest.
         valid = {
@@ -610,7 +610,7 @@ class TestManifestValidation:
         # manifests and return an error.
         for field in valid:
             invalid = {k: v for k, v in valid.items() if k != field}
-            assert manio.metaspec(invalid) == RetVal(None, True)
+            assert manio.essential(invalid) == RetVal(None, True)
 
         # Metadata for Namespace manifests must contain a "name" field.
         invalid = {
@@ -619,7 +619,7 @@ class TestManifestValidation:
             "metadata": {"foo": "bar"},
             "spec": {"some": "thing"},
         }
-        assert manio.metaspec(invalid) == RetVal(None, True)
+        assert manio.essential(invalid) == RetVal(None, True)
 
         # Metadata for Namespace manifests must not contain a "namespace" field.
         invalid = {
@@ -628,7 +628,7 @@ class TestManifestValidation:
             "metadata": {"namespace": "namespace"},
             "spec": {"some": "thing"},
         }
-        assert manio.metaspec(invalid) == RetVal(None, True)
+        assert manio.essential(invalid) == RetVal(None, True)
 
         # Metadata for non-namespace manifests must contain "name" and "namespace".
         invalid = {
@@ -637,7 +637,7 @@ class TestManifestValidation:
             "metadata": {"name": "name"},
             "spec": {"some": "thing"},
         }
-        assert manio.metaspec(invalid) == RetVal(None, True)
+        assert manio.essential(invalid) == RetVal(None, True)
 
 
 class TestDiff:
@@ -668,7 +668,7 @@ class TestDiff:
     def test_diff_err(self):
         """Diff two valid manifests and verify the output."""
         # Create two valid manifests, then stunt one in such a way that
-        # `metaspec` will reject it.
+        # `essential` will reject it.
         valid = make_manifest("Deployment", "namespace", "name1")
         invalid = make_manifest("Deployment", "namespace", "name2")
         del invalid["kind"]
