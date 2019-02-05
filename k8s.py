@@ -205,13 +205,13 @@ def session(config: Config):
     return sess
 
 
-def request(client, method, path, payload, headers):
+def request(client, method, url, payload, headers):
     """Return response of web request made with `client`.
 
     Inputs:
         client: `requests` session with correct K8s certificates.
-        path: str
-            Path to K8s resource (eg `/api/v1/namespaces`).
+        url: str
+            Eg `https://1.2.3.4/api/v1/namespaces`)
         payload: dict
             Anything that can be JSON encoded, usually a K8s manifest.
         headers: dict
@@ -223,7 +223,7 @@ def request(client, method, path, payload, headers):
 
     """
     try:
-        ret = client.request(method, path, json=payload, headers=headers, timeout=30)
+        ret = client.request(method, url, json=payload, headers=headers, timeout=30)
     except requests.exceptions.ConnectionError as err:
         method = err.request.method
         url = err.request.url
@@ -250,40 +250,40 @@ def request(client, method, path, payload, headers):
     return RetVal(response, ret.status_code)
 
 
-def delete(client, path: str, payload: dict):
+def delete(client, url: str, payload: dict):
     """Make DELETE requests to K8s (see `k8s_request`)."""
-    resp, code = request(client, 'DELETE', path, payload, headers=None)
+    resp, code = request(client, 'DELETE', url, payload, headers=None)
     err = (code != 200)
     if err:
-        logit.error(f"{code} - DELETE - {path}")
+        logit.error(f"{code} - DELETE - {url}")
     return RetVal(resp, err)
 
 
-def get(client, path: str):
+def get(client, url: str):
     """Make GET requests to K8s (see `request`)."""
-    resp, code = request(client, 'GET', path, payload=None, headers=None)
+    resp, code = request(client, 'GET', url, payload=None, headers=None)
     err = (code != 200)
     if err:
-        logit.error(f"{code} - GET - {path}")
+        logit.error(f"{code} - GET - {url}")
     return RetVal(resp, err)
 
 
-def patch(client, path: str, payload: dict):
+def patch(client, url: str, payload: dict):
     """Make PATCH requests to K8s (see `request`)."""
     headers = {'Content-Type': 'application/json-patch+json'}
-    resp, code = request(client, 'PATCH', path, payload, headers)
+    resp, code = request(client, 'PATCH', url, payload, headers)
     err = (code != 200)
     if err:
-        logit.error(f"{code} - PATCH - {path}")
+        logit.error(f"{code} - PATCH - {url}")
     return RetVal(resp, err)
 
 
-def post(client, path: str, payload: dict):
+def post(client, url: str, payload: dict):
     """Make POST requests to K8s (see `request`)."""
-    resp, code = request(client, 'POST', path, payload, headers=None)
+    resp, code = request(client, 'POST', url, payload, headers=None)
     err = (code != 201)
     if err:
-        logit.error(f"{code} - POST - {path}")
+        logit.error(f"{code} - POST - {url}")
     return RetVal(resp, err)
 
 
