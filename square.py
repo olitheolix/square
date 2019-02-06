@@ -147,8 +147,8 @@ def make_patch(config, local: dict, server: dict):
     """
     # Reduce local and server manifests to salient fields (ie apiVersion, kind,
     # metadata and spec). Abort on error.
-    local, err1 = manio.essential(local)
-    server, err2 = manio.essential(server)
+    local, err1 = manio.strip(config, local)
+    server, err2 = manio.strip(config, server)
     if err1 or err2:
         return RetVal(None, True)
 
@@ -224,7 +224,7 @@ def download_manifests(config, client, kinds, namespace):
             assert not err
 
             # Drop all manifest fields except "apiVersion", "metadata" and "spec".
-            ret = {k: manio.essential(man) for k, man in manifests.items()}
+            ret = {k: manio.strip(config, man) for k, man in manifests.items()}
             manifests = {k: v.data for k, v in ret.items()}
             err = any((v.err for v in ret.values()))
             assert not err
@@ -344,7 +344,7 @@ def compile_plan(config, local_manifests, server_manifests):
         srv = server_manifests[delta]
 
         # Compute textual diff (only useful for the user to study the diff).
-        diff_str, err = manio.diff(loc, srv)
+        diff_str, err = manio.diff(config, loc, srv)
         if err:
             return RetVal(None, True)
 

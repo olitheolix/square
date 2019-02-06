@@ -291,7 +291,7 @@ class TestDownloadManifests:
         # The expected outcome is a Dict[MetaManifest:dict] of all the items in
         # DeploymentList and NamespaceList.
         expected = {
-            manio.make_meta(_): manio.essential(_).data
+            manio.make_meta(_): manio.strip(config, _).data
             for _ in meta
         }
 
@@ -369,7 +369,7 @@ class TestPatchK8s:
         config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
         # Demo manifest.
-        srv = make_manifest('Deployment', 'namespace', 'name')
+        srv = make_manifest('Deployment', 'Namespace', 'name')
 
         # `apiVersion` must match.
         loc = copy.deepcopy(srv)
@@ -660,7 +660,7 @@ class TestPlan:
         # output structure below.
         patch, err = square.make_patch(config, loc_man[meta], srv_man[meta])
         assert not err
-        diff_str, err = manio.diff(loc_man[meta], srv_man[meta])
+        diff_str, err = manio.diff(config, loc_man[meta], srv_man[meta])
         assert not err
 
         # Verify the test function returns the correct Patch and diff.
