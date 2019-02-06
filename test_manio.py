@@ -666,6 +666,17 @@ class TestManifestValidation:
             expected = {"apiVersion": "", "kind": "TEST"}
             assert manio.strip(config, manifest) == RetVal(expected, False)
 
+    def test_strip_invalid_schema(self):
+        """Create a corrupt schema and verify we get a proper error message."""
+        version = "1.10"
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", version)
+        schema = {version: {"TEST": {"invalid": "foo"}}}
+
+        with mock.patch("manio.schemas.RESOURCE_SCHEMA", schema):
+            # Valid manifest with purely mandatory fields.
+            valid = {"apiVersion": "v1", "kind": "TEST"}
+            assert manio.strip(config, valid) == RetVal(None, True)
+
     def test_strip_namespace(self):
         """Validate NAMESPACE manifests."""
         config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
