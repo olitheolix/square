@@ -395,7 +395,8 @@ class TestPatchK8s:
         """`Namespace` specific corner cases.
 
         Namespaces are special because, by definition, they must not contain a
-        `metadata.Namespace` attribute.
+        `metadata.Namespace` attribute. This will trigger a subtly different
+        code path in `make_patch`.
 
         """
         config = types.SimpleNamespace(url='http://examples.com/', version="1.10")

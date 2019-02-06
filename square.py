@@ -171,7 +171,7 @@ def make_patch(config, local: dict, server: dict):
         return RetVal(None, True)
 
     # Determine the PATCH URL for the resource.
-    namespace = server.metadata.get("namespace", None)
+    namespace = server.metadata.namespace if server.kind != "Namespace" else None
     url, err = urlpath(config, server.kind, namespace)
     if err:
         return RetVal(None, True)
