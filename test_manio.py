@@ -534,12 +534,37 @@ class TestManifestValidation:
     def setup_class(cls):
         square.setup_logging(9)
 
-    def test_resourcedescriptions_match_supportedresources(self):
-        """There must be schemas for all supported versions and kinds."""
+    def test_schemas(self):
+        """There must be schemas for all supported versions and kinds.
+
+        Furthermore, the schema for each K8s version and resource kind must
+        contain only {dict, True, False, None} values.
+
+        """
+        def is_sane(schema: dict):
+            """Return True if all keys/values are valid."""
+            for k, v in schema.items():
+                # Field name (eg "metadata") must be a non-zero string.
+                assert isinstance(k, str)
+                assert len(k) > 0
+
+                # The value must either be a dict or specify whether the key is
+                # mandatory (True), forbidden (False) or optional (None).
+                if isinstance(v, dict):
+                    # Recursively check dicts.
+                    is_sane(v)
+                else:
+                    assert v in {True, False, None}
+
+            # Looks good.
+            return True
+
+        # Check that all schemas exist and their definition is valid.
         for version in SUPPORTED_VERSIONS:
             assert version in schemas.RESOURCE_SCHEMA
             for kind in SUPPORTED_KINDS:
                 assert kind in schemas.RESOURCE_SCHEMA[version]
+                assert is_sane(schemas.RESOURCE_SCHEMA[version][kind])
 
     def test_strip_generic(self):
         """Create a complete fake schema to test all options.
