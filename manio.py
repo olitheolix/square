@@ -608,8 +608,15 @@ def strip(config, manifest):
     # Create preliminary output manifest.
     stripped = {"apiVersion": version, "kind": kind}
 
-    # Convenience: this is the schema for the current resource.
-    schema = schemas.RESOURCE_SCHEMA[config.version][manifest["kind"]]
+    # Verify the schema for the current resource and K8s version exist.
+    try:
+        schema = schemas.RESOURCE_SCHEMA[config.version][manifest["kind"]]
+    except KeyError:
+        logit.error(
+            f"Unknown K8s version (<{config.version}>) "
+            "or resource kind: <{kind}>"
+        )
+        return RetVal(None, True)
 
     # Strip down the manifest to its essential parts and return it.
     try:

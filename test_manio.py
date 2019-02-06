@@ -704,6 +704,22 @@ class TestManifestValidation:
             valid = {"apiVersion": "v1", "kind": "TEST"}
             assert manio.strip(config, valid) == RetVal(None, True)
 
+    def test_strip_invalid_version_kind(self):
+        """Must abort gracefully for unknown K8s version or resource kind."""
+        # Minimal valid schema.
+        schema = {"1.10": {"TEST": {"metadata": None}}}
+
+        with mock.patch("manio.schemas.RESOURCE_SCHEMA", schema):
+            # Valid version but unknown resource.
+            config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+            manifest = {"apiVersion": "v1", "kind": "Unknown"}
+            assert manio.strip(config, manifest) == RetVal(None, True)
+
+            # Invalid version but known resource.
+            config = k8s.Config("url", "token", "ca_cert", "client_cert", "unknown")
+            manifest = {"apiVersion": "v1", "kind": "TEST"}
+            assert manio.strip(config, manifest) == RetVal(None, True)
+
     def test_strip_namespace(self):
         """Validate NAMESPACE manifests."""
         config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
