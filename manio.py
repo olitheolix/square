@@ -617,4 +617,4 @@ def strip(config, manifest):
     except KeyError:
         return RetVal(None, True)
     else:
-        return RetVal(stripped, False)
+        return RetVal(dotdict.make(stripped), False)

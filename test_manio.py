@@ -596,7 +596,9 @@ class TestManifestValidation:
                 "metadata": {"name": "name"},
                 "spec": "spec",
             }
-            assert manio.strip(config, valid) == RetVal(valid, False)
+            ret = manio.strip(config, valid)
+            assert ret == RetVal(valid, False)
+            assert isinstance(ret.data, dotdict.DotDict)
             del valid
 
             # Valid manifest with all mandatory and *some* optional keys (
