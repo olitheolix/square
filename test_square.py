@@ -487,13 +487,13 @@ class TestPlan:
         invalid_cfg = k8s.Config("url", "token", "cert", "client_cert", "invalid")
 
         # Create two valid manifests, then stunt one in such a way that
-        # `manio.essential` will reject it.
+        # `manio.strip` will reject it.
         kind, namespace, name = "Deployment", "namespace", "name"
         valid = make_manifest(kind, namespace, name)
         invalid = make_manifest(kind, namespace, name)
         del invalid["kind"]
 
-        # Must handle errors from `manio.essential`.
+        # Must handle errors from `manio.strip`.
         assert square.make_patch(valid_cfg, valid, invalid) == RetVal(None, True)
         assert square.make_patch(valid_cfg, invalid, valid) == RetVal(None, True)
         assert square.make_patch(valid_cfg, invalid, invalid) == RetVal(None, True)
