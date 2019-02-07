@@ -153,179 +153,6 @@ class TestYamlManifestIO:
         }
         assert manio.unpack(src) == RetVal(None, True)
 
-    def test_sync_modify_delete_ok(self):
-        """Add, modify and delete a few manifests.
-
-        Create fake inputs for the test function, namely local- and remote
-        manifests. Their structure is slightly different in that the local
-        manifests still carry the file name in their data structure whereas the
-        server ones do not.
-
-        """
-        # First, create the local manifests as `load_files` would return it.
-        dply_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(10)]
-        meta_1 = [manio.make_meta(_) for _ in dply_1]
-        dply_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(10)]
-        meta_2 = [manio.make_meta(_) for _ in dply_2]
-        loc_man = {
-            "m0.yaml": [(meta_1[0], "0"), (meta_1[1], "1"), (meta_2[2], "2")],
-            "m1.yaml": [(meta_2[3], "3"), (meta_1[4], "4")],
-            "m2.yaml": [(meta_1[5], "5")],
-        }
-
-        # Create server manifests as `download_manifests` would return it. Only
-        # the MetaManifests (ie dict keys) are relevant whereas the dict values
-        # are not but serve to improve code readability here.
-        srv_man = {
-            meta_1[0]: "0",         # same
-            meta_1[1]: "modified",  # modified
-            meta_2[2]: "2",         # same
-                                    # delete [3]
-            meta_1[4]: "4",         # same
-                                    # delete [5]
-            meta_1[6]: "new",       # new
-            meta_2[7]: "new",       # new
-            meta_1[8]: "new",       # new
-        }
-
-        # The expected outcome is that the local manifests were updated,
-        # either overwritten (modified), deleted or put into a default
-        # manifest.
-        expected = {
-            "m0.yaml": [(meta_1[0], "0"), (meta_1[1], "modified"), (meta_2[2], "2")],
-            "m1.yaml": [(meta_1[4], "4")],
-            "m2.yaml": [],
-            "_ns1.yaml": [(meta_1[6], "new"), (meta_1[8], "new")],
-            "_ns2.yaml": [(meta_2[7], "new")],
-        }
-        assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
-
-    def test_sync_catch_all_files(self):
-        """Verify that syncing the catch-all files works as expected.
-
-        This requires a special test to ensure these auto generated catch-all
-        files behave like their "normal" user created counterparts.
-
-        """
-        # First, create the local manifests as `load_files` would return it.
-        dply_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(20)]
-        meta_1 = [manio.make_meta(_) for _ in dply_1]
-        dply_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(20)]
-        meta_2 = [manio.make_meta(_) for _ in dply_2]
-        loc_man = {
-            "_ns1.yaml": [
-                (meta_1[1], "1"), (meta_1[2], "2"), (meta_1[3], "3"), (meta_1[5], "5")
-            ],
-            "_ns2.yaml": [
-                (meta_2[2], "2"), (meta_2[6], "6"),
-            ]
-        }
-
-        # Create server manifests as `download_manifests` would return it. Only
-        # the MetaManifests (ie dict keys) are relevant whereas the dict values
-        # are not but serve to improve code readability here.
-        srv_man = {
-            # --- _ns1.yaml ---
-            meta_1[0]: "0",         # new
-            meta_1[1]: "modified",  # modified
-            meta_1[2]: "2",         # same
-                                    # delete [3]
-                                    # [4] never existed
-                                    # delete [5]
-
-            # --- _ns2.yaml ---
-            meta_2[0]: "0",         # new
-            meta_2[9]: "9",         # new
-            meta_2[7]: "7",         # new
-            meta_2[6]: "modified",  # modified
-                                    # delete [2]
-            meta_2[5]: "5",         # new
-            meta_2[3]: "3",         # new
-        }
-
-        # The expected outcome is that the local manifests were updated,
-        # either overwritten (modified), deleted or put into a default
-        # manifest.
-        # NOTE: this test _assumes_ that the `srv_man` dict iterates over its
-        # keys in insertion order, which is guaranteed for Python 3.7.
-        expected = {
-            "_ns1.yaml": [
-                (meta_1[1], "modified"), (meta_1[2], "2"), (meta_1[0], "0"),
-            ],
-            "_ns2.yaml": [
-                (meta_2[6], "modified"), (meta_2[0], "0"), (meta_2[9], "9"),
-                (meta_2[7], "7"), (meta_2[5], "5"), (meta_2[3], "3"),
-            ]
-        }
-        assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
-
-    def test_sync_new_namespaces(self):
-        """Create catch-all files for new namespaces.
-
-        This tests verifies that namespace resources end up in the correct
-        catch-all files. This is a corner case because the correct catch-all
-        file for namespaces is based on the `name` attributed of that
-        namespace's `MetaManifest`, not the `namespace` attribute which is None
-        for namespaces.
-
-        """
-        # Convenience to improve readability.
-        def mm(*args):
-            return manio.make_meta(make_manifest(*args))
-
-        meta_ns_a = mm("Namespace", None, "a")
-        meta_ns_b = mm("Namespace", None, "b")
-        meta_svc_a = [mm("Service", "a", f"s{_}") for _ in range(10)]
-        meta_dply_a = [mm("Deployment", "a", f"d{_}") for _ in range(10)]
-        meta_svc_b = [mm("Service", "b", f"s{_}") for _ in range(10)]
-        meta_dply_b = [mm("Deployment", "b", f"d{_}") for _ in range(10)]
-
-        # For this test we can pretend that we do not have any local manifest
-        # files yet.
-        loc_man = {}
-
-        # Create server manifests as `download_manifests` would return it. Only
-        # the MetaManifests (ie dict keys) are relevant whereas the dict values
-        # are not but serve to improve code readability here.
-        srv_man = {
-            # --- _a.yaml ---
-            meta_ns_a: "ns_a",
-            meta_svc_a[0]: "svc_a_0",
-            meta_svc_a[1]: "svc_a_1",
-            meta_dply_a[3]: "dply_a_3",
-            meta_dply_a[4]: "dply_a_4",
-
-            # --- _b.yaml ---
-            meta_ns_b: "ns_b",
-            meta_svc_b[0]: "svc_b_0",
-            meta_svc_b[1]: "svc_b_1",
-            meta_dply_b[3]: "dply_b_3",
-            meta_dply_b[4]: "dply_b_4",
-        }
-
-        # The expected outcome is that the local manifests were updated,
-        # either overwritten (modified), deleted or put into a default
-        # manifest.
-        # NOTE: this test _assumes_ that the `srv_man` dict iterates over its
-        # keys in insertion order, which is guaranteed for Python 3.7.
-        expected = {
-            "_a.yaml": [
-                (meta_ns_a, "ns_a"),
-                (meta_svc_a[0], "svc_a_0"),
-                (meta_svc_a[1], "svc_a_1"),
-                (meta_dply_a[3], "dply_a_3"),
-                (meta_dply_a[4], "dply_a_4"),
-            ],
-            "_b.yaml": [
-                (meta_ns_b, "ns_b"),
-                (meta_svc_b[0], "svc_b_0"),
-                (meta_svc_b[1], "svc_b_1"),
-                (meta_dply_b[3], "dply_b_3"),
-                (meta_dply_b[4], "dply_b_4"),
-            ],
-        }
-        assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
-
     def test_unparse_ok(self):
         """Basic use case: convert Python dicts to YAML strings."""
         # Create valid MetaManifests.
@@ -1028,3 +855,182 @@ class TestYamlManifestIOIntegration:
         """Simulate an error in `unparse` function."""
         m_unparse.return_value = RetVal(None, True)
         assert manio.save(tmp_path, "foo") == RetVal(None, True)
+
+
+class TestSync:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
+    def test_sync_modify_delete_ok(self):
+        """Add, modify and delete a few manifests.
+
+        Create fake inputs for the test function, namely local- and remote
+        manifests. Their structure is slightly different in that the local
+        manifests still carry the file name in their data structure whereas the
+        server ones do not.
+
+        """
+        # First, create the local manifests as `load_files` would return it.
+        dply_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(10)]
+        meta_1 = [manio.make_meta(_) for _ in dply_1]
+        dply_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(10)]
+        meta_2 = [manio.make_meta(_) for _ in dply_2]
+        loc_man = {
+            "m0.yaml": [(meta_1[0], "0"), (meta_1[1], "1"), (meta_2[2], "2")],
+            "m1.yaml": [(meta_2[3], "3"), (meta_1[4], "4")],
+            "m2.yaml": [(meta_1[5], "5")],
+        }
+
+        # Create server manifests as `download_manifests` would return it. Only
+        # the MetaManifests (ie dict keys) are relevant whereas the dict values
+        # are not but serve to improve code readability here.
+        srv_man = {
+            meta_1[0]: "0",         # same
+            meta_1[1]: "modified",  # modified
+            meta_2[2]: "2",         # same
+                                    # delete [3]
+            meta_1[4]: "4",         # same
+                                    # delete [5]
+            meta_1[6]: "new",       # new
+            meta_2[7]: "new",       # new
+            meta_1[8]: "new",       # new
+        }
+
+        # The expected outcome is that the local manifests were updated,
+        # either overwritten (modified), deleted or put into a default
+        # manifest.
+        expected = {
+            "m0.yaml": [(meta_1[0], "0"), (meta_1[1], "modified"), (meta_2[2], "2")],
+            "m1.yaml": [(meta_1[4], "4")],
+            "m2.yaml": [],
+            "_ns1.yaml": [(meta_1[6], "new"), (meta_1[8], "new")],
+            "_ns2.yaml": [(meta_2[7], "new")],
+        }
+        assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
+
+    def test_sync_catch_all_files(self):
+        """Verify that syncing the catch-all files works as expected.
+
+        This requires a special test to ensure these auto generated catch-all
+        files behave like their "normal" user created counterparts.
+
+        """
+        # First, create the local manifests as `load_files` would return it.
+        dply_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(20)]
+        meta_1 = [manio.make_meta(_) for _ in dply_1]
+        dply_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(20)]
+        meta_2 = [manio.make_meta(_) for _ in dply_2]
+        loc_man = {
+            "_ns1.yaml": [
+                (meta_1[1], "1"), (meta_1[2], "2"), (meta_1[3], "3"), (meta_1[5], "5")
+            ],
+            "_ns2.yaml": [
+                (meta_2[2], "2"), (meta_2[6], "6"),
+            ]
+        }
+
+        # Create server manifests as `download_manifests` would return it. Only
+        # the MetaManifests (ie dict keys) are relevant whereas the dict values
+        # are not but serve to improve code readability here.
+        srv_man = {
+            # --- _ns1.yaml ---
+            meta_1[0]: "0",         # new
+            meta_1[1]: "modified",  # modified
+            meta_1[2]: "2",         # same
+                                    # delete [3]
+                                    # [4] never existed
+                                    # delete [5]
+
+            # --- _ns2.yaml ---
+            meta_2[0]: "0",         # new
+            meta_2[9]: "9",         # new
+            meta_2[7]: "7",         # new
+            meta_2[6]: "modified",  # modified
+                                    # delete [2]
+            meta_2[5]: "5",         # new
+            meta_2[3]: "3",         # new
+        }
+
+        # The expected outcome is that the local manifests were updated,
+        # either overwritten (modified), deleted or put into a default
+        # manifest.
+        # NOTE: this test _assumes_ that the `srv_man` dict iterates over its
+        # keys in insertion order, which is guaranteed for Python 3.7.
+        expected = {
+            "_ns1.yaml": [
+                (meta_1[1], "modified"), (meta_1[2], "2"), (meta_1[0], "0"),
+            ],
+            "_ns2.yaml": [
+                (meta_2[6], "modified"), (meta_2[0], "0"), (meta_2[9], "9"),
+                (meta_2[7], "7"), (meta_2[5], "5"), (meta_2[3], "3"),
+            ]
+        }
+        assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
+
+    def test_sync_new_namespaces(self):
+        """Create catch-all files for new namespaces.
+
+        This tests verifies that namespace resources end up in the correct
+        catch-all files. This is a corner case because the correct catch-all
+        file for namespaces is based on the `name` attributed of that
+        namespace's `MetaManifest`, not the `namespace` attribute which is None
+        for namespaces.
+
+        """
+        # Convenience to improve readability.
+        def mm(*args):
+            return manio.make_meta(make_manifest(*args))
+
+        meta_ns_a = mm("Namespace", None, "a")
+        meta_ns_b = mm("Namespace", None, "b")
+        meta_svc_a = [mm("Service", "a", f"s{_}") for _ in range(10)]
+        meta_dply_a = [mm("Deployment", "a", f"d{_}") for _ in range(10)]
+        meta_svc_b = [mm("Service", "b", f"s{_}") for _ in range(10)]
+        meta_dply_b = [mm("Deployment", "b", f"d{_}") for _ in range(10)]
+
+        # For this test we can pretend that we do not have any local manifest
+        # files yet.
+        loc_man = {}
+
+        # Create server manifests as `download_manifests` would return it. Only
+        # the MetaManifests (ie dict keys) are relevant whereas the dict values
+        # are not but serve to improve code readability here.
+        srv_man = {
+            # --- _a.yaml ---
+            meta_ns_a: "ns_a",
+            meta_svc_a[0]: "svc_a_0",
+            meta_svc_a[1]: "svc_a_1",
+            meta_dply_a[3]: "dply_a_3",
+            meta_dply_a[4]: "dply_a_4",
+
+            # --- _b.yaml ---
+            meta_ns_b: "ns_b",
+            meta_svc_b[0]: "svc_b_0",
+            meta_svc_b[1]: "svc_b_1",
+            meta_dply_b[3]: "dply_b_3",
+            meta_dply_b[4]: "dply_b_4",
+        }
+
+        # The expected outcome is that the local manifests were updated,
+        # either overwritten (modified), deleted or put into a default
+        # manifest.
+        # NOTE: this test _assumes_ that the `srv_man` dict iterates over its
+        # keys in insertion order, which is guaranteed for Python 3.7.
+        expected = {
+            "_a.yaml": [
+                (meta_ns_a, "ns_a"),
+                (meta_svc_a[0], "svc_a_0"),
+                (meta_svc_a[1], "svc_a_1"),
+                (meta_dply_a[3], "dply_a_3"),
+                (meta_dply_a[4], "dply_a_4"),
+            ],
+            "_b.yaml": [
+                (meta_ns_b, "ns_b"),
+                (meta_svc_b[0], "svc_b_0"),
+                (meta_svc_b[1], "svc_b_1"),
+                (meta_dply_b[3], "dply_b_3"),
+                (meta_dply_b[4], "dply_b_4"),
+            ],
+        }
+        assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
