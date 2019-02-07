@@ -8,8 +8,8 @@ import manio
 import pytest
 import square
 from dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, JsonPatch, Manifests, MetaManifest, RetVal,
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config, DeltaCreate, DeltaDelete,
+    DeltaPatch, DeploymentPlan, JsonPatch, Manifests, MetaManifest, RetVal,
 )
 from test_helpers import make_manifest
 
@@ -220,7 +220,6 @@ class TestUrlPathBuilder:
 
     def test_urlpath_ok(self):
         """Must work for all supported K8s versions and resources."""
-        Config = k8s.Config
         for version in SUPPORTED_VERSIONS:
             cfg = Config("url", "token", "ca_cert", "client_cert", version)
             for kind in SUPPORTED_KINDS:
@@ -233,8 +232,6 @@ class TestUrlPathBuilder:
 
     def test_urlpath_err(self):
         """Test various error scenarios."""
-        Config = k8s.Config
-
         # Valid version but invalid resource kind or invalid namespace spelling.
         for version in SUPPORTED_VERSIONS:
             cfg = Config("url", "token", "ca_cert", "client_cert", version)
