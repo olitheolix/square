@@ -16,7 +16,6 @@ from dtypes import (
     SUPPORTED_KINDS, SUPPORTED_VERSIONS, DeltaCreate, DeltaDelete, DeltaPatch,
     DeploymentPlan, JsonPatch, Manifests, RetVal,
 )
-from IPython import embed
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
