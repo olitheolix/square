@@ -6,6 +6,7 @@ import k8s
 import pytest
 import requests_mock
 import square
+from dtypes import Config
 from k8s import RetVal
 
 
@@ -199,7 +200,7 @@ class TestK8sConfig:
 
         # Create vanilla `Config` instance.
         m_client = mock.MagicMock()
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", None)
+        config = Config("url", "token", "ca_cert", "client_cert", None)
 
         # Test function must contact the K8s API and return a `Config` tuple
         # with the correct version number.
@@ -223,7 +224,7 @@ class TestK8sConfig:
 
         # Create vanilla `Config` instance.
         m_client = mock.MagicMock()
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", None)
+        config = Config("url", "token", "ca_cert", "client_cert", None)
 
         # Simulate an error in `get`.
         m_get.return_value = RetVal(None, True)

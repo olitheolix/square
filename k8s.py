@@ -9,7 +9,7 @@ from collections import namedtuple
 import google.auth.transport.requests
 import requests
 import yaml
-from dtypes import RetVal
+from dtypes import Config, RetVal
 
 ClientCert = namedtuple('ClientCert', 'crt key')
 

@@ -7,6 +7,7 @@ SUPPORTED_KINDS = (
 )
 SUPPORTED_VERSIONS = ("1.9", "1.10")
 
+Config = namedtuple('Config', 'url token ca_cert client_cert version')
 DeltaCreate = namedtuple("DeltaCreate", "meta url manifest")
 DeltaDelete = namedtuple("DeltaDelete", "meta url manifest")
 DeltaPatch = namedtuple("Delta", "meta diff patch")
