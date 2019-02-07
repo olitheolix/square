@@ -107,11 +107,14 @@ class TestK8sDeleteGetPatchPost:
         payload = "payload"
         response = "response"
 
-        # K8s DELETE request was successful iff its return status is 200.
-        m_req.reset_mock()
-        m_req.return_value = RetVal(response, 200)
-        assert k8s.delete(client, path, payload) == RetVal(response, False)
-        m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
+        # K8s DELETE request was successful iff its return status is 200 or 202
+        # (202 means deleting was scheduled but is still pending, usually
+        # because of grace periods).
+        for code in (200, 202):
+            m_req.reset_mock()
+            m_req.return_value = RetVal(response, 202)
+            assert k8s.delete(client, path, payload) == RetVal(response, False)
+            m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
 
         # K8s GET request was successful iff its return status is 200.
         m_req.reset_mock()

@@ -253,7 +253,7 @@ def request(client, method, url, payload, headers):
 def delete(client, url: str, payload: dict):
     """Make DELETE requests to K8s (see `k8s_request`)."""
     resp, code = request(client, 'DELETE', url, payload, headers=None)
-    err = (code != 200)
+    err = (code not in (200, 202))
     if err:
         logit.error(f"{code} - DELETE - {url}")
     return RetVal(resp, err)
