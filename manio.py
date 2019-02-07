@@ -154,10 +154,10 @@ def sync(local_manifests, server_manifests):
         Dict[Filename, Tuple[MetaManifest, dict]]
 
     """
-    # Create a dict to maps a given MetaManifest to the file which defined it.
-    # Do not only store the file but also the index of the YAML manifest inside
-    # the file. We will need that information later to find out which manifest
-    # in which file we need to update.
+    # Create map for MetaManifest -> (File, doc-idx). The doc-idx denotes the
+    # index of the manifest inside the YAML files (it may contain multiple
+    # manifests). We will need that information later to find out which
+    # manifest in which file we need to update.
     meta_to_fname = {}
     for fname in local_manifests:
         for idx, (meta, _) in enumerate(local_manifests[fname]):
@@ -166,22 +166,20 @@ def sync(local_manifests, server_manifests):
         del fname
 
     # Make a copy of the local manifests to avoid side effects for the caller.
-    # We can then safely overwrite the local manifests with the server ones.
-    # Furthermore, put it into a default dict because me may have to add
-    # manifests to new files.
+    # Also put it into a default dict for convenience.
     out_add_mod = collections.defaultdict(list)
     out_add_mod.update(copy.deepcopy(local_manifests))
     del local_manifests
 
-    # If the meta manifest from the server also exists locally then update the
-    # respective manifest, otherwise add it to f"_{namespace}.yaml".
+    # If the server's meta manifest exists locally then update the local one,
+    # otherwise add it to f"_{namespace}.yaml".
     for meta, manifest in server_manifests.items():
         try:
-            # Find out the YAML document index and file that defined `meta`.
+            # Find the file that defined `meta` and its position inside that file.
             fname, idx = meta_to_fname[meta]
         except KeyError:
             # Put the resource into the correct "catch-all" file. However, we
-            # first need to determine the namespace, which differs depending on
+            # must first determine the namespace, which differs depending on
             # whether the resource is a Namespace or other resource.
             if meta.kind == "Namespace":
                 catch_all = f"_{meta.name}.yaml"
@@ -192,10 +190,9 @@ def sync(local_manifests, server_manifests):
             # Update the correct YAML document in the correct file.
             out_add_mod[fname][idx] = (meta, manifest)
 
-    # Delete the meta manifests that do not exist on the server. To do just
-    # that, iterate over all meta manifests in all files and find out if we
-    # have that meta manifest locally anywhere. Only include that manifest in
-    # the new output if we do, otherwise skip it to, in effect, delete it.
+    # Iterate over all manifests in all files and drop the resources that do
+    # not exist on the server. This will, in effect, delete those resources in
+    # the local files if the caller chooser to save them.
     out_add_mod_del = {}
     for fname, manifests in out_add_mod.items():
         pruned = [(meta, man) for (meta, man) in manifests if meta in server_manifests]
