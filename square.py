@@ -194,7 +194,7 @@ def make_patch(config, local: dict, server: dict):
     return RetVal(JsonPatch(full_url, patch), False)
 
 
-def download_manifests(config, client, kinds, namespace):
+def download_manifests(config, client, kinds, namespaces):
     """Download and return the specified resource `kinds`.
 
     Set `namespace` to None to download from all namespaces.
@@ -206,7 +206,7 @@ def download_manifests(config, client, kinds, namespace):
         client: `requests` session with correct K8s certificates.
         kinds: Iterable
             The resource kinds, eg ["Deployment", "Namespace"]
-        namespace: Iterable
+        namespaces: Iterable
             Use None to download from all namespaces.
 
     Returns:
@@ -499,7 +499,7 @@ def setup_logging(level: int):
     logger.addHandler(ch)
 
 
-def get_manifests(config, client, folder, kinds, namespace):
+def get_manifests(config, client, folder, kinds, namespaces):
     """Return local-, server- and augmented local manifests.
 
     NOTE: This is a convenience wrapper around `manio.load`, `manio.unpack` and
@@ -512,7 +512,7 @@ def get_manifests(config, client, folder, kinds, namespace):
             Path to local manifests eg "./foo"
         kinds: Iterable
             Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespace:
+        namespaces:
             Set to None to load all namespaces.
 
     Returns:
@@ -531,7 +531,7 @@ def get_manifests(config, client, folder, kinds, namespace):
         local_manifests, err = manio.unpack(fdata_meta)
         assert not err
 
-        server_manifests, err = download_manifests(config, client, kinds, namespace)
+        server_manifests, err = download_manifests(config, client, kinds, namespaces)
         assert not err
     except AssertionError:
         return RetVal(None, True)
@@ -634,7 +634,7 @@ def main_diff(config, client, folder, kinds, namespace):
     return RetVal(None, False)
 
 
-def main_get(config, client, folder, kinds, namespace):
+def main_get(config, client, folder, kinds, namespaces):
     """Download all K8s manifests and merge them into local files.
 
     Inputs:
@@ -644,7 +644,7 @@ def main_get(config, client, folder, kinds, namespace):
             Path to local manifests eg "./foo"
         kinds: Iterable
             Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespace:
+        namespaces:
             Set to None to load all namespaces.
 
     Returns:
@@ -653,7 +653,7 @@ def main_get(config, client, folder, kinds, namespace):
     """
     try:
         # Load local and remote manifests.
-        manifests, err = get_manifests(config, client, folder, kinds, namespace)
+        manifests, err = get_manifests(config, client, folder, kinds, namespaces)
         assert not err
 
         # Sync the server manifests into the local manfifests. All this happens in
