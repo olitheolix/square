@@ -15,5 +15,3 @@ JsonPatch = collections.namedtuple('Patch', 'url ops')
 Manifests = collections.namedtuple('Manifests', 'local server files')
 MetaManifest = collections.namedtuple('MetaManifest', 'apiVersion kind namespace name')
 RetVal = collections.namedtuple('RetVal', 'data err')
-
-RESOURCE_SCHEMA = {}
