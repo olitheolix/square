@@ -1,17 +1,13 @@
-import k8s
 import random
 import unittest.mock as mock
 
 import dotdict
+import k8s
 import manio
 import schemas
 import square
 import yaml
-from dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, MetaManifest, RetVal
-)
-
-
+from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, MetaManifest, RetVal
 from test_helpers import make_manifest, mk_deploy
 
 

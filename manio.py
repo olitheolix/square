@@ -3,9 +3,9 @@ import copy
 import difflib
 import logging
 import pathlib
-import schemas
 
 import dotdict
+import schemas
 import yaml
 from dtypes import SUPPORTED_KINDS, MetaManifest, RetVal
 
