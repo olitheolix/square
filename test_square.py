@@ -213,7 +213,10 @@ class TestUrlPathBuilder:
 
         """
         assert SUPPORTED_VERSIONS == ("1.9", "1.10")
-        assert SUPPORTED_KINDS == ("Namespace", "Service", "Deployment")
+        assert SUPPORTED_KINDS == (
+            "Namespace", "ConfigMap", "Secret", "Service",
+            "Deployment", "Ingress"
+        )
 
     def test_urlpath_ok(self):
         """Must work for all supported K8s versions and resources."""

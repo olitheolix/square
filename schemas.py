@@ -19,7 +19,24 @@ if the field is not mandatory but should be included.
 
 """
 schema_1_9 = {
+    "ConfigMap": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "data": None,
+        "binaryData": None,
+    },
     "Deployment": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "spec": True,
+    },
+    "Ingress": {
         "metadata": {
             "labels": None,
             "name": True,
@@ -42,6 +59,16 @@ schema_1_9 = {
             "namespace": True,
         },
         "spec": True,
+    },
+    "Secret": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "data": None,
+        "stringData": None,
+        "type": None,
     },
 }
 
