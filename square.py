@@ -216,33 +216,38 @@ def download_manifests(config, client, kinds, namespaces):
     # Output.
     server_manifests = {}
 
+    # Ensure `namespaces` is always a list to avoid special casing below.
+    if namespaces is None:
+        namespaces = [None]
+
     # Download each resource type. Abort at the first error and return nothing.
-    for kind in kinds:
-        try:
-            # Get the HTTP URL for the resource request.
-            url, err = urlpath(config, kind, namespace)
-            assert not err
+    for namespace in namespaces:
+        for kind in kinds:
+            try:
+                # Get the HTTP URL for the resource request.
+                url, err = urlpath(config, kind, namespace)
+                assert not err
 
-            # Make HTTP request.
-            manifest_list, err = k8s.get(client, url)
-            assert not err
+                # Make HTTP request.
+                manifest_list, err = k8s.get(client, url)
+                assert not err
 
-            # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a
-            # Dict[MetaManifest, dict] dictionary.
-            manifests, err = manio.unpack_list(manifest_list)
-            assert not err
+                # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a
+                # Dict[MetaManifest, dict] dictionary.
+                manifests, err = manio.unpack_list(manifest_list)
+                assert not err
 
-            # Drop all manifest fields except "apiVersion", "metadata" and "spec".
-            ret = {k: manio.strip(config, man) for k, man in manifests.items()}
-            manifests = {k: v.data for k, v in ret.items()}
-            err = any((v.err for v in ret.values()))
-            assert not err
-        except AssertionError:
-            # Return nothing, even if we had downloaded other kinds already.
-            return RetVal(None, True)
-        else:
-            # Copy the manifests into the output dictionary.
-            server_manifests.update(manifests)
+                # Drop all manifest fields except "apiVersion", "metadata" and "spec".
+                ret = {k: manio.strip(config, man) for k, man in manifests.items()}
+                manifests = {k: v.data for k, v in ret.items()}
+                err = any((v.err for v in ret.values()))
+                assert not err
+            except AssertionError:
+                # Return nothing, even if we had downloaded other kinds already.
+                return RetVal(None, True)
+            else:
+                # Copy the manifests into the output dictionary.
+                server_manifests.update(manifests)
     return RetVal(server_manifests, False)
 
 
@@ -656,7 +661,7 @@ def main_get(config, client, folder, kinds, namespaces):
         manifests, err = get_manifests(config, client, folder, kinds, namespaces)
         assert not err
 
-        # Sync the server manifests into the local manfifests. All this happens in
+        # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see next step.
         synced_manifests, err = manio.sync(manifests.files, manifests.server)
         assert not err
