@@ -966,7 +966,7 @@ class TestMain:
         # Call test function and verify it passed the correct arguments.
         assert square.main_get(*args) == RetVal(None, False)
         m_lsm.assert_called_once_with(*args)
-        m_sync.assert_called_once_with("files", "srv")
+        m_sync.assert_called_once_with("files", "srv", "kinds", "ns")
         m_save.assert_called_once_with("folder", "synced")
 
         # Simulate an error with `manio.save`.

@@ -1,3 +1,4 @@
+import itertools
 import random
 import unittest.mock as mock
 
@@ -329,7 +330,10 @@ class TestYamlManifestIO:
         # * Upsert local with server values.
         # * Delete the manifests that do not exist on the server.
         # :: Dict[MetaManifests:YamlDict] -> Dict[Filename:List[(MetaManifest, YamlDict)]]
-        updated_manifests, err = manio.sync(fdata_meta, server_manifests)
+        updated_manifests, err = manio.sync(
+            fdata_meta, server_manifests,
+            kinds=["Deployment"], namespaces=None
+        )
         assert err is False
 
         # Convert the data to YAML. The output would normally be passed to
@@ -862,6 +866,158 @@ class TestSync:
     def setup_class(cls):
         square.setup_logging(9)
 
+    def test_sync_modify_selective_kind_and_namespace_ok(self):
+        """Add, modify and delete a few manifests.
+
+        Create fake inputs for the test function, namely local- and remote
+        manifests. Their structure is slightly different in that the local
+        manifests still carry the file name in their data structure whereas the
+        server ones do not.
+
+        """
+        # Convenience shorthand.
+        fun = manio.sync
+
+        # Various MetaManifests to use in the tests.
+        ns0 = manio.make_meta(make_manifest("Namespace", None, "ns0"))
+        ns1 = manio.make_meta(make_manifest("Namespace", None, "ns1"))
+        dpl_ns0 = manio.make_meta(make_manifest("Deployment", "ns0", "d-ns0"))
+        dpl_ns1 = manio.make_meta(make_manifest("Deployment", "ns1", "d-ns1"))
+        svc_ns0 = manio.make_meta(make_manifest("Service", "ns0", "s-ns0"))
+        svc_ns1 = manio.make_meta(make_manifest("Service", "ns1", "s-ns0"))
+
+        # The local and server manifests will remain fixed for all tests. We
+        # will only vary the namespaces and resource kinds (arguments to `sync`).
+        loc_man = {
+            "m0.yaml": [
+                (ns0, "ns0"),
+                (dpl_ns0, "d-ns0"),
+                (svc_ns0, "s-ns0"),
+                (ns1, "ns1"),
+                (dpl_ns1, "d-ns1"),
+                (svc_ns1, "s-ns1"),
+            ],
+        }
+        srv_man = {
+            ns0: "ns0-mod",
+            dpl_ns0: "d-ns0-mod",
+            svc_ns0: "s-ns0-mod",
+            ns1: "ns1-mod",
+            dpl_ns1: "d-ns1-mod",
+            svc_ns1: "s-ns1-mod",
+        }
+
+        # ----------------------------------------------------------------------
+        # Special cases: empty list of namespaces and/or resources.
+        # Must do nothing.
+        # ----------------------------------------------------------------------
+        expected = loc_man
+        kinds, namespaces = [], None
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+
+        kinds, namespaces = [], []
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+
+        kinds, namespaces = ["Deployment", "Service"], []
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+
+        # NOTE: this must *not* sync the Namespace manifest from "ns1" because
+        # it was not an explicitly specified resource.
+        kinds, namespaces = [], ["ns1"]
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+
+        # Invalid/unsupported kinds.
+        kinds, namespaces = ["Foo"], None
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(None, True)
+        del kinds, namespaces
+
+        # ----------------------------------------------------------------------
+        # Sync all namespaces implicitly (Namespaces, Deployments, Services).
+        # ----------------------------------------------------------------------
+        expected = {
+            "m0.yaml": [
+                (ns0, "ns0-mod"),
+                (dpl_ns0, "d-ns0-mod"),
+                (svc_ns0, "s-ns0-mod"),
+                (ns1, "ns1-mod"),
+                (dpl_ns1, "d-ns1-mod"),
+                (svc_ns1, "s-ns1-mod"),
+            ],
+        }
+
+        # Sync the manifests. The order of `kinds` and `namespaces` must not matter.
+        for kinds in itertools.permutations(["Namespace", "Deployment", "Service"]):
+            # Implicitly use all namespaces.
+            assert fun(loc_man, srv_man, kinds, None) == RetVal(expected, False)
+
+            # Specify all namespaces explicitly.
+            for ns in itertools.permutations(["ns0", "ns1"]):
+                assert fun(loc_man, srv_man, kinds, ns) == RetVal(expected, False)
+
+        # ----------------------------------------------------------------------
+        # Sync the server manifests in namespace "ns0".
+        # ----------------------------------------------------------------------
+        expected = {
+            "m0.yaml": [
+                (ns0, "ns0"),
+                (dpl_ns0, "d-ns0-mod"),
+                (svc_ns0, "s-ns0-mod"),
+                (ns1, "ns1"),
+                (dpl_ns1, "d-ns1"),
+                (svc_ns1, "s-ns1"),
+            ],
+        }
+        for kinds in itertools.permutations(["Deployment", "Service"]):
+            assert fun(loc_man, srv_man, kinds, ["ns0"]) == RetVal(expected, False)
+
+        # ----------------------------------------------------------------------
+        # Sync only Deployments (all namespaces).
+        # ----------------------------------------------------------------------
+        expected = {
+            "m0.yaml": [
+                (ns0, "ns0"),
+                (dpl_ns0, "d-ns0-mod"),
+                (svc_ns0, "s-ns0"),
+                (ns1, "ns1"),
+                (dpl_ns1, "d-ns1-mod"),
+                (svc_ns1, "s-ns1"),
+            ],
+        }
+        kinds, namespaces = ["Deployment"], None
+        assert fun(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+
+        # ----------------------------------------------------------------------
+        # Sync only Deployments in namespace "ns0".
+        # ----------------------------------------------------------------------
+        expected = {
+            "m0.yaml": [
+                (ns0, "ns0"),
+                (dpl_ns0, "d-ns0-mod"),
+                (svc_ns0, "s-ns0"),
+                (ns1, "ns1"),
+                (dpl_ns1, "d-ns1"),
+                (svc_ns1, "s-ns1"),
+            ],
+        }
+        kinds, namespaces = ["Deployment"], ["ns0"]
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+
+        # ----------------------------------------------------------------------
+        # Sync only Services in namespace "ns1".
+        # ----------------------------------------------------------------------
+        expected = {
+            "m0.yaml": [
+                (ns0, "ns0"),
+                (dpl_ns0, "d-ns0"),
+                (svc_ns0, "s-ns0"),
+                (ns1, "ns1"),
+                (dpl_ns1, "d-ns1"),
+                (svc_ns1, "s-ns1-mod"),
+            ],
+        }
+        kinds, namespaces = ["Service"], ["ns1"]
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+
     def test_sync_modify_delete_ok(self):
         """Add, modify and delete a few manifests.
 
@@ -871,6 +1027,10 @@ class TestSync:
         server ones do not.
 
         """
+        # Args for `sync`. In this test, we only have Deployments and want to
+        # sync them across all namespaces.
+        kinds, namespaces = ["Deployment"], None
+
         # First, create the local manifests as `load_files` would return it.
         meta_1 = [manio.make_meta(mk_deploy(f"d_{_}", "ns1")) for _ in range(10)]
         meta_2 = [manio.make_meta(mk_deploy(f"d_{_}", "ns2")) for _ in range(10)]
@@ -896,8 +1056,7 @@ class TestSync:
         }
 
         # The expected outcome is that the local manifests were updated,
-        # either overwritten (modified), deleted or put into a default
-        # manifest.
+        # overwritten (modified), deleted or put into a default manifest.
         expected = {
             "m0.yaml": [(meta_1[0], "0"), (meta_1[1], "modified"), (meta_2[2], "2")],
             "m1.yaml": [(meta_1[4], "4")],
@@ -905,7 +1064,7 @@ class TestSync:
             "_ns1.yaml": [(meta_1[6], "new"), (meta_1[8], "new")],
             "_ns2.yaml": [(meta_2[7], "new")],
         }
-        assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
 
     def test_sync_catch_all_files(self):
         """Verify that syncing the catch-all files works as expected.
@@ -914,6 +1073,10 @@ class TestSync:
         files behave like their "normal" user created counterparts.
 
         """
+        # Args for `sync`. In this test, we only have Deployments and want to
+        # sync them across all namespaces.
+        kinds, namespaces = ["Deployment"], None
+
         # First, create the local manifests as `load_files` would return it.
         meta_1 = [manio.make_meta(mk_deploy(f"d_{_}", "ns1")) for _ in range(10)]
         meta_2 = [manio.make_meta(mk_deploy(f"d_{_}", "ns2")) for _ in range(10)]
@@ -962,7 +1125,7 @@ class TestSync:
                 (meta_2[7], "7"), (meta_2[5], "5"), (meta_2[3], "3"),
             ]
         }
-        assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
 
     def test_sync_new_namespaces(self):
         """Create catch-all files for new namespaces.
@@ -974,6 +1137,10 @@ class TestSync:
         for namespaces.
 
         """
+        # Args for `sync`. In this test, we will use Namespaces, Deployments
+        # and Services. We will always want to sync across all namespaces.
+        kinds, namespaces = ["Namespace", "Deployment", "Service"], None
+
         # Convenience to improve readability.
         def mm(*args):
             return manio.make_meta(make_manifest(*args))
@@ -1029,7 +1196,7 @@ class TestSync:
                 (meta_dply_b[4], "dply_b_4"),
             ],
         }
-        assert manio.sync(loc_man, srv_man) == RetVal(expected, False)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
 
 
 class TestHelpers:
