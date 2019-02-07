@@ -261,48 +261,116 @@ class TestDownloadManifests:
 
         """
         config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
-        mm = make_manifest
-
         meta = [
-            mm("Namespace", None, "ns0"),
-            mm("Namespace", None, "ns1"),
-            mm("Deployment", "ns0", "d0"),
-            mm("Deployment", "ns1", "d1"),
+            make_manifest("Namespace", None, "ns0"),
+            make_manifest("Namespace", None, "ns1"),
+            make_manifest("Deployment", "ns0", "d0"),
+            make_manifest("Deployment", "ns1", "d1"),
         ]
 
-        # Demo lists as K8s would return them (we will make m_get return them).
-        man_list_ns = {
-            'apiVersion': 'v1',
-            'kind': 'NamespaceList',
-            'items': [meta[0], meta[1]],
-        }
-        man_list_deploy = {
-            'apiVersion': 'v1',
-            'kind': 'DeploymentList',
-            'items': [meta[2], meta[3]],
-        }
-        m_get.side_effect = [RetVal(man_list_ns, False), RetVal(man_list_deploy, False)]
-
-        # The request URLs. We will need them to validate the `get` arguments.
+        # Resource URLs (not namespaced).
         url_ns, err1 = square.urlpath(config, "Namespace", None)
         url_deploy, err2 = square.urlpath(config, "Deployment", None)
-        assert not err1 and not err2
 
-        # The expected outcome is a Dict[MetaManifest:dict] of all the items in
-        # DeploymentList and NamespaceList.
+        # Namespaced resource URLs.
+        url_ns_0, err3 = square.urlpath(config, "Namespace", "ns0")
+        url_ns_1, err4 = square.urlpath(config, "Namespace", "ns1")
+        url_dply_0, err5 = square.urlpath(config, "Deployment", "ns0")
+        url_dply_1, err6 = square.urlpath(config, "Deployment", "ns1")
+        assert not any([err1, err2, err3, err4, err5, err6])
+        del err1, err2, err3, err4, err5, err6
+
+        # NamespaceList and DeploymentList (all namespaces).
+        l_ns = {'apiVersion': 'v1', 'kind': 'NamespaceList', "items": [meta[0], meta[1]]}
+        l_dply = {'apiVersion': 'v1', 'kind': 'DeploymentList',
+                  "items": [meta[2], meta[3]]}
+
+        # Namespaced NamespaceList and DeploymentList.
+        l_ns_0 = {'apiVersion': 'v1', 'kind': 'NamespaceList', "items": [meta[0]]}
+        l_ns_1 = {'apiVersion': 'v1', 'kind': 'NamespaceList', "items": [meta[1]]}
+        l_dply_0 = {'apiVersion': 'v1', 'kind': 'DeploymentList', "items": [meta[2]]}
+        l_dply_1 = {'apiVersion': 'v1', 'kind': 'DeploymentList', "items": [meta[3]]}
+
+        # ----------------------------------------------------------------------
+        # Request resources from all namespaces implicitly via namespaces=None
+        # Must make two calls: one for each kind ("Deployment", "Namespace").
+        # ----------------------------------------------------------------------
+        m_get.reset_mock()
+        m_get.side_effect = [
+            RetVal(l_ns, False),
+            RetVal(l_dply, False),
+        ]
         expected = {
-            manio.make_meta(_): manio.strip(config, _).data
-            for _ in meta
+            manio.make_meta(meta[0]): manio.strip(config, meta[0]).data,
+            manio.make_meta(meta[1]): manio.strip(config, meta[1]).data,
+            manio.make_meta(meta[2]): manio.strip(config, meta[2]).data,
+            manio.make_meta(meta[3]): manio.strip(config, meta[3]).data,
         }
-
-        # Run test function and verify its output.
         ret = square.download_manifests(
-            config, "client", ["Namespace", "Deployment"], None
+            config, "client",
+            kinds=["Namespace", "Deployment"],
+            namespaces=None,
         )
         assert ret == RetVal(expected, False)
         assert m_get.call_args_list == [
             mock.call("client", url_ns),
             mock.call("client", url_deploy),
+        ]
+
+        # ------------------------------------------------------------------------------
+        # Request resources from all namespaces explicitly via namespaces=["ns0", "ns1"]
+        #
+        # Must make four calls: one for each namespace ("ns0" and "ns1") and one for
+        # each kind ("Deployment", "Namespace").
+        # ------------------------------------------------------------------------------
+        m_get.reset_mock()
+        m_get.side_effect = [
+            RetVal(l_ns_0, False),
+            RetVal(l_dply_0, False),
+            RetVal(l_ns_1, False),
+            RetVal(l_dply_1, False),
+        ]
+        expected = {
+            manio.make_meta(meta[0]): manio.strip(config, meta[0]).data,
+            manio.make_meta(meta[1]): manio.strip(config, meta[1]).data,
+            manio.make_meta(meta[2]): manio.strip(config, meta[2]).data,
+            manio.make_meta(meta[3]): manio.strip(config, meta[3]).data,
+        }
+        assert RetVal(expected, False) == square.download_manifests(
+            config, "client",
+            kinds=["Namespace", "Deployment"],
+            namespaces=["ns0", "ns1"]
+        )
+        assert m_get.call_args_list == [
+            mock.call("client", url_ns_0),
+            mock.call("client", url_dply_0),
+            mock.call("client", url_ns_1),
+            mock.call("client", url_dply_1),
+        ]
+
+        # ----------------------------------------------------------------------
+        # Request resources from namespace "ns0" only.
+        #
+        # Must make two calls: one for each kind ("Deployment", "Namespace") in
+        # namespace "ns0".
+        # ----------------------------------------------------------------------
+        m_get.reset_mock()
+        m_get.side_effect = [
+            RetVal(l_ns_0, False),
+            RetVal(l_dply_0, False),
+        ]
+        expected = {
+            manio.make_meta(meta[0]): manio.strip(config, meta[0]).data,
+            manio.make_meta(meta[2]): manio.strip(config, meta[2]).data,
+        }
+        assert RetVal(expected, False) == square.download_manifests(
+            config, "client",
+            kinds=["Namespace", "Deployment"],
+            namespaces=["ns0"]
+        )
+        assert m_get.call_args_list == [
+            mock.call("client", url_ns_0),
+            mock.call("client", url_dply_0),
         ]
 
     @mock.patch.object(k8s, 'get')
