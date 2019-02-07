@@ -425,6 +425,20 @@ class TestPatchK8s:
         ret = square.make_patch(config, loc, srv)
         assert ret.err is False and len(ret.data) > 0
 
+    @mock.patch.object(square, "urlpath")
+    def test_make_patch_error_urlpath(self, m_url):
+        """Coverage gap: simulate `urlpath` error."""
+        # Setup.
+        kind, ns, name = "Deployment", "ns", "foo"
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+
+        # Simulate `urlpath` error.
+        m_url.return_value = RetVal(None, True)
+
+        # Test function must return with error.
+        loc = srv = make_manifest(kind, ns, name)
+        assert square.make_patch(config, loc, srv) == RetVal(None, True)
+
 
 class TestPlan:
     @classmethod
