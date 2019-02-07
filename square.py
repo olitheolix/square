@@ -113,22 +113,32 @@ def urlpath(config, kind, namespace):
     # The keys in this dict must cover all those specified in
     # `SUPPORTED_VERSIONS` and `SUPPORTED_KINDS`.
     resources = {
-        '1.9': {
-            'Deployment': f'apis/extensions/v1beta1/{namespace}deployments',
-            'Service': f'api/v1/{namespace}services',
-            'Namespace': f'api/v1/namespaces',
+        "1.9": {
+            "ConfigMap": f"api/v1/{namespace}/configmaps",
+            "Secret": f"api/v1/{namespace}/secrets",
+            "Deployment": f"apis/extensions/v1beta1/{namespace}/deployments",
+            "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
+            "Namespace": f"api/v1/namespaces",
+            "Service": f"api/v1/{namespace}/services",
         },
-        '1.10': {
-            'Deployment': f'apis/apps/v1/{namespace}deployments',
-            'Service': f'api/v1/{namespace}services',
-            'Namespace': f'api/v1/namespaces',
+        "1.10": {
+            "ConfigMap": f"api/v1/{namespace}/configmaps",
+            "Secret": f"api/v1/{namespace}/secrets",
+            "Deployment": f"apis/extensions/v1beta1/{namespace}/deployments",
+            "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
+            "Namespace": f"api/v1/namespaces",
+            "Service": f"api/v1/{namespace}/services",
         },
     }
 
-    # Look up the resource path and prefix it with the K8s API URL.
+    # Look up the resource path and remove duplicate "/" characters (may have
+    # slipped in when no namespace was supplied, eg "/api/v1//configmaps").
     path = resources[config.version][kind]
-    url = f"{config.url}/{path}"
-    return RetVal(url, False)
+    path = path.replace("//", "/")
+    assert not path.startswith("/")
+
+    # Return the complete resource URL.
+    return RetVal(f"{config.url}/{path}", False)
 
 
 def make_patch(config, local: dict, server: dict):
