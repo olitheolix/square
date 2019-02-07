@@ -17,6 +17,7 @@ pyyaml = "==4.2b4"
 requests = "*"
 requests-mock = "*"
 pytest-cov = "*"
+"pytest-flake8" = "*"
 
 [dev-packages]
 
