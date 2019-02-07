@@ -517,7 +517,7 @@ def get_manifests(config, client, folder, kinds, namespaces):
             Path to local manifests eg "./foo"
         kinds: Iterable
             Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespaces:
+        namespaces: Iterable
             Set to None to load all namespaces.
 
     Returns:
@@ -663,7 +663,9 @@ def main_get(config, client, folder, kinds, namespaces):
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see next step.
-        synced_manifests, err = manio.sync(manifests.files, manifests.server)
+        synced_manifests, err = manio.sync(
+            manifests.files, manifests.server, kinds, namespaces
+        )
         assert not err
 
         # Write the new manifest files.
