@@ -11,7 +11,6 @@ import requests
 import yaml
 from dtypes import RetVal
 
-Config = namedtuple('Config', 'url token ca_cert client_cert version')
 ClientCert = namedtuple('ClientCert', 'crt key')
 
 FNAME_TOKEN = "/var/run/secrets/kubernetes.io/serviceaccount/token"
