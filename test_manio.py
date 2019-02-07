@@ -872,10 +872,8 @@ class TestSync:
 
         """
         # First, create the local manifests as `load_files` would return it.
-        dply_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(10)]
-        meta_1 = [manio.make_meta(_) for _ in dply_1]
-        dply_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(10)]
-        meta_2 = [manio.make_meta(_) for _ in dply_2]
+        meta_1 = [manio.make_meta(mk_deploy(f"d_{_}", "ns1")) for _ in range(10)]
+        meta_2 = [manio.make_meta(mk_deploy(f"d_{_}", "ns2")) for _ in range(10)]
         loc_man = {
             "m0.yaml": [(meta_1[0], "0"), (meta_1[1], "1"), (meta_2[2], "2")],
             "m1.yaml": [(meta_2[3], "3"), (meta_1[4], "4")],
@@ -917,10 +915,8 @@ class TestSync:
 
         """
         # First, create the local manifests as `load_files` would return it.
-        dply_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(20)]
-        meta_1 = [manio.make_meta(_) for _ in dply_1]
-        dply_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(20)]
-        meta_2 = [manio.make_meta(_) for _ in dply_2]
+        meta_1 = [manio.make_meta(mk_deploy(f"d_{_}", "ns1")) for _ in range(10)]
+        meta_2 = [manio.make_meta(mk_deploy(f"d_{_}", "ns2")) for _ in range(10)]
         loc_man = {
             "_ns1.yaml": [
                 (meta_1[1], "1"), (meta_1[2], "2"), (meta_1[3], "3"), (meta_1[5], "5")
