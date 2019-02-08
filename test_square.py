@@ -100,6 +100,32 @@ class TestBasic:
         )
         assert square.print_deltas(plan) == RetVal(None, False)
 
+    def test_prune(self):
+        mm = manio.make_meta
+        man = {
+            mm(make_manifest("Namespace", None, "ns0")): "ns0",
+            mm(make_manifest("Namespace", None, "ns1")): "ns1",
+            mm(make_manifest("Deployment", "ns0", "d_ns0")): "d_ns0",
+            mm(make_manifest("Deployment", "ns1", "d_ns1")): "d_ns1",
+            mm(make_manifest("Service", "ns0", "s_ns0")): "s_ns0",
+            mm(make_manifest("Service", "ns1", "s_ns1")): "s_ns1",
+        }
+
+        # Service manifests in all namespaces.
+        expected = {
+            mm(make_manifest("Service", "ns0", "s_ns0")): "s_ns0",
+            mm(make_manifest("Service", "ns1", "s_ns1")): "s_ns1",
+        }
+        assert square.prune(man, ["Service"], None) == expected
+        assert square.prune(man, ["Service"], ["ns0", "ns1"]) == expected
+
+        # Namespace and Deployment manifests in "ns1"
+        expected = {
+            mm(make_manifest("Namespace", None, "ns1")): "ns1",
+            mm(make_manifest("Deployment", "ns1", "d_ns1")): "d_ns1",
+        }
+        assert square.prune(man, ["Namespace", "Deployment"], ["ns1"]) == expected
+
 
 class TestPartition:
     @classmethod
@@ -794,11 +820,12 @@ class TestMain:
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(square, "download_manifests")
+    @mock.patch.object(square, "prune")
     @mock.patch.object(square, "compile_plan")
     @mock.patch.object(k8s, "post")
     @mock.patch.object(k8s, "patch")
     @mock.patch.object(k8s, "delete")
-    def test_main_patch(self, m_delete, m_patch, m_post, m_plan, m_down, m_load):
+    def test_main_patch(self, m_delete, m_patch, m_post, m_plan, m_prun, m_down, m_load):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -829,7 +856,8 @@ class TestMain:
 
         # Pretend that all K8s requests succeed.
         m_down.return_value = RetVal("srv", False)
-        m_load.return_value = RetVal(Manifests("loc", "files"), False)
+        m_load.return_value = RetVal(Manifests("foo", "bar"), False)
+        m_prun.side_effect = ["local", "server"]
         m_plan.return_value = RetVal(plan, False)
         m_post.return_value = RetVal(None, False)
         m_patch.return_value = RetVal(None, False)
@@ -843,7 +871,7 @@ class TestMain:
         assert square.main_patch(*args) == RetVal(None, False)
         m_load.assert_called_once_with("folder")
         m_down.assert_called_once_with(config, "client", "kinds", "ns")
-        m_plan.assert_called_once_with(config, "loc", "srv")
+        m_plan.assert_called_once_with(config, "local", "server")
         m_post.assert_called_once_with("client", "create_url", "create_man")
         m_patch.assert_called_once_with("client", patch.url, patch.ops)
         m_delete.assert_called_once_with("client", "delete_url", "delete_man")
@@ -852,18 +880,22 @@ class TestMain:
         #                   Simulate Error Scenarios
         # -----------------------------------------------------------------
         # Make `delete` fail.
+        m_prun.side_effect = ["local", "server"]
         m_delete.return_value = RetVal(None, True)
         assert square.main_patch(*args) == RetVal(None, True)
 
         # Make `patch` fail.
+        m_prun.side_effect = ["local", "server"]
         m_patch.return_value = RetVal(None, True)
         assert square.main_patch(*args) == RetVal(None, True)
 
         # Make `post` fail.
+        m_prun.side_effect = ["local", "server"]
         m_post.return_value = RetVal(None, True)
         assert square.main_patch(*args) == RetVal(None, True)
 
         # Make `compile_plan` fail.
+        m_prun.side_effect = ["local", "server"]
         m_plan.return_value = RetVal(None, True)
         assert square.main_patch(*args) == RetVal(None, True)
 
@@ -877,8 +909,9 @@ class TestMain:
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(square, "download_manifests")
+    @mock.patch.object(square, "prune")
     @mock.patch.object(square, "compile_plan")
-    def test_main_diff(self, m_plan, m_down, m_load):
+    def test_main_diff(self, m_plan, m_prune, m_down, m_load):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -890,8 +923,9 @@ class TestMain:
         plan = DeploymentPlan(create=[], patch=[], delete=[])
 
         # All auxiliary functions will succeed.
-        m_load.return_value = RetVal(Manifests("loc", "files"), False)
-        m_down.return_value = RetVal("server", False)
+        m_load.return_value = RetVal(Manifests("foo", "bar"), False)
+        m_down.return_value = RetVal("server-dl", False)
+        m_prune.side_effect = ["local", "server"]
         m_plan.return_value = RetVal(plan, False)
 
         # The arguments to the test function will always be the same in this test.
@@ -901,9 +935,10 @@ class TestMain:
         assert square.main_diff(*args) == RetVal(None, False)
         m_load.assert_called_once_with("folder")
         m_down.assert_called_once_with("config", "client", "kinds", "ns")
-        m_plan.assert_called_once_with("config", "loc", "server")
+        m_plan.assert_called_once_with("config", "local", "server")
 
         # Make `compile_plan` fail.
+        m_prune.side_effect = ["local", "server"]
         m_plan.return_value = RetVal(None, True)
         assert square.main_diff(*args) == RetVal(None, True)
 
@@ -917,9 +952,10 @@ class TestMain:
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(square, "download_manifests")
+    @mock.patch.object(square, "prune")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
-    def test_main_get(self, m_save, m_sync, m_down, m_load):
+    def test_main_get(self, m_save, m_sync, m_prun, m_down, m_load):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -928,8 +964,9 @@ class TestMain:
 
         """
         # Simulate successful responses from the two auxiliary functions.
-        m_load.return_value = RetVal(Manifests("loc", "files"), False)
-        m_down.return_value = RetVal("server", False)
+        m_load.return_value = RetVal(Manifests("foo", "files"), False)
+        m_down.return_value = RetVal("server-dl", False)
+        m_prun.return_value = "server"
         m_sync.return_value = RetVal("synced", False)
         m_save.return_value = RetVal(None, False)
 
@@ -940,6 +977,7 @@ class TestMain:
         assert square.main_get(*args) == RetVal(None, False)
         m_load.assert_called_once_with("folder")
         m_down.assert_called_once_with("config", "client", "kinds", "ns")
+        m_prun.assert_called_once_with("server-dl", "kinds", "ns")
         m_sync.assert_called_once_with("files", "server", "kinds", "ns")
         m_save.assert_called_once_with("folder", "synced")
 
