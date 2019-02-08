@@ -503,6 +503,33 @@ def setup_logging(level: int):
     logger.addHandler(ch)
 
 
+def prune(manifests, kinds, namespaces):
+    """Return the `manifests` subset that meets the requirement.
+
+    This is really just a glorified list comprehension without error
+    checking of any kind.
+
+    Inputs:
+        manifests: Dict[MetaManifest:dict]
+        kinds: Iterable
+            Allowed resource types (eg ["Deployment", "Namespace"]).
+        namespaces: Iterable
+            Allowed namespaces. Set to `None` to allow all.
+
+    Returns:
+        Dict[MetaManifest:dict]: subset of input `manifests`.
+
+    """
+    # Compile the list of manifests that have the correct resource kind.
+    out = {k: v for k, v in manifests.items() if k.kind in kinds}
+
+    # Remove all resources outside the specified namespaces. Retain all
+    # resources if `namespaces` is None.
+    if namespaces is not None:
+        out = {k: v for k, v in out.items() if k.namespace in namespaces}
+    return out
+
+
 def main_patch(config, client, folder, kinds, namespaces):
     """Update K8s to match the specifications in `local_manifests`.
 
@@ -524,13 +551,22 @@ def main_patch(config, client, folder, kinds, namespaces):
 
     """
     try:
+        # Load manifests from local files.
         local, err = manio.load(folder)
         assert not err
+
+        # Download manifests from K8s.
         server, err = download_manifests(config, client, kinds, namespaces)
         assert not err
 
+        # Prune the manifests to only include manifests for the specified
+        # resources and namespaces. The pruning is not technically necessary
+        # for the `server` manifests but does not hurt.
+        local = prune(local.meta, kinds, namespaces)
+        server = prune(server, kinds, namespaces)
+
         # Create the deployment plan.
-        plan, err = compile_plan(config, local.meta, server)
+        plan, err = compile_plan(config, local, server)
         assert not err
 
         # Present the plan confirm to go ahead with the user.
@@ -583,14 +619,22 @@ def main_diff(config, client, folder, kinds, namespaces):
 
     """
     try:
-        # Load local and remote manifests.
+        # Load manifests from local files.
         local, err = manio.load(folder)
         assert not err
+
+        # Download manifests from K8s.
         server, err = download_manifests(config, client, kinds, namespaces)
         assert not err
 
+        # Prune the manifests to only include manifests for the specified
+        # resources and namespaces. The pruning is not technically necessary
+        # for the `server` manifests but does not hurt.
+        local = prune(local.meta, kinds, namespaces)
+        server = prune(server, kinds, namespaces)
+
         # Create deployment plan.
-        plan, err = compile_plan(config, local.meta, server)
+        plan, err = compile_plan(config, local, server)
         assert not err
     except AssertionError:
         return RetVal(None, True)
@@ -618,11 +662,19 @@ def main_get(config, client, folder, kinds, namespaces):
 
     """
     try:
+        # Load manifests from local files.
         local, err = manio.load(folder)
         assert not err
 
+        # Download manifests from K8s.
         server, err = download_manifests(config, client, kinds, namespaces)
         assert not err
+
+        # Prune the manifests to only include manifests for the specified
+        # resources and namespaces. This is not technically necessary
+        # for the `server` manifests but does not hurt and makes it consistent
+        # with how the other main_* functions operate.
+        server = prune(server, kinds, namespaces)
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see next step.
