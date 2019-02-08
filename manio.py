@@ -7,7 +7,7 @@ import pathlib
 import dotdict
 import schemas
 import yaml
-from dtypes import SUPPORTED_KINDS, MetaManifest, RetVal
+from dtypes import SUPPORTED_KINDS, Manifests, MetaManifest, RetVal
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
@@ -408,7 +408,10 @@ def load(folder):
             Source folder.
 
     Returns:
-        Dict[Filename, Tuple(MetaManifest, dict)]: parsed YAML files.
+        Manifests(
+            Dict[Filename, Tuple(MetaManifest, dict)]
+            Dict[MetaManifest, dict]
+        )
 
     """
     # Python's `pathlib.Path` objects are simply nicer to work with...
@@ -418,13 +421,23 @@ def load(folder):
     # relative to `folder`.
     fnames = [_.relative_to(folder) for _ in folder.rglob("*.yaml")]
 
-    # Load the files and abort on error.
-    fdata_raw, err = load_files(folder, fnames)
-    if err:
+    try:
+        # Load the files and abort on error.
+        fdata_raw, err = load_files(folder, fnames)
+        assert not err
+
+        # Return the YAML parsed manifests.
+        man_files, err = parse(fdata_raw)
+        assert not err
+
+        # Remove the Filename dimension.
+        man_meta, err = unpack(man_files)
+        assert not err
+    except AssertionError:
         return RetVal(None, True)
 
-    # Return the YAML parsed manifests.
-    return parse(fdata_raw)
+    # Return the file based manifests and unpacked manifests.
+    return RetVal(Manifests(man_meta, man_files), False)
 
 
 def save(folder, manifests: dict):

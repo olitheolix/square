@@ -14,7 +14,7 @@ import manio
 import yaml
 from dtypes import (
     SUPPORTED_KINDS, SUPPORTED_VERSIONS, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, JsonPatch, Manifests, RetVal,
+    DeploymentPlan, JsonPatch, RetVal,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -503,48 +503,7 @@ def setup_logging(level: int):
     logger.addHandler(ch)
 
 
-def get_manifests(config, client, folder, kinds, namespaces):
-    """Return local-, server- and augmented local manifests.
-
-    NOTE: This is a convenience wrapper around `manio.load`, `manio.unpack` and
-    `download_manifest` to minimise code duplication.
-
-    Inputs:
-        config: k8s.Config
-        client: `requests` session with correct K8s certificates.
-        folder: Path
-            Path to local manifests eg "./foo"
-        kinds: Iterable
-            Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespaces: Iterable
-            Set to None to load all namespaces.
-
-    Returns:
-        (
-            Dict[MetaManifest, dict],  # Local manifests.
-            Dict[MetaManifest, dict],  # Server manifests.
-            Dict[Filename, Tuple[MetaManifest, dict]]  # Local manifests with file names
-        )
-
-    """
-    # Import local and server manifests.
-    try:
-        fdata_meta, err = manio.load(folder)
-        assert not err
-
-        local_manifests, err = manio.unpack(fdata_meta)
-        assert not err
-
-        server_manifests, err = download_manifests(config, client, kinds, namespaces)
-        assert not err
-    except AssertionError:
-        return RetVal(None, True)
-
-    data = Manifests(local_manifests, server_manifests, fdata_meta)
-    return RetVal(data, False)
-
-
-def main_patch(config, client, folder, kinds, namespace):
+def main_patch(config, client, folder, kinds, namespaces):
     """Update K8s to match the specifications in `local_manifests`.
 
     Create a deployment plan that will transition the K8s state
@@ -557,7 +516,7 @@ def main_patch(config, client, folder, kinds, namespace):
             Path to local manifests eg "./foo"
         kinds: Iterable
             Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespace:
+        namespaces:
             Set to None to load all namespaces.
 
     Returns:
@@ -565,12 +524,13 @@ def main_patch(config, client, folder, kinds, namespace):
 
     """
     try:
-        # Load local and remote manifests.
-        manifests, err = get_manifests(config, client, folder, kinds, namespace)
+        local, err = manio.load(folder)
+        assert not err
+        server, err = download_manifests(config, client, kinds, namespaces)
         assert not err
 
         # Create the deployment plan.
-        plan, err = compile_plan(config, manifests.local, manifests.server)
+        plan, err = compile_plan(config, local.meta, server)
         assert not err
 
         # Present the plan confirm to go ahead with the user.
@@ -602,7 +562,7 @@ def main_patch(config, client, folder, kinds, namespace):
     return RetVal(None, False)
 
 
-def main_diff(config, client, folder, kinds, namespace):
+def main_diff(config, client, folder, kinds, namespaces):
     """Print the diff between `local_manifests` and `server_manifests`.
 
     The diff shows what would have to change on the K8s server in order for it
@@ -615,7 +575,7 @@ def main_diff(config, client, folder, kinds, namespace):
             Path to local manifests eg "./foo"
         kinds: Iterable
             Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespace:
+        namespaces:
             Set to None to load all namespaces.
 
     Returns:
@@ -624,11 +584,13 @@ def main_diff(config, client, folder, kinds, namespace):
     """
     try:
         # Load local and remote manifests.
-        manifests, err = get_manifests(config, client, folder, kinds, namespace)
+        local, err = manio.load(folder)
+        assert not err
+        server, err = download_manifests(config, client, kinds, namespaces)
         assert not err
 
         # Create deployment plan.
-        plan, err = compile_plan(config, manifests.local, manifests.server)
+        plan, err = compile_plan(config, local.meta, server)
         assert not err
     except AssertionError:
         return RetVal(None, True)
@@ -656,15 +618,15 @@ def main_get(config, client, folder, kinds, namespaces):
 
     """
     try:
-        # Load local and remote manifests.
-        manifests, err = get_manifests(config, client, folder, kinds, namespaces)
+        local, err = manio.load(folder)
+        assert not err
+
+        server, err = download_manifests(config, client, kinds, namespaces)
         assert not err
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see next step.
-        synced_manifests, err = manio.sync(
-            manifests.files, manifests.server, kinds, namespaces
-        )
+        synced_manifests, err = manio.sync(local.files, server, kinds, namespaces)
         assert not err
 
         # Write the new manifest files.
