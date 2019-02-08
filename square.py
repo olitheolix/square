@@ -207,7 +207,7 @@ def download_manifests(config, client, kinds, namespaces):
         kinds: Iterable
             The resource kinds, eg ["Deployment", "Namespace"]
         namespaces: Iterable
-            Use None to download from all namespaces.
+            Only query those namespaces. Set to None to download from all.
 
     Returns:
         Dict[MetaManifest, dict]: the K8s manifests from K8s.
@@ -514,7 +514,7 @@ def prune(manifests, kinds, namespaces):
         kinds: Iterable
             Allowed resource types (eg ["Deployment", "Namespace"]).
         namespaces: Iterable
-            Allowed namespaces. Set to `None` to allow all.
+            Only use those namespaces. Set to `None` to use all.
 
     Returns:
         Dict[MetaManifest:dict]: subset of input `manifests`.
@@ -543,8 +543,8 @@ def main_patch(config, client, folder, kinds, namespaces):
             Path to local manifests eg "./foo"
         kinds: Iterable
             Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespaces:
-            Set to None to load all namespaces.
+        namespaces: Iterable
+            Only use those namespaces. Set to `None` to use all.
 
     Returns:
         None
@@ -611,8 +611,8 @@ def main_diff(config, client, folder, kinds, namespaces):
             Path to local manifests eg "./foo"
         kinds: Iterable
             Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespaces:
-            Set to None to load all namespaces.
+        namespaces: Iterable
+            Only use those namespaces. Set to `None` to use all.
 
     Returns:
         None
@@ -654,8 +654,8 @@ def main_get(config, client, folder, kinds, namespaces):
             Path to local manifests eg "./foo"
         kinds: Iterable
             Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespaces:
-            Set to None to load all namespaces.
+        namespaces: Iterable
+            Only use those namespaces. Set to `None` to use all.
 
     Returns:
         None
