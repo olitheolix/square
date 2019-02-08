@@ -170,7 +170,7 @@ class TestPartition:
         """
         fun = square.partition_manifests
 
-        # The local manifests are a subset of the server'. Therefore, the plan
+        # The local manifests are a subset of the server's. Therefore, the plan
         # must contain patches for those resources that exist locally and on
         # the server. All the other manifest on the server are obsolete.
         local_man = {
