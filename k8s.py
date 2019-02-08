@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+import re
 import tempfile
 import warnings
 from collections import namedtuple
@@ -9,7 +10,7 @@ from collections import namedtuple
 import google.auth.transport.requests
 import requests
 import yaml
-from dtypes import Config, RetVal
+from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config, RetVal
 
 ClientCert = namedtuple('ClientCert', 'crt key')
 
@@ -202,6 +203,74 @@ def session(config: Config):
 
     # Return the configured session object.
     return sess
+
+
+def urlpath(config, kind, namespace):
+    """Return complete URL to K8s resource.
+
+    Inputs:
+        config: k8s.Config
+        kind: str
+            Eg "Deployment", "Namespace", ... (case sensitive).
+        namespace: str
+            Must be None for "Namespace" resources.
+
+    Returns:
+        str: Full path K8s resource, eg https://1.2.3.4/api/v1/namespace/foo/services.
+
+    """
+    # Namespaces are special because they lack the `namespaces/` path prefix.
+    if kind == "Namespace" or namespace is None:
+        namespace = ""
+    else:
+        # Namespace name must conform to K8s standards.
+        match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", namespace)
+        if match is None or match.group() != namespace:
+            logit.error(f"Invalid namespace name <{namespace}>.")
+            return RetVal(None, True)
+
+        namespace = f"namespaces/{namespace}/"
+
+    # We must support the specified resource kind.
+    if kind not in SUPPORTED_KINDS:
+        logit.error(f"Unsupported resource <{kind}>.")
+        return RetVal(None, True)
+
+    # We must support the specified K8s version.
+    if config.version not in SUPPORTED_VERSIONS:
+        logit.error(f"Unsupported K8s version <{config.version}>.")
+        return RetVal(None, True)
+
+    # The HTTP request path names by K8s version and resource kind.
+    # The keys in this dict must cover all those specified in
+    # `SUPPORTED_VERSIONS` and `SUPPORTED_KINDS`.
+    resources = {
+        "1.9": {
+            "ConfigMap": f"api/v1/{namespace}/configmaps",
+            "Secret": f"api/v1/{namespace}/secrets",
+            "Deployment": f"apis/extensions/v1beta1/{namespace}/deployments",
+            "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
+            "Namespace": f"api/v1/namespaces",
+            "Service": f"api/v1/{namespace}/services",
+        },
+        "1.10": {
+            "ConfigMap": f"api/v1/{namespace}/configmaps",
+            "Secret": f"api/v1/{namespace}/secrets",
+            "Deployment": f"apis/extensions/v1beta1/{namespace}/deployments",
+            "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
+            "Namespace": f"api/v1/namespaces",
+            "Service": f"api/v1/{namespace}/services",
+        },
+    }
+
+    # Look up the resource path and remove duplicate "/" characters (may have
+    # slipped in when no namespace was supplied, eg "/api/v1//configmaps").
+    path = resources[config.version][kind]
+    path = path.replace("//", "/")
+    assert not path.startswith("/")
+
+    # Return the complete resource URL.
+    return RetVal(f"{config.url}/{path}", False)
 
 
 def request(client, method, url, payload, headers):
