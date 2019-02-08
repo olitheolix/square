@@ -150,6 +150,65 @@ def unpack(data: dict):
     return RetVal(out, False)
 
 
+def unparse(file_manifests):
+    """Convert the Python dict to a Yaml string for each file and return it.
+
+    The output dict can be passed directly to `save_files` to write the files.
+
+    Inputs:
+        file_manifests: Dict[Filename:Tuple[MetaManifest, manifest]]
+            Typically the output from eg `manio.sync`.
+
+    Returns:
+        Dict[Filename:YamlStr]: Yaml representation of all manifests.
+
+    """
+    out = {}
+    for fname, manifests in file_manifests.items():
+        # Verify that this file contains only supported resource kinds.
+        kinds = {meta.kind for meta, _ in manifests}
+        delta = kinds - set(SUPPORTED_KINDS)
+        if len(delta) > 0:
+            logit.error(f"Found unsupported KIND when writing <{fname}>: {delta}")
+            return RetVal(None, True)
+
+        # Group the manifests by their "kind", sort each group and compile a
+        # new list of grouped and sorted manifests.
+        man_sorted = []
+        for kind in SUPPORTED_KINDS:
+            man_sorted += sorted([_ for _ in manifests if _[0].kind == kind])
+        assert len(man_sorted) == len(manifests)
+
+        # Drop the MetaManifest, ie
+        # Dict[Filename:Tuple[MetaManifest, manifest]] -> Dict[Filename:manifest]
+        man_clean = [manifest for _, manifest in man_sorted]
+
+        # Assign the grouped and sorted list of manifests to the output dict.
+        out[fname] = man_clean
+        del fname, manifests, man_sorted, man_clean
+
+    # Ignore all files whose manifest list is empty.
+    out = {k: v for k, v in out.items() if len(v) > 0}
+
+    # Ensure that all dicts are pure Python dicts or there will be problems
+    # with the YAML generation below.
+    out_clean = {k: dotdict.undo(v) for k, v in out.items()}
+
+    # Convert all manifest dicts into YAML strings.
+    out = {}
+    try:
+        for fname, v in out_clean.items():
+            out[fname] = yaml.safe_dump_all(v, default_flow_style=False)
+    except yaml.YAMLError as err:
+        logit.error(
+            f"YAML error. Cannot create <{fname}>: {err.args[0]} <{str(err.args[1])}>"
+        )
+        return RetVal(None, True)
+
+    # Return the Dict[Filename:YamlStr]
+    return RetVal(out, False)
+
+
 def sync(local_manifests, server_manifests, kinds, namespaces):
     """Update the local manifests with the server values and return the result.
 
@@ -244,63 +303,145 @@ def sync(local_manifests, server_manifests, kinds, namespaces):
     return RetVal(out_add_mod_del, False)
 
 
-def unparse(file_manifests):
-    """Convert the Python dict to a Yaml string for each file and return it.
+def diff(config, local: dict, server: dict):
+    """Return the human readable diff between the `local` and `server`.
 
-    The output dict can be passed directly to `save_files` to write the files.
+    The diff shows the necessary changes to transition the `server` manifest
+    into the state of the `local` manifest.
 
     Inputs:
-        file_manifests: Dict[Filename:Tuple[MetaManifest, manifest]]
-            Typically the output from eg `manio.sync`.
+        config: k8s.Config
+        local: dict
+            Local manifest.
+        server: dict
+            Local manifest.
 
     Returns:
-        Dict[Filename:YamlStr]: Yaml representation of all manifests.
+        str: human readable diff string as the Unix `diff` utility would
+        produce it.
 
     """
-    out = {}
-    for fname, manifests in file_manifests.items():
-        # Verify that this file contains only supported resource kinds.
-        kinds = {meta.kind for meta, _ in manifests}
-        delta = kinds - set(SUPPORTED_KINDS)
-        if len(delta) > 0:
-            logit.error(f"Found unsupported KIND when writing <{fname}>: {delta}")
-            return RetVal(None, True)
+    # Clean up the input manifests because we do not want to diff the eg
+    # `status` fields.
+    srv, err1 = strip(config, server)
+    loc, err2 = strip(config, local)
+    if err1 or err2:
+        return RetVal(None, True)
 
-        # Group the manifests by their "kind", sort each group and compile a
-        # new list of grouped and sorted manifests.
-        man_sorted = []
-        for kind in SUPPORTED_KINDS:
-            man_sorted += sorted([_ for _ in manifests if _[0].kind == kind])
-        assert len(man_sorted) == len(manifests)
+    # Undo the DotDicts. This is a pre-caution because the YAML parser can
+    # otherwise not dump the manifests.
+    srv = dotdict.undo(srv)
+    loc = dotdict.undo(loc)
+    srv_lines = yaml.dump(srv, default_flow_style=False).splitlines()
+    loc_lines = yaml.dump(loc, default_flow_style=False).splitlines()
 
-        # Drop the MetaManifest, ie
-        # Dict[Filename:Tuple[MetaManifest, manifest]] -> Dict[Filename:manifest]
-        man_clean = [manifest for _, manifest in man_sorted]
+    # Compute and return the lines of the diff.
+    diff_lines = difflib.unified_diff(srv_lines, loc_lines, lineterm='')
+    return RetVal(str.join("\n", diff_lines), False)
 
-        # Assign the grouped and sorted list of manifests to the output dict.
-        out[fname] = man_clean
-        del fname, manifests, man_sorted, man_clean
 
-    # Ignore all files whose manifest list is empty.
-    out = {k: v for k, v in out.items() if len(v) > 0}
+def strip(config, manifest):
+    """Return stripped version of `manifest` with only the essential keys.
 
-    # Ensure that all dicts are pure Python dicts or there will be problems
-    # with the YAML generation below.
-    out_clean = {k: dotdict.undo(v) for k, v in out.items()}
+    The "essential" keys for each supported resource type are defined in the
+    `schemas` module. In the context of `square`, essential keys are those that
+    specify a resource (eg "kind" or "metadata.name") but not derivative
+    information like "metadata.creationTimestamp" or "status".
 
-    # Convert all manifest dicts into YAML strings.
-    out = {}
+    Inputs:
+        config: k8s.Config
+        manifest: dict
+
+    Returns:
+        dict: subset of `manifest`.
+
+    """
+    # Avoid side effects.
+    manifest = copy.deepcopy(manifest)
+
+    # Every manifest must specify its "apiVersion" and "kind".
     try:
-        for fname, v in out_clean.items():
-            out[fname] = yaml.safe_dump_all(v, default_flow_style=False)
-    except yaml.YAMLError as err:
+        kind, version = manifest["kind"], manifest["apiVersion"]
+    except KeyError as err:
+        logit.error(f"Manifest is missing the <{err.args[0]}> key.")
+        return RetVal(None, True)
+
+    def _update(schema, manifest, out):
+        """Recursively traverse the `schema` dict and add `manifest` keys into `out`.
+
+        Incorporate the mandatory and optional keys.
+
+        Raise `KeyError` if an invalid key was found.
+
+        """
+        # Iterate over every key/value pair of the schema and copy the
+        # mandatory and optional keys. Raise an error if we find a key in
+        # `manifest` that should not be there according to the schema.
+        for k, v in schema.items():
+            if v is True:
+                # This key must exist in `manifest` and will be included.
+                if k not in manifest:
+                    logit.error(f"<{kind}> manifest must have a <{k}> key")
+                    raise KeyError
+                out[k] = manifest[k]
+            elif v is False:
+                # This key must not exist in `manifest` and will be excluded.
+                if k in manifest:
+                    logit.error(f"<{kind}> manifest must not have a <{k}> key")
+                    raise KeyError
+            elif v is None:
+                # This key may exist in `manifest` and will be included in the
+                # output if it does.
+                if k in manifest:
+                    out[k] = manifest[k]
+            elif isinstance(v, dict):
+                # The schema does not specify {True, False, None} but contains
+                # another dict, which means we have to recurse into it.
+
+                # Create a new dict level in the output dict. We will populate
+                # it in when we recurse.
+                out[k] = {}
+
+                # Create a dummy dict in the input manifest if it lacks the
+                # key. This is a corner case where the schema specifies a key
+                # that contains only optional sub-keys. Since we do not know
+                # yet if they will all be optional, we create an empty dict so
+                # that the function can recurse.
+                if k not in manifest:
+                    manifest[k] = {}
+
+                # Traverse all dicts down by one level and repeat the process.
+                _update(schema[k], manifest[k], out[k])
+
+                # If all keys in `schema[k]` were optional then it is possible
+                # that `out[k]` will be empty. If so, delete it because we do
+                # not want to keep empty dicts around.
+                if out[k] == {}:
+                    del out[k]
+            else:
+                logit.error(f"This is a bug: type(v) = <{type(v)}")
+                raise KeyError
+
+    # Create preliminary output manifest.
+    stripped = {"apiVersion": version, "kind": kind}
+
+    # Verify the schema for the current resource and K8s version exist.
+    try:
+        schema = schemas.RESOURCE_SCHEMA[config.version][manifest["kind"]]
+    except KeyError:
         logit.error(
-            f"YAML error. Cannot create <{fname}>: {err.args[0]} <{str(err.args[1])}>"
+            f"Unknown K8s version (<{config.version}>) "
+            "or resource kind: <{kind}>"
         )
         return RetVal(None, True)
 
-    # Return the Dict[Filename:YamlStr]
-    return RetVal(out, False)
+    # Strip down the manifest to its essential parts and return it.
+    try:
+        _update(schema, manifest, stripped)
+    except KeyError:
+        return RetVal(None, True)
+    else:
+        return RetVal(dotdict.make(stripped), False)
 
 
 def save_files(base_path, file_data: dict):
@@ -468,144 +609,3 @@ def save(folder, manifests: dict):
 
     # Save the files to disk.
     return save_files(folder, fdata_raw)
-
-
-def diff(config, local: dict, server: dict):
-    """Return the human readable diff between the `local` and `server`.
-
-    The diff shows the necessary changes to transition the `server` manifest
-    into the state of the `local` manifest.
-
-    Inputs:
-        config: k8s.Config
-        local: dict
-            Local manifest.
-        server: dict
-            Local manifest.
-
-    Returns:
-        str: human readable diff string as the Unix `diff` utility would
-        produce it.
-
-    """
-    # Clean up the input manifests because we do not want to diff the eg
-    # `status` fields.
-    srv, err1 = strip(config, server)
-    loc, err2 = strip(config, local)
-    if err1 or err2:
-        return RetVal(None, True)
-
-    # Undo the DotDicts. This is a pre-caution because the YAML parser can
-    # otherwise not dump the manifests.
-    srv = dotdict.undo(srv)
-    loc = dotdict.undo(loc)
-    srv_lines = yaml.dump(srv, default_flow_style=False).splitlines()
-    loc_lines = yaml.dump(loc, default_flow_style=False).splitlines()
-
-    # Compute and return the lines of the diff.
-    diff_lines = difflib.unified_diff(srv_lines, loc_lines, lineterm='')
-    return RetVal(str.join("\n", diff_lines), False)
-
-
-def strip(config, manifest):
-    """Return stripped version of `manifest` with only the essential keys.
-
-    The "essential" keys for each supported resource type are defined in the
-    `schemas` module. In the context of `square`, essential keys are those that
-    specify a resource (eg "kind" or "metadata.name") but not derivative
-    information like "metadata.creationTimestamp" or "status".
-
-    Inputs:
-        config: k8s.Config
-        manifest: dict
-
-    Returns:
-        dict: subset of `manifest`.
-
-    """
-    # Avoid side effects.
-    manifest = copy.deepcopy(manifest)
-
-    # Every manifest must specify its "apiVersion" and "kind".
-    try:
-        kind, version = manifest["kind"], manifest["apiVersion"]
-    except KeyError as err:
-        logit.error(f"Manifest is missing the <{err.args[0]}> key.")
-        return RetVal(None, True)
-
-    def _update(schema, manifest, out):
-        """Recursively traverse the `schema` dict and add `manifest` keys into `out`.
-
-        Incorporate the mandatory and optional keys.
-
-        Raise `KeyError` if an invalid key was found.
-
-        """
-        # Iterate over every key/value pair of the schema and copy the
-        # mandatory and optional keys. Raise an error if we find a key in
-        # `manifest` that should not be there according to the schema.
-        for k, v in schema.items():
-            if v is True:
-                # This key must exist in `manifest` and will be included.
-                if k not in manifest:
-                    logit.error(f"<{kind}> manifest must have a <{k}> key")
-                    raise KeyError
-                out[k] = manifest[k]
-            elif v is False:
-                # This key must not exist in `manifest` and will be excluded.
-                if k in manifest:
-                    logit.error(f"<{kind}> manifest must not have a <{k}> key")
-                    raise KeyError
-            elif v is None:
-                # This key may exist in `manifest` and will be included in the
-                # output if it does.
-                if k in manifest:
-                    out[k] = manifest[k]
-            elif isinstance(v, dict):
-                # The schema does not specify {True, False, None} but contains
-                # another dict, which means we have to recurse into it.
-
-                # Create a new dict level in the output dict. We will populate
-                # it in when we recurse.
-                out[k] = {}
-
-                # Create a dummy dict in the input manifest if it lacks the
-                # key. This is a corner case where the schema specifies a key
-                # that contains only optional sub-keys. Since we do not know
-                # yet if they will all be optional, we create an empty dict so
-                # that the function can recurse.
-                if k not in manifest:
-                    manifest[k] = {}
-
-                # Traverse all dicts down by one level and repeat the process.
-                _update(schema[k], manifest[k], out[k])
-
-                # If all keys in `schema[k]` were optional then it is possible
-                # that `out[k]` will be empty. If so, delete it because we do
-                # not want to keep empty dicts around.
-                if out[k] == {}:
-                    del out[k]
-            else:
-                logit.error(f"This is a bug: type(v) = <{type(v)}")
-                raise KeyError
-
-    # Create preliminary output manifest.
-    stripped = {"apiVersion": version, "kind": kind}
-
-    # Verify the schema for the current resource and K8s version exist.
-    try:
-        schema = schemas.RESOURCE_SCHEMA[config.version][manifest["kind"]]
-    except KeyError:
-        logit.error(
-            f"Unknown K8s version (<{config.version}>) "
-            "or resource kind: <{kind}>"
-        )
-        return RetVal(None, True)
-
-    # Strip down the manifest to its essential parts and return it.
-    try:
-        _update(schema, manifest, stripped)
-    except KeyError:
-        return RetVal(None, True)
-    else:
-        return RetVal(dotdict.make(stripped), False)
