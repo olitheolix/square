@@ -610,7 +610,7 @@ class TestPlan:
         assert square.compile_plan(config, loc_man, srv_man) == RetVal(None, True)
 
 
-class TestMain:
+class TestMainOptions:
     @classmethod
     def setup_class(cls):
         square.setup_logging(9)
@@ -793,6 +793,12 @@ class TestMain:
         # Simulate an error in `load`.
         m_load.return_value = RetVal(None, True)
         assert square.main_get(*args) == RetVal(None, True)
+
+
+class TestMain:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
 
     @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "main_get")
