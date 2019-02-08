@@ -5,6 +5,7 @@ import logging
 import pathlib
 
 import dotdict
+import k8s
 import schemas
 import yaml
 from dtypes import SUPPORTED_KINDS, Manifests, MetaManifest, RetVal
@@ -609,3 +610,60 @@ def save(folder, manifests: dict):
 
     # Save the files to disk.
     return save_files(folder, fdata_raw)
+
+
+def download(config, client, kinds, namespaces):
+    """Download and return the specified resource `kinds`.
+
+    Set `namespace` to None to download from all namespaces.
+
+    Either returns all the data or an error, never partial results.
+
+    Inputs:
+        config: k8s.Config
+        client: `requests` session with correct K8s certificates.
+        kinds: Iterable
+            The resource kinds, eg ["Deployment", "Namespace"]
+        namespaces: Iterable
+            Only query those namespaces. Set to None to download from all.
+
+    Returns:
+        Dict[MetaManifest, dict]: the K8s manifests from K8s.
+
+    """
+    # Output.
+    server_manifests = {}
+
+    # Ensure `namespaces` is always a list to avoid special casing below.
+    if namespaces is None:
+        namespaces = [None]
+
+    # Download each resource type. Abort at the first error and return nothing.
+    for namespace in namespaces:
+        for kind in kinds:
+            try:
+                # Get the HTTP URL for the resource request.
+                url, err = k8s.urlpath(config, kind, namespace)
+                assert not err
+
+                # Make HTTP request.
+                manifest_list, err = k8s.get(client, url)
+                assert not err
+
+                # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a
+                # Dict[MetaManifest, dict] dictionary.
+                manifests, err = unpack_list(manifest_list)
+                assert not err
+
+                # Drop all manifest fields except "apiVersion", "metadata" and "spec".
+                ret = {k: strip(config, man) for k, man in manifests.items()}
+                manifests = {k: v.data for k, v in ret.items()}
+                err = any((v.err for v in ret.values()))
+                assert not err
+            except AssertionError:
+                # Return nothing, even if we had downloaded other kinds already.
+                return RetVal(None, True)
+            else:
+                # Copy the manifests into the output dictionary.
+                server_manifests.update(manifests)
+    return RetVal(server_manifests, False)
