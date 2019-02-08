@@ -897,8 +897,7 @@ class TestMain:
 
     @mock.patch("sys.argv", ["square.py", "get"])
     @mock.patch.object(square, "k8s")
-    @mock.patch.object(square, "k8s")
-    def test_main_version_error(self, m_cmd, m_k8s):
+    def test_main_version_error(self, m_k8s):
         """Program must abort if it cannot download the K8s version."""
         # Mock all calls to the K8s API.
         m_k8s.version.return_value = RetVal(None, True)
