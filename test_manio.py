@@ -8,7 +8,9 @@ import manio
 import schemas
 import square
 import yaml
-from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, MetaManifest, RetVal
+from dtypes import (
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Manifests, MetaManifest, RetVal,
+)
 from test_helpers import make_manifest, mk_deploy
 
 
@@ -784,32 +786,33 @@ class TestYamlManifestIOIntegration:
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
         meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
-        fdata_test_in = {
+        man_files = {
             "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
             "foo/m1.yaml": [(meta[2], dply[2])],
         }
+        expected = Manifests(manio.unpack(man_files).data, man_files)
         del dply, meta
 
         # Save the test data, then load it back and verify.
-        assert manio.save(tmp_path, fdata_test_in) == RetVal(None, False)
-        assert manio.load(tmp_path) == RetVal(fdata_test_in, False)
+        assert manio.save(tmp_path, man_files) == RetVal(None, False)
+        assert manio.load(tmp_path) == RetVal(expected, False)
 
         # Glob the folder and ensure it contains exactly the files specified in
         # the `fdata_test_in` dict.
-        fnames_abs = {str(tmp_path / fname) for fname in fdata_test_in.keys()}
+        fnames_abs = {str(tmp_path / fname) for fname in man_files.keys()}
         assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == fnames_abs
 
         # Create non-YAML files. The `load_files` function must skip those.
         (tmp_path / "delme.txt").touch()
         (tmp_path / "foo" / "delme.txt").touch()
-        assert manio.load(tmp_path) == RetVal(fdata_test_in, False)
+        assert manio.load(tmp_path) == RetVal(expected, False)
 
     def test_save_delete_stale_yaml(self, tmp_path):
         """`save_file` must remove all excess YAML files."""
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
         meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
-        fdata_full = {
+        man_files = {
             "m0.yaml": [(meta[0], dply[0])],
             "m1.yaml": [(meta[1], dply[1])],
             "foo/m2.yaml": [(meta[2], dply[2])],
@@ -817,31 +820,33 @@ class TestYamlManifestIOIntegration:
             "bar/m4.yaml": [(meta[4], dply[4])],
             "bar/m5.yaml": [(meta[5], dply[5])],
         }
+        expected = Manifests(manio.unpack(man_files).data, man_files)
         del dply, meta
 
         # Save and load the test data.
-        assert manio.save(tmp_path, fdata_full) == RetVal(None, False)
-        assert manio.load(tmp_path) == RetVal(fdata_full, False)
+        assert manio.save(tmp_path, man_files) == RetVal(None, False)
+        assert manio.load(tmp_path) == RetVal(expected, False)
 
         # Save a reduced set of files. Compared to `fdata_full`, it is two
         # files short and a third one ("bar/m4.yaml") is empty.
-        fdata_reduced = fdata_full.copy()
+        fdata_reduced = man_files.copy()
         del fdata_reduced["m0.yaml"]
         del fdata_reduced["foo/m3.yaml"]
         fdata_reduced["bar/m4.yaml"] = []
+        expected = Manifests(manio.unpack(fdata_reduced).data, fdata_reduced)
 
         # Verify that the files still exist from the last call to `save`.
         assert (tmp_path / "m0.yaml").exists()
         assert (tmp_path / "foo/m3.yaml").exists()
         assert (tmp_path / "bar/m4.yaml").exists()
 
-        # Save and the reduced set.
+        # Save the reduced set of files.
         assert manio.save(tmp_path, fdata_reduced) == RetVal(None, False)
 
         # Load the data. It must neither contain the files we removed from the
         # dict above, nor "bar/m4.yaml" which contained an empty manifest list.
         del fdata_reduced["bar/m4.yaml"]
-        assert manio.load(tmp_path) == RetVal(fdata_reduced, False)
+        assert manio.load(tmp_path) == RetVal(expected, False)
 
         # Verify that the files physically do not exist anymore.
         assert not (tmp_path / "m0.yaml").exists()
