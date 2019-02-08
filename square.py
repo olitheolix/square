@@ -2,7 +2,6 @@ import argparse
 import json
 import logging
 import os
-import re
 import sys
 import textwrap
 from pprint import pprint
@@ -13,8 +12,8 @@ import k8s
 import manio
 import yaml
 from dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, JsonPatch, RetVal,
+    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+    JsonPatch, RetVal,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -73,74 +72,6 @@ def parse_commandline_args():
     return parser.parse_args()
 
 
-def urlpath(config, kind, namespace):
-    """Return complete URL to K8s resource.
-
-    Inputs:
-        config: k8s.Config
-        kind: str
-            Eg "Deployment", "Namespace", ... (case sensitive).
-        namespace: str
-            Must be None for "Namespace" resources.
-
-    Returns:
-        str: Full path K8s resource, eg https://1.2.3.4/api/v1/namespace/foo/services.
-
-    """
-    # Namespaces are special because they lack the `namespaces/` path prefix.
-    if kind == "Namespace" or namespace is None:
-        namespace = ""
-    else:
-        # Namespace name must conform to K8s standards.
-        match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", namespace)
-        if match is None or match.group() != namespace:
-            logit.error(f"Invalid namespace name <{namespace}>.")
-            return RetVal(None, True)
-
-        namespace = f"namespaces/{namespace}/"
-
-    # We must support the specified resource kind.
-    if kind not in SUPPORTED_KINDS:
-        logit.error(f"Unsupported resource <{kind}>.")
-        return RetVal(None, True)
-
-    # We must support the specified K8s version.
-    if config.version not in SUPPORTED_VERSIONS:
-        logit.error(f"Unsupported K8s version <{config.version}>.")
-        return RetVal(None, True)
-
-    # The HTTP request path names by K8s version and resource kind.
-    # The keys in this dict must cover all those specified in
-    # `SUPPORTED_VERSIONS` and `SUPPORTED_KINDS`.
-    resources = {
-        "1.9": {
-            "ConfigMap": f"api/v1/{namespace}/configmaps",
-            "Secret": f"api/v1/{namespace}/secrets",
-            "Deployment": f"apis/extensions/v1beta1/{namespace}/deployments",
-            "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
-            "Namespace": f"api/v1/namespaces",
-            "Service": f"api/v1/{namespace}/services",
-        },
-        "1.10": {
-            "ConfigMap": f"api/v1/{namespace}/configmaps",
-            "Secret": f"api/v1/{namespace}/secrets",
-            "Deployment": f"apis/extensions/v1beta1/{namespace}/deployments",
-            "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
-            "Namespace": f"api/v1/namespaces",
-            "Service": f"api/v1/{namespace}/services",
-        },
-    }
-
-    # Look up the resource path and remove duplicate "/" characters (may have
-    # slipped in when no namespace was supplied, eg "/api/v1//configmaps").
-    path = resources[config.version][kind]
-    path = path.replace("//", "/")
-    assert not path.startswith("/")
-
-    # Return the complete resource URL.
-    return RetVal(f"{config.url}/{path}", False)
-
-
 def make_patch(config, local: dict, server: dict):
     """Return JSON patch to transition `server` to `local`.
 
@@ -181,7 +112,7 @@ def make_patch(config, local: dict, server: dict):
 
     # Determine the PATCH URL for the resource.
     namespace = server.metadata.namespace if server.kind != "Namespace" else None
-    url, err = urlpath(config, server.kind, namespace)
+    url, err = k8s.urlpath(config, server.kind, namespace)
     if err:
         return RetVal(None, True)
     full_url = f'{url}/{server.metadata.name}'
@@ -225,7 +156,7 @@ def download_manifests(config, client, kinds, namespaces):
         for kind in kinds:
             try:
                 # Get the HTTP URL for the resource request.
-                url, err = urlpath(config, kind, namespace)
+                url, err = k8s.urlpath(config, kind, namespace)
                 assert not err
 
                 # Make HTTP request.
@@ -322,7 +253,7 @@ def compile_plan(config, local_manifests, server_manifests):
     # Compile the Deltas to create the missing resources.
     create = []
     for delta in plan.create:
-        url, err = urlpath(config, delta.kind, namespace=delta.namespace)
+        url, err = k8s.urlpath(config, delta.kind, namespace=delta.namespace)
         if err:
             return RetVal(None, True)
         create.append(DeltaCreate(delta, url, local_manifests[delta]))
@@ -338,7 +269,7 @@ def compile_plan(config, local_manifests, server_manifests):
     delete = []
     for meta in plan.delete:
         # Resource URL.
-        url, err = urlpath(config, meta.kind, namespace=meta.namespace)
+        url, err = k8s.urlpath(config, meta.kind, namespace=meta.namespace)
         if err:
             return RetVal(None, True)
 

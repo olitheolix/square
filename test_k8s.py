@@ -6,7 +6,7 @@ import k8s
 import pytest
 import requests_mock
 import square
-from dtypes import Config
+from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config
 from k8s import RetVal
 
 
@@ -231,3 +231,49 @@ class TestK8sConfig:
 
         # Test function must abort gracefully.
         assert k8s.version(config, m_client) == RetVal(None, True)
+
+
+class TestUrlPathBuilder:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
+    def test_supported_resources_versions(self):
+        """Verify the global variables.
+
+        Those variables specify the supported K8s versions and resource types.
+
+        """
+        assert SUPPORTED_VERSIONS == ("1.9", "1.10")
+        assert SUPPORTED_KINDS == (
+            "Namespace", "ConfigMap", "Secret", "Service",
+            "Deployment", "Ingress"
+        )
+
+    def test_urlpath_ok(self):
+        """Must work for all supported K8s versions and resources."""
+        for version in SUPPORTED_VERSIONS:
+            cfg = Config("url", "token", "ca_cert", "client_cert", version)
+            for kind in SUPPORTED_KINDS:
+                for ns in (None, "foo-namespace"):
+                    path, err = k8s.urlpath(cfg, kind, ns)
+
+                # Verify.
+                assert err is False
+                assert isinstance(path, str)
+
+    def test_urlpath_err(self):
+        """Test various error scenarios."""
+        # Valid version but invalid resource kind or invalid namespace spelling.
+        for version in SUPPORTED_VERSIONS:
+            cfg = Config("url", "token", "ca_cert", "client_cert", version)
+
+            # Invalid resource kind.
+            assert k8s.urlpath(cfg, "fooresource", "ns") == RetVal(None, True)
+
+            # Namespace names must be all lower case (K8s imposes this)...
+            assert k8s.urlpath(cfg, "Deployment", "namEspACe") == RetVal(None, True)
+
+        # Invalid version.
+        cfg = Config("url", "token", "ca_cert", "client_cert", "invalid")
+        assert k8s.urlpath(cfg, "Deployment", "valid-ns") == RetVal(None, True)

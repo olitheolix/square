@@ -8,9 +8,10 @@ import manio
 import pytest
 import square
 from dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config, DeltaCreate, DeltaDelete,
-    DeltaPatch, DeploymentPlan, JsonPatch, Manifests, MetaManifest, RetVal,
+    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, JsonPatch, Manifests,
+    MetaManifest, RetVal,
 )
+from k8s import urlpath
 from test_helpers import make_manifest
 
 
@@ -227,52 +228,6 @@ class TestPartition:
         assert fun(local_man, cluster_man) == RetVal(plan, False)
 
 
-class TestUrlPathBuilder:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
-    def test_supported_resources_versions(self):
-        """Verify the global variables.
-
-        Those variables specify the supported K8s versions and resource types.
-
-        """
-        assert SUPPORTED_VERSIONS == ("1.9", "1.10")
-        assert SUPPORTED_KINDS == (
-            "Namespace", "ConfigMap", "Secret", "Service",
-            "Deployment", "Ingress"
-        )
-
-    def test_urlpath_ok(self):
-        """Must work for all supported K8s versions and resources."""
-        for version in SUPPORTED_VERSIONS:
-            cfg = Config("url", "token", "ca_cert", "client_cert", version)
-            for kind in SUPPORTED_KINDS:
-                for ns in (None, "foo-namespace"):
-                    path, err = square.urlpath(cfg, kind, ns)
-
-                # Verify.
-                assert err is False
-                assert isinstance(path, str)
-
-    def test_urlpath_err(self):
-        """Test various error scenarios."""
-        # Valid version but invalid resource kind or invalid namespace spelling.
-        for version in SUPPORTED_VERSIONS:
-            cfg = Config("url", "token", "ca_cert", "client_cert", version)
-
-            # Invalid resource kind.
-            assert square.urlpath(cfg, "fooresource", "ns") == RetVal(None, True)
-
-            # Namespace names must be all lower case (K8s imposes this)...
-            assert square.urlpath(cfg, "Deployment", "namEspACe") == RetVal(None, True)
-
-        # Invalid version.
-        cfg = Config("url", "token", "ca_cert", "client_cert", "invalid")
-        assert square.urlpath(cfg, "Deployment", "valid-ns") == RetVal(None, True)
-
-
 class TestDownloadManifests:
     @classmethod
     def setup_class(cls):
@@ -295,14 +250,14 @@ class TestDownloadManifests:
         ]
 
         # Resource URLs (not namespaced).
-        url_ns, err1 = square.urlpath(config, "Namespace", None)
-        url_deploy, err2 = square.urlpath(config, "Deployment", None)
+        url_ns, err1 = urlpath(config, "Namespace", None)
+        url_deploy, err2 = urlpath(config, "Deployment", None)
 
         # Namespaced resource URLs.
-        url_ns_0, err3 = square.urlpath(config, "Namespace", "ns0")
-        url_ns_1, err4 = square.urlpath(config, "Namespace", "ns1")
-        url_dply_0, err5 = square.urlpath(config, "Deployment", "ns0")
-        url_dply_1, err6 = square.urlpath(config, "Deployment", "ns1")
+        url_ns_0, err3 = urlpath(config, "Namespace", "ns0")
+        url_ns_1, err4 = urlpath(config, "Namespace", "ns1")
+        url_dply_0, err5 = urlpath(config, "Deployment", "ns0")
+        url_dply_1, err6 = urlpath(config, "Deployment", "ns1")
         assert not any([err1, err2, err3, err4, err5, err6])
         del err1, err2, err3, err4, err5, err6
 
@@ -415,8 +370,8 @@ class TestDownloadManifests:
         m_get.side_effect = [RetVal(man_list_ns, False), RetVal(None, True)]
 
         # The request URLs. We will need them to validate the `get` arguments.
-        url_ns, err1 = square.urlpath(config, "Namespace", None)
-        url_deploy, err2 = square.urlpath(config, "Deployment", None)
+        url_ns, err1 = urlpath(config, "Namespace", None)
+        url_deploy, err2 = urlpath(config, "Deployment", None)
         assert not err1 and not err2
 
         # Run test function and verify it returns an error and no data, despite
@@ -443,7 +398,7 @@ class TestPatchK8s:
         config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
 
         # PATCH URLs require the resource name at the end of the request path.
-        url = square.urlpath(config, kind, ns).data + f'/{name}'
+        url = urlpath(config, kind, ns).data + f'/{name}'
 
         # The patch must be empty for identical manifests.
         loc = srv = make_manifest(kind, ns, name)
@@ -496,7 +451,7 @@ class TestPatchK8s:
         config = types.SimpleNamespace(url='http://examples.com/', version="1.10")
         kind, name = 'Namespace', 'foo'
 
-        url = square.urlpath(config, kind, None).data + f'/{name}'
+        url = urlpath(config, kind, None).data + f'/{name}'
 
         # Must succeed and return an empty patch for identical manifests.
         loc = srv = make_manifest(kind, None, name)
@@ -519,7 +474,7 @@ class TestPatchK8s:
         ret = square.make_patch(config, loc, srv)
         assert ret.err is False and len(ret.data) > 0
 
-    @mock.patch.object(square, "urlpath")
+    @mock.patch.object(k8s, "urlpath")
     def test_make_patch_error_urlpath(self, m_url):
         """Coverage gap: simulate `urlpath` error."""
         # Setup.
@@ -559,7 +514,7 @@ class TestPlan:
 
         # The Patch between two identical manifests must be a No-Op.
         expected = JsonPatch(
-            url=square.urlpath(config, kind, namespace).data + f"/{name}",
+            url=urlpath(config, kind, namespace).data + f"/{name}",
             ops=[],
         )
         assert square.make_patch(config, loc, loc) == RetVal(expected, False)
@@ -567,7 +522,7 @@ class TestPlan:
         # The patch between `srv` and `loc` must remove the old label and add
         # the new one.
         expected = JsonPatch(
-            url=square.urlpath(config, kind, namespace).data + f"/{name}",
+            url=urlpath(config, kind, namespace).data + f"/{name}",
             ops=[
                 {'op': 'remove', 'path': '/metadata/labels/old'},
                 {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'}
@@ -626,7 +581,7 @@ class TestPlan:
         meta[4] = MetaManifest('v1', 'Deployment', 'ns2', 'res_2')
 
         # Determine the K8s resource urls for those that will be added.
-        upb = square.urlpath
+        upb = urlpath
         url[0] = upb(config, meta[0].kind, meta[0].namespace).data
         url[1] = upb(config, meta[1].kind, meta[1].namespace).data
 
@@ -720,7 +675,7 @@ class TestPlan:
         # Determine the K8s resource URLs for patching. Those URLs must contain
         # the resource name as the last path element, eg "/api/v1/namespaces/ns1"
         url = [
-            square.urlpath(config, _.kind, _.namespace).data + f"/{_.name}"
+            urlpath(config, _.kind, _.namespace).data + f"/{_.name}"
             for _ in meta
         ]
 
