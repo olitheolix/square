@@ -228,164 +228,6 @@ class TestPartition:
         assert fun(local_man, cluster_man) == RetVal(plan, False)
 
 
-class TestDownloadManifests:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
-    @mock.patch.object(k8s, 'get')
-    def test_download_manifests_ok(self, m_get):
-        """Download two kinds of manifests: Deployments and Namespaces.
-
-        The test only mocks the call to the K8s API. All other functions
-        actually execute.
-
-        """
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
-        meta = [
-            make_manifest("Namespace", None, "ns0"),
-            make_manifest("Namespace", None, "ns1"),
-            make_manifest("Deployment", "ns0", "d0"),
-            make_manifest("Deployment", "ns1", "d1"),
-        ]
-
-        # Resource URLs (not namespaced).
-        url_ns, err1 = urlpath(config, "Namespace", None)
-        url_deploy, err2 = urlpath(config, "Deployment", None)
-
-        # Namespaced resource URLs.
-        url_ns_0, err3 = urlpath(config, "Namespace", "ns0")
-        url_ns_1, err4 = urlpath(config, "Namespace", "ns1")
-        url_dply_0, err5 = urlpath(config, "Deployment", "ns0")
-        url_dply_1, err6 = urlpath(config, "Deployment", "ns1")
-        assert not any([err1, err2, err3, err4, err5, err6])
-        del err1, err2, err3, err4, err5, err6
-
-        # NamespaceList and DeploymentList (all namespaces).
-        l_ns = {'apiVersion': 'v1', 'kind': 'NamespaceList', "items": [meta[0], meta[1]]}
-        l_dply = {'apiVersion': 'v1', 'kind': 'DeploymentList',
-                  "items": [meta[2], meta[3]]}
-
-        # Namespaced NamespaceList and DeploymentList.
-        l_ns_0 = {'apiVersion': 'v1', 'kind': 'NamespaceList', "items": [meta[0]]}
-        l_ns_1 = {'apiVersion': 'v1', 'kind': 'NamespaceList', "items": [meta[1]]}
-        l_dply_0 = {'apiVersion': 'v1', 'kind': 'DeploymentList', "items": [meta[2]]}
-        l_dply_1 = {'apiVersion': 'v1', 'kind': 'DeploymentList', "items": [meta[3]]}
-
-        # ----------------------------------------------------------------------
-        # Request resources from all namespaces implicitly via namespaces=None
-        # Must make two calls: one for each kind ("Deployment", "Namespace").
-        # ----------------------------------------------------------------------
-        m_get.reset_mock()
-        m_get.side_effect = [
-            RetVal(l_ns, False),
-            RetVal(l_dply, False),
-        ]
-        expected = {
-            manio.make_meta(meta[0]): manio.strip(config, meta[0]).data,
-            manio.make_meta(meta[1]): manio.strip(config, meta[1]).data,
-            manio.make_meta(meta[2]): manio.strip(config, meta[2]).data,
-            manio.make_meta(meta[3]): manio.strip(config, meta[3]).data,
-        }
-        ret = square.download_manifests(
-            config, "client",
-            kinds=["Namespace", "Deployment"],
-            namespaces=None,
-        )
-        assert ret == RetVal(expected, False)
-        assert m_get.call_args_list == [
-            mock.call("client", url_ns),
-            mock.call("client", url_deploy),
-        ]
-
-        # ------------------------------------------------------------------------------
-        # Request resources from all namespaces explicitly via namespaces=["ns0", "ns1"]
-        #
-        # Must make four calls: one for each namespace ("ns0" and "ns1") and one for
-        # each kind ("Deployment", "Namespace").
-        # ------------------------------------------------------------------------------
-        m_get.reset_mock()
-        m_get.side_effect = [
-            RetVal(l_ns_0, False),
-            RetVal(l_dply_0, False),
-            RetVal(l_ns_1, False),
-            RetVal(l_dply_1, False),
-        ]
-        expected = {
-            manio.make_meta(meta[0]): manio.strip(config, meta[0]).data,
-            manio.make_meta(meta[1]): manio.strip(config, meta[1]).data,
-            manio.make_meta(meta[2]): manio.strip(config, meta[2]).data,
-            manio.make_meta(meta[3]): manio.strip(config, meta[3]).data,
-        }
-        assert RetVal(expected, False) == square.download_manifests(
-            config, "client",
-            kinds=["Namespace", "Deployment"],
-            namespaces=["ns0", "ns1"]
-        )
-        assert m_get.call_args_list == [
-            mock.call("client", url_ns_0),
-            mock.call("client", url_dply_0),
-            mock.call("client", url_ns_1),
-            mock.call("client", url_dply_1),
-        ]
-
-        # ----------------------------------------------------------------------
-        # Request resources from namespace "ns0" only.
-        #
-        # Must make two calls: one for each kind ("Deployment", "Namespace") in
-        # namespace "ns0".
-        # ----------------------------------------------------------------------
-        m_get.reset_mock()
-        m_get.side_effect = [
-            RetVal(l_ns_0, False),
-            RetVal(l_dply_0, False),
-        ]
-        expected = {
-            manio.make_meta(meta[0]): manio.strip(config, meta[0]).data,
-            manio.make_meta(meta[2]): manio.strip(config, meta[2]).data,
-        }
-        assert RetVal(expected, False) == square.download_manifests(
-            config, "client",
-            kinds=["Namespace", "Deployment"],
-            namespaces=["ns0"]
-        )
-        assert m_get.call_args_list == [
-            mock.call("client", url_ns_0),
-            mock.call("client", url_dply_0),
-        ]
-
-    @mock.patch.object(k8s, 'get')
-    def test_download_manifests_err(self, m_get):
-        """Simulate a download error."""
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
-
-        # A valid NamespaceList with one element.
-        man_list_ns = {
-            'apiVersion': 'v1',
-            'kind': 'NamespaceList',
-            'items': [make_manifest("Namespace", None, "ns0")],
-        }
-
-        # The first call to get will succeed whereas the second will not.
-        m_get.side_effect = [RetVal(man_list_ns, False), RetVal(None, True)]
-
-        # The request URLs. We will need them to validate the `get` arguments.
-        url_ns, err1 = urlpath(config, "Namespace", None)
-        url_deploy, err2 = urlpath(config, "Deployment", None)
-        assert not err1 and not err2
-
-        # Run test function and verify it returns an error and no data, despite
-        # a successful `NamespaceList` download.
-        ret = square.download_manifests(
-            config, "client", ["Namespace", "Deployment"], None
-        )
-        assert ret == RetVal(None, True)
-        assert m_get.call_args_list == [
-            mock.call("client", url_ns),
-            mock.call("client", url_deploy),
-        ]
-
-
 class TestPatchK8s:
     @classmethod
     def setup_class(cls):
@@ -774,7 +616,7 @@ class TestMain:
         square.setup_logging(9)
 
     @mock.patch.object(manio, "load")
-    @mock.patch.object(square, "download_manifests")
+    @mock.patch.object(manio, "download")
     @mock.patch.object(square, "prune")
     @mock.patch.object(square, "compile_plan")
     @mock.patch.object(k8s, "post")
@@ -863,7 +705,7 @@ class TestMain:
         assert square.main_patch(*args) == RetVal(None, True)
 
     @mock.patch.object(manio, "load")
-    @mock.patch.object(square, "download_manifests")
+    @mock.patch.object(manio, "download")
     @mock.patch.object(square, "prune")
     @mock.patch.object(square, "compile_plan")
     def test_main_diff(self, m_plan, m_prune, m_down, m_load):
@@ -906,7 +748,7 @@ class TestMain:
         assert square.main_diff(*args) == RetVal(None, True)
 
     @mock.patch.object(manio, "load")
-    @mock.patch.object(square, "download_manifests")
+    @mock.patch.object(manio, "download")
     @mock.patch.object(square, "prune")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")

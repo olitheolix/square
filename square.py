@@ -79,7 +79,7 @@ def make_patch(config, local: dict, server: dict):
         local_manifests: dict
             Usually the dictionary keys returned by `load_manifest`.
         server_manifests: dict
-            Usually the dictionary keys returned by `download_manifests`.
+            Usually the dictionary keys returned by `manio.download`.
 
     Returns:
         Patch: the JSON patch and human readable diff in a `Patch` tuple.
@@ -125,63 +125,6 @@ def make_patch(config, local: dict, server: dict):
     return RetVal(JsonPatch(full_url, patch), False)
 
 
-def download_manifests(config, client, kinds, namespaces):
-    """Download and return the specified resource `kinds`.
-
-    Set `namespace` to None to download from all namespaces.
-
-    Either returns all the data or an error, never partial results.
-
-    Inputs:
-        config: k8s.Config
-        client: `requests` session with correct K8s certificates.
-        kinds: Iterable
-            The resource kinds, eg ["Deployment", "Namespace"]
-        namespaces: Iterable
-            Only query those namespaces. Set to None to download from all.
-
-    Returns:
-        Dict[MetaManifest, dict]: the K8s manifests from K8s.
-
-    """
-    # Output.
-    server_manifests = {}
-
-    # Ensure `namespaces` is always a list to avoid special casing below.
-    if namespaces is None:
-        namespaces = [None]
-
-    # Download each resource type. Abort at the first error and return nothing.
-    for namespace in namespaces:
-        for kind in kinds:
-            try:
-                # Get the HTTP URL for the resource request.
-                url, err = k8s.urlpath(config, kind, namespace)
-                assert not err
-
-                # Make HTTP request.
-                manifest_list, err = k8s.get(client, url)
-                assert not err
-
-                # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a
-                # Dict[MetaManifest, dict] dictionary.
-                manifests, err = manio.unpack_list(manifest_list)
-                assert not err
-
-                # Drop all manifest fields except "apiVersion", "metadata" and "spec".
-                ret = {k: manio.strip(config, man) for k, man in manifests.items()}
-                manifests = {k: v.data for k, v in ret.items()}
-                err = any((v.err for v in ret.values()))
-                assert not err
-            except AssertionError:
-                # Return nothing, even if we had downloaded other kinds already.
-                return RetVal(None, True)
-            else:
-                # Copy the manifests into the output dictionary.
-                server_manifests.update(manifests)
-    return RetVal(server_manifests, False)
-
-
 def partition_manifests(local_manifests, server_manifests):
     """Compile `{local,server}_manifests` into CREATE, PATCH and DELETE groups.
 
@@ -197,7 +140,7 @@ def partition_manifests(local_manifests, server_manifests):
         local_manifests: Dict[MetaManifest:str]
             Usually the dictionary keys returned by `load_manifest`.
         server_manifests: Dict[MetaManifest:str]
-            Usually the dictionary keys returned by `download_manifests`.
+            Usually the dictionary keys returned by `manio.download`.
 
     Returns:
         DeploymentPlan
@@ -234,7 +177,7 @@ def compile_plan(config, local_manifests, server_manifests):
         local_manifests: Dict[MetaManifest, dict]
             Should be output from `load_manifest` or `load`.
         server_manifests: Dict[MetaManifest, dict]
-            Should be output from `download_manifests`.
+            Should be output from `manio.download`.
 
     Returns:
         DeploymentPlan
@@ -487,7 +430,7 @@ def main_patch(config, client, folder, kinds, namespaces):
         assert not err
 
         # Download manifests from K8s.
-        server, err = download_manifests(config, client, kinds, namespaces)
+        server, err = manio.download(config, client, kinds, namespaces)
         assert not err
 
         # Prune the manifests to only include manifests for the specified
@@ -555,7 +498,7 @@ def main_diff(config, client, folder, kinds, namespaces):
         assert not err
 
         # Download manifests from K8s.
-        server, err = download_manifests(config, client, kinds, namespaces)
+        server, err = manio.download(config, client, kinds, namespaces)
         assert not err
 
         # Prune the manifests to only include manifests for the specified
@@ -598,7 +541,7 @@ def main_get(config, client, folder, kinds, namespaces):
         assert not err
 
         # Download manifests from K8s.
-        server, err = download_manifests(config, client, kinds, namespaces)
+        server, err = manio.download(config, client, kinds, namespaces)
         assert not err
 
         # Prune the manifests to only include manifests for the specified
