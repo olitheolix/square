@@ -15,10 +15,17 @@ logit = logging.getLogger("square")
 
 def make_meta(manifest: dict):
     """Compile `MetaManifest` information from `manifest` and return it."""
+    # Unpack the namespace. For Namespace resources, this will be the "name".
+    if manifest["kind"] == "Namespace":
+        ns = manifest['metadata']['name']
+    else:
+        ns = manifest['metadata']['namespace']
+
+    # Return the populated MetaManifest.
     return MetaManifest(
         apiVersion=manifest['apiVersion'],
         kind=manifest['kind'],
-        namespace=manifest['metadata'].get('namespace', None),
+        namespace=ns,
         name=manifest['metadata']['name']
     )
 
