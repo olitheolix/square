@@ -15,6 +15,43 @@ from k8s import urlpath
 from test_helpers import make_manifest, mk_deploy
 
 
+class TestHelpers:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
+    def test_make_meta(self):
+        """Basic test for helper class, especially Namespaces.
+
+        Namespace, as usual, are a special because their K8s manifests must not
+        have a "metadata.namespace" field. For those manifests, `make_meta`
+        must populate the MetaManifest.namespace attribute with the content of
+        "metadata.name" form the input manifest. Albeit invalid for K8s, this
+        reduces special case coding for Namespaces in `square`.
+
+        """
+        # A deployment manfiest. All fields must be copied verbatim.
+        manifest = make_manifest("Deployment", "namespace", "name")
+        expected = MetaManifest(
+            apiVersion=manifest["apiVersion"],
+            kind=manifest["kind"],
+            namespace="namespace",
+            name=manifest["metadata"]["name"]
+        )
+        assert manio.make_meta(manifest) == expected
+
+        # Namespace manifest. The "namespace" field must be populated with the
+        # "metadata.name" field.
+        manifest = make_manifest("Namespace", None, "name")
+        expected = MetaManifest(
+            apiVersion=manifest["apiVersion"],
+            kind=manifest["kind"],
+            namespace="name",
+            name=manifest["metadata"]["name"]
+        )
+        assert manio.make_meta(manifest) == expected
+
+
 class TestUnpackParse:
     @classmethod
     def setup_class(cls):
@@ -1203,43 +1240,6 @@ class TestSync:
             ],
         }
         assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
-
-
-class TestHelpers:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
-    def test_make_meta(self):
-        """Basic test for helper class, especially Namespaces.
-
-        Namespace, as usual, are a special because their K8s manifests must not
-        have a "metadata.namespace" field. For those manifests, `make_meta`
-        must populate the MetaManifest.namespace attribute with the content of
-        "metadata.name" form the input manifest. Albeit invalid for K8s, this
-        reduces special case coding for Namespaces in `square`.
-
-        """
-        # A deployment manfiest. All fields must be copied verbatim.
-        manifest = make_manifest("Deployment", "namespace", "name")
-        expected = MetaManifest(
-            apiVersion=manifest["apiVersion"],
-            kind=manifest["kind"],
-            namespace="namespace",
-            name=manifest["metadata"]["name"]
-        )
-        assert manio.make_meta(manifest) == expected
-
-        # Namespace manifest. The "namespace" field must be populated with the
-        # "metadata.name" field.
-        manifest = make_manifest("Namespace", None, "name")
-        expected = MetaManifest(
-            apiVersion=manifest["apiVersion"],
-            kind=manifest["kind"],
-            namespace="name",
-            name=manifest["metadata"]["name"]
-        )
-        assert manio.make_meta(manifest) == expected
 
 
 class TestDownloadManifests:
