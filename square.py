@@ -337,25 +337,25 @@ def compile_plan(config, local_manifests, server_manifests):
         "orphanDependents": False,
     }
     delete = []
-    for delta in plan.delete:
+    for meta in plan.delete:
         # Resource URL.
-        url, err = urlpath(config, delta.kind, namespace=delta.namespace)
+        url, err = urlpath(config, meta.kind, namespace=meta.namespace)
         if err:
             return RetVal(None, True)
 
         # DELETE requests must specify the resource name in the path.
-        url = f"{url}/{delta.name}"
+        url = f"{url}/{meta.name}"
 
-        # Assemble the delta and add it to the list.
-        delete.append(DeltaDelete(delta, url, del_opts.copy()))
+        # Assemble the meta and add it to the list.
+        delete.append(DeltaDelete(meta, url, del_opts.copy()))
 
     # Iterate over each manifest that needs patching and determine the
     # necessary JSON Patch to transition K8s into the state specified in the
     # local manifests.
     patches = []
-    for delta in plan.patch:
-        loc = local_manifests[delta]
-        srv = server_manifests[delta]
+    for meta in plan.patch:
+        loc = local_manifests[meta]
+        srv = server_manifests[meta]
 
         # Compute textual diff (only useful for the user to study the diff).
         diff_str, err = manio.diff(config, loc, srv)
@@ -366,7 +366,7 @@ def compile_plan(config, local_manifests, server_manifests):
         patch, err = make_patch(config, loc, srv)
         if err:
             return RetVal(None, True)
-        patches.append(DeltaPatch(delta, diff_str, patch))
+        patches.append(DeltaPatch(meta, diff_str, patch))
 
     # Assemble and return the deployment plan.
     return RetVal(DeploymentPlan(create, patches, delete), False)
