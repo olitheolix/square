@@ -273,16 +273,15 @@ def partition_manifests(local_manifests, server_manifests):
 
     """
     # Determine what needs adding, removing and patching to steer the K8s setup
-    # towards the setup specified in `local_manifests`.
+    # towards what `local_manifests` specifies.
     loc = set(local_manifests.keys())
     srv = set(server_manifests.keys())
     create = loc - srv
     patch = loc.intersection(srv)
     delete = srv - loc
 
-    # We cannot use the sets because we need to preserve the relative
-    # order of the elements in each group. Therefore, compile the stable output
-    # into new lists and return those.
+    # Convert the sets to list. Preserve the relative element ordering as it
+    # was in `{local_server}_manifests`.
     create = [_ for _ in local_manifests if _ in create]
     patch = [_ for _ in local_manifests if _ in patch]
     delete = [_ for _ in server_manifests if _ in delete]
