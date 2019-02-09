@@ -823,11 +823,12 @@ class TestMain:
 
         # Simulate all input options.
         for option in ["get", "diff", "patch"]:
-            with mock.patch("sys.argv", ["square.py", option]):
+            args = ("square.py", option, "deployment", "service", "--folder", "myfolder")
+            with mock.patch("sys.argv", args):
                 square.main()
 
         # Every main function must have been called exactly once.
-        args = "config", "client", "manifests", square.SUPPORTED_KINDS, None
+        args = "config", "client", "myfolder", ["deployment", "service"], None
         m_get.assert_called_once_with(*args)
         m_diff.assert_called_once_with(*args)
         m_patch.assert_called_once_with(*args)
