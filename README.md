@@ -5,23 +5,23 @@
 [![](https://img.shields.io/badge/status-dev-orange.svg)]()
 
 
-A proof-of-concept for how to (maybe) manage Kubernetes state.
+Programmatically define and manage the state of a Kubernetes cluster.
 
-# Intended Usage
-
-The emphasis here is on `intended`.
-
+# Examples
 ```bash
-# Get help.
+# Show help for commands.
 square.py -h
 square.py diff -h
 
-# Download all deployments and namespaces into a YAML file.
-square.py get deploy ns
+# Download all deployment and namespace manifests into local YAML files.
+square.py get ns deploy         # From all namespaces
+square.py get ns deploy -n foo  # Limit operation to "foo" namespace
 
-# Diff the local deployment manifests against those on K8s cluster.
-square.py diff deploy
+# Diff all local service manifests against those on the cluster.
+square.py diff svc              # All namespaces
+square.py diff svc -n foo       # Limit operation to "foo" namespace
 
-# Patch K8s deployments to match those specified in local YAML files.
-square.py patch deploy
+# Patch K8s config maps to according to diffs with local YAML files.
+square.py patch svc             # All namespaces
+square.py patch svc -n foo      # Limit operation to "foo" namespace
 ```
