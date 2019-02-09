@@ -32,41 +32,62 @@ def parse_commandline_args():
       {name} patch
     ''')
 
+    # A dummy top level parser that will become the parent for all sub-parsers
+    # to share all its arguments.
     parent = argparse.ArgumentParser(
         description=description,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         add_help=False
     )
-    parent.add_argument("-v", "--verbosity", action="count", default=0)
+    parent.add_argument(
+        "-v", "--verbosity", action="count", default=0,
+        help="Specify multiple times to increase log level."
+             " -v: WARNING -vv: INFO -vvv: DEBUG."
+    )
+    parent.add_argument(
+        "--folder", type=str, default="./manifests/",
+        help="Manifest folder (defaults to './manifests')"
+    )
+    parent.add_argument(
+        "--namespace", type=str, nargs="*",
+        metavar="ns", dest="namespaces",
+        help=None,
+    )
 
+    # The primary parser for the top level options (eg GET, PATCH, ...).
     parser = argparse.ArgumentParser(add_help=True)
     subparsers = parser.add_subparsers(
         help='Mode', dest='parser', metavar="ACTION",
         title="Operation", required=True
     )
 
+    # Configuration for `kinds` positional arguments. Every sub-parser must
+    # specify this one individually and here we define the kwargs to reduce
+    # duplicate code.
+    kinds_kwargs = {
+        "dest": "kind",
+        "type": str,
+        "nargs": '+',
+        "choices": [_.lower() for _ in SUPPORTED_KINDS],
+    }
+
     # Sub-command GET.
     parser_get = subparsers.add_parser(
-        'get', help="Get manifests", parents=[parent]
+        'get', help="Get manifests from K8s and save them locally", parents=[parent]
     )
-    padd = parser_get.add_argument
-    padd('kind', type=str, nargs='*')
-    del parser_get, padd
+    parser_get.add_argument(**kinds_kwargs)
 
     # Sub-command DIFF.
     parser_diff = subparsers.add_parser(
-        'diff', help="Diff local and server manifests", parents=[parent]
+        'diff', help="Diff local and K8s manifests", parents=[parent]
     )
-    padd = parser_diff.add_argument
-    padd('kind', type=str, nargs='*')
-    del parser_diff, padd
+    parser_diff.add_argument(**kinds_kwargs)
 
     # Sub-command PATCH.
     parser_patch = subparsers.add_parser(
-        'patch', help="Patch server", parents=[parent]
+        'patch', help="Patch K8s to match local manifests", parents=[parent]
     )
-    padd = parser_patch.add_argument
-    padd('kind', type=str, nargs='*')
+    parser_patch.add_argument(**kinds_kwargs)
 
     # Parse the actual arguments.
     return parser.parse_args()
@@ -568,11 +589,6 @@ def main_get(config, client, folder, kinds, namespaces):
 def main():
     param = parse_commandline_args()
 
-    # Hard coded variables due to lacking command line support.
-    manifest_folder = "manifests"
-    kinds = SUPPORTED_KINDS
-    namespace = None
-
     # Initialise logging.
     setup_logging(param.verbosity)
 
@@ -589,11 +605,11 @@ def main():
 
     # Do what user asked us to do.
     if param.parser == "get":
-        _, err = main_get(config, client, manifest_folder, kinds, namespace)
+        _, err = main_get(config, client, param.folder, param.kind, param.namespaces)
     elif param.parser == "diff":
-        _, err = main_diff(config, client, manifest_folder, kinds, namespace)
+        _, err = main_diff(config, client, param.folder, param.kind, param.namespaces)
     elif param.parser == "patch":
-        _, err = main_patch(config, client, manifest_folder, kinds, namespace)
+        _, err = main_patch(config, client, param.folder, param.kind, param.namespaces)
     else:
         logit.error(f"Unknown command <{param.parser}>")
         err = True
