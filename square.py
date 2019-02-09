@@ -53,6 +53,10 @@ def parse_commandline_args():
         metavar="ns", dest="namespaces",
         help=None,
     )
+    parent.add_argument(
+        "--kubeconfig", type=str, metavar="path", default="~/.kube/config",
+        help="Location of kubeconfig file (defaults to ~/kube/config).",
+    )
 
     # The primary parser for the top level options (eg GET, PATCH, ...).
     parser = argparse.ArgumentParser(add_help=True)
@@ -594,8 +598,8 @@ def main():
 
     # Create a `requests` client with proper security certificates to access
     # K8s API.
-    kubeconf = os.path.expanduser('~/.kube/config')
-    config = k8s.load_auto_config(kubeconf, disable_warnings=True)
+    kubeconfig = os.path.expanduser(param.kubeconfig)
+    config = k8s.load_auto_config(kubeconfig, disable_warnings=True)
     client = k8s.session(config)
 
     # Update the config with the correct K8s API version.
