@@ -362,11 +362,11 @@ def find_namespace_orphans(meta_manifests):
     # Turn the input into a set.
     meta_manifests = set(meta_manifests)
 
-    # Extract all declared namespaces so we can find the orphans afterwards.
+    # Extract all declared namespaces so we can find the orphans next.
     namespaces = {_.name for _ in meta_manifests if _.kind == 'Namespace'}
 
-    # Filter all those manifests that are a) not a Namespace and b) live in a
-    # namespace that does not exist in the `namespaces` set aggregated earlier.
+    # Find all manifests that are neither a Namespace nor belong to any of the
+    # `namespaces` from the previous step
     orphans = {
         _ for _ in meta_manifests
         if _.kind != "Namespace" and _.namespace not in namespaces
