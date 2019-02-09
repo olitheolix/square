@@ -828,7 +828,7 @@ class TestMain:
                 square.main()
 
         # Every main function must have been called exactly once.
-        args = "config", "client", "myfolder", ["deployment", "service"], None
+        args = "config", "client", "myfolder", ["Deployment", "Service"], None
         m_get.assert_called_once_with(*args)
         m_diff.assert_called_once_with(*args)
         m_patch.assert_called_once_with(*args)
@@ -895,7 +895,9 @@ class TestMain:
         m_k8s.version.return_value = RetVal("config", False)
 
         # Pretend all main functions return errors.
-        m_cmd.return_value = types.SimpleNamespace(verbosity=0, parser="invalid")
+        m_cmd.return_value = types.SimpleNamespace(
+            verbosity=0, parser="invalid", kubeconfig="conf"
+        )
 
         # Simulate all input options.
         with pytest.raises(SystemExit) as err:
@@ -913,3 +915,9 @@ class TestMain:
         with pytest.raises(SystemExit) as err:
             square.main()
         assert err.value.code != 0
+
+    def test_argparse(self):
+        with mock.patch("sys.argv", ["square.py", "get", "deploy", "svc"]):
+            ret = square.parse_commandline_args()
+
+            assert ret.kinds == ["Deployment", "Service"]

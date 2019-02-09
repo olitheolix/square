@@ -315,7 +315,7 @@ class TestYamlManifestIO:
             return manio.make_meta(make_manifest(*args))
 
         # Test function must gracefully reject all invalid kinds.
-        for kind in square.SUPPORTED_KINDS:
+        for kind in SUPPORTED_KINDS:
             file_manifests = {"m0.yaml": [(mm(kind, "ns", "name"), "0")]}
             assert manio.unparse(file_manifests).err is False
 
