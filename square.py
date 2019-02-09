@@ -12,7 +12,7 @@ import k8s
 import manio
 import yaml
 from dtypes import (
-    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+    RESOURCE_ALIASES, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
     JsonPatch, RetVal,
 )
 
@@ -32,6 +32,19 @@ def parse_commandline_args():
       {name} patch
     ''')
 
+    def _validate_kind(kind):
+        """Convert resource `kind` from aliases to canonical name.
+        For instance, `svc` -> `Service`.
+        """
+        kind = kind.lower()
+        out = [
+            canonical for canonical, aliases in RESOURCE_ALIASES.items()
+            if kind in aliases
+        ]
+        if len(out) != 1:
+            raise argparse.ArgumentTypeError(kind)
+        return out[0]
+
     # A dummy top level parser that will become the parent for all sub-parsers
     # to share all its arguments.
     parent = argparse.ArgumentParser(
@@ -45,17 +58,17 @@ def parse_commandline_args():
              " -v: WARNING -vv: INFO -vvv: DEBUG."
     )
     parent.add_argument(
-        "--folder", type=str, default="./manifests/",
-        help="Manifest folder (defaults to './manifests')"
+        "-n", type=str, nargs="*",
+        metavar="ns", dest="namespaces",
+        help="List of namespaces (omit to operate in all namespaces)",
     )
     parent.add_argument(
-        "--namespace", type=str, nargs="*",
-        metavar="ns", dest="namespaces",
-        help=None,
+        "--folder", type=str, default="./manifests/",
+        help="Manifest folder (defaults='./manifests')"
     )
     parent.add_argument(
         "--kubeconfig", type=str, metavar="path", default="~/.kube/config",
-        help="Location of kubeconfig file (defaults to ~/kube/config).",
+        help="Location of kubeconfig file (default='~/kube/config').",
     )
 
     # The primary parser for the top level options (eg GET, PATCH, ...).
@@ -69,10 +82,10 @@ def parse_commandline_args():
     # specify this one individually and here we define the kwargs to reduce
     # duplicate code.
     kinds_kwargs = {
-        "dest": "kind",
-        "type": str,
+        "dest": "kinds",
+        "type": _validate_kind,
         "nargs": '+',
-        "choices": [_.lower() for _ in SUPPORTED_KINDS],
+        "metavar": "resource",
     }
 
     # Sub-command GET.
@@ -609,11 +622,11 @@ def main():
 
     # Do what user asked us to do.
     if param.parser == "get":
-        _, err = main_get(config, client, param.folder, param.kind, param.namespaces)
+        _, err = main_get(config, client, param.folder, param.kinds, param.namespaces)
     elif param.parser == "diff":
-        _, err = main_diff(config, client, param.folder, param.kind, param.namespaces)
+        _, err = main_diff(config, client, param.folder, param.kinds, param.namespaces)
     elif param.parser == "patch":
-        _, err = main_patch(config, client, param.folder, param.kind, param.namespaces)
+        _, err = main_patch(config, client, param.folder, param.kinds, param.namespaces)
     else:
         logit.error(f"Unknown command <{param.parser}>")
         err = True

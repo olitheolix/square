@@ -5,6 +5,22 @@ from collections import namedtuple
 SUPPORTED_KINDS = (
     "Namespace", "ConfigMap", "Secret", "Service", "Deployment", "Ingress",
 )
+
+# Declare aliases for each resource type. Will be used in command line parsing
+# to save the user some typing and match what `kubectl` would accept. We do not
+# need to worry about capitalisation because `square.parse_commandline_args`
+# will always convert everything to lower case letters first.
+RESOURCE_ALIASES = {
+    "Namespace": {"namespace", "namespaces", "ns"},
+    "ConfigMap": {"configmap", "cm"},
+    "Ingress": {"ingress", "ingresses", "ing"},
+    "Secret": {"secret", "secrets"},
+    "Service": {"service", "services", "svc"},
+    "Deployment": {"deployment", "deployments", "deploy"},
+}
+# Sanity check: we must have aliases for every supported resource kind.
+assert set(SUPPORTED_KINDS) == set(RESOURCE_ALIASES.keys())
+
 SUPPORTED_VERSIONS = ("1.9", "1.10")
 
 Config = namedtuple('Config', 'url token ca_cert client_cert version')
