@@ -7,7 +7,6 @@ import pytest
 import requests_mock
 import square
 from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config
-from k8s import RetVal
 
 
 @pytest.fixture
@@ -53,7 +52,7 @@ class TestK8sDeleteGetPatchPost:
         # Verify that the function makes the correct request and returns the
         # expected result and HTTP status code.
         ret = k8s.request(client, method, url, payload, headers)
-        assert ret == RetVal(response, status_code)
+        assert ret == (response, status_code)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     def test_request_err_json(self, method, m_requests):
@@ -73,7 +72,7 @@ class TestK8sDeleteGetPatchPost:
 
         # Test function must not return a response but indicate an error.
         ret = k8s.request(client, method, url, None, None)
-        assert ret == RetVal(None, True)
+        assert ret == (None, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     def test_request_connection_err(self, method, m_requests):
@@ -91,7 +90,7 @@ class TestK8sDeleteGetPatchPost:
         # Simulate a connection error during the request to K8s.
         m_requests.request(method, url, exc=exc)
         ret = k8s.request(client, method, url, None, None)
-        assert ret == RetVal(None, True)
+        assert ret == (None, True)
 
     @mock.patch.object(k8s, "request")
     def test_delete_get_patch_post_ok(self, m_req):
@@ -113,27 +112,27 @@ class TestK8sDeleteGetPatchPost:
         # because of grace periods).
         for code in (200, 202):
             m_req.reset_mock()
-            m_req.return_value = RetVal(response, 202)
-            assert k8s.delete(client, path, payload) == RetVal(response, False)
+            m_req.return_value = (response, 202)
+            assert k8s.delete(client, path, payload) == (response, False)
             m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
 
         # K8s GET request was successful iff its return status is 200.
         m_req.reset_mock()
-        m_req.return_value = RetVal(response, 200)
-        assert k8s.get(client, path) == RetVal(response, False)
+        m_req.return_value = (response, 200)
+        assert k8s.get(client, path) == (response, False)
         m_req.assert_called_once_with(client, "GET", path, payload=None, headers=None)
 
         # K8s PATCH request was successful iff its return status is 200.
         m_req.reset_mock()
-        m_req.return_value = RetVal(response, 200)
-        assert k8s.patch(client, path, payload) == RetVal(response, False)
+        m_req.return_value = (response, 200)
+        assert k8s.patch(client, path, payload) == (response, False)
         patch_headers = {'Content-Type': 'application/json-patch+json'}
         m_req.assert_called_once_with(client, "PATCH", path, payload, patch_headers)
 
         # K8s POST request was successful iff its return status is 201.
         m_req.reset_mock()
-        m_req.return_value = RetVal(response, 201)
-        assert k8s.post(client, path, payload) == RetVal(response, False)
+        m_req.return_value = (response, 201)
+        assert k8s.post(client, path, payload) == (response, False)
         m_req.assert_called_once_with(client, "POST", path, payload, headers=None)
 
     @mock.patch.object(k8s, "request")
@@ -153,27 +152,27 @@ class TestK8sDeleteGetPatchPost:
 
         # K8s DELETE request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
-        m_req.return_value = RetVal(response, 400)
-        assert k8s.delete(client, path, payload) == RetVal(response, True)
+        m_req.return_value = (response, 400)
+        assert k8s.delete(client, path, payload) == (response, True)
         m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
 
         # K8s GET request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
-        m_req.return_value = RetVal(response, 400)
-        assert k8s.get(client, path) == RetVal(response, True)
+        m_req.return_value = (response, 400)
+        assert k8s.get(client, path) == (response, True)
         m_req.assert_called_once_with(client, "GET", path, payload=None, headers=None)
 
         # K8s PATCH request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
-        m_req.return_value = RetVal(response, 400)
-        assert k8s.patch(client, path, payload) == RetVal(response, True)
+        m_req.return_value = (response, 400)
+        assert k8s.patch(client, path, payload) == (response, True)
         patch_headers = {'Content-Type': 'application/json-patch+json'}
         m_req.assert_called_once_with(client, "PATCH", path, payload, patch_headers)
 
         # K8s POST request was unsuccessful because its returns status is not 201.
         m_req.reset_mock()
-        m_req.return_value = RetVal(response, 400)
-        assert k8s.post(client, path, payload) == RetVal(response, True)
+        m_req.return_value = (response, 400)
+        assert k8s.post(client, path, payload) == (response, True)
         m_req.assert_called_once_with(client, "POST", path, payload, headers=None)
 
 
@@ -196,7 +195,7 @@ class TestK8sConfig:
             'goVersion': 'go1.9.3',
             'compiler': 'gc', 'platform': 'linux/amd64'
         }
-        m_get.return_value = RetVal(response, None)
+        m_get.return_value = (response, None)
 
         # Create vanilla `Config` instance.
         m_client = mock.MagicMock()
@@ -227,10 +226,10 @@ class TestK8sConfig:
         config = Config("url", "token", "ca_cert", "client_cert", None)
 
         # Simulate an error in `get`.
-        m_get.return_value = RetVal(None, True)
+        m_get.return_value = (None, True)
 
         # Test function must abort gracefully.
-        assert k8s.version(config, m_client) == RetVal(None, True)
+        assert k8s.version(config, m_client) == (None, True)
 
 
 class TestUrlPathBuilder:
@@ -269,11 +268,11 @@ class TestUrlPathBuilder:
             cfg = Config("url", "token", "ca_cert", "client_cert", version)
 
             # Invalid resource kind.
-            assert k8s.urlpath(cfg, "fooresource", "ns") == RetVal(None, True)
+            assert k8s.urlpath(cfg, "fooresource", "ns") == (None, True)
 
             # Namespace names must be all lower case (K8s imposes this)...
-            assert k8s.urlpath(cfg, "Deployment", "namEspACe") == RetVal(None, True)
+            assert k8s.urlpath(cfg, "Deployment", "namEspACe") == (None, True)
 
         # Invalid version.
         cfg = Config("url", "token", "ca_cert", "client_cert", "invalid")
-        assert k8s.urlpath(cfg, "Deployment", "valid-ns") == RetVal(None, True)
+        assert k8s.urlpath(cfg, "Deployment", "valid-ns") == (None, True)
