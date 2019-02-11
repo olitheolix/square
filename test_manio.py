@@ -8,7 +8,7 @@ import manio
 import schemas
 import square
 import yaml
-from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Manifests, MetaManifest
+from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, MetaManifest
 from k8s import urlpath
 from test_helpers import make_manifest, mk_deploy
 
@@ -826,12 +826,12 @@ class TestYamlManifestIOIntegration:
             "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
             "foo/m1.yaml": [(meta[2], dply[2])],
         }
-        expected = Manifests(manio.unpack(man_files)[0], man_files)
+        expected = (manio.unpack(man_files)[0], man_files)
         del dply, meta
 
         # Save the test data, then load it back and verify.
         assert manio.save(tmp_path, man_files) == (None, False)
-        assert manio.load(tmp_path) == (expected, False)
+        assert manio.load(tmp_path) == (*expected, False)
 
         # Glob the folder and ensure it contains exactly the files specified in
         # the `fdata_test_in` dict.
@@ -841,7 +841,7 @@ class TestYamlManifestIOIntegration:
         # Create non-YAML files. The `load_files` function must skip those.
         (tmp_path / "delme.txt").touch()
         (tmp_path / "foo" / "delme.txt").touch()
-        assert manio.load(tmp_path) == (expected, False)
+        assert manio.load(tmp_path) == (*expected, False)
 
     def test_save_delete_stale_yaml(self, tmp_path):
         """`save_file` must remove all excess YAML files."""
@@ -856,12 +856,12 @@ class TestYamlManifestIOIntegration:
             "bar/m4.yaml": [(meta[4], dply[4])],
             "bar/m5.yaml": [(meta[5], dply[5])],
         }
-        expected = Manifests(manio.unpack(man_files)[0], man_files)
+        expected = (manio.unpack(man_files)[0], man_files)
         del dply, meta
 
         # Save and load the test data.
         assert manio.save(tmp_path, man_files) == (None, False)
-        assert manio.load(tmp_path) == (expected, False)
+        assert manio.load(tmp_path) == (*expected, False)
 
         # Save a reduced set of files. Compared to `fdata_full`, it is two
         # files short and a third one ("bar/m4.yaml") is empty.
@@ -869,7 +869,7 @@ class TestYamlManifestIOIntegration:
         del fdata_reduced["m0.yaml"]
         del fdata_reduced["foo/m3.yaml"]
         fdata_reduced["bar/m4.yaml"] = []
-        expected = Manifests(manio.unpack(fdata_reduced)[0], fdata_reduced)
+        expected = (manio.unpack(fdata_reduced)[0], fdata_reduced)
 
         # Verify that the files still exist from the last call to `save`.
         assert (tmp_path / "m0.yaml").exists()
@@ -882,7 +882,7 @@ class TestYamlManifestIOIntegration:
         # Load the data. It must neither contain the files we removed from the
         # dict above, nor "bar/m4.yaml" which contained an empty manifest list.
         del fdata_reduced["bar/m4.yaml"]
-        assert manio.load(tmp_path) == (expected, False)
+        assert manio.load(tmp_path) == (*expected, False)
 
         # Verify that the files physically do not exist anymore.
         assert not (tmp_path / "m0.yaml").exists()
@@ -893,7 +893,7 @@ class TestYamlManifestIOIntegration:
     def test_load_err(self, m_load, tmp_path):
         """Simulate an error in `load_files` function."""
         m_load.return_value = (None, True)
-        assert manio.load(tmp_path) == (None, True)
+        assert manio.load(tmp_path) == (None, None, True)
 
     @mock.patch.object(manio, "unparse")
     def test_save_err(self, m_unparse, tmp_path):

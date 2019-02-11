@@ -599,7 +599,7 @@ def load(folder: Filepath):
         return (None, True)
 
     # Return the file based manifests and unpacked manifests.
-    return (Manifests(man_meta, man_files), False)
+    return (man_meta, man_files, False)
 
 
 def save(folder: Filepath, manifests: LocalManifestLists) -> Tuple[None, bool]:

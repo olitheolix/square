@@ -8,7 +8,7 @@ import manio
 import pytest
 import square
 from dtypes import (
-    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, JsonPatch, Manifests,
+    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, JsonPatch,
     MetaManifest,
 )
 from k8s import urlpath
@@ -650,7 +650,7 @@ class TestMainOptions:
 
         # Pretend that all K8s requests succeed.
         m_down.return_value = ("srv", False)
-        m_load.return_value = (Manifests("foo", "bar"), False)
+        m_load.return_value = ("foo", "bar", False)
         m_prun.side_effect = ["local", "server"]
         m_plan.return_value = (plan, False)
         m_post.return_value = (None, False)
@@ -698,7 +698,7 @@ class TestMainOptions:
         assert square.main_patch(*args) == (None, True)
 
         # Make `load` fail.
-        m_load.return_value = (None, True)
+        m_load.return_value = (None, None, True)
         assert square.main_patch(*args) == (None, True)
 
     @mock.patch.object(manio, "load")
@@ -717,7 +717,7 @@ class TestMainOptions:
         plan = DeploymentPlan(create=[], patch=[], delete=[])
 
         # All auxiliary functions will succeed.
-        m_load.return_value = (Manifests("foo", "bar"), False)
+        m_load.return_value = ("foo", "bar", False)
         m_down.return_value = ("server-dl", False)
         m_prune.side_effect = ["local", "server"]
         m_plan.return_value = (plan, False)
@@ -741,7 +741,7 @@ class TestMainOptions:
         assert square.main_diff(*args) == (None, True)
 
         # Make `load` fail.
-        m_load.return_value = (None, True)
+        m_load.return_value = (None, None, True)
         assert square.main_diff(*args) == (None, True)
 
     @mock.patch.object(manio, "load")
@@ -758,7 +758,7 @@ class TestMainOptions:
 
         """
         # Simulate successful responses from the two auxiliary functions.
-        m_load.return_value = (Manifests("foo", "files"), False)
+        m_load.return_value = ("foo", "files", False)
         m_down.return_value = ("server-dl", False)
         m_prun.return_value = "server"
         m_sync.return_value = ("synced", False)
@@ -788,7 +788,7 @@ class TestMainOptions:
         assert square.main_get(*args) == (None, True)
 
         # Simulate an error in `load`.
-        m_load.return_value = (None, True)
+        m_load.return_value = (None, None, True)
         assert square.main_get(*args) == (None, True)
 
 
