@@ -630,7 +630,7 @@ def main_get(
     return (None, False)
 
 
-def main():
+def main() -> int:
     param = parse_commandline_args()
 
     # Initialise logging.
@@ -639,13 +639,18 @@ def main():
     # Create a `requests` client with proper security certificates to access
     # K8s API.
     kubeconfig = os.path.expanduser(param.kubeconfig)
-    config = k8s.load_auto_config(kubeconfig, disable_warnings=True)
-    client = k8s.session(config)
+    try:
+        config = k8s.load_auto_config(kubeconfig, disable_warnings=True)
+        assert config
 
-    # Update the config with the correct K8s API version.
-    config, err = k8s.version(config, client)
-    if err:
-        sys.exit(1)
+        client = k8s.session(config)
+        assert client
+
+        # Update the config with the correct K8s API version.
+        config, err = k8s.version(config, client)
+        assert not err and config
+    except AssertionError:
+        return 1
 
     # Do what user asked us to do.
     if param.parser == "get":
@@ -660,8 +665,10 @@ def main():
 
     # Abort with non-zero exit code if there was an error.
     if err:
-        sys.exit(1)
+        return 1
+
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

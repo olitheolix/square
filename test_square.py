@@ -841,13 +841,13 @@ class TestMain:
         with mock.patch("sys.argv", ["square.py"]):
             with pytest.raises(SystemExit) as err:
                 square.main()
-            assert err.value.code != 0
+            assert err.value.code == 2
 
         # Pass an invalid option.
         with mock.patch("sys.argv", ["square.py", "invalid-option"]):
             with pytest.raises(SystemExit) as err:
                 square.main()
-            assert err.value.code != 0
+            assert err.value.code == 2
 
     @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "main_get")
@@ -875,7 +875,7 @@ class TestMain:
             with mock.patch("sys.argv", ["square.py", option]):
                 with pytest.raises(SystemExit) as err:
                     square.main()
-                assert err.value.code != 0
+                assert err.value.code == 2
 
     @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "parse_commandline_args")
@@ -895,26 +895,19 @@ class TestMain:
         m_cmd.return_value = types.SimpleNamespace(
             verbosity=0, parser="invalid", kubeconfig="conf"
         )
+        assert square.main() == 1
 
-        # Simulate all input options.
-        with pytest.raises(SystemExit) as err:
-            square.main()
-        assert err.value.code != 0
-
-    @mock.patch("sys.argv", ["square.py", "get"])
     @mock.patch.object(square, "k8s")
     def test_main_version_error(self, m_k8s):
         """Program must abort if it cannot download the K8s version."""
         # Mock all calls to the K8s API.
         m_k8s.version.return_value = (None, True)
 
-        # Simulate all input options.
-        with pytest.raises(SystemExit) as err:
-            square.main()
-        assert err.value.code != 0
+        with mock.patch("sys.argv", ["square.py", "get", "deploy"]):
+            assert square.main() == 1
 
     def test_argparse(self):
+        """Verify the resource names will be correctly expanded."""
         with mock.patch("sys.argv", ["square.py", "get", "deploy", "svc"]):
             ret = square.parse_commandline_args()
-
             assert ret.kinds == ["Deployment", "Service"]
