@@ -204,7 +204,7 @@ class TestK8sConfig:
         # Test function must contact the K8s API and return a `Config` tuple
         # with the correct version number.
         config2, err = k8s.version(config, client=m_client)
-        assert err is None
+        assert err is False
         assert isinstance(config2, k8s.Config)
         assert config2.version == "1.10"
 
