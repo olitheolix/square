@@ -1,4 +1,8 @@
-def make_manifest(kind: str, namespace: str, name: str):
+from typing import Any, Dict
+
+
+def make_manifest(kind: str, namespace: str, name: str) -> dict:
+    manifest: Dict[str, Any]
     manifest = {
         'apiVersion': 'v1',
         'kind': kind,
@@ -23,5 +27,5 @@ def make_manifest(kind: str, namespace: str, name: str):
     return manifest
 
 
-def mk_deploy(name: str, ns: str = "namespace"):
+def mk_deploy(name: str, ns: str = "namespace") -> dict:
     return make_manifest("Deployment", ns, name)
