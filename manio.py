@@ -3,7 +3,7 @@ import copy
 import difflib
 import logging
 import pathlib
-from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple, Union
+from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple
 
 import dotdict
 import k8s
@@ -223,7 +223,7 @@ def sync(
         local_manifests: LocalManifestLists,
         server_manifests: ServerManifests,
         kinds: Iterable[str],
-        namespaces: Union[None, Iterable[str]]
+        namespaces: Optional[Iterable[str]]
 ) -> Tuple[Optional[LocalManifestLists], bool]:
     """Update the local manifests with the server values and return the result.
 
@@ -631,7 +631,7 @@ def download(
         config: Config,
         client,
         kinds: Iterable[str],
-        namespaces: Union[None, Iterable[Union[str]]]
+        namespaces: Optional[Iterable[str]]
 ) -> Tuple[Optional[ServerManifests], bool]:
     """Download and return the specified resource `kinds`.
 
@@ -655,7 +655,7 @@ def download(
     server_manifests = {}
 
     # Ensure `namespaces` is always a list to avoid special casing below.
-    all_namespaces: Iterable[Union[None, str]]
+    all_namespaces: Iterable[Optional[str]]
     if namespaces is None:
         all_namespaces = [None]
     else:
