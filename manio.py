@@ -3,18 +3,22 @@ import copy
 import difflib
 import logging
 import pathlib
+from typing import Dict, Iterable, Tuple, Union
 
 import dotdict
 import k8s
 import schemas
 import yaml
-from dtypes import SUPPORTED_KINDS, Manifests, MetaManifest, RetVal
+from dtypes import (
+    SUPPORTED_KINDS, Config, Filepath, LocalManifests, Manifests, MetaManifest,
+    RetVal, ServerManifests,
+)
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
 
 
-def make_meta(manifest: dict):
+def make_meta(manifest: dict) -> MetaManifest:
     """Compile `MetaManifest` information from `manifest` and return it."""
     # Unpack the namespace. For Namespace resources, this will be the "name".
     if manifest["kind"] == "Namespace":
@@ -31,7 +35,7 @@ def make_meta(manifest: dict):
     )
 
 
-def unpack_list(manifest_list: dict):
+def unpack_list(manifest_list: dict) -> ServerManifests:
     """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
 
     Return a dictionary where each key uniquely identifies the resource via a
@@ -71,15 +75,15 @@ def unpack_list(manifest_list: dict):
     return RetVal(manifests, False)
 
 
-def parse(file_yaml: dict):
+def parse(file_yaml: Dict[Filepath, str]) -> Tuple[LocalManifests, bool]:
     """Parse all YAML strings in `file_yaml` and return result.
 
     Inputs:
-        file_yaml: Dict[Filename, str]
+        file_yaml: Dict[Filepath, str]
             Raw data as returned by `load_files`.
 
     Returns:
-        Dict[Filename, Tuple(MetaManifest, dict)]: YAML parsed manifests in
+        Dict[Filepath, Tuple(MetaManifest, dict)]: YAML parsed manifests in
         each file.
 
     """
@@ -112,14 +116,14 @@ def parse(file_yaml: dict):
     return RetVal(out, False)
 
 
-def unpack(data: dict):
-    """Drop the "Filename" dimension from `data`.
+def unpack(data: LocalManifests) -> ServerManifests:
+    """Drop the "Filepath" dimension from `data`.
 
     Returns an error unless all resources are unique. For instance, return an
     error if two files define the same namespace or the same deployment.
 
     Inputs:
-        data: Dict[Filename, Tuple[MetaManifest, dict]]
+        data: Dict[Filepath, Tuple[MetaManifest, dict]]
 
     Returns:
         Dict[MetaManifest, dict]: flattened version of `data`.
@@ -151,17 +155,17 @@ def unpack(data: dict):
     return RetVal(out, False)
 
 
-def unparse(file_manifests):
+def unparse(file_manifests: LocalManifests) -> Tuple[Dict[Filepath, str], bool]:
     """Convert the Python dict to a Yaml string for each file and return it.
 
     The output dict can be passed directly to `save_files` to write the files.
 
     Inputs:
-        file_manifests: Dict[Filename:Tuple[MetaManifest, manifest]]
+        file_manifests: Dict[Filepath:Tuple[MetaManifest, manifest]]
             Typically the output from eg `manio.sync`.
 
     Returns:
-        Dict[Filename:YamlStr]: Yaml representation of all manifests.
+        Dict[Filepath:YamlStr]: Yaml representation of all manifests.
 
     """
     out = {}
@@ -181,7 +185,7 @@ def unparse(file_manifests):
         assert len(man_sorted) == len(manifests)
 
         # Drop the MetaManifest, ie
-        # Dict[Filename:Tuple[MetaManifest, manifest]] -> Dict[Filename:manifest]
+        # Dict[Filepath:Tuple[MetaManifest, manifest]] -> Dict[Filepath:manifest]
         man_clean = [manifest for _, manifest in man_sorted]
 
         # Assign the grouped and sorted list of manifests to the output dict.
@@ -206,15 +210,19 @@ def unparse(file_manifests):
         )
         return RetVal(None, True)
 
-    # Return the Dict[Filename:YamlStr]
+    # Return the Dict[Filepath:YamlStr]
     return RetVal(out, False)
 
 
-def sync(local_manifests, server_manifests, kinds, namespaces):
+def sync(
+        local_manifests: LocalManifests,
+        server_manifests: ServerManifests,
+        kinds: Iterable[str],
+        namespaces: Union[None, Iterable[str]]) -> LocalManifests:
     """Update the local manifests with the server values and return the result.
 
     Inputs:
-        local_manifests: Dict[Filename, Tuple[MetaManifest, dict]]
+        local_manifests: Dict[Filepath, Tuple[MetaManifest, dict]]
         server_manifests: Dict[MetaManifest, dict]
         kinds: Iterable
             Resource types to fetch, eg ["Deployment", "Namespace"]
@@ -222,7 +230,7 @@ def sync(local_manifests, server_manifests, kinds, namespaces):
             Set to None to load all namespaces.
 
     Returns:
-        Dict[Filename, Tuple[MetaManifest, dict]]
+        Dict[Filepath, Tuple[MetaManifest, dict]]
 
     """
     # Sanity check: all `kinds` must be supported or we abort.
@@ -304,14 +312,17 @@ def sync(local_manifests, server_manifests, kinds, namespaces):
     return RetVal(out_add_mod_del, False)
 
 
-def diff(config, local: dict, server: dict):
+def diff(
+        config: Config,
+        local: LocalManifests,
+        server: ServerManifests) -> Tuple[str, bool]:
     """Return the human readable diff between the `local` and `server`.
 
     The diff shows the necessary changes to transition the `server` manifest
     into the state of the `local` manifest.
 
     Inputs:
-        config: k8s.Config
+        config: Config
         local: dict
             Local manifest.
         server: dict
@@ -341,7 +352,7 @@ def diff(config, local: dict, server: dict):
     return RetVal(str.join("\n", diff_lines), False)
 
 
-def strip(config, manifest):
+def strip(config: Config, manifest: dict) -> dict:
     """Return stripped version of `manifest` with only the essential keys.
 
     The "essential" keys for each supported resource type are defined in the
@@ -350,7 +361,7 @@ def strip(config, manifest):
     information like "metadata.creationTimestamp" or "status".
 
     Inputs:
-        config: k8s.Config
+        config: Config
         manifest: dict
 
     Returns:
@@ -445,26 +456,26 @@ def strip(config, manifest):
         return RetVal(dotdict.make(stripped), False)
 
 
-def save_files(base_path, file_data: dict):
-    """Save all `file_data` under `base_path`.
+def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> Tuple[None, bool]:
+    """Save all `file_data` under `folder`.
 
-    All paths in `file_data` are relative to `base_path`.
+    All paths in `file_data` are relative to `folder`.
 
     Inputs:
-        base_path: Path
-        file_data: Dict[Filename, str]
-            The file name (relative to `base_path`) and its content.
+        folder: Filepath
+        file_data: Dict[Filepath, str]
+            The file name (relative to `folder`) and its content.
 
     Returns:
         None
 
     """
     # Python's `pathlib.Path` objects are simply nicer to work with...
-    base_path = pathlib.Path(base_path)
+    folder = pathlib.Path(folder)
 
-    # Delete all YAML files under `base_path`. This avoids stale manifests.
+    # Delete all YAML files under `folder`. This avoids stale manifests.
     try:
-        for fp in base_path.rglob("*.yaml"):
+        for fp in folder.rglob("*.yaml"):
             logit.info(f"Removing stale <{fp}>")
             fp.unlink()
     except (IOError, PermissionError) as err:
@@ -478,7 +489,7 @@ def save_files(base_path, file_data: dict):
             continue
 
         # Construct absolute file path.
-        fname_abs = base_path / fname
+        fname_abs = folder / fname
         logit.debug(f"Creating path for <{fname}>")
 
         # Create the parent directories and write the file. Abort on error.
@@ -494,33 +505,35 @@ def save_files(base_path, file_data: dict):
     return RetVal(None, False)
 
 
-def load_files(base_path, fnames: tuple):
-    """Load all `fnames` relative `base_path`.
+def load_files(
+        folder: Filepath,
+        fnames: Iterable[Filepath]) -> Tuple[Dict[Filepath, str], bool]:
+    """Load all `fnames` relative `folder`.
 
     The elements of `fname` can have sub-paths, eg `foo/bar/file.txt` is valid
-    and would ultimately open f"{base_path}/foo/bar/file.txt".
+    and would ultimately open f"{folder}/foo/bar/file.txt".
 
     Either returns the content of all files or returns with an error and no
     data. It will not return only a sub-set of the files.
 
     Inputs:
-        base_path: Path
+        folder: Path
         fnames: Iterable[str|Path]
-            The file names relative to `base_path`.
+            The file names relative to `folder`.
 
     Returns:
-        Dict[Filename, str]: the file names (relative to `base_path`) and their
+        Dict[Filepath, str]: the file names (relative to `folder`) and their
         content as a string.
 
     """
     # Python's `pathlib.Path` objects are simply nicer to work with...
-    base_path = pathlib.Path(base_path)
+    folder = pathlib.Path(folder)
 
     # Load each file and store its name and content in the `out` dictionary.
     out = {}
     for fname_rel in fnames:
         # Construct absolute file path.
-        fname_abs = base_path / fname_rel
+        fname_abs = folder / fname_rel
         logit.debug(f"Loading {fname_abs}")
 
         # Read the file. Abort on error.
@@ -535,7 +548,7 @@ def load_files(base_path, fnames: tuple):
     return RetVal(out, False)
 
 
-def load(folder):
+def load(folder: Filepath):
     """Load all "*.yaml" files under `folder` (recursively).
 
     Ignores all files not ending in ".yaml".
@@ -551,7 +564,7 @@ def load(folder):
 
     Returns:
         Manifests(
-            Dict[Filename, Tuple(MetaManifest, dict)]
+            Dict[Filepath, Tuple(MetaManifest, dict)]
             Dict[MetaManifest, dict]
         )
 
@@ -572,7 +585,7 @@ def load(folder):
         man_files, err = parse(fdata_raw)
         assert not err
 
-        # Remove the Filename dimension.
+        # Remove the Filepath dimension.
         man_meta, err = unpack(man_files)
         assert not err
     except AssertionError:
@@ -582,7 +595,7 @@ def load(folder):
     return RetVal(Manifests(man_meta, man_files), False)
 
 
-def save(folder, manifests: dict):
+def save(folder: Filepath, manifests: LocalManifests) -> Tuple[None, bool]:
     """Convert all `manifests` to YAML and save them.
 
     Returns no data in the case of an error.
@@ -591,9 +604,9 @@ def save(folder, manifests: dict):
     create YAML string and save the files.
 
     Input:
-        folder: str|Path
+        folder: Filepath
             Source folder.
-        file_manifests: Dict[Filename, Tuple(MetaManifest, dict)]
+        file_manifests: Dict[Filepath, Tuple(MetaManifest, dict)]
             Names of files and their Python dicts to save as YAML.
 
     Returns:
@@ -612,7 +625,11 @@ def save(folder, manifests: dict):
     return save_files(folder, fdata_raw)
 
 
-def download(config, client, kinds, namespaces):
+def download(
+        config: Config,
+        client,
+        kinds: Iterable[str],
+        namespaces: Union[None, Iterable[str]]) -> Tuple[ServerManifests, bool]:
     """Download and return the specified resource `kinds`.
 
     Set `namespace` to None to download from all namespaces.
@@ -620,7 +637,7 @@ def download(config, client, kinds, namespaces):
     Either returns all the data or an error, never partial results.
 
     Inputs:
-        config: k8s.Config
+        config: Config
         client: `requests` session with correct K8s certificates.
         kinds: Iterable
             The resource kinds, eg ["Deployment", "Namespace"]
