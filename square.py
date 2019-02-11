@@ -481,8 +481,8 @@ def main_patch(
     """
     try:
         # Load manifests from local files.
-        local, err = manio.load(folder)
-        assert not err and local is not None
+        local_meta, local_files, err = manio.load(folder)
+        assert not err and local_meta and local_files
 
         # Download manifests from K8s.
         server, err = manio.download(config, client, kinds, namespaces)
@@ -491,7 +491,7 @@ def main_patch(
         # Prune the manifests to only include manifests for the specified
         # resources and namespaces. The pruning is not technically necessary
         # for the `server` manifests but does not hurt.
-        local = prune(local.meta, kinds, namespaces)
+        local = prune(local_meta, kinds, namespaces)
         server = prune(server, kinds, namespaces)
 
         # Create the deployment plan.
@@ -554,8 +554,8 @@ def main_diff(
     """
     try:
         # Load manifests from local files.
-        local, err = manio.load(folder)
-        assert not err and local
+        local_meta, local_files, err = manio.load(folder)
+        assert not err and local_meta and local_files
 
         # Download manifests from K8s.
         server, err = manio.download(config, client, kinds, namespaces)
@@ -564,7 +564,7 @@ def main_diff(
         # Prune the manifests to only include manifests for the specified
         # resources and namespaces. The pruning is not technically necessary
         # for the `server` manifests but does not hurt.
-        loc = prune(local.meta, kinds, namespaces)
+        loc = prune(local_meta, kinds, namespaces)
         srv = prune(server, kinds, namespaces)
 
         # Create deployment plan.
@@ -602,8 +602,8 @@ def main_get(
     """
     try:
         # Load manifests from local files.
-        local, err = manio.load(folder)
-        assert not err and local
+        local_meta, local_files, err = manio.load(folder)
+        assert not err and local_meta and local_files
 
         # Download manifests from K8s.
         server, err = manio.download(config, client, kinds, namespaces)
@@ -617,7 +617,7 @@ def main_get(
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see next step.
-        synced_manifests, err = manio.sync(local.files, server, kinds, namespaces)
+        synced_manifests, err = manio.sync(local_files, server, kinds, namespaces)
         assert not err and synced_manifests
 
         # Write the new manifest files.

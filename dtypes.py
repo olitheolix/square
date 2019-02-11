@@ -31,7 +31,6 @@ DeltaDelete = namedtuple("DeltaDelete", "meta url manifest")
 DeltaPatch = namedtuple("Delta", "meta diff patch")
 DeploymentPlan = namedtuple('DeploymentPlan', 'create patch delete')
 JsonPatch = namedtuple('Patch', 'url ops')
-Manifests = namedtuple('Manifests', 'meta files')
 MetaManifest = namedtuple('MetaManifest', 'apiVersion kind namespace name')
 
 
