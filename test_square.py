@@ -55,14 +55,14 @@ class TestBasic:
             MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
             MetaManifest('v1', 'Deployment', 'ns1', 'bar'),
         }
-        assert fun(man) == (man, None)
+        assert fun(man) == (man, True)
 
         # Two namespaces - neither is orphaned by definition.
         man = {
             MetaManifest('v1', 'Namespace', None, 'ns1'),
             MetaManifest('v1', 'Namespace', None, 'ns2'),
         }
-        assert fun(man) == (set(), None)
+        assert fun(man) == (set(), True)
 
         # Two deployments, only one of which is inside a defined Namespace.
         man = {
@@ -70,7 +70,7 @@ class TestBasic:
             MetaManifest('v1', 'Deployment', 'ns2', 'bar'),
             MetaManifest('v1', 'Namespace', None, 'ns1'),
         }
-        assert fun(man) == ({MetaManifest('v1', 'Deployment', 'ns2', 'bar')}, None)
+        assert fun(man) == ({MetaManifest('v1', 'Deployment', 'ns2', 'bar')}, True)
 
     def test_print_deltas(self):
         """Just verify it runs.

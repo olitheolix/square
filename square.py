@@ -5,7 +5,7 @@ import os
 import sys
 import textwrap
 from pprint import pprint
-from typing import Iterable, Set, Tuple, Union
+from typing import Iterable, Optional, Set, Tuple, Union
 
 import colorama
 import jsonpatch
@@ -14,8 +14,7 @@ import manio
 import yaml
 from dtypes import (
     RESOURCE_ALIASES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, Filepath, JsonPatch, LocalManifests, MetaManifest,
-    ServerManifests,
+    DeploymentPlan, Filepath, JsonPatch, MetaManifest, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -114,8 +113,8 @@ def parse_commandline_args():
 
 def make_patch(
         config: Config,
-        local: LocalManifests,
-        server: ServerManifests) -> Tuple[JsonPatch, bool]:
+        local: ServerManifests,
+        server: ServerManifests) -> Tuple[Optional[JsonPatch], bool]:
     """Return JSON patch to transition `server` to `local`.
 
     Inputs:
@@ -130,38 +129,38 @@ def make_patch(
     """
     # Reduce local and server manifests to salient fields (ie apiVersion, kind,
     # metadata and spec). Abort on error.
-    local, err1 = manio.strip(config, local)
-    server, err2 = manio.strip(config, server)
-    if err1 or err2:
+    loc, err1 = manio.strip(config, local)
+    srv, err2 = manio.strip(config, server)
+    if err1 or err2 or loc is None or srv is None:
         return (None, True)
 
     # Sanity checks: abort if the manifests do not specify the same resource.
     try:
-        assert server.apiVersion == local.apiVersion
-        assert server.kind == local.kind
-        assert server.metadata.name == local.metadata.name
-        if server.kind != "Namespace":
-            assert server.metadata.namespace == local.metadata.namespace
+        assert srv.apiVersion == loc.apiVersion
+        assert srv.kind == loc.kind
+        assert srv.metadata.name == loc.metadata.name
+        if srv.kind != "Namespace":
+            assert srv.metadata.namespace == loc.metadata.namespace
     except AssertionError:
         # Log the invalid manifests and return with an error.
         keys = ("apiVersion", "kind", "metadata")
-        local = {k: local[k] for k in keys}
-        server = {k: server[k] for k in keys}
+        loc_tmp = {k: loc[k] for k in keys}
+        srv_tmp = {k: srv[k] for k in keys}
         logit.error(
             "Cannot compute JSON patch for incompatible manifests. "
-            f"Local: <{local}>  Server: <{server}>"
+            f"Local: <{loc_tmp}>  Server: <{srv_tmp}>"
         )
         return (None, True)
 
     # Determine the PATCH URL for the resource.
-    namespace = server.metadata.namespace if server.kind != "Namespace" else None
-    url, err = k8s.urlpath(config, server.kind, namespace)
+    namespace = srv.metadata.namespace if srv.kind != "Namespace" else None
+    url, err = k8s.urlpath(config, srv.kind, namespace)
     if err:
         return (None, True)
-    full_url = f'{url}/{server.metadata.name}'
+    full_url = f'{url}/{srv.metadata.name}'
 
     # Compute JSON patch.
-    patch = jsonpatch.make_patch(server, local)
+    patch = jsonpatch.make_patch(srv, loc)
     patch = json.loads(patch.to_string())
 
     # Return the patch.
@@ -169,8 +168,8 @@ def make_patch(
 
 
 def partition_manifests(
-        local: LocalManifests,
-        server: ServerManifests) -> Tuple[DeploymentPlan, bool]:
+        local: ServerManifests,
+        server: ServerManifests) -> Tuple[Optional[DeploymentPlan], bool]:
     """Compile `{local,server}` into CREATE, PATCH and DELETE groups.
 
     The returned deployment plan will contain *every* resource in
@@ -201,19 +200,19 @@ def partition_manifests(
 
     # Convert the sets to list. Preserve the relative element ordering as it
     # was in `{local_server}`.
-    create = [_ for _ in local if _ in create]
-    patch = [_ for _ in local if _ in patch]
-    delete = [_ for _ in server if _ in delete]
+    create_l = [_ for _ in local if _ in create]
+    patch_l = [_ for _ in local if _ in patch]
+    delete_l = [_ for _ in server if _ in delete]
 
     # Return the deployment plan.
-    plan = DeploymentPlan(create, patch, delete)
+    plan = DeploymentPlan(create_l, patch_l, delete_l)
     return (plan, False)
 
 
 def compile_plan(
         config: Config,
-        local: LocalManifests,
-        server: ServerManifests) -> Tuple[DeploymentPlan, bool]:
+        local: ServerManifests,
+        server: ServerManifests) -> Tuple[Optional[DeploymentPlan], bool]:
     """Return the `DeploymentPlan` to transition K8s to state of `local`.
 
     The deployment plan is a named tuple. It specifies which resources to
@@ -222,7 +221,7 @@ def compile_plan(
 
     Inputs:
         config: Config
-        local: LocalManifests
+        local: ServerManifests
             Should be output from `load_manifest` or `load`.
         server: ServerManifests
             Should be output from `manio.download`.
@@ -233,7 +232,7 @@ def compile_plan(
     """
     # Partition the set of meta manifests into create/delete/patch groups.
     plan, err = partition_manifests(local, server)
-    if err:
+    if err or not plan:
         return (None, True)
 
     # Sanity check: the resources to patch *must* exist in both local and
@@ -327,15 +326,15 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
             continue
 
         # Add some terminal colours to make it look prettier.
-        formatted_diff = []
+        colour_lines = []
         for line in delta.diff.splitlines():
             if line.startswith('+'):
-                formatted_diff.append(colorama.Fore.GREEN + line + colorama.Fore.RESET)
+                colour_lines.append(colorama.Fore.GREEN + line + colorama.Fore.RESET)
             elif line.startswith('-'):
-                formatted_diff.append(colorama.Fore.RED + line + colorama.Fore.RESET)
+                colour_lines.append(colorama.Fore.RED + line + colorama.Fore.RESET)
             else:
-                formatted_diff.append(line)
-        formatted_diff = str.join('\n', formatted_diff)
+                colour_lines.append(line)
+        formatted_diff = str.join('\n', colour_lines)
 
         name = f'{delta.meta.namespace}/{delta.meta.name}'
         print('-' * 80 + '\n' + f'{name.upper()}\n' + '-' * 80)
@@ -350,7 +349,8 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
 
 
 def find_namespace_orphans(
-        meta_manifests: Iterable[MetaManifest]) -> Tuple[Set[MetaManifest], bool]:
+        meta_manifests: Iterable[MetaManifest]
+) -> Tuple[Optional[Set[MetaManifest]], bool]:
     """Return all orphaned resources in the `meta_manifest` set.
 
     A resource is orphaned iff it lives in a namespace that is not explicitly
@@ -381,11 +381,11 @@ def find_namespace_orphans(
     }
 
     # Return the result.
-    return (orphans, None)
+    return (orphans, True)
 
 
-def setup_logging(level: int) -> None:
-    """Configure logging at `level`.
+def setup_logging(log_level: int) -> None:
+    """Configure logging at `log_level`.
 
     Level 0: ERROR
     Level 1: WARNING
@@ -393,18 +393,18 @@ def setup_logging(level: int) -> None:
     Level >=3: DEBUG
 
     Inputs:
-        level: int
+        log_level: int
 
     Returns:
         None
 
     """
     # Pick the correct log level.
-    if level == 0:
+    if log_level == 0:
         level = "ERROR"
-    elif level == 1:
+    elif log_level == 1:
         level = "WARNING"
-    elif level == 2:
+    elif log_level == 2:
         level = "INFO"
     else:
         level = "DEBUG"
@@ -426,7 +426,8 @@ def setup_logging(level: int) -> None:
 def prune(
         manifests: ServerManifests,
         kinds: Iterable[str],
-        namespaces: Union[None, Iterable[str]]) -> Tuple[ServerManifests, bool]:
+        namespaces: Union[None, Iterable[str]]
+) -> ServerManifests:
     """Return the `manifests` subset that meets the requirement.
 
     This is really just a glorified list comprehension without error
@@ -481,11 +482,11 @@ def main_patch(
     try:
         # Load manifests from local files.
         local, err = manio.load(folder)
-        assert not err
+        assert not err and local is not None
 
         # Download manifests from K8s.
         server, err = manio.download(config, client, kinds, namespaces)
-        assert not err
+        assert not err and server is not None
 
         # Prune the manifests to only include manifests for the specified
         # resources and namespaces. The pruning is not technically necessary
@@ -495,7 +496,7 @@ def main_patch(
 
         # Create the deployment plan.
         plan, err = compile_plan(config, local, server)
-        assert not err
+        assert not err and plan is not None
 
         # Present the plan confirm to go ahead with the user.
         print_deltas(plan)
@@ -554,21 +555,21 @@ def main_diff(
     try:
         # Load manifests from local files.
         local, err = manio.load(folder)
-        assert not err
+        assert not err and local
 
         # Download manifests from K8s.
         server, err = manio.download(config, client, kinds, namespaces)
-        assert not err
+        assert not err and server
 
         # Prune the manifests to only include manifests for the specified
         # resources and namespaces. The pruning is not technically necessary
         # for the `server` manifests but does not hurt.
-        local = prune(local.meta, kinds, namespaces)
-        server = prune(server, kinds, namespaces)
+        loc = prune(local.meta, kinds, namespaces)
+        srv = prune(server, kinds, namespaces)
 
         # Create deployment plan.
-        plan, err = compile_plan(config, local, server)
-        assert not err
+        plan, err = compile_plan(config, loc, srv)
+        assert not err and plan
     except AssertionError:
         return (None, True)
 
@@ -602,11 +603,11 @@ def main_get(
     try:
         # Load manifests from local files.
         local, err = manio.load(folder)
-        assert not err
+        assert not err and local
 
         # Download manifests from K8s.
         server, err = manio.download(config, client, kinds, namespaces)
-        assert not err
+        assert not err and server
 
         # Prune the manifests to only include manifests for the specified
         # resources and namespaces. This is not technically necessary
@@ -617,7 +618,7 @@ def main_get(
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see next step.
         synced_manifests, err = manio.sync(local.files, server, kinds, namespaces)
-        assert not err
+        assert not err and synced_manifests
 
         # Write the new manifest files.
         _, err = manio.save(folder, synced_manifests)
