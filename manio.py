@@ -3,15 +3,16 @@ import copy
 import difflib
 import logging
 import pathlib
-from typing import Dict, Iterable, Tuple, Union
+from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple, Union
 
 import dotdict
 import k8s
 import schemas
 import yaml
+import yaml.scanner
 from dtypes import (
-    SUPPORTED_KINDS, Config, Filepath, LocalManifests, Manifests, MetaManifest,
-    ServerManifests,
+    SUPPORTED_KINDS, Config, Filepath, LocalManifestLists, LocalManifests,
+    Manifests, MetaManifest, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -35,7 +36,7 @@ def make_meta(manifest: dict) -> MetaManifest:
     )
 
 
-def unpack_list(manifest_list: dict) -> Tuple[ServerManifests, bool]:
+def unpack_list(manifest_list: dict) -> Tuple[Optional[ServerManifests], bool]:
     """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
 
     Return a dictionary where each key uniquely identifies the resource via a
@@ -75,7 +76,7 @@ def unpack_list(manifest_list: dict) -> Tuple[ServerManifests, bool]:
     return (manifests, False)
 
 
-def parse(file_yaml: Dict[Filepath, str]) -> Tuple[LocalManifests, bool]:
+def parse(file_yaml: Dict[Filepath, str]) -> Tuple[Optional[LocalManifestLists], bool]:
     """Parse all YAML strings in `file_yaml` and return result.
 
     Inputs:
@@ -88,7 +89,7 @@ def parse(file_yaml: Dict[Filepath, str]) -> Tuple[LocalManifests, bool]:
 
     """
     # The output dict will have a list of tuples.
-    out = {}
+    out: LocalManifestLists = {}
 
     # Parse the YAML documents from every file.
     for fname, yaml_str in file_yaml.items():
@@ -116,7 +117,7 @@ def parse(file_yaml: Dict[Filepath, str]) -> Tuple[LocalManifests, bool]:
     return (out, False)
 
 
-def unpack(data: LocalManifests) -> Tuple[ServerManifests, bool]:
+def unpack(data: LocalManifestLists) -> Tuple[Optional[ServerManifests], bool]:
     """Drop the "Filepath" dimension from `data`.
 
     Returns an error unless all resources are unique. For instance, return an
@@ -132,7 +133,7 @@ def unpack(data: LocalManifests) -> Tuple[ServerManifests, bool]:
     # Compile a dict that shows which meta manifest was defined in which file.
     # We will use this information short to determine if any resources were
     # specified multiple times in either the same or different file.
-    all_meta = collections.defaultdict(list)
+    all_meta: DefaultDict[MetaManifest, list] = collections.defaultdict(list)
     for fname in data:
         for meta, _ in data[fname]:
             all_meta[meta].append(fname)
@@ -155,7 +156,9 @@ def unpack(data: LocalManifests) -> Tuple[ServerManifests, bool]:
     return (out, False)
 
 
-def unparse(file_manifests: LocalManifests) -> Tuple[Dict[Filepath, str], bool]:
+def unparse(
+        file_manifests: LocalManifestLists
+) -> Tuple[Optional[Dict[Filepath, str]], bool]:
     """Convert the Python dict to a Yaml string for each file and return it.
 
     The output dict can be passed directly to `save_files` to write the files.
@@ -179,7 +182,7 @@ def unparse(file_manifests: LocalManifests) -> Tuple[Dict[Filepath, str], bool]:
 
         # Group the manifests by their "kind", sort each group and compile a
         # new list of grouped and sorted manifests.
-        man_sorted = []
+        man_sorted: List[dict] = []
         for kind in SUPPORTED_KINDS:
             man_sorted += sorted([_ for _ in manifests if _[0].kind == kind])
         assert len(man_sorted) == len(manifests)
@@ -193,17 +196,19 @@ def unparse(file_manifests: LocalManifests) -> Tuple[Dict[Filepath, str], bool]:
         del fname, manifests, man_sorted, man_clean
 
     # Ignore all files whose manifest list is empty.
-    out = {k: v for k, v in out.items() if len(v) > 0}
+    out_nonempty = {k: v for k, v in out.items() if len(v) > 0}
+    del out
 
     # Ensure that all dicts are pure Python dicts or there will be problems
     # with the YAML generation below.
-    out_clean = {k: dotdict.undo(v) for k, v in out.items()}
+    out_clean = {k: dotdict.undo(v) for k, v in out_nonempty.items()}
+    del out_nonempty
 
     # Convert all manifest dicts into YAML strings.
-    out = {}
+    out_final: Dict[Filepath, str] = {}
     try:
         for fname, v in out_clean.items():
-            out[fname] = yaml.safe_dump_all(v, default_flow_style=False)
+            out_final[fname] = yaml.safe_dump_all(v, default_flow_style=False)
     except yaml.YAMLError as err:
         logit.error(
             f"YAML error. Cannot create <{fname}>: {err.args[0]} <{str(err.args[1])}>"
@@ -211,14 +216,15 @@ def unparse(file_manifests: LocalManifests) -> Tuple[Dict[Filepath, str], bool]:
         return (None, True)
 
     # Return the Dict[Filepath:YamlStr]
-    return (out, False)
+    return (out_final, False)
 
 
 def sync(
-        local_manifests: LocalManifests,
+        local_manifests: LocalManifestLists,
         server_manifests: ServerManifests,
         kinds: Iterable[str],
-        namespaces: Union[None, Iterable[str]]) -> Tuple[LocalManifests, bool]:
+        namespaces: Union[None, Iterable[str]]
+) -> Tuple[Optional[LocalManifestLists], bool]:
     """Update the local manifests with the server values and return the result.
 
     Inputs:
@@ -278,6 +284,7 @@ def sync(
 
     # Make a copy of the local manifests to avoid side effects for the caller.
     # Also put it into a default dict for convenience.
+    out_add_mod: DefaultDict[Filepath, List[Tuple[MetaManifest, dict]]]
     out_add_mod = collections.defaultdict(list)
     out_add_mod.update(copy.deepcopy(local_manifests))
     del local_manifests
@@ -315,7 +322,7 @@ def sync(
 def diff(
         config: Config,
         local: LocalManifests,
-        server: ServerManifests) -> Tuple[str, bool]:
+        server: ServerManifests) -> Tuple[Optional[str], bool]:
     """Return the human readable diff between the `local` and `server`.
 
     The diff shows the necessary changes to transition the `server` manifest
@@ -352,7 +359,7 @@ def diff(
     return (str.join("\n", diff_lines), False)
 
 
-def strip(config: Config, manifest: dict) -> Tuple[dict, bool]:
+def strip(config: Config, manifest: dict) -> Tuple[Optional[dotdict.DotDict], bool]:
     """Return stripped version of `manifest` with only the essential keys.
 
     The "essential" keys for each supported resource type are defined in the
@@ -507,7 +514,7 @@ def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> Tuple[None, 
 
 def load_files(
         folder: Filepath,
-        fnames: Iterable[Filepath]) -> Tuple[Dict[Filepath, str], bool]:
+        fnames: Iterable[Filepath]) -> Tuple[Optional[Dict[Filepath, str]], bool]:
     """Load all `fnames` relative `folder`.
 
     The elements of `fname` can have sub-paths, eg `foo/bar/file.txt` is valid
@@ -530,7 +537,7 @@ def load_files(
     folder = pathlib.Path(folder)
 
     # Load each file and store its name and content in the `out` dictionary.
-    out = {}
+    out: Dict[Filepath, str] = {}
     for fname_rel in fnames:
         # Construct absolute file path.
         fname_abs = folder / fname_rel
@@ -579,15 +586,15 @@ def load(folder: Filepath):
     try:
         # Load the files and abort on error.
         fdata_raw, err = load_files(folder, fnames)
-        assert not err
+        assert not err and fdata_raw is not None
 
         # Return the YAML parsed manifests.
         man_files, err = parse(fdata_raw)
-        assert not err
+        assert not err and man_files is not None
 
         # Remove the Filepath dimension.
         man_meta, err = unpack(man_files)
-        assert not err
+        assert not err and man_meta is not None
     except AssertionError:
         return (None, True)
 
@@ -595,7 +602,7 @@ def load(folder: Filepath):
     return (Manifests(man_meta, man_files), False)
 
 
-def save(folder: Filepath, manifests: LocalManifests) -> Tuple[None, bool]:
+def save(folder: Filepath, manifests: LocalManifestLists) -> Tuple[None, bool]:
     """Convert all `manifests` to YAML and save them.
 
     Returns no data in the case of an error.
@@ -613,12 +620,9 @@ def save(folder: Filepath, manifests: LocalManifests) -> Tuple[None, bool]:
         None
 
     """
-    # Python's `pathlib.Path` objects are simply nicer to work with...
-    folder = pathlib.Path(folder)
-
     # Convert the manifest to YAML strings. Abort on error.
     fdata_raw, err = unparse(manifests)
-    if err:
+    if err or fdata_raw is None:
         return (None, True)
 
     # Save the files to disk.
@@ -629,7 +633,8 @@ def download(
         config: Config,
         client,
         kinds: Iterable[str],
-        namespaces: Union[None, Iterable[str]]) -> Tuple[ServerManifests, bool]:
+        namespaces: Union[None, Iterable[Union[str]]]
+) -> Tuple[Optional[ServerManifests], bool]:
     """Download and return the specified resource `kinds`.
 
     Set `namespace` to None to download from all namespaces.
@@ -652,25 +657,29 @@ def download(
     server_manifests = {}
 
     # Ensure `namespaces` is always a list to avoid special casing below.
+    all_namespaces: Iterable[Union[None, str]]
     if namespaces is None:
-        namespaces = [None]
+        all_namespaces = [None]
+    else:
+        all_namespaces = namespaces
+    del namespaces
 
     # Download each resource type. Abort at the first error and return nothing.
-    for namespace in namespaces:
+    for namespace in all_namespaces:
         for kind in kinds:
             try:
                 # Get the HTTP URL for the resource request.
                 url, err = k8s.urlpath(config, kind, namespace)
-                assert not err
+                assert not err and url is not None
 
                 # Make HTTP request.
                 manifest_list, err = k8s.get(client, url)
-                assert not err
+                assert not err and manifest_list is not None
 
                 # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a
                 # Dict[MetaManifest, dict] dictionary.
                 manifests, err = unpack_list(manifest_list)
-                assert not err
+                assert not err and manifests is not None
 
                 # Drop all manifest fields except "apiVersion", "metadata" and "spec".
                 ret = {k: strip(config, man) for k, man in manifests.items()}
@@ -680,7 +689,10 @@ def download(
                 assert not err
 
                 # Unpack the stripped manifests from the `strip` response.
-                manifests = {k: v[0] for k, v in ret.items()}
+                # The "if v[0] is not None" is to satisfy MyPy - we already
+                # know they are not None or otherwise the previous assert would
+                # have failed.
+                manifests = {k: v[0] for k, v in ret.items() if v[0] is not None}
             except AssertionError:
                 # Return nothing, even if we had downloaded other kinds already.
                 return (None, True)
