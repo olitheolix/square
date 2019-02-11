@@ -349,7 +349,8 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
     return (None, False)
 
 
-def find_namespace_orphans(meta_manifests: Iterable[MetaManifest]) -> Set[MetaManifest]:
+def find_namespace_orphans(
+        meta_manifests: Iterable[MetaManifest]) -> Tuple[Set[MetaManifest], bool]:
     """Return all orphaned resources in the `meta_manifest` set.
 
     A resource is orphaned iff it lives in a namespace that is not explicitly
@@ -425,7 +426,7 @@ def setup_logging(level: int) -> None:
 def prune(
         manifests: ServerManifests,
         kinds: Iterable[str],
-        namespaces: Union[None, Iterable[str]]) -> ServerManifests:
+        namespaces: Union[None, Iterable[str]]) -> Tuple[ServerManifests, bool]:
     """Return the `manifests` subset that meets the requirement.
 
     This is really just a glorified list comprehension without error
