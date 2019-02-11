@@ -10,7 +10,7 @@ from collections import namedtuple
 import google.auth.transport.requests
 import requests
 import yaml
-from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config, RetVal
+from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config
 
 ClientCert = namedtuple('ClientCert', 'crt key')
 
@@ -227,19 +227,19 @@ def urlpath(config, kind, namespace):
         match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", namespace)
         if match is None or match.group() != namespace:
             logit.error(f"Invalid namespace name <{namespace}>.")
-            return RetVal(None, True)
+            return (None, True)
 
         namespace = f"namespaces/{namespace}/"
 
     # We must support the specified resource kind.
     if kind not in SUPPORTED_KINDS:
         logit.error(f"Unsupported resource <{kind}>.")
-        return RetVal(None, True)
+        return (None, True)
 
     # We must support the specified K8s version.
     if config.version not in SUPPORTED_VERSIONS:
         logit.error(f"Unsupported K8s version <{config.version}>.")
-        return RetVal(None, True)
+        return (None, True)
 
     # The HTTP request path names by K8s version and resource kind.
     # The keys in this dict must cover all those specified in
@@ -270,7 +270,7 @@ def urlpath(config, kind, namespace):
     assert not path.startswith("/")
 
     # Return the complete resource URL.
-    return RetVal(f"{config.url}/{path}", False)
+    return (f"{config.url}/{path}", False)
 
 
 def request(client, method, url, payload, headers):
@@ -287,7 +287,7 @@ def request(client, method, url, payload, headers):
             headers dictionary (eg the access tokens), but augment them.
 
     Returns:
-        RetVal(dict, int): the JSON response and the HTTP status code.
+        (dict, int): the JSON response and the HTTP status code.
 
     """
     try:
@@ -296,7 +296,7 @@ def request(client, method, url, payload, headers):
         method = err.request.method
         url = err.request.url
         logit.error(f"Connection error: {method} {url}")
-        return RetVal(None, True)
+        return (None, True)
 
     try:
         response = ret.json()
@@ -306,7 +306,7 @@ def request(client, method, url, payload, headers):
             "-" * 80 + "\n" + err.doc + "\n" + "-" * 80,
         )
         logit.error(str.join("\n", msg))
-        return RetVal(None, True)
+        return (None, True)
 
     # Log the entire request in debug mode.
     logit.debug(
@@ -315,7 +315,7 @@ def request(client, method, url, payload, headers):
         f"Payload: {payload}\n"
         f"Response: {response}\n"
     )
-    return RetVal(response, ret.status_code)
+    return (response, ret.status_code)
 
 
 def delete(client, url: str, payload: dict):
@@ -324,7 +324,7 @@ def delete(client, url: str, payload: dict):
     err = (code not in (200, 202))
     if err:
         logit.error(f"{code} - DELETE - {url}")
-    return RetVal(resp, err)
+    return (resp, err)
 
 
 def get(client, url: str):
@@ -333,7 +333,7 @@ def get(client, url: str):
     err = (code != 200)
     if err:
         logit.error(f"{code} - GET - {url}")
-    return RetVal(resp, err)
+    return (resp, err)
 
 
 def patch(client, url: str, payload: dict):
@@ -343,7 +343,7 @@ def patch(client, url: str, payload: dict):
     err = (code != 200)
     if err:
         logit.error(f"{code} - PATCH - {url}")
-    return RetVal(resp, err)
+    return (resp, err)
 
 
 def post(client, url: str, payload: dict):
@@ -352,7 +352,7 @@ def post(client, url: str, payload: dict):
     err = (code != 201)
     if err:
         logit.error(f"{code} - POST - {url}")
-    return RetVal(resp, err)
+    return (resp, err)
 
 
 def version(config: Config, client):
@@ -374,7 +374,7 @@ def version(config: Config, client):
     url = f"{config.url}/version"
     resp, err = get(client, url)
     if err:
-        return RetVal(None, True)
+        return (None, True)
 
     # Construct the version number of the K8s API.
     major, minor = resp['major'], resp['minor']
@@ -382,4 +382,4 @@ def version(config: Config, client):
 
     # Return an updated `Config` tuple.
     config = config._replace(version=version)
-    return RetVal(config, None)
+    return (config, None)

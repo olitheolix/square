@@ -14,7 +14,7 @@ import manio
 import yaml
 from dtypes import (
     RESOURCE_ALIASES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, Filepath, JsonPatch, LocalManifests, MetaManifest, RetVal,
+    DeploymentPlan, Filepath, JsonPatch, LocalManifests, MetaManifest,
     ServerManifests,
 )
 
@@ -133,7 +133,7 @@ def make_patch(
     local, err1 = manio.strip(config, local)
     server, err2 = manio.strip(config, server)
     if err1 or err2:
-        return RetVal(None, True)
+        return (None, True)
 
     # Sanity checks: abort if the manifests do not specify the same resource.
     try:
@@ -151,13 +151,13 @@ def make_patch(
             "Cannot compute JSON patch for incompatible manifests. "
             f"Local: <{local}>  Server: <{server}>"
         )
-        return RetVal(None, True)
+        return (None, True)
 
     # Determine the PATCH URL for the resource.
     namespace = server.metadata.namespace if server.kind != "Namespace" else None
     url, err = k8s.urlpath(config, server.kind, namespace)
     if err:
-        return RetVal(None, True)
+        return (None, True)
     full_url = f'{url}/{server.metadata.name}'
 
     # Compute JSON patch.
@@ -165,7 +165,7 @@ def make_patch(
     patch = json.loads(patch.to_string())
 
     # Return the patch.
-    return RetVal(JsonPatch(full_url, patch), False)
+    return (JsonPatch(full_url, patch), False)
 
 
 def partition_manifests(
@@ -207,7 +207,7 @@ def partition_manifests(
 
     # Return the deployment plan.
     plan = DeploymentPlan(create, patch, delete)
-    return RetVal(plan, False)
+    return (plan, False)
 
 
 def compile_plan(
@@ -234,7 +234,7 @@ def compile_plan(
     # Partition the set of meta manifests into create/delete/patch groups.
     plan, err = partition_manifests(local, server)
     if err:
-        return RetVal(None, True)
+        return (None, True)
 
     # Sanity check: the resources to patch *must* exist in both local and
     # server manifests. This is a bug if not.
@@ -246,7 +246,7 @@ def compile_plan(
     for delta in plan.create:
         url, err = k8s.urlpath(config, delta.kind, namespace=delta.namespace)
         if err:
-            return RetVal(None, True)
+            return (None, True)
         create.append(DeltaCreate(delta, url, local[delta]))
 
     # Compile the Deltas to delete the excess resources. Every DELETE request
@@ -262,7 +262,7 @@ def compile_plan(
         # Resource URL.
         url, err = k8s.urlpath(config, meta.kind, namespace=meta.namespace)
         if err:
-            return RetVal(None, True)
+            return (None, True)
 
         # DELETE requests must specify the resource name in the path.
         url = f"{url}/{meta.name}"
@@ -278,16 +278,16 @@ def compile_plan(
         # Compute textual diff (only useful for the user to study the diff).
         diff_str, err = manio.diff(config, local[meta], server[meta])
         if err:
-            return RetVal(None, True)
+            return (None, True)
 
         # Compute the JSON patch that will match K8s to the local manifest.
         patch, err = make_patch(config, local[meta], server[meta])
         if err:
-            return RetVal(None, True)
+            return (None, True)
         patches.append(DeltaPatch(meta, diff_str, patch))
 
     # Assemble and return the deployment plan.
-    return RetVal(DeploymentPlan(create, patches, delete), False)
+    return (DeploymentPlan(create, patches, delete), False)
 
 
 def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
@@ -346,7 +346,7 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
         name = f'--- {delta.meta.namespace}/{delta.meta.name} ---'
         print(cRed + name + cReset + "\n")
 
-    return RetVal(None, False)
+    return (None, False)
 
 
 def find_namespace_orphans(meta_manifests: Iterable[MetaManifest]) -> Set[MetaManifest]:
@@ -380,7 +380,7 @@ def find_namespace_orphans(meta_manifests: Iterable[MetaManifest]) -> Set[MetaMa
     }
 
     # Return the result.
-    return RetVal(orphans, None)
+    return (orphans, None)
 
 
 def setup_logging(level: int) -> None:
@@ -519,10 +519,10 @@ def main_patch(
             _, err = k8s.delete(client, data.url, data.manifest)
             assert not err
     except AssertionError:
-        return RetVal(None, True)
+        return (None, True)
 
     # All good.
-    return RetVal(None, False)
+    return (None, False)
 
 
 def main_diff(
@@ -569,11 +569,11 @@ def main_diff(
         plan, err = compile_plan(config, local, server)
         assert not err
     except AssertionError:
-        return RetVal(None, True)
+        return (None, True)
 
     # Print the plan and return.
     print_deltas(plan)
-    return RetVal(None, False)
+    return (None, False)
 
 
 def main_get(
@@ -622,10 +622,10 @@ def main_get(
         _, err = manio.save(folder, synced_manifests)
         assert not err
     except AssertionError:
-        return RetVal(None, True)
+        return (None, True)
 
     # Success.
-    return RetVal(None, False)
+    return (None, False)
 
 
 def main():

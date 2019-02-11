@@ -33,7 +33,6 @@ DeploymentPlan = namedtuple('DeploymentPlan', 'create patch delete')
 JsonPatch = namedtuple('Patch', 'url ops')
 Manifests = namedtuple('Manifests', 'meta files')
 MetaManifest = namedtuple('MetaManifest', 'apiVersion kind namespace name')
-RetVal = namedtuple('RetVal', 'data err')
 
 
 # Data types.
