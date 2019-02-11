@@ -35,7 +35,7 @@ def make_meta(manifest: dict) -> MetaManifest:
     )
 
 
-def unpack_list(manifest_list: dict) -> ServerManifests:
+def unpack_list(manifest_list: dict) -> Tuple[ServerManifests, bool]:
     """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
 
     Return a dictionary where each key uniquely identifies the resource via a
@@ -116,7 +116,7 @@ def parse(file_yaml: Dict[Filepath, str]) -> Tuple[LocalManifests, bool]:
     return (out, False)
 
 
-def unpack(data: LocalManifests) -> ServerManifests:
+def unpack(data: LocalManifests) -> Tuple[ServerManifests, bool]:
     """Drop the "Filepath" dimension from `data`.
 
     Returns an error unless all resources are unique. For instance, return an
@@ -218,7 +218,7 @@ def sync(
         local_manifests: LocalManifests,
         server_manifests: ServerManifests,
         kinds: Iterable[str],
-        namespaces: Union[None, Iterable[str]]) -> LocalManifests:
+        namespaces: Union[None, Iterable[str]]) -> Tuple[LocalManifests, bool]:
     """Update the local manifests with the server values and return the result.
 
     Inputs:
@@ -352,7 +352,7 @@ def diff(
     return (str.join("\n", diff_lines), False)
 
 
-def strip(config: Config, manifest: dict) -> dict:
+def strip(config: Config, manifest: dict) -> Tuple[dict, bool]:
     """Return stripped version of `manifest` with only the essential keys.
 
     The "essential" keys for each supported resource type are defined in the
