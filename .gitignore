@@ -1,6 +1,9 @@
 **/*~
 **/__pycache__
 
+# MyPy
+.mypy_cache
+
 # Unit tests.
 htmlcov/
 .coverage

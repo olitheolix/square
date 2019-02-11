@@ -18,6 +18,7 @@ requests = "*"
 requests-mock = "*"
 pytest-cov = "*"
 "pytest-flake8" = "*"
+mypy = "*"
 
 [dev-packages]
 
