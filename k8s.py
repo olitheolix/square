@@ -6,11 +6,12 @@ import re
 import tempfile
 import warnings
 from collections import namedtuple
+from typing import Tuple, Union
 
 import google.auth.transport.requests
 import requests
 import yaml
-from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config
+from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config, Filepath
 
 ClientCert = namedtuple('ClientCert', 'crt key')
 
@@ -22,7 +23,9 @@ FNAME_CERT = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 logit = logging.getLogger("square")
 
 
-def load_incluster_config(fname_token=FNAME_TOKEN, fname_cert=FNAME_CERT):
+def load_incluster_config(
+        fname_token: str = FNAME_TOKEN,
+        fname_cert: str = FNAME_CERT) -> Union[Config, None]:
     """Return K8s access config from Pod service account.
 
     Returns None if we are not running in a Pod.
@@ -60,7 +63,9 @@ def load_incluster_config(fname_token=FNAME_TOKEN, fname_cert=FNAME_CERT):
         return None
 
 
-def load_gke_config(kubeconfig, disable_warnings=False):
+def load_gke_config(
+        kubeconfig: Filepath,
+        disable_warnings: bool = False) -> Union[None, Config]:
     """Return K8s access config for GKE cluster described in `kubeconfig`.
 
     Returns None if `kubeconfig` does not exist or could not be parsed.
@@ -119,7 +124,7 @@ def load_gke_config(kubeconfig, disable_warnings=False):
     )
 
 
-def load_minikube_config(kubeconfig):
+def load_minikube_config(kubeconfig: str) -> Union[None, Config]:
     # Load `kubeconfig`. For this proof-of-concept we assume it contains
     # exactly one cluster and user.
     kubeconf = yaml.load(open(kubeconfig))
@@ -154,7 +159,9 @@ def load_minikube_config(kubeconfig):
     )
 
 
-def load_auto_config(kubeconfig: str, disable_warnings=False):
+def load_auto_config(
+        kubeconfig: str,
+        disable_warnings: bool = False) -> Union[None, Config]:
     """Automagically find and load the correct K8s configuration.
 
     This function will load several possible configuration options and returns
@@ -205,7 +212,10 @@ def session(config: Config):
     return sess
 
 
-def urlpath(config, kind, namespace):
+def urlpath(
+        config: Config,
+        kind: str,
+        namespace: Union[None, str]) -> Tuple[Union[None, str], bool]:
     """Return complete URL to K8s resource.
 
     Inputs:
@@ -273,7 +283,12 @@ def urlpath(config, kind, namespace):
     return (f"{config.url}/{path}", False)
 
 
-def request(client, method, url, payload, headers):
+def request(
+        client,
+        method: str,
+        url: str,
+        payload: dict,
+        headers: dict) -> Tuple[Union[None, dict], bool]:
     """Return response of web request made with `client`.
 
     Inputs:
@@ -318,7 +333,7 @@ def request(client, method, url, payload, headers):
     return (response, ret.status_code)
 
 
-def delete(client, url: str, payload: dict):
+def delete(client, url: str, payload: dict) -> Tuple[Union[None, dict], bool]:
     """Make DELETE requests to K8s (see `k8s_request`)."""
     resp, code = request(client, 'DELETE', url, payload, headers=None)
     err = (code not in (200, 202))
@@ -327,7 +342,7 @@ def delete(client, url: str, payload: dict):
     return (resp, err)
 
 
-def get(client, url: str):
+def get(client, url: str) -> Tuple[Union[None, dict], bool]:
     """Make GET requests to K8s (see `request`)."""
     resp, code = request(client, 'GET', url, payload=None, headers=None)
     err = (code != 200)
@@ -336,7 +351,7 @@ def get(client, url: str):
     return (resp, err)
 
 
-def patch(client, url: str, payload: dict):
+def patch(client, url: str, payload: dict) -> Tuple[Union[None, dict], bool]:
     """Make PATCH requests to K8s (see `request`)."""
     headers = {'Content-Type': 'application/json-patch+json'}
     resp, code = request(client, 'PATCH', url, payload, headers)
@@ -346,7 +361,7 @@ def patch(client, url: str, payload: dict):
     return (resp, err)
 
 
-def post(client, url: str, payload: dict):
+def post(client, url: str, payload: dict) -> Tuple[Union[None, dict], bool]:
     """Make POST requests to K8s (see `request`)."""
     resp, code = request(client, 'POST', url, payload, headers=None)
     err = (code != 201)
@@ -355,7 +370,7 @@ def post(client, url: str, payload: dict):
     return (resp, err)
 
 
-def version(config: Config, client):
+def version(config: Config, client) -> Tuple[Union[None, Config], bool]:
     """Return new `config` with version number of K8s API.
 
     Contact the K8s API, query its version via `client` and return `config`
@@ -363,11 +378,11 @@ def version(config: Config, client):
     intact.
 
     Inputs:
-        config: k8s.Config
+        config: Config
         client: `requests` session with correct K8s certificates.
 
     Returns:
-        k8s.Config
+        Config
 
     """
     # Ask the K8s API for its version and check for errors.
