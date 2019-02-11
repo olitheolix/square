@@ -1,4 +1,6 @@
+import pathlib
 from collections import namedtuple
+from typing import Dict, Tuple, Union
 
 # We support these resource types. The order matters because it determines the
 # order in which the manifests will be grouped in the output files.
@@ -32,3 +34,8 @@ JsonPatch = namedtuple('Patch', 'url ops')
 Manifests = namedtuple('Manifests', 'meta files')
 MetaManifest = namedtuple('MetaManifest', 'apiVersion kind namespace name')
 RetVal = namedtuple('RetVal', 'data err')
+
+
+# Data types.
+LocalManifests = Dict[Union[pathlib.PurePath, str], Tuple[MetaManifest, dict]]
+ServerManifests = Dict[MetaManifest, dict]

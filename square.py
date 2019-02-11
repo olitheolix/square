@@ -5,6 +5,7 @@ import os
 import sys
 import textwrap
 from pprint import pprint
+from typing import Iterable, Set, Tuple, Union
 
 import colorama
 import jsonpatch
@@ -12,8 +13,9 @@ import k8s
 import manio
 import yaml
 from dtypes import (
-    RESOURCE_ALIASES, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    JsonPatch, RetVal,
+    RESOURCE_ALIASES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
+    DeploymentPlan, Filepath, JsonPatch, LocalManifests, MetaManifest, RetVal,
+    ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -32,7 +34,7 @@ def parse_commandline_args():
       {name} patch
     ''')
 
-    def _validate_kind(kind):
+    def _validate_kind(kind: str) -> str:
         """Convert resource `kind` from aliases to canonical name.
         For instance, `svc` -> `Service`.
         """
@@ -110,13 +112,16 @@ def parse_commandline_args():
     return parser.parse_args()
 
 
-def make_patch(config, local: dict, server: dict):
+def make_patch(
+        config: Config,
+        local: LocalManifests,
+        server: ServerManifests) -> Tuple[JsonPatch, bool]:
     """Return JSON patch to transition `server` to `local`.
 
     Inputs:
-        local_manifests: dict
+        local: LocalManifests
             Usually the dictionary keys returned by `load_manifest`.
-        server_manifests: dict
+        server: ServerManifests
             Usually the dictionary keys returned by `manio.download`.
 
     Returns:
@@ -163,21 +168,23 @@ def make_patch(config, local: dict, server: dict):
     return RetVal(JsonPatch(full_url, patch), False)
 
 
-def partition_manifests(local_manifests, server_manifests):
-    """Compile `{local,server}_manifests` into CREATE, PATCH and DELETE groups.
+def partition_manifests(
+        local: LocalManifests,
+        server: ServerManifests) -> Tuple[DeploymentPlan, bool]:
+    """Compile `{local,server}` into CREATE, PATCH and DELETE groups.
 
     The returned deployment plan will contain *every* resource in
-    `local_manifests` and `server_manifests` *exactly once*. Their relative
+    `local` and `server` *exactly once*. Their relative
     order will also be preserved.
 
-    Create: all resources that exist in `local_manifests` but not in `server_manifests`.
-    Delete: all resources that exist in `server_manifests` but not in `local_manifests`.
+    Create: all resources that exist in `local` but not in `server`.
+    Delete: all resources that exist in `server` but not in `local`.
     Patch : all resources that exist in both and therefore *may* need patching.
 
     Inputs:
-        local_manifests: Dict[MetaManifest:str]
+        local: Dict[MetaManifest:str]
             Usually the dictionary keys returned by `load_manifest`.
-        server_manifests: Dict[MetaManifest:str]
+        server: Dict[MetaManifest:str]
             Usually the dictionary keys returned by `manio.download`.
 
     Returns:
@@ -185,36 +192,39 @@ def partition_manifests(local_manifests, server_manifests):
 
     """
     # Determine what needs adding, removing and patching to steer the K8s setup
-    # towards what `local_manifests` specifies.
-    loc = set(local_manifests.keys())
-    srv = set(server_manifests.keys())
+    # towards what `local` specifies.
+    loc = set(local.keys())
+    srv = set(server.keys())
     create = loc - srv
     patch = loc.intersection(srv)
     delete = srv - loc
 
     # Convert the sets to list. Preserve the relative element ordering as it
-    # was in `{local_server}_manifests`.
-    create = [_ for _ in local_manifests if _ in create]
-    patch = [_ for _ in local_manifests if _ in patch]
-    delete = [_ for _ in server_manifests if _ in delete]
+    # was in `{local_server}`.
+    create = [_ for _ in local if _ in create]
+    patch = [_ for _ in local if _ in patch]
+    delete = [_ for _ in server if _ in delete]
 
     # Return the deployment plan.
     plan = DeploymentPlan(create, patch, delete)
     return RetVal(plan, False)
 
 
-def compile_plan(config, local_manifests, server_manifests):
-    """Return the `DeploymentPlan` to transition K8s to state of `local_manifests`.
+def compile_plan(
+        config: Config,
+        local: LocalManifests,
+        server: ServerManifests) -> Tuple[DeploymentPlan, bool]:
+    """Return the `DeploymentPlan` to transition K8s to state of `local`.
 
     The deployment plan is a named tuple. It specifies which resources to
     create, patch and delete to ensure that the state of K8s matches that
-    specified in `local_manifests`.
+    specified in `local`.
 
     Inputs:
-        config: k8s.Config
-        local_manifests: Dict[MetaManifest, dict]
+        config: Config
+        local: LocalManifests
             Should be output from `load_manifest` or `load`.
-        server_manifests: Dict[MetaManifest, dict]
+        server: ServerManifests
             Should be output from `manio.download`.
 
     Returns:
@@ -222,14 +232,14 @@ def compile_plan(config, local_manifests, server_manifests):
 
     """
     # Partition the set of meta manifests into create/delete/patch groups.
-    plan, err = partition_manifests(local_manifests, server_manifests)
+    plan, err = partition_manifests(local, server)
     if err:
         return RetVal(None, True)
 
     # Sanity check: the resources to patch *must* exist in both local and
     # server manifests. This is a bug if not.
-    assert set(plan.patch).issubset(set(local_manifests.keys()))
-    assert set(plan.patch).issubset(set(server_manifests.keys()))
+    assert set(plan.patch).issubset(set(local.keys()))
+    assert set(plan.patch).issubset(set(server.keys()))
 
     # Compile the Deltas to create the missing resources.
     create = []
@@ -237,7 +247,7 @@ def compile_plan(config, local_manifests, server_manifests):
         url, err = k8s.urlpath(config, delta.kind, namespace=delta.namespace)
         if err:
             return RetVal(None, True)
-        create.append(DeltaCreate(delta, url, local_manifests[delta]))
+        create.append(DeltaCreate(delta, url, local[delta]))
 
     # Compile the Deltas to delete the excess resources. Every DELETE request
     # will have to pass along a `DeleteOptions` manifest (see below).
@@ -265,16 +275,13 @@ def compile_plan(config, local_manifests, server_manifests):
     # local manifests.
     patches = []
     for meta in plan.patch:
-        loc = local_manifests[meta]
-        srv = server_manifests[meta]
-
         # Compute textual diff (only useful for the user to study the diff).
-        diff_str, err = manio.diff(config, loc, srv)
+        diff_str, err = manio.diff(config, local[meta], server[meta])
         if err:
             return RetVal(None, True)
 
         # Compute the JSON patch that will match K8s to the local manifest.
-        patch, err = make_patch(config, loc, srv)
+        patch, err = make_patch(config, local[meta], server[meta])
         if err:
             return RetVal(None, True)
         patches.append(DeltaPatch(meta, diff_str, patch))
@@ -283,7 +290,7 @@ def compile_plan(config, local_manifests, server_manifests):
     return RetVal(DeploymentPlan(create, patches, delete), False)
 
 
-def print_deltas(plan):
+def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
     """Print human readable version of `plan` to terminal.
 
     Inputs:
@@ -342,7 +349,7 @@ def print_deltas(plan):
     return RetVal(None, False)
 
 
-def find_namespace_orphans(meta_manifests):
+def find_namespace_orphans(meta_manifests: Iterable[MetaManifest]) -> Set[MetaManifest]:
     """Return all orphaned resources in the `meta_manifest` set.
 
     A resource is orphaned iff it lives in a namespace that is not explicitly
@@ -376,7 +383,7 @@ def find_namespace_orphans(meta_manifests):
     return RetVal(orphans, None)
 
 
-def setup_logging(level: int):
+def setup_logging(level: int) -> None:
     """Configure logging at `level`.
 
     Level 0: ERROR
@@ -415,7 +422,10 @@ def setup_logging(level: int):
     logger.addHandler(ch)
 
 
-def prune(manifests, kinds, namespaces):
+def prune(
+        manifests: ServerManifests,
+        kinds: Iterable[str],
+        namespaces: Union[None, Iterable[str]]) -> ServerManifests:
     """Return the `manifests` subset that meets the requirement.
 
     This is really just a glorified list comprehension without error
@@ -442,16 +452,21 @@ def prune(manifests, kinds, namespaces):
     return out
 
 
-def main_patch(config, client, folder, kinds, namespaces):
+def main_patch(
+        config: Config,
+        client,
+        folder: Filepath,
+        kinds: Iterable[str],
+        namespaces: Union[None, Iterable[str]]) -> Tuple[None, bool]:
     """Update K8s to match the specifications in `local_manifests`.
 
     Create a deployment plan that will transition the K8s state
     `server_manifests` to the desired `local_manifests`.
 
     Inputs:
-        config: k8s.Config
+        config: Config
         client: `requests` session with correct K8s certificates.
-        folder: Path
+        folder: Filepath
             Path to local manifests eg "./foo"
         kinds: Iterable
             Resource types to fetch, eg ["Deployment", "Namespace"]
@@ -510,7 +525,12 @@ def main_patch(config, client, folder, kinds, namespaces):
     return RetVal(None, False)
 
 
-def main_diff(config, client, folder, kinds, namespaces):
+def main_diff(
+        config: Config,
+        client,
+        folder: Filepath,
+        kinds: Iterable[str],
+        namespaces: Union[None, Iterable[str]]) -> Tuple[None, bool]:
     """Print the diff between `local_manifests` and `server_manifests`.
 
     The diff shows what would have to change on the K8s server in order for it
@@ -556,7 +576,12 @@ def main_diff(config, client, folder, kinds, namespaces):
     return RetVal(None, False)
 
 
-def main_get(config, client, folder, kinds, namespaces):
+def main_get(
+        config: Config,
+        client,
+        folder: Filepath,
+        kinds: Iterable[str],
+        namespaces: Union[None, Iterable[str]]) -> Tuple[None, bool]:
     """Download all K8s manifests and merge them into local files.
 
     Inputs:
