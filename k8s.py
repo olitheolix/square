@@ -382,4 +382,4 @@ def version(config: Config, client):
 
     # Return an updated `Config` tuple.
     config = config._replace(version=version)
-    return (config, None)
+    return (config, False)
