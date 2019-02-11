@@ -84,8 +84,7 @@ def parse(file_yaml: Dict[Filepath, str]) -> Tuple[Optional[LocalManifestLists],
             Raw data as returned by `load_files`.
 
     Returns:
-        Dict[Filepath, Tuple(MetaManifest, dict)]: YAML parsed manifests in
-        each file.
+        LocalManifestLists: The YAML parsed manifests of each file.
 
     """
     # The output dict will have a list of tuples.
@@ -117,14 +116,14 @@ def parse(file_yaml: Dict[Filepath, str]) -> Tuple[Optional[LocalManifestLists],
     return (out, False)
 
 
-def unpack(data: LocalManifestLists) -> Tuple[Optional[ServerManifests], bool]:
-    """Drop the "Filepath" dimension from `data`.
+def unpack(manifests: LocalManifestLists) -> Tuple[Optional[ServerManifests], bool]:
+    """Drop the "Filepath" dimension from `manifests`.
 
     Returns an error unless all resources are unique. For instance, return an
     error if two files define the same namespace or the same deployment.
 
     Inputs:
-        data: Dict[Filepath, Tuple[MetaManifest, dict]]
+        manifests: Dict[Filepath, Tuple[MetaManifest, dict]]
 
     Returns:
         Dict[MetaManifest, dict]: flattened version of `data`.
@@ -134,8 +133,8 @@ def unpack(data: LocalManifestLists) -> Tuple[Optional[ServerManifests], bool]:
     # We will use this information short to determine if any resources were
     # specified multiple times in either the same or different file.
     all_meta: DefaultDict[MetaManifest, list] = collections.defaultdict(list)
-    for fname in data:
-        for meta, _ in data[fname]:
+    for fname in manifests:
+        for meta, _ in manifests[fname]:
             all_meta[meta].append(fname)
 
     # Find out if all meta manifests were unique. If not, log the culprits and
@@ -151,8 +150,8 @@ def unpack(data: LocalManifestLists) -> Tuple[Optional[ServerManifests], bool]:
     if not is_unique:
         return (None, True)
 
-    # Compile the input data into a new dict with the meta manifest as key.
-    out = {k: v for fname in data for k, v in data[fname]}
+    # Compile the input manifests into a new dict with the meta manifest as key.
+    out = {k: v for fname in manifests for k, v in manifests[fname]}
     return (out, False)
 
 
