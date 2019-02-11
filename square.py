@@ -5,7 +5,7 @@ import os
 import sys
 import textwrap
 from pprint import pprint
-from typing import Iterable, Optional, Set, Tuple, Union
+from typing import Iterable, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
@@ -426,7 +426,7 @@ def setup_logging(log_level: int) -> None:
 def prune(
         manifests: ServerManifests,
         kinds: Iterable[str],
-        namespaces: Union[None, Iterable[str]]
+        namespaces: Optional[Iterable[str]]
 ) -> ServerManifests:
     """Return the `manifests` subset that meets the requirement.
 
@@ -459,7 +459,7 @@ def main_patch(
         client,
         folder: Filepath,
         kinds: Iterable[str],
-        namespaces: Union[None, Iterable[str]]) -> Tuple[None, bool]:
+        namespaces: Optional[Iterable[str]]) -> Tuple[None, bool]:
     """Update K8s to match the specifications in `local_manifests`.
 
     Create a deployment plan that will transition the K8s state
@@ -532,7 +532,7 @@ def main_diff(
         client,
         folder: Filepath,
         kinds: Iterable[str],
-        namespaces: Union[None, Iterable[str]]) -> Tuple[None, bool]:
+        namespaces: Optional[Iterable[str]]) -> Tuple[None, bool]:
     """Print the diff between `local_manifests` and `server_manifests`.
 
     The diff shows what would have to change on the K8s server in order for it
@@ -583,7 +583,7 @@ def main_get(
         client,
         folder: Filepath,
         kinds: Iterable[str],
-        namespaces: Union[None, Iterable[str]]) -> Tuple[None, bool]:
+        namespaces: Optional[Iterable[str]]) -> Tuple[None, bool]:
     """Download all K8s manifests and merge them into local files.
 
     Inputs:
