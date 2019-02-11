@@ -12,7 +12,7 @@ import yaml
 import yaml.scanner
 from dtypes import (
     SUPPORTED_KINDS, Config, Filepath, LocalManifestLists, LocalManifests,
-    Manifests, MetaManifest, ServerManifests,
+    MetaManifest, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -555,7 +555,8 @@ def load_files(
     return (out, False)
 
 
-def load(folder: Filepath):
+def load(folder: Filepath) -> Tuple[
+        Optional[ServerManifests], Optional[LocalManifestLists], bool]:
     """Load all "*.yaml" files under `folder` (recursively).
 
     Ignores all files not ending in ".yaml".
@@ -566,14 +567,11 @@ def load(folder: Filepath):
     load and parse the YAML files.
 
     Input:
-        folder: str|Path
+        folder: Filepath
             Source folder.
 
     Returns:
-        Manifests(
-            Dict[Filepath, Tuple(MetaManifest, dict)]
-            Dict[MetaManifest, dict]
-        )
+        (local manifest without file info, local manifests with file info)
 
     """
     # Python's `pathlib.Path` objects are simply nicer to work with...
@@ -596,7 +594,7 @@ def load(folder: Filepath):
         man_meta, err = unpack(man_files)
         assert not err and man_meta is not None
     except AssertionError:
-        return (None, True)
+        return (None, None, True)
 
     # Return the file based manifests and unpacked manifests.
     return (man_meta, man_files, False)
