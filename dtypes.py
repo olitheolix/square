@@ -1,6 +1,6 @@
 import pathlib
 from collections import namedtuple
-from typing import Dict, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 # We support these resource types. The order matters because it determines the
 # order in which the manifests will be grouped in the output files.
@@ -38,4 +38,5 @@ MetaManifest = namedtuple('MetaManifest', 'apiVersion kind namespace name')
 # Data types.
 Filepath = Union[str, pathlib.PurePath]
 LocalManifests = Dict[Filepath, Tuple[MetaManifest, dict]]
+LocalManifestLists = Dict[Filepath, List[Tuple[MetaManifest, dict]]]
 ServerManifests = Dict[MetaManifest, dict]
