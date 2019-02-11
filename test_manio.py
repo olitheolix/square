@@ -8,9 +8,7 @@ import manio
 import schemas
 import square
 import yaml
-from dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Manifests, MetaManifest, RetVal,
-)
+from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Manifests, MetaManifest
 from k8s import urlpath
 from test_helpers import make_manifest, mk_deploy
 
@@ -74,12 +72,12 @@ class TestUnpackParse:
 
         # Parse the DeploymentList into a dict. The keys are ManifestTuples and
         # the values are the Deployment (*not* DeploymentList) manifests.
-        ret = manio.unpack_list(manifest_list)
-        assert ret.err is False
+        data, err = manio.unpack_list(manifest_list)
+        assert err is False
 
         # Verify the Python dict.
         assert len(manifests) == 3
-        assert ret.data == {
+        assert data == {
             MetaManifest('v1', 'Deployment', 'ns_0', 'name_0'): manifests[0],
             MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
             MetaManifest('v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
@@ -87,9 +85,9 @@ class TestUnpackParse:
 
         # Function must return deep copies of the manifests to avoid difficult
         # to debug reference bugs.
-        for src, out_key in zip(manifests, ret.data):
-            assert src == ret.data[out_key]
-            assert src is not ret.data[out_key]
+        for src, out_key in zip(manifests, data):
+            assert src == data[out_key]
+            assert src is not data[out_key]
 
     def test_unpack_list_invalid_list_manifest(self):
         """The input manifest must have `apiVersion`, `kind` and `items`.
@@ -101,24 +99,24 @@ class TestUnpackParse:
         # Valid input.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList', 'items': []}
         ret = manio.unpack_list(src)
-        assert ret == RetVal({}, False)
+        assert ret == ({}, False)
 
         # Missing `apiVersion`.
         src = {'kind': 'DeploymentList', 'items': []}
-        assert manio.unpack_list(src) == RetVal(None, True)
+        assert manio.unpack_list(src) == (None, True)
 
         # Missing `kind`.
         src = {'apiVersion': 'v1', 'items': []}
-        assert manio.unpack_list(src) == RetVal(None, True)
+        assert manio.unpack_list(src) == (None, True)
 
         # Missing `items`.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList'}
-        assert manio.unpack_list(src) == RetVal(None, True)
+        assert manio.unpack_list(src) == (None, True)
 
         # All fields present but `kind` does not end in List (case sensitive).
         for invalid_kind in ('Deploymentlist', 'Deployment'):
             src = {'apiVersion': 'v1', 'kind': invalid_kind, 'items': []}
-            assert manio.unpack_list(src) == RetVal(None, True)
+            assert manio.unpack_list(src) == (None, True)
 
 
 class TestYamlManifestIO:
@@ -151,13 +149,13 @@ class TestYamlManifestIO:
             "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
             "m2.yaml": [(meta[2], dply[2])],
         }
-        assert manio.parse(fdata_test_in) == RetVal(expected, False)
+        assert manio.parse(fdata_test_in) == (expected, False)
 
     def test_parse_err(self):
         """Intercept YAML decoding errors."""
         # Construct manifests in the way as `load_files` returns them.
         fdata_test_in = {"m0.yaml": "invalid :: - yaml"}
-        assert manio.parse(fdata_test_in) == RetVal(None, True)
+        assert manio.parse(fdata_test_in) == (None, True)
 
     def test_unpack_ok(self):
         """Test function must remove the filename dimension.
@@ -185,14 +183,14 @@ class TestYamlManifestIO:
         src = {
             "file0.txt": [("meta0", "manifest0"), ("meta0", "manifest0")],
         }
-        assert manio.unpack(src) == RetVal(None, True)
+        assert manio.unpack(src) == (None, True)
 
         # Two resources with same meta information in different files.
         src = {
             "file0.txt": [("meta0", "manifest0")],
             "file1.txt": [("meta0", "manifest0")],
         }
-        assert manio.unpack(src) == RetVal(None, True)
+        assert manio.unpack(src) == (None, True)
 
     def test_unparse_ok(self):
         """Basic use case: convert Python dicts to YAML strings."""
@@ -210,7 +208,7 @@ class TestYamlManifestIO:
         })
 
         # Run the tests.
-        assert manio.unparse(file_manifests) == RetVal(expected, False)
+        assert manio.unparse(file_manifests) == (expected, False)
 
     def test_unparse_sorted_ok(self):
         """The manifests in each file must be grouped and sorted.
@@ -273,7 +271,7 @@ class TestYamlManifestIO:
         for i in range(10):
             for fname in file_manifests:
                 random.shuffle(file_manifests[fname])
-            assert manio.unparse(file_manifests) == RetVal(expected, False)
+            assert manio.unparse(file_manifests) == (expected, False)
 
     def test_unparse_invalid_manifest(self):
         """Must handle YAML errors gracefully."""
@@ -288,7 +286,7 @@ class TestYamlManifestIO:
         }
 
         # Test function must return with an error.
-        assert manio.unparse(file_manifests) == RetVal(None, True)
+        assert manio.unparse(file_manifests) == (None, True)
 
     def test_unparse_unknown_kinds(self):
         """Must handle unknown resource kinds gracefully."""
@@ -306,7 +304,7 @@ class TestYamlManifestIO:
         # Test function must gracefully reject all invalid kinds.
         for kind in invalid_kinds:
             file_manifests = {"m0.yaml": [(mm(kind, "ns", "name"), "0")]}
-            assert manio.unparse(file_manifests) == RetVal(None, True)
+            assert manio.unparse(file_manifests) == (None, True)
 
     def test_unparse_known_kinds(self):
         """Must handle all known resource kinds without error."""
@@ -317,7 +315,7 @@ class TestYamlManifestIO:
         # Test function must gracefully reject all invalid kinds.
         for kind in SUPPORTED_KINDS:
             file_manifests = {"m0.yaml": [(mm(kind, "ns", "name"), "0")]}
-            assert manio.unparse(file_manifests).err is False
+            assert manio.unparse(file_manifests)[1] is False
 
     def test_manifest_lifecycle(self):
         """Load, sync and save manifests the hard way.
@@ -462,9 +460,9 @@ class TestManifestValidation:
                 "metadata": {"name": "name"},
                 "spec": "spec",
             }
-            ret = manio.strip(config, valid)
-            assert ret == RetVal(valid, False)
-            assert isinstance(ret.data, dotdict.DotDict)
+            data, err = manio.strip(config, valid)
+            assert (data, err) == (valid, False)
+            assert isinstance(data, dotdict.DotDict)
             del valid
 
             # Valid manifest with all mandatory and *some* optional keys (
@@ -484,7 +482,7 @@ class TestManifestValidation:
                 "spec": "mandatory",
                 "optional-2": "optional",
             }
-            assert manio.strip(config, valid) == RetVal(expected, False)
+            assert manio.strip(config, valid) == (expected, False)
 
             # As before but with additional keys "status" and "metadata.annotation" that
             # must not be in the output.
@@ -496,12 +494,12 @@ class TestManifestValidation:
                 "status": "skip",
                 "optional-2": "optional",
             }
-            assert manio.strip(config, valid) == RetVal(expected, False)
+            assert manio.strip(config, valid) == (expected, False)
 
             # Add a field that is not allowed.
             invalid = valid.copy()
             invalid["metadata"]["namespace"] = "error"
-            assert manio.strip(config, valid) == RetVal(None, True)
+            assert manio.strip(config, valid) == (None, True)
             del valid, expected
 
             # Has all mandatory keys in schema but misses `apiVersion`.
@@ -510,7 +508,7 @@ class TestManifestValidation:
                 "metadata": {"name": "name"},
                 "spec": "spec",
             }
-            assert manio.strip(config, invalid) == RetVal(None, True)
+            assert manio.strip(config, invalid) == (None, True)
 
             # Has all mandatory keys in schema but misses `kind`.
             invalid = {
@@ -518,7 +516,7 @@ class TestManifestValidation:
                 "metadata": {"name": "name"},
                 "spec": "spec",
             }
-            assert manio.strip(config, invalid) == RetVal(None, True)
+            assert manio.strip(config, invalid) == (None, True)
 
     def test_strip_generic_all_empty(self):
         """Fake schema where all keys in "metadata" are optional.
@@ -539,25 +537,25 @@ class TestManifestValidation:
         with mock.patch("manio.schemas.RESOURCE_SCHEMA", schema):
             # Valid manifest with the optional metadata key "name".
             manifest = {"apiVersion": "", "kind": "TEST", "metadata": {"name": "name"}}
-            assert manio.strip(config, manifest) == RetVal(manifest, False)
+            assert manio.strip(config, manifest) == (manifest, False)
 
             # Valid manifest with an empty "metadata" dict. The output
             # must not contain a "metadata" key.
             manifest = {"apiVersion": "", "kind": "TEST", "metadata": {}}
             expected = {"apiVersion": "", "kind": "TEST"}
-            assert manio.strip(config, manifest) == RetVal(expected, False)
+            assert manio.strip(config, manifest) == (expected, False)
 
             # Valid manifest with no "metadata" key at all. The output
             # must also not contain a "metadata" key.
             manifest = {"apiVersion": "", "kind": "TEST"}
             print(manio.strip(config, manifest))
-            assert manio.strip(config, manifest) == RetVal(manifest, False)
+            assert manio.strip(config, manifest) == (manifest, False)
 
             # Valid manifest where "metadata" contains an irrelevant key. The output
             # must, again,  not contain a "metadata" key.
             manifest = {"apiVersion": "", "kind": "TEST", "metadata": {"foo": "bar"}}
             expected = {"apiVersion": "", "kind": "TEST"}
-            assert manio.strip(config, manifest) == RetVal(expected, False)
+            assert manio.strip(config, manifest) == (expected, False)
 
     def test_strip_invalid_schema(self):
         """Create a corrupt schema and verify we get a proper error message."""
@@ -568,7 +566,7 @@ class TestManifestValidation:
         with mock.patch("manio.schemas.RESOURCE_SCHEMA", schema):
             # Valid manifest with purely mandatory fields.
             valid = {"apiVersion": "v1", "kind": "TEST"}
-            assert manio.strip(config, valid) == RetVal(None, True)
+            assert manio.strip(config, valid) == (None, True)
 
     def test_strip_invalid_version_kind(self):
         """Must abort gracefully for unknown K8s version or resource kind."""
@@ -579,12 +577,12 @@ class TestManifestValidation:
             # Valid version but unknown resource.
             config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
             manifest = {"apiVersion": "v1", "kind": "Unknown"}
-            assert manio.strip(config, manifest) == RetVal(None, True)
+            assert manio.strip(config, manifest) == (None, True)
 
             # Invalid version but known resource.
             config = k8s.Config("url", "token", "ca_cert", "client_cert", "unknown")
             manifest = {"apiVersion": "v1", "kind": "TEST"}
-            assert manio.strip(config, manifest) == RetVal(None, True)
+            assert manio.strip(config, manifest) == (None, True)
 
     def test_strip_namespace(self):
         """Validate NAMESPACE manifests."""
@@ -604,7 +602,7 @@ class TestManifestValidation:
             "metadata": {"name": "mandatory", "labels": "optional"},
             "spec": "mandatory",
         }
-        assert manio.strip(config, valid) == RetVal(expected, False)
+        assert manio.strip(config, valid) == (expected, False)
         del valid, expected
 
         # Namespace cannot have a "metadata.namespace" attribute.
@@ -615,7 +613,7 @@ class TestManifestValidation:
             "spec": "mandatory",
             "skip": "this",
         }
-        assert manio.strip(config, invalid) == RetVal(None, True)
+        assert manio.strip(config, invalid) == (None, True)
 
     def test_strip_service(self):
         """Validate SERVICE manifests."""
@@ -644,7 +642,7 @@ class TestManifestValidation:
             },
             "spec": "mandatory",
         }
-        assert manio.strip(config, valid) == RetVal(expected, False)
+        assert manio.strip(config, valid) == (expected, False)
         del valid, expected
 
         # Services must have a "metadata.namespace" attribute.
@@ -659,7 +657,7 @@ class TestManifestValidation:
             "spec": "mandatory",
             "skip": "this",
         }
-        assert manio.strip(config, invalid) == RetVal(None, True)
+        assert manio.strip(config, invalid) == (None, True)
 
     def test_strip_deployment(self):
         """Validate DEPLOYMENT manifests."""
@@ -688,7 +686,7 @@ class TestManifestValidation:
             },
             "spec": "mandatory",
         }
-        assert manio.strip(config, valid) == RetVal(expected, False)
+        assert manio.strip(config, valid) == (expected, False)
         del valid, expected
 
         # Deployments must have a "metadata.namespace" attribute.
@@ -703,7 +701,7 @@ class TestManifestValidation:
             "spec": "mandatory",
             "skip": "this",
         }
-        assert manio.strip(config, invalid) == RetVal(None, True)
+        assert manio.strip(config, invalid) == (None, True)
 
 
 class TestDiff:
@@ -747,9 +745,9 @@ class TestDiff:
 
         # Test function must return with an error, irrespective of which
         # manifest was invalid.
-        assert manio.diff(config, valid, invalid) == RetVal(None, True)
-        assert manio.diff(config, invalid, valid) == RetVal(None, True)
-        assert manio.diff(config, invalid, invalid) == RetVal(None, True)
+        assert manio.diff(config, valid, invalid) == (None, True)
+        assert manio.diff(config, invalid, valid) == (None, True)
+        assert manio.diff(config, invalid, invalid) == (None, True)
 
 
 class TestYamlManifestIOIntegration:
@@ -766,12 +764,12 @@ class TestYamlManifestIOIntegration:
         file_data = {fname: f"Data in {fname}" for fname in fnames}
 
         # Asking for non-existing files must return an error.
-        assert manio.load_files(tmp_path, fnames) == RetVal(None, True)
+        assert manio.load_files(tmp_path, fnames) == (None, True)
 
         # Saving files to the temporary folder and loading them afterwards
         # again must work.
-        assert manio.save_files(tmp_path, file_data) == RetVal(None, False)
-        assert manio.load_files(tmp_path, fnames) == RetVal(file_data, False)
+        assert manio.save_files(tmp_path, file_data) == (None, False)
+        assert manio.load_files(tmp_path, fnames) == (file_data, False)
 
         # Manually verify the files.
         for fname in fnames:
@@ -785,7 +783,7 @@ class TestYamlManifestIOIntegration:
         file_data = {"empty.yaml": "", "nonempty.yaml": "some content"}
 
         # Saving the files. Verify that the empty one was not created.
-        assert manio.save_files(tmp_path, file_data) == RetVal(None, False)
+        assert manio.save_files(tmp_path, file_data) == (None, False)
         assert (tmp_path / "nonempty.yaml").exists()
         assert not (tmp_path / "empty.yaml").exists()
 
@@ -793,7 +791,7 @@ class TestYamlManifestIOIntegration:
         """Make temp folder readonly and try to save the manifests."""
         file_data = {"m0.yaml": "Some data"}
         tmp_path.chmod(0o555)
-        assert manio.save_files(tmp_path, file_data) == RetVal(None, True)
+        assert manio.save_files(tmp_path, file_data) == (None, True)
         assert not (tmp_path / "m0.yaml").exists()
 
     def test_save_remove_stale_err_permissions(self, tmp_path):
@@ -808,7 +806,7 @@ class TestYamlManifestIOIntegration:
         # stale manifests.
         tmp_file = (tmp_path / "foo.yaml")
         tmp_file.touch()
-        assert manio.save_files(tmp_path, {}) == RetVal(None, False)
+        assert manio.save_files(tmp_path, {}) == (None, False)
         assert not tmp_file.exists()
 
         # Create the dummy file again, then make its folder read-only. This
@@ -816,7 +814,7 @@ class TestYamlManifestIOIntegration:
         # files inside a read-only folder.
         tmp_file.touch()
         tmp_path.chmod(0o555)
-        assert manio.save_files(tmp_path, {}) == RetVal(None, True)
+        assert manio.save_files(tmp_path, {}) == (None, True)
         assert tmp_file.exists()
 
     def test_load_save_ok(self, tmp_path):
@@ -828,12 +826,12 @@ class TestYamlManifestIOIntegration:
             "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
             "foo/m1.yaml": [(meta[2], dply[2])],
         }
-        expected = Manifests(manio.unpack(man_files).data, man_files)
+        expected = Manifests(manio.unpack(man_files)[0], man_files)
         del dply, meta
 
         # Save the test data, then load it back and verify.
-        assert manio.save(tmp_path, man_files) == RetVal(None, False)
-        assert manio.load(tmp_path) == RetVal(expected, False)
+        assert manio.save(tmp_path, man_files) == (None, False)
+        assert manio.load(tmp_path) == (expected, False)
 
         # Glob the folder and ensure it contains exactly the files specified in
         # the `fdata_test_in` dict.
@@ -843,7 +841,7 @@ class TestYamlManifestIOIntegration:
         # Create non-YAML files. The `load_files` function must skip those.
         (tmp_path / "delme.txt").touch()
         (tmp_path / "foo" / "delme.txt").touch()
-        assert manio.load(tmp_path) == RetVal(expected, False)
+        assert manio.load(tmp_path) == (expected, False)
 
     def test_save_delete_stale_yaml(self, tmp_path):
         """`save_file` must remove all excess YAML files."""
@@ -858,12 +856,12 @@ class TestYamlManifestIOIntegration:
             "bar/m4.yaml": [(meta[4], dply[4])],
             "bar/m5.yaml": [(meta[5], dply[5])],
         }
-        expected = Manifests(manio.unpack(man_files).data, man_files)
+        expected = Manifests(manio.unpack(man_files)[0], man_files)
         del dply, meta
 
         # Save and load the test data.
-        assert manio.save(tmp_path, man_files) == RetVal(None, False)
-        assert manio.load(tmp_path) == RetVal(expected, False)
+        assert manio.save(tmp_path, man_files) == (None, False)
+        assert manio.load(tmp_path) == (expected, False)
 
         # Save a reduced set of files. Compared to `fdata_full`, it is two
         # files short and a third one ("bar/m4.yaml") is empty.
@@ -871,7 +869,7 @@ class TestYamlManifestIOIntegration:
         del fdata_reduced["m0.yaml"]
         del fdata_reduced["foo/m3.yaml"]
         fdata_reduced["bar/m4.yaml"] = []
-        expected = Manifests(manio.unpack(fdata_reduced).data, fdata_reduced)
+        expected = Manifests(manio.unpack(fdata_reduced)[0], fdata_reduced)
 
         # Verify that the files still exist from the last call to `save`.
         assert (tmp_path / "m0.yaml").exists()
@@ -879,12 +877,12 @@ class TestYamlManifestIOIntegration:
         assert (tmp_path / "bar/m4.yaml").exists()
 
         # Save the reduced set of files.
-        assert manio.save(tmp_path, fdata_reduced) == RetVal(None, False)
+        assert manio.save(tmp_path, fdata_reduced) == (None, False)
 
         # Load the data. It must neither contain the files we removed from the
         # dict above, nor "bar/m4.yaml" which contained an empty manifest list.
         del fdata_reduced["bar/m4.yaml"]
-        assert manio.load(tmp_path) == RetVal(expected, False)
+        assert manio.load(tmp_path) == (expected, False)
 
         # Verify that the files physically do not exist anymore.
         assert not (tmp_path / "m0.yaml").exists()
@@ -894,14 +892,14 @@ class TestYamlManifestIOIntegration:
     @mock.patch.object(manio, "load_files")
     def test_load_err(self, m_load, tmp_path):
         """Simulate an error in `load_files` function."""
-        m_load.return_value = RetVal(None, True)
-        assert manio.load(tmp_path) == RetVal(None, True)
+        m_load.return_value = (None, True)
+        assert manio.load(tmp_path) == (None, True)
 
     @mock.patch.object(manio, "unparse")
     def test_save_err(self, m_unparse, tmp_path):
         """Simulate an error in `unparse` function."""
-        m_unparse.return_value = RetVal(None, True)
-        assert manio.save(tmp_path, "foo") == RetVal(None, True)
+        m_unparse.return_value = (None, True)
+        assert manio.save(tmp_path, "foo") == (None, True)
 
 
 class TestSync:
@@ -956,22 +954,22 @@ class TestSync:
         # ----------------------------------------------------------------------
         expected = loc_man
         kinds, namespaces = [], None
-        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == (expected, False)
 
         kinds, namespaces = [], []
-        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == (expected, False)
 
         kinds, namespaces = ["Deployment", "Service"], []
-        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == (expected, False)
 
         # NOTE: this must *not* sync the Namespace manifest from "ns1" because
         # it was not an explicitly specified resource.
         kinds, namespaces = [], ["ns1"]
-        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == (expected, False)
 
         # Invalid/unsupported kinds.
         kinds, namespaces = ["Foo"], None
-        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(None, True)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == (None, True)
         del kinds, namespaces
 
         # ----------------------------------------------------------------------
@@ -991,11 +989,11 @@ class TestSync:
         # Sync the manifests. The order of `kinds` and `namespaces` must not matter.
         for kinds in itertools.permutations(["Namespace", "Deployment", "Service"]):
             # Implicitly use all namespaces.
-            assert fun(loc_man, srv_man, kinds, None) == RetVal(expected, False)
+            assert fun(loc_man, srv_man, kinds, None) == (expected, False)
 
             # Specify all namespaces explicitly.
             for ns in itertools.permutations(["ns0", "ns1"]):
-                assert fun(loc_man, srv_man, kinds, ns) == RetVal(expected, False)
+                assert fun(loc_man, srv_man, kinds, ns) == (expected, False)
 
         # ----------------------------------------------------------------------
         # Sync the server manifests in namespace "ns0".
@@ -1011,7 +1009,7 @@ class TestSync:
             ],
         }
         for kinds in itertools.permutations(["Deployment", "Service"]):
-            assert fun(loc_man, srv_man, kinds, ["ns0"]) == RetVal(expected, False)
+            assert fun(loc_man, srv_man, kinds, ["ns0"]) == (expected, False)
 
         # ----------------------------------------------------------------------
         # Sync only Deployments (all namespaces).
@@ -1027,7 +1025,7 @@ class TestSync:
             ],
         }
         kinds, namespaces = ["Deployment"], None
-        assert fun(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+        assert fun(loc_man, srv_man, kinds, namespaces) == (expected, False)
 
         # ----------------------------------------------------------------------
         # Sync only Deployments in namespace "ns0".
@@ -1043,7 +1041,7 @@ class TestSync:
             ],
         }
         kinds, namespaces = ["Deployment"], ["ns0"]
-        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == (expected, False)
 
         # ----------------------------------------------------------------------
         # Sync only Services in namespace "ns1".
@@ -1059,7 +1057,7 @@ class TestSync:
             ],
         }
         kinds, namespaces = ["Service"], ["ns1"]
-        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == (expected, False)
 
     def test_sync_modify_delete_ok(self):
         """Add, modify and delete a few manifests.
@@ -1107,7 +1105,7 @@ class TestSync:
             "_ns1.yaml": [(meta_1[6], "new"), (meta_1[8], "new")],
             "_ns2.yaml": [(meta_2[7], "new")],
         }
-        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == (expected, False)
 
     def test_sync_catch_all_files(self):
         """Verify that syncing the catch-all files works as expected.
@@ -1168,7 +1166,7 @@ class TestSync:
                 (meta_2[7], "7"), (meta_2[5], "5"), (meta_2[3], "3"),
             ]
         }
-        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == (expected, False)
 
     def test_sync_new_namespaces(self):
         """Create catch-all files for new namespaces.
@@ -1239,7 +1237,7 @@ class TestSync:
                 (meta_dply_b[4], "dply_b_4"),
             ],
         }
-        assert manio.sync(loc_man, srv_man, kinds, namespaces) == RetVal(expected, False)
+        assert manio.sync(loc_man, srv_man, kinds, namespaces) == (expected, False)
 
 
 class TestDownloadManifests:
@@ -1292,21 +1290,21 @@ class TestDownloadManifests:
         # ----------------------------------------------------------------------
         m_get.reset_mock()
         m_get.side_effect = [
-            RetVal(l_ns, False),
-            RetVal(l_dply, False),
+            (l_ns, False),
+            (l_dply, False),
         ]
         expected = {
-            manio.make_meta(meta[0]): manio.strip(config, meta[0]).data,
-            manio.make_meta(meta[1]): manio.strip(config, meta[1]).data,
-            manio.make_meta(meta[2]): manio.strip(config, meta[2]).data,
-            manio.make_meta(meta[3]): manio.strip(config, meta[3]).data,
+            manio.make_meta(meta[0]): manio.strip(config, meta[0])[0],
+            manio.make_meta(meta[1]): manio.strip(config, meta[1])[0],
+            manio.make_meta(meta[2]): manio.strip(config, meta[2])[0],
+            manio.make_meta(meta[3]): manio.strip(config, meta[3])[0],
         }
         ret = manio.download(
             config, "client",
             kinds=["Namespace", "Deployment"],
             namespaces=None,
         )
-        assert ret == RetVal(expected, False)
+        assert ret == (expected, False)
         assert m_get.call_args_list == [
             mock.call("client", url_ns),
             mock.call("client", url_deploy),
@@ -1320,18 +1318,18 @@ class TestDownloadManifests:
         # ------------------------------------------------------------------------------
         m_get.reset_mock()
         m_get.side_effect = [
-            RetVal(l_ns_0, False),
-            RetVal(l_dply_0, False),
-            RetVal(l_ns_1, False),
-            RetVal(l_dply_1, False),
+            (l_ns_0, False),
+            (l_dply_0, False),
+            (l_ns_1, False),
+            (l_dply_1, False),
         ]
         expected = {
-            manio.make_meta(meta[0]): manio.strip(config, meta[0]).data,
-            manio.make_meta(meta[1]): manio.strip(config, meta[1]).data,
-            manio.make_meta(meta[2]): manio.strip(config, meta[2]).data,
-            manio.make_meta(meta[3]): manio.strip(config, meta[3]).data,
+            manio.make_meta(meta[0]): manio.strip(config, meta[0])[0],
+            manio.make_meta(meta[1]): manio.strip(config, meta[1])[0],
+            manio.make_meta(meta[2]): manio.strip(config, meta[2])[0],
+            manio.make_meta(meta[3]): manio.strip(config, meta[3])[0],
         }
-        assert RetVal(expected, False) == manio.download(
+        assert (expected, False) == manio.download(
             config, "client",
             kinds=["Namespace", "Deployment"],
             namespaces=["ns0", "ns1"]
@@ -1351,14 +1349,14 @@ class TestDownloadManifests:
         # ----------------------------------------------------------------------
         m_get.reset_mock()
         m_get.side_effect = [
-            RetVal(l_ns_0, False),
-            RetVal(l_dply_0, False),
+            (l_ns_0, False),
+            (l_dply_0, False),
         ]
         expected = {
-            manio.make_meta(meta[0]): manio.strip(config, meta[0]).data,
-            manio.make_meta(meta[2]): manio.strip(config, meta[2]).data,
+            manio.make_meta(meta[0]): manio.strip(config, meta[0])[0],
+            manio.make_meta(meta[2]): manio.strip(config, meta[2])[0],
         }
-        assert RetVal(expected, False) == manio.download(
+        assert (expected, False) == manio.download(
             config, "client",
             kinds=["Namespace", "Deployment"],
             namespaces=["ns0"]
@@ -1381,7 +1379,7 @@ class TestDownloadManifests:
         }
 
         # The first call to get will succeed whereas the second will not.
-        m_get.side_effect = [RetVal(man_list_ns, False), RetVal(None, True)]
+        m_get.side_effect = [(man_list_ns, False), (None, True)]
 
         # The request URLs. We will need them to validate the `get` arguments.
         url_ns, err1 = urlpath(config, "Namespace", None)
@@ -1393,7 +1391,7 @@ class TestDownloadManifests:
         ret = manio.download(
             config, "client", ["Namespace", "Deployment"], None
         )
-        assert ret == RetVal(None, True)
+        assert ret == (None, True)
         assert m_get.call_args_list == [
             mock.call("client", url_ns),
             mock.call("client", url_deploy),
