@@ -37,5 +37,6 @@ RetVal = namedtuple('RetVal', 'data err')
 
 
 # Data types.
-LocalManifests = Dict[Union[pathlib.PurePath, str], Tuple[MetaManifest, dict]]
+Filepath = Union[str, pathlib.PurePath]
+LocalManifests = Dict[Filepath, Tuple[MetaManifest, dict]]
 ServerManifests = Dict[MetaManifest, dict]
