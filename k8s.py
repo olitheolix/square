@@ -120,7 +120,7 @@ def load_gke_config(
         token=cred.token,
         ca_cert=ssl_ca_cert,
         client_cert=None,
-        config=None,
+        version=None,
     )
 
 
@@ -287,8 +287,8 @@ def request(
         client,
         method: str,
         url: str,
-        payload: dict,
-        headers: dict) -> Tuple[Union[None, dict], bool]:
+        payload: Union[None, dict],
+        headers: Union[None, dict]) -> Tuple[Union[None, dict], bool]:
     """Return response of web request made with `client`.
 
     Inputs:
@@ -388,7 +388,7 @@ def version(config: Config, client) -> Tuple[Union[None, Config], bool]:
     # Ask the K8s API for its version and check for errors.
     url = f"{config.url}/version"
     resp, err = get(client, url)
-    if err:
+    if err or resp is None:
         return (None, True)
 
     # Construct the version number of the K8s API.
