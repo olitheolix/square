@@ -11,7 +11,7 @@ import schemas
 import yaml
 from dtypes import (
     SUPPORTED_KINDS, Config, Filepath, LocalManifests, Manifests, MetaManifest,
-    RetVal, ServerManifests,
+    ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -54,13 +54,13 @@ def unpack_list(manifest_list: dict) -> ServerManifests:
     if len(missing) > 0:
         kind = manifest_list.get("kind", "UNKNOWN")
         logit.error(f"{kind} manifest is missing these keys: {missing}")
-        return RetVal(None, True)
+        return (None, True)
     del must_have, missing
 
     kind = manifest_list["kind"]
     if not kind.endswith('List'):
         logit.error(f"Kind {kind} is not a list")
-        return RetVal(None, True)
+        return (None, True)
     kind = kind[:-4]
 
     apiversion = manifest_list["apiVersion"]
@@ -72,7 +72,7 @@ def unpack_list(manifest_list: dict) -> ServerManifests:
         manifest['kind'] = kind
 
         manifests[make_meta(manifest)] = manifest
-    return RetVal(manifests, False)
+    return (manifests, False)
 
 
 def parse(file_yaml: Dict[Filepath, str]) -> Tuple[LocalManifests, bool]:
@@ -102,7 +102,7 @@ def parse(file_yaml: Dict[Filepath, str]) -> Tuple[LocalManifests, bool]:
                 f"Cannot YAML parse <{fname}>"
                 f" - {err.problem} - Line {err.problem_mark.line}"
             )
-            return RetVal(None, True)
+            return (None, True)
 
         # Convert List[manifest] into List[(MetaManifest, manifest)].
         out[fname] = [(make_meta(_), _) for _ in manifests]
@@ -113,7 +113,7 @@ def parse(file_yaml: Dict[Filepath, str]) -> Tuple[LocalManifests, bool]:
     logit.debug(f"Parsed {sum(num_manifests)} manifests in {len(num_manifests)} files")
 
     # Return the YAML parsed manifests.
-    return RetVal(out, False)
+    return (out, False)
 
 
 def unpack(data: LocalManifests) -> ServerManifests:
@@ -148,11 +148,11 @@ def unpack(data: LocalManifests) -> ServerManifests:
                 f"{str.join(', ', fnames)}"
             )
     if not is_unique:
-        return RetVal(None, True)
+        return (None, True)
 
     # Compile the input data into a new dict with the meta manifest as key.
     out = {k: v for fname in data for k, v in data[fname]}
-    return RetVal(out, False)
+    return (out, False)
 
 
 def unparse(file_manifests: LocalManifests) -> Tuple[Dict[Filepath, str], bool]:
@@ -175,7 +175,7 @@ def unparse(file_manifests: LocalManifests) -> Tuple[Dict[Filepath, str], bool]:
         delta = kinds - set(SUPPORTED_KINDS)
         if len(delta) > 0:
             logit.error(f"Found unsupported KIND when writing <{fname}>: {delta}")
-            return RetVal(None, True)
+            return (None, True)
 
         # Group the manifests by their "kind", sort each group and compile a
         # new list of grouped and sorted manifests.
@@ -208,10 +208,10 @@ def unparse(file_manifests: LocalManifests) -> Tuple[Dict[Filepath, str], bool]:
         logit.error(
             f"YAML error. Cannot create <{fname}>: {err.args[0]} <{str(err.args[1])}>"
         )
-        return RetVal(None, True)
+        return (None, True)
 
     # Return the Dict[Filepath:YamlStr]
-    return RetVal(out, False)
+    return (out, False)
 
 
 def sync(
@@ -237,7 +237,7 @@ def sync(
     if not set(kinds).issubset(SUPPORTED_KINDS):
         unsupported = set(kinds) - set(SUPPORTED_KINDS)
         logit.error(f"Cannot sync unsupported kinds: {unsupported}")
-        return RetVal(None, True)
+        return (None, True)
 
     # Avoid side effects.
     server_manifests = copy.deepcopy(server_manifests)
@@ -309,7 +309,7 @@ def sync(
         pruned = [(meta, man) for (meta, man) in manifests if meta in server_manifests]
         out_add_mod_del[fname] = pruned
 
-    return RetVal(out_add_mod_del, False)
+    return (out_add_mod_del, False)
 
 
 def diff(
@@ -338,7 +338,7 @@ def diff(
     srv, err1 = strip(config, server)
     loc, err2 = strip(config, local)
     if err1 or err2:
-        return RetVal(None, True)
+        return (None, True)
 
     # Undo the DotDicts. This is a pre-caution because the YAML parser can
     # otherwise not dump the manifests.
@@ -349,7 +349,7 @@ def diff(
 
     # Compute and return the lines of the diff.
     diff_lines = difflib.unified_diff(srv_lines, loc_lines, lineterm='')
-    return RetVal(str.join("\n", diff_lines), False)
+    return (str.join("\n", diff_lines), False)
 
 
 def strip(config: Config, manifest: dict) -> dict:
@@ -376,7 +376,7 @@ def strip(config: Config, manifest: dict) -> dict:
         kind, version = manifest["kind"], manifest["apiVersion"]
     except KeyError as err:
         logit.error(f"Manifest is missing the <{err.args[0]}> key.")
-        return RetVal(None, True)
+        return (None, True)
 
     def _update(schema, manifest, out):
         """Recursively traverse the `schema` dict and add `manifest` keys into `out`.
@@ -445,15 +445,15 @@ def strip(config: Config, manifest: dict) -> dict:
             f"Unknown K8s version (<{config.version}>) "
             "or resource kind: <{kind}>"
         )
-        return RetVal(None, True)
+        return (None, True)
 
     # Strip down the manifest to its essential parts and return it.
     try:
         _update(schema, manifest, stripped)
     except KeyError:
-        return RetVal(None, True)
+        return (None, True)
     else:
-        return RetVal(dotdict.make(stripped), False)
+        return (dotdict.make(stripped), False)
 
 
 def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> Tuple[None, bool]:
@@ -480,7 +480,7 @@ def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> Tuple[None, 
             fp.unlink()
     except (IOError, PermissionError) as err:
         logit.error(f"{err}")
-        return RetVal(None, True)
+        return (None, True)
 
     # Iterate over the dict and write each file. Abort on error.
     for fname, yaml_str in file_data.items():
@@ -499,10 +499,10 @@ def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> Tuple[None, 
             fname_abs.write_text(yaml_str)
         except (IOError, PermissionError) as err:
             logit.error(f"{err}")
-            return RetVal(None, True)
+            return (None, True)
 
     # Tell caller that all files were successfully written.
-    return RetVal(None, False)
+    return (None, False)
 
 
 def load_files(
@@ -542,10 +542,10 @@ def load_files(
             out[str(fname_rel)] = fname_abs.read_text()
         except FileNotFoundError:
             logit.error(f"Could not find <{fname_abs}>")
-            return RetVal(None, True)
+            return (None, True)
 
     # Return the read files.
-    return RetVal(out, False)
+    return (out, False)
 
 
 def load(folder: Filepath):
@@ -589,10 +589,10 @@ def load(folder: Filepath):
         man_meta, err = unpack(man_files)
         assert not err
     except AssertionError:
-        return RetVal(None, True)
+        return (None, True)
 
     # Return the file based manifests and unpacked manifests.
-    return RetVal(Manifests(man_meta, man_files), False)
+    return (Manifests(man_meta, man_files), False)
 
 
 def save(folder: Filepath, manifests: LocalManifests) -> Tuple[None, bool]:
@@ -619,7 +619,7 @@ def save(folder: Filepath, manifests: LocalManifests) -> Tuple[None, bool]:
     # Convert the manifest to YAML strings. Abort on error.
     fdata_raw, err = unparse(manifests)
     if err:
-        return RetVal(None, True)
+        return (None, True)
 
     # Save the files to disk.
     return save_files(folder, fdata_raw)
@@ -674,13 +674,17 @@ def download(
 
                 # Drop all manifest fields except "apiVersion", "metadata" and "spec".
                 ret = {k: strip(config, man) for k, man in manifests.items()}
-                manifests = {k: v.data for k, v in ret.items()}
-                err = any((v.err for v in ret.values()))
+
+                # Ensure `strip` worked for every manifest.
+                err = any((v[1] for v in ret.values()))
                 assert not err
+
+                # Unpack the stripped manifests from the `strip` response.
+                manifests = {k: v[0] for k, v in ret.items()}
             except AssertionError:
                 # Return nothing, even if we had downloaded other kinds already.
-                return RetVal(None, True)
+                return (None, True)
             else:
                 # Copy the manifests into the output dictionary.
                 server_manifests.update(manifests)
-    return RetVal(server_manifests, False)
+    return (server_manifests, False)
