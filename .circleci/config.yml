@@ -48,6 +48,7 @@ jobs:
             # Run the pytest suite as an unprivileged user.
             sudo -u square pytest --cov=./
             codecov
+            pipenv run mypy --ignore-missing-imports *.py
 
   linux-binary:
     docker:
