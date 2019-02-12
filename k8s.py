@@ -70,12 +70,13 @@ def load_kubeconfig(
         except AssertionError:
             logit.error(f"Could not find information for context <{ctx}>")
             return (None, None, None)
+
+        # Unpack the cluster and user information.
+        cluster_info = cluster_info[0]["cluster"]
+        user_info = user_info[0]["user"]
     except KeyError:
         logit.error(f"Kubeconfig YAML file <{fname}> is invalid")
         return (None, None, None)
-    else:
-        # Unpack the cluster and user information.
-        cluster_info, user_info = cluster_info[0], user_info[0]
 
     # Success.
     return (username, user_info, cluster_info)
@@ -150,7 +151,7 @@ def load_gke_config(
     # server certificate with a public CA).
     try:
         ssl_ca_cert_data = base64.b64decode(
-            cluster["cluster"]["certificate-authority-data"]
+            cluster["certificate-authority-data"]
         )
     except KeyError:
         logit.error(f"Context {context} in <{fname}> does not look like a GKE config")
@@ -172,7 +173,7 @@ def load_gke_config(
 
     # Return the config data.
     return Config(
-        url=cluster["cluster"]["server"],
+        url=cluster["server"],
         token=cred.token,
         ca_cert=ssl_ca_cert,
         client_cert=None,
@@ -206,15 +207,15 @@ def load_minikube_config(
     # Minikube uses client certificates to authenticate. We need to pass those
     # to the HTTP client of our choice when we create the session.
     client_cert = ClientCert(
-        crt=user["user"]["client-certificate"],
-        key=user["user"]["client-key"],
+        crt=user["client-certificate"],
+        key=user["client-key"],
     )
 
     # Return the config data.
     return Config(
-        url=cluster["cluster"]["server"],
+        url=cluster["server"],
         token=None,
-        ca_cert=cluster["cluster"]["certificate-authority"],
+        ca_cert=cluster["certificate-authority"],
         client_cert=client_cert,
         version=None,
     )
