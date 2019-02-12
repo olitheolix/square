@@ -859,7 +859,9 @@ class TestMain:
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
-        `main_*` function will be called with the correct parameters.
+        `main_*` function will be called with the correct parameters. However,
+        each of those `main_*` functions returns with an error which means
+        `square.main` must return with a non-zero exit code.
 
         """
         # Mock all calls to the K8s API.
@@ -874,10 +876,8 @@ class TestMain:
 
         # Simulate all input options.
         for option in ["get", "diff", "patch"]:
-            with mock.patch("sys.argv", ["square.py", option]):
-                with pytest.raises(SystemExit) as err:
-                    square.main()
-                assert err.value.code == 2
+            with mock.patch("sys.argv", ["square.py", option, "ns"]):
+                assert square.main() == 1
 
     @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "parse_commandline_args")
