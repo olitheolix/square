@@ -128,7 +128,20 @@ def load_minikube_config(
         fname: Filepath,
         context: Optional[str],
 ) -> Optional[Config]:
+    """Load minikube configuration from `fname`.
 
+    Return None on error.
+
+    Inputs:
+        kubconfig: str
+            Path to kubeconfig file, eg "~/.kube/config.yaml"
+        context: str
+            Kubeconf context. Use `None` to use default context.
+
+    Returns:
+        Config
+
+    """
     # Load `kubeconfig`.
     try:
         kubeconf = yaml.load(open(fname))
@@ -177,7 +190,8 @@ def load_minikube_config(
 
 
 def load_auto_config(
-        kubeconfig: str,
+        fname: Filepath,
+        context: Optional[str],
         disable_warnings: bool = False) -> Optional[Config]:
     """Automagically find and load the correct K8s configuration.
 
@@ -188,8 +202,13 @@ def load_auto_config(
     2) `load_gke_config`
 
     Inputs:
-        kubconfig: str
-            Name of kubeconfig file.
+        fname: str
+            Path to kubeconfig file, eg "~/.kube/config.yaml"
+            Use `None` to find out automatically or for incluster credentials.
+
+        context: str
+            Kubeconf context. Use `None` to use default context.
+
     Returns:
         Config
 
@@ -197,15 +216,19 @@ def load_auto_config(
     conf = load_incluster_config()
     if conf is not None:
         return conf
+    logit.debug("Incluster config failed")
 
-    conf = load_minikube_config(kubeconfig)
+    conf = load_minikube_config(fname, context)
     if conf is not None:
         return conf
+    logit.debug("Minikube config failed")
 
-    conf = load_gke_config(kubeconfig, disable_warnings)
+    conf = load_gke_config(fname, context, disable_warnings)
     if conf is not None:
         return conf
+    logit.debug("GKE config failed")
 
+    logit.error(f"Could not find a valid configuration in <{fname}>")
     return None
 
 
