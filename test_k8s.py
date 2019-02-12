@@ -7,6 +7,7 @@ import k8s
 import pytest
 import requests_mock
 import square
+import yaml
 from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config
 
 
@@ -391,3 +392,60 @@ class TestK8sKubeconfig:
         assert k8s.load_gke_config("support/invalid.yaml", "invalid") is None
         assert k8s.load_gke_config("support/kubeconf.yaml", "invalid") is None
         assert k8s.load_gke_config("support/kubeconf_invalid.yaml", "gke") is None
+
+    @mock.patch.object(k8s.subprocess, "run")
+    def test_load_eks_config_ok(self, m_run):
+        """Load EKS configuration from demo kubeconfig."""
+        # Mock the call to run the `aws-iam-authenticator` tool
+        token = yaml.dump({"status": {"token": "EKS token"}})
+        m_run.return_value = types.SimpleNamespace(stdout=token.encode("utf8"))
+
+        # Load the K8s configuration for "eks" context.
+        fname = "support/kubeconf.yaml"
+        ret = k8s.load_eks_config(fname, "eks")
+        assert isinstance(ret, Config)
+
+        # The certificate will be in a temporary folder because the `requests`
+        # library insists on reading it from a file. Here we load that file and
+        # manually insert its value into the returned Config structure. This
+        # will make the verification step below easier to read.
+        ca_cert = open(ret.ca_cert, "r").read().strip()
+        ret = ret._replace(ca_cert=ca_cert)
+
+        # Verify the expected output.
+        assert ret == Config(
+            url="https://5.6.7.8",
+            token="EKS token",
+            ca_cert="ca.cert",
+            client_cert=None,
+            version=None,
+        )
+
+        # EKS is not the default context in the demo kubeconf file, which means
+        # this must fail.
+        assert ret != k8s.load_eks_config(fname, None)
+
+        # Try to load a Minikube context - must fail.
+        assert k8s.load_eks_config(fname, "minikube") is None
+
+    @mock.patch.object(k8s.subprocess, "run")
+    def test_load_eks_config_err(self, m_run):
+        """Load EKS configuration from demo kubeconfig."""
+        # Valid kubeconfig file.
+        fname = "support/kubeconf.yaml"
+
+        # Pretend the `aws-iam-authenticator` binary does not exist.
+        m_run.side_effect = FileNotFoundError
+        assert k8s.load_eks_config(fname, "eks") is None
+
+        # Pretend that `aws-iam-authenticator` returned a valid but useless YAML.
+        m_run.side_effect = None
+        m_run.return_value = types.SimpleNamespace(stdout=yaml.dump({}).encode("utf8"))
+        assert k8s.load_eks_config(fname, "eks") is None
+
+        # Pretend that `aws-iam-authenticator` returned an invalid YAML.
+        m_run.side_effect = None
+
+        invalid_yaml = "invalid :: - yaml".encode("utf8")
+        m_run.return_value = types.SimpleNamespace(stdout=invalid_yaml)
+        assert k8s.load_eks_config(fname, "eks") is None

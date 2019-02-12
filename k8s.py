@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import subprocess
 import tempfile
 import warnings
 from collections import namedtuple
@@ -159,23 +160,94 @@ def load_gke_config(
         return None
 
     # Save the certificate to a temporary file. This is only necessary because
-    # the requests library needs a path to the CA file - unfortunately, we
+    # the requests library will need a path to the CA file - unfortunately, we
     # cannot just pass it the content.
     _, ssl_ca_cert = tempfile.mkstemp(text=False)
     with open(ssl_ca_cert, "wb") as fd:
         fd.write(ssl_ca_cert_data)
 
-    # Get the access token from Compute Engine (uses the default project).
     with warnings.catch_warnings(record=disable_warnings):
         cred, project_id = google.auth.default(
             scopes=['https://www.googleapis.com/auth/cloud-platform']
         )
         cred.refresh(google.auth.transport.requests.Request())
+        token = cred.token
 
     # Return the config data.
     return Config(
         url=cluster["server"],
-        token=cred.token,
+        token=token,
+        ca_cert=ssl_ca_cert,
+        client_cert=None,
+        version=None,
+    )
+
+
+def load_eks_config(
+        fname: Filepath,
+        context: Optional[str],
+        disable_warnings: bool = False) -> Optional[Config]:
+    """Return K8s access config for EKS cluster described in `kubeconfig`.
+
+    Returns None if `kubeconfig` does not exist or could not be parsed.
+
+    Inputs:
+        kubconfig: str
+            Name of kubeconfig file.
+        context: str
+            Kubeconf context. Use `None` to use default context.
+        disable_warnings: bool
+            Whether or not do disable GCloud warnings.
+
+    Returns:
+        Config
+
+    """
+    # Parse the kubeconfig file.
+    name, user, cluster = load_kubeconfig(fname, context)
+    if name is None or user is None or cluster is None:
+        return None
+
+    # Unpack the self signed certificate (Google does not register the K8s API
+    # server certificate with a public CA).
+    try:
+        ssl_ca_cert_data = base64.b64decode(
+            cluster["certificate-authority-data"]
+        )
+        cmd = user["exec"]["command"]
+        args = user["exec"]["args"]
+    except KeyError:
+        logit.debug(f"Context {context} in <{fname}> is not an EKS config")
+        return None
+
+    # Save the certificate to a temporary file. This is only necessary because
+    # the requests library will need a path to the CA file - unfortunately, we
+    # cannot just pass it the content.
+    _, ssl_ca_cert = tempfile.mkstemp(text=False)
+    with open(ssl_ca_cert, "wb") as fd:
+        fd.write(ssl_ca_cert_data)
+
+    # EKS access token are supplied by the `aws-iam-authenticator` tool.
+    if user.get("exec", {}).get("command", None) is None:
+        logit.debug(f"Context {context} in <{fname}> is not an EKS config")
+        return None
+
+    # Run the `aws-iam-authenticator` tool with the arguments from the
+    # kubeconfig file. This will produce a YAML document with the bearer token.
+    try:
+        out = subprocess.run([cmd] + args, stdout=subprocess.PIPE)
+        token = yaml.load(out.stdout.decode("utf8"))["status"]["token"]
+    except FileNotFoundError:
+        logit.error(f"Could not find <{cmd}> application to get token")
+        return None
+    except (KeyError, yaml.YAMLError):
+        logit.error(f"Token manifest from <{cmd}> is corrupt")
+        return None
+
+    # Return the config data.
+    return Config(
+        url=cluster["server"],
+        token=token,
         ca_cert=ssl_ca_cert,
         client_cert=None,
         version=None,
