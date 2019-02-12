@@ -649,8 +649,8 @@ class TestMainOptions:
         )
 
         # Pretend that all K8s requests succeed.
-        m_down.return_value = ("srv", False)
-        m_load.return_value = ("foo", "bar", False)
+        m_down.return_value = ({}, False)
+        m_load.return_value = ({}, {}, False)
         m_prun.side_effect = ["local", "server"]
         m_plan.return_value = (plan, False)
         m_post.return_value = (None, False)
@@ -717,8 +717,8 @@ class TestMainOptions:
         plan = DeploymentPlan(create=[], patch=[], delete=[])
 
         # All auxiliary functions will succeed.
-        m_load.return_value = ("foo", "bar", False)
-        m_down.return_value = ("server-dl", False)
+        m_load.return_value = ({}, {}, False)
+        m_down.return_value = ({}, False)
         m_prune.side_effect = ["local", "server"]
         m_plan.return_value = (plan, False)
 
@@ -758,8 +758,10 @@ class TestMainOptions:
 
         """
         # Simulate successful responses from the two auxiliary functions.
-        m_load.return_value = ("foo", "files", False)
-        m_down.return_value = ("server-dl", False)
+        # The `load` function must return empty dicts to ensure the error
+        # conditions are properly coded.
+        m_load.return_value = ({}, {}, False)
+        m_down.return_value = ({}, False)
         m_prun.return_value = "server"
         m_sync.return_value = ("synced", False)
         m_save.return_value = (None, False)
@@ -771,8 +773,8 @@ class TestMainOptions:
         assert square.main_get(*args) == (None, False)
         m_load.assert_called_once_with("folder")
         m_down.assert_called_once_with("config", "client", "kinds", "ns")
-        m_prun.assert_called_once_with("server-dl", "kinds", "ns")
-        m_sync.assert_called_once_with("files", "server", "kinds", "ns")
+        m_prun.assert_called_once_with({}, "kinds", "ns")
+        m_sync.assert_called_once_with({}, "server", "kinds", "ns")
         m_save.assert_called_once_with("folder", "synced")
 
         # Simulate an error with `manio.save`.
