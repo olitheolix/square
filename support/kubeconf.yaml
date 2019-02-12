@@ -8,7 +8,15 @@ clusters:
     certificate-authority: ca.crt
     server: https://192.168.0.177:8443
   name: minikube
+- cluster:
+    certificate-authority-data: Y2EuY2VydAo= # Base64 encoded "ca.crt"
+    server: https://5.6.7.8
+  name: eks
 contexts:
+- context:
+    cluster: eks
+    user: aws
+  name: eks
 - context:
     cluster: gke_foo-bar-123456_australia-southeast1-foobar
     user: gke_foo-bar-123456_australia-southeast1-foobar
@@ -32,6 +40,16 @@ users:
         expiry-key: '{.credential.token_expiry}'
         token-key: '{.credential.access_token}'
       name: gcp
+- name: aws
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1alpha1
+      args:
+      - token
+      - -i
+      - eks-cluster-name
+      command: aws-iam-authenticator
+      env: null
 - name: minikube
   user:
     client-certificate: client.crt
