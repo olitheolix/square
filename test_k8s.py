@@ -324,12 +324,12 @@ class TestK8sKubeconfig:
             version=None,
         )
 
+        # Function must also accept pathlib.Path instances.
+        assert ret == k8s.load_minikube_config(pathlib.Path(fname), None)
+
         # Minikube also happens to be the default context, so not supplying an
         # explicit context must return the same information.
         assert ret == k8s.load_minikube_config(fname, None)
-
-        # Function must also accept pathlib.Path instances.
-        assert ret == k8s.load_minikube_config(pathlib.Path(fname), None)
 
     def test_load_minikube_config_err(self):
         # Must return None if the file name or context are invalid.
