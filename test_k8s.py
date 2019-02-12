@@ -22,6 +22,25 @@ class TestK8sDeleteGetPatchPost:
     def setup_class(cls):
         square.setup_logging(9)
 
+    def test_session(self):
+        """Verify the `requests.Session` object is correctly setup."""
+        # Basic.
+        config = Config("", token=None, ca_cert="ca_cert", client_cert=None, version=None)
+        sess = k8s.session(config)
+        assert "authorization" not in sess.headers
+
+        # With access token.
+        config = Config("", "token", "ca_cert", client_cert=None, version=None)
+        sess = k8s.session(config)
+        assert sess.headers["authorization"] == f"Bearer token"
+
+        # With access token and client certificate.
+        ccert = k8s.ClientCert(crt="foo", key="bar")
+        config = Config("", "token", "ca_cert", client_cert=ccert, version=None)
+        sess = k8s.session(config)
+        assert sess.headers["authorization"] == f"Bearer token"
+        assert sess.cert == ("foo", "bar")
+
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     def test_request_ok(self, method, m_requests):
         """Simulate a successful K8s response for GET request."""

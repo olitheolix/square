@@ -360,7 +360,7 @@ def session(config: Config):
 
     # Add the bearer token if this cluster uses them to authenticate users.
     if config.token is not None:
-        sess.headers = {'authorization': f'Bearer {config.token}'}
+        sess.headers.update({'authorization': f'Bearer {config.token}'})
 
     # Return the configured session object.
     return sess
