@@ -312,6 +312,33 @@ class TestK8sKubeconfig:
     def setup_class(cls):
         square.setup_logging(9)
 
+    @mock.patch.object(k8s.os, "getenv")
+    def test_incluster(self, m_getenv, tmp_path):
+        """Create dummy certificate files and ensure the function loads them."""
+        # Fake environment variable.
+        m_getenv.return_value = "1.2.3.4"
+
+        # Create dummy certificate files.
+        fname_cert = tmp_path / "cert"
+        fname_token = tmp_path / "token"
+
+        # Must fail because neither of the files exists.
+        assert k8s.load_incluster_config(fname_token, fname_cert) is None
+
+        # Create the files with dummy content.
+        fname_cert.write_text("cert")
+        fname_token.write_text("token")
+
+        # Now that the files exist we must get the proper Config structure.
+        ret = k8s.load_incluster_config(fname_token, fname_cert)
+        assert ret == Config(
+            url=f'https://1.2.3.4',
+            token="token",
+            ca_cert=str(fname_cert),
+            client_cert=None,
+            version=None,
+        )
+
     @mock.patch.object(k8s, "load_incluster_config")
     @mock.patch.object(k8s, "load_minikube_config")
     @mock.patch.object(k8s, "load_eks_config")

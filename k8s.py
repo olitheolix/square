@@ -2,6 +2,7 @@ import base64
 import json
 import logging
 import os
+import pathlib
 import re
 import subprocess
 import tempfile
@@ -85,8 +86,8 @@ def load_kubeconfig(
 
 
 def load_incluster_config(
-        fname_token: str = FNAME_TOKEN,
-        fname_cert: str = FNAME_CERT) -> Optional[Config]:
+        fname_token: Filepath = FNAME_TOKEN,
+        fname_cert: Filepath = FNAME_CERT) -> Optional[Config]:
     """Return K8s access config from Pod service account.
 
     Returns None if we are not running in a Pod.
@@ -101,27 +102,27 @@ def load_incluster_config(
     # Every K8s pod has this.
     server_ip = os.getenv('KUBERNETES_PORT_443_TCP_ADDR', None)
 
+    fname_cert = pathlib.Path(fname_cert)
+    fname_token = pathlib.Path(fname_token)
+
     # Sanity checks: URL and service account files either exist, or we are not
     # actually inside a Pod.
     try:
         assert server_ip is not None
-        assert os.path.exists(fname_cert)
-        assert os.path.exists(fname_token)
+        assert fname_cert.exists()
+        assert fname_token.exists()
     except AssertionError:
         return None
 
     # Return the compiled K8s access configuration.
-    try:
-        conf = Config(
-            url=f'https://{server_ip}',
-            token=open(fname_token, 'r').read(),
-            ca_cert=fname_cert,
-            client_cert=None,
-            version=None,
-        )
-        return conf
-    except FileNotFoundError:
-        return None
+    conf = Config(
+        url=f'https://{server_ip}',
+        token=fname_token.read_text(),
+        ca_cert=str(fname_cert),
+        client_cert=None,
+        version=None,
+    )
+    return conf
 
 
 def load_gke_config(
