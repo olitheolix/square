@@ -332,6 +332,11 @@ def load_auto_config(
         return conf
     logit.debug("Minikube config failed")
 
+    conf = load_eks_config(fname, context, disable_warnings)
+    if conf is not None:
+        return conf
+    logit.debug("EKS config failed")
+
     conf = load_gke_config(fname, context, disable_warnings)
     if conf is not None:
         return conf

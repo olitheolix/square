@@ -295,8 +295,9 @@ class TestK8sKubeconfig:
 
     @mock.patch.object(k8s, "load_incluster_config")
     @mock.patch.object(k8s, "load_minikube_config")
+    @mock.patch.object(k8s, "load_eks_config")
     @mock.patch.object(k8s, "load_gke_config")
-    def test_load_auto_config(self, m_gke, m_mini, m_incluster):
+    def test_load_auto_config(self, m_gke, m_eks, m_mini, m_incluster):
         """`load_auto_config` must pick the first successful configuration."""
         fun = k8s.load_auto_config
 
@@ -310,8 +311,13 @@ class TestK8sKubeconfig:
         assert fun(kubeconf, context) == m_mini.return_value
         m_mini.assert_called_once_with(kubeconf, context)
 
-        # Incluster and Minikube fail but GKE succeeds.
+        # Incluster and Minikube fail but EKS succeeds.
         m_mini.return_value = None
+        assert fun(kubeconf, context) == m_eks.return_value
+        m_eks.assert_called_once_with(kubeconf, context, False)
+
+        # Incluster, Minikube and EKS fail but GKE succeeds.
+        m_eks.return_value = None
         assert fun(kubeconf, context) == m_gke.return_value
         m_gke.assert_called_once_with(kubeconf, context, False)
 
