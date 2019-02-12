@@ -336,3 +336,41 @@ class TestK8sKubeconfig:
         assert k8s.load_minikube_config("support/invalid.yaml", None) is None
         assert k8s.load_minikube_config("support/invalid.yaml", "invalid") is None
         assert k8s.load_minikube_config("support/kubeconf.yaml", "invalid") is None
+
+    @mock.patch.object(k8s.google.auth, "default")
+    def test_load_gke_config_ok(self, m_google):
+        """Load GKE configuration from demo kubeconfig."""
+        # Skip the Google authentication part.
+        m_google.return_value = (m_google, "project_id")
+        m_google.token = "google token"
+
+        # Load the K8s configuration for "gke" context.
+        fname = "support/kubeconf.yaml"
+        ret = k8s.load_gke_config(fname, "gke")
+        assert isinstance(ret, Config)
+
+        # The certificate will be in a temporary folder because the `requests`
+        # library insists on reading it from a file. Here we load that file and
+        # manually insert its value into the returned Config structure. This
+        # will make the verification step below easier to read.
+        ca_cert = open(ret.ca_cert, "r").read().strip()
+        ret = ret._replace(ca_cert=ca_cert)
+
+        # Verify the expected output.
+        assert ret == Config(
+            url="https://1.2.3.4",
+            token="google token",
+            ca_cert="ca.cert",
+            client_cert=None,
+            version=None,
+        )
+
+        # GKE is not the default context in the demo kubeconf file, which means
+        # this must fail.
+        assert ret != k8s.load_gke_config(fname, None)
+
+    def test_load_gke_config_err(self):
+        # Must return None if the file name or context are invalid.
+        assert k8s.load_gke_config("support/invalid.yaml", None) is None
+        assert k8s.load_gke_config("support/invalid.yaml", "invalid") is None
+        assert k8s.load_gke_config("support/kubeconf.yaml", "invalid") is None

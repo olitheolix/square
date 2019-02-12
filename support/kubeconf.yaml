@@ -1,7 +1,7 @@
 apiVersion: v1
 clusters:
 - cluster:
-    certificate-authority-data: encrypted-authority-data
+    certificate-authority-data: Y2EuY2VydAo= # Base64 encoded "ca.crt"
     server: https://1.2.3.4
   name: gke_foo-bar-123456_australia-southeast1-foobar
 - cluster:
