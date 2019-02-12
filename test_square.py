@@ -893,7 +893,7 @@ class TestMain:
 
         # Pretend all main functions return errors.
         m_cmd.return_value = types.SimpleNamespace(
-            verbosity=0, parser="invalid", kubeconfig="conf"
+            verbosity=0, parser="invalid", kubeconfig="conf", ctx="ctx",
         )
         assert square.main() == 1
 

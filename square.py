@@ -56,7 +56,7 @@ def parse_commandline_args():
     parent.add_argument(
         "-v", "--verbosity", action="count", default=0,
         help="Specify multiple times to increase log level."
-             " -v: WARNING -vv: INFO -vvv: DEBUG."
+             " -v: WARNING -vv: INFO -vvv: DEBUG"
     )
     parent.add_argument(
         "-n", type=str, nargs="*",
@@ -69,7 +69,11 @@ def parse_commandline_args():
     )
     parent.add_argument(
         "--kubeconfig", type=str, metavar="path", default="~/.kube/config",
-        help="Location of kubeconfig file (default='~/kube/config').",
+        help="Location of kubeconfig file (default='~/kube/config')",
+    )
+    parent.add_argument(
+        "--context", type=str, metavar="ctx", dest="ctx", default=None,
+        help="Kubernetes context",
     )
 
     # The primary parser for the top level options (eg GET, PATCH, ...).
@@ -632,6 +636,7 @@ def main_get(
 
 def main() -> int:
     param = parse_commandline_args()
+    print(param)
 
     # Initialise logging.
     setup_logging(param.verbosity)
@@ -640,7 +645,7 @@ def main() -> int:
     # K8s API.
     kubeconfig = os.path.expanduser(param.kubeconfig)
     try:
-        config = k8s.load_auto_config(kubeconfig, disable_warnings=True)
+        config = k8s.load_auto_config(kubeconfig, param.ctx, disable_warnings=True)
         assert config
 
         client = k8s.session(config)
