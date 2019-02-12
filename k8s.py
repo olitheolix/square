@@ -124,36 +124,53 @@ def load_gke_config(
     )
 
 
-def load_minikube_config(kubeconfig: str) -> Optional[Config]:
-    # Load `kubeconfig`. For this proof-of-concept we assume it contains
-    # exactly one cluster and user.
-    kubeconf = yaml.load(open(kubeconfig))
-    assert len(kubeconf['clusters']) == 1
-    assert len(kubeconf['users']) == 1
+def load_minikube_config(
+        fname: Filepath,
+        context: Optional[str],
+) -> Optional[Config]:
 
-    # Unpack the user and cluster info.
-    cluster = kubeconf['clusters'][0]
-    user = kubeconf['users'][0]
-
-    # Do not proceed if this does not look like a Minikube cluster.
-    # Return immediately if this does not look like a config file for GKE.
+    # Load `kubeconfig`.
     try:
-        assert cluster['name'] == 'minikube'
-    except (AssertionError, KeyError):
+        kubeconf = yaml.load(open(fname))
+    except (IOError, PermissionError) as err:
+        logit.error(f"{err}")
+        return None
+
+    # Find the user and cluster information based on the specified `context`.
+    try:
+        # Use default context unless specified.
+        ctx = context if context else kubeconf["current-context"]
+        del context
+
+        try:
+            ctx = [_ for _ in kubeconf["contexts"] if _["name"] == ctx]
+            assert len(ctx) == 1
+
+            cluster, user = ctx[0]["context"]["cluster"], ctx[0]["context"]["user"]
+            user = [_ for _ in kubeconf["users"] if _["name"] == user]
+            cluster = [_ for _ in kubeconf["clusters"] if _["name"] == cluster]
+            assert len(user) == len(cluster) == 1
+            cluster, user = cluster[0], user[0]
+        except AssertionError:
+            logit.error(f"Could not find information for context <{ctx}>")
+            return None
+
+    except KeyError:
+        logit.error(f"Kubeconfig YAML file <{fname}> is invalid")
         return None
 
     # Minikube uses client certificates to authenticate. We need to pass those
     # to the HTTP client of our choice when we create the session.
     client_cert = ClientCert(
-        crt=user['user']['client-certificate'],
-        key=user['user']['client-key'],
+        crt=user["user"]["client-certificate"],
+        key=user["user"]["client-key"],
     )
 
     # Return the config data.
     return Config(
-        url=cluster['cluster']['server'],
+        url=cluster["cluster"]["server"],
         token=None,
-        ca_cert=cluster['cluster']['certificate-authority'],
+        ca_cert=cluster["cluster"]["certificate-authority"],
         client_cert=client_cert,
         version=None,
     )
