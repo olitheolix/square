@@ -8,6 +8,7 @@ import warnings
 from collections import namedtuple
 from typing import Optional, Tuple
 
+import google.auth
 import google.auth.transport.requests
 import requests
 import yaml
@@ -78,8 +79,8 @@ def load_kubeconfig(
         logit.error(f"Kubeconfig YAML file <{fname}> is invalid")
         return (None, None, None)
 
-    # Success.
-    return (username, user_info, cluster_info)
+    # Success. The explicit `dicts()` are to satisfy MyPy.
+    return (username, dict(user_info), dict(cluster_info))
 
 
 def load_incluster_config(
@@ -144,7 +145,7 @@ def load_gke_config(
     """
     # Parse the kubeconfig file.
     name, user, cluster = load_kubeconfig(fname, context)
-    if None in (name, user, cluster):
+    if name is None or user is None or cluster is None:
         return None
 
     # Unpack the self signed certificate (Google does not register the K8s API
@@ -201,7 +202,7 @@ def load_minikube_config(
     """
     # Parse the kubeconfig file.
     name, user, cluster = load_kubeconfig(fname, context)
-    if None in (name, user, cluster):
+    if name is None or user is None or cluster is None:
         return None
 
     # Minikube uses client certificates to authenticate. We need to pass those
