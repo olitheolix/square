@@ -636,7 +636,6 @@ def main_get(
 
 def main() -> int:
     param = parse_commandline_args()
-    print(param)
 
     # Initialise logging.
     setup_logging(param.verbosity)
