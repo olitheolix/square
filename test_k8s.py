@@ -252,7 +252,7 @@ class TestUrlPathBuilder:
         Those variables specify the supported K8s versions and resource types.
 
         """
-        assert SUPPORTED_VERSIONS == ("1.9", "1.10")
+        assert SUPPORTED_VERSIONS == ("1.9", "1.10", "1.11")
         assert SUPPORTED_KINDS == (
             "Namespace", "ConfigMap", "Secret", "Service",
             "Deployment", "Ingress"

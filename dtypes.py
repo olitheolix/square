@@ -23,7 +23,7 @@ RESOURCE_ALIASES = {
 # Sanity check: we must have aliases for every supported resource kind.
 assert set(SUPPORTED_KINDS) == set(RESOURCE_ALIASES.keys())
 
-SUPPORTED_VERSIONS = ("1.9", "1.10")
+SUPPORTED_VERSIONS = ("1.9", "1.10", "1.11")
 
 Config = namedtuple('Config', 'url token ca_cert client_cert version')
 DeltaCreate = namedtuple("DeltaCreate", "meta url manifest")

@@ -348,6 +348,14 @@ def urlpath(
             "Namespace": f"api/v1/namespaces",
             "Service": f"api/v1/{namespace}/services",
         },
+        "1.11": {
+            "ConfigMap": f"api/v1/{namespace}/configmaps",
+            "Secret": f"api/v1/{namespace}/secrets",
+            "Deployment": f"apis/apps/v1/{namespace}/deployments",
+            "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
+            "Namespace": f"api/v1/namespaces",
+            "Service": f"api/v1/{namespace}/services",
+        },
     }
 
     # Look up the resource path and remove duplicate "/" characters (may have
