@@ -1,3 +1,4 @@
+import pathlib
 import random
 import types
 import unittest.mock as mock
@@ -176,7 +177,7 @@ class TestK8sDeleteGetPatchPost:
         m_req.assert_called_once_with(client, "POST", path, payload, headers=None)
 
 
-class TestK8sConfig:
+class TestK8sVersion:
     @classmethod
     def setup_class(cls):
         square.setup_logging(9)
@@ -276,3 +277,36 @@ class TestUrlPathBuilder:
         # Invalid version.
         cfg = Config("url", "token", "ca_cert", "client_cert", "invalid")
         assert k8s.urlpath(cfg, "Deployment", "valid-ns") == (None, True)
+
+
+class TestK8sKubeconfig:
+    @classmethod
+    def setup_class(cls):
+        square.setup_logging(9)
+
+    def test_load_minikube_config_ok(self):
+        # Load the K8s configuration for "minkube" context.
+        fname = "support/kubeconf.yaml"
+        ret = k8s.load_minikube_config(fname, "minikube")
+
+        # Verify the expected output.
+        assert ret == Config(
+            url="https://192.168.0.177:8443",
+            token=None,
+            ca_cert="ca.crt",
+            client_cert=k8s.ClientCert(crt="client.crt", key="client.key"),
+            version=None,
+        )
+
+        # Minikube also happens to be the default context, so not supplying an
+        # explicit context must return the same information.
+        assert ret == k8s.load_minikube_config(fname, None)
+
+        # Function must also accept pathlib.Path instances.
+        assert ret == k8s.load_minikube_config(pathlib.Path(fname), None)
+
+    def test_load_minikube_config_err(self):
+        # Must return None if the file name or context are invalid.
+        assert k8s.load_minikube_config("support/invalid.yaml", None) is None
+        assert k8s.load_minikube_config("support/invalid.yaml", "invalid") is None
+        assert k8s.load_minikube_config("support/kubeconf.yaml", "invalid") is None
