@@ -209,12 +209,10 @@ def load_eks_config(
     if name is None or user is None or cluster is None:
         return None
 
-    # Unpack the self signed certificate (Google does not register the K8s API
+    # Unpack the self signed certificate (AWS does not register the K8s API
     # server certificate with a public CA).
     try:
-        ssl_ca_cert_data = base64.b64decode(
-            cluster["certificate-authority-data"]
-        )
+        ssl_ca_cert_data = base64.b64decode(cluster["certificate-authority-data"])
         cmd = user["exec"]["command"]
         args = user["exec"]["args"]
     except KeyError:
@@ -227,11 +225,6 @@ def load_eks_config(
     _, ssl_ca_cert = tempfile.mkstemp(text=False)
     with open(ssl_ca_cert, "wb") as fd:
         fd.write(ssl_ca_cert_data)
-
-    # EKS access token are supplied by the `aws-iam-authenticator` tool.
-    if user.get("exec", {}).get("command", None) is None:
-        logit.debug(f"Context {context} in <{fname}> is not an EKS config")
-        return None
 
     # Run the `aws-iam-authenticator` tool with the arguments from the
     # kubeconfig file. This will produce a YAML document with the bearer token.
