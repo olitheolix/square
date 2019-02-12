@@ -23,9 +23,9 @@ class TestHelpers:
 
         Namespace, as usual, are a special because their K8s manifests must not
         have a "metadata.namespace" field. For those manifests, `make_meta`
-        must populate the MetaManifest.namespace attribute with the content of
-        "metadata.name" form the input manifest. Albeit invalid for K8s, this
-        reduces special case coding for Namespaces in `square`.
+        must populate the "MetaManifest.namespace" attribute with the content
+        of "metadata.name" form the input manifest. Albeit invalid for K8s,
+        this reduces special case coding for Namespaces in `square`.
 
         """
         # A deployment manfiest. All fields must be copied verbatim.
