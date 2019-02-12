@@ -155,7 +155,7 @@ def load_gke_config(
             cluster["certificate-authority-data"]
         )
     except KeyError:
-        logit.error(f"Context {context} in <{fname}> is not a GKE config")
+        logit.debug(f"Context {context} in <{fname}> is not a GKE config")
         return None
 
     # Save the certificate to a temporary file. This is only necessary because
@@ -222,7 +222,7 @@ def load_minikube_config(
             version=None,
         )
     except KeyError:
-        logit.error(f"Context {context} in <{fname}> is not a Minikube config")
+        logit.debug(f"Context {context} in <{fname}> is not a Minikube config")
         return None
 
 
