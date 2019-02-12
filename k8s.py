@@ -65,6 +65,7 @@ def load_incluster_config(
 
 def load_gke_config(
         kubeconfig: Filepath,
+        context: Optional[str],
         disable_warnings: bool = False) -> Optional[Config]:
     """Return K8s access config for GKE cluster described in `kubeconfig`.
 
@@ -73,6 +74,11 @@ def load_gke_config(
     Inputs:
         kubconfig: str
             Name of kubeconfig file.
+        context: str
+            Kubeconf context. Use `None` to use default context.
+        disable_warnings: bool
+            Whether or not do disable GCloud warnings.
+
     Returns:
         Config
 
