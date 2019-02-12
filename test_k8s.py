@@ -284,8 +284,34 @@ class TestK8sKubeconfig:
     def setup_class(cls):
         square.setup_logging(9)
 
+    @mock.patch.object(k8s, "load_incluster_config")
+    @mock.patch.object(k8s, "load_minikube_config")
+    @mock.patch.object(k8s, "load_gke_config")
+    def test_load_auto_config(self, m_gke, m_mini, m_incluster):
+        """`load_auto_config` must pick the first successful configuration."""
+        fun = k8s.load_auto_config
+
+        # Incluster returns a non-zero value.
+        kubeconf, context = "kubeconf", "context"
+        assert fun(kubeconf, context) == m_incluster.return_value
+        m_incluster.assert_called_once_with()
+
+        # Incluster fails but Minikube does not.
+        m_incluster.return_value = None
+        assert fun(kubeconf, context) == m_mini.return_value
+        m_mini.assert_called_once_with(kubeconf, context)
+
+        # Incluster and Minikube fail but GKE succeeds.
+        m_mini.return_value = None
+        assert fun(kubeconf, context) == m_gke.return_value
+        m_gke.assert_called_once_with(kubeconf, context, False)
+
+        # All fail.
+        m_gke.return_value = None
+        assert fun(kubeconf, context) is None
+
     def test_load_minikube_config_ok(self):
-        # Load the K8s configuration for "minkube" context.
+        # Load the K8s configuration for "minikube" context.
         fname = "support/kubeconf.yaml"
         ret = k8s.load_minikube_config(fname, "minikube")
 
