@@ -64,7 +64,7 @@ def load_incluster_config(
 
 
 def load_gke_config(
-        kubeconfig: Filepath,
+        fname: Filepath,
         context: Optional[str],
         disable_warnings: bool = False) -> Optional[Config]:
     """Return K8s access config for GKE cluster described in `kubeconfig`.
@@ -83,37 +83,29 @@ def load_gke_config(
         Config
 
     """
-    # Load `kubeconfig`. For this proof-of-concept we assume it contains
-    # exactly one cluster and user.
-    try:
-        kubeconf = yaml.safe_load(open(kubeconfig))
-    except FileNotFoundError:
-        return None
-    assert len(kubeconf['clusters']) == 1
-    assert len(kubeconf['users']) == 1
-
-    # Unpack the user and cluster info.
-    cluster = kubeconf['clusters'][0]['cluster']
-    user = kubeconf['users'][0]
-
-    # Return immediately if this does not look like a config file for GKE.
-    try:
-        assert user['user']['auth-provider']['name'] == 'gcp'
-    except (AssertionError, KeyError):
+    # Parse the kubeconfig file.
+    name, user, cluster = load_kubeconfig(fname, context)
+    if None in (name, user, cluster):
         return None
 
     # Unpack the self signed certificate (Google does not register the K8s API
     # server certificate with a public CA).
-    ssl_ca_cert_data = base64.b64decode(cluster['certificate-authority-data'])
+    try:
+        ssl_ca_cert_data = base64.b64decode(
+            cluster["cluster"]["certificate-authority-data"]
+        )
+    except KeyError:
+        logit.error(f"Context {context} in <{fname}> does not look like a GKE config")
+        return None
 
     # Save the certificate to a temporary file. This is only necessary because
     # the requests library needs a path to the CA file - unfortunately, we
     # cannot just pass it the content.
     _, ssl_ca_cert = tempfile.mkstemp(text=False)
-    with open(ssl_ca_cert, 'wb') as fd:
+    with open(ssl_ca_cert, "wb") as fd:
         fd.write(ssl_ca_cert_data)
 
-    # Authenticate with Compute Engine using the default project.
+    # Get the access token from Compute Engine (uses the default project).
     with warnings.catch_warnings(record=disable_warnings):
         cred, project_id = google.auth.default(
             scopes=['https://www.googleapis.com/auth/cloud-platform']
@@ -122,7 +114,7 @@ def load_gke_config(
 
     # Return the config data.
     return Config(
-        url=cluster['server'],
+        url=cluster["cluster"]["server"],
         token=cred.token,
         ca_cert=ssl_ca_cert,
         client_cert=None,
@@ -167,8 +159,10 @@ def load_kubeconfig(
             assert len(ctx) == 1
             ctx = ctx[0]["context"]
 
-            # Find the cluster and user information for the current context.
+            # Unpack the cluster- and user name from the current context.
             clustername, username = ctx["cluster"], ctx["user"]
+
+            # Find the information for the current cluster and user.
             user_info = [_ for _ in kubeconf["users"] if _["name"] == username]
             cluster_info = [_ for _ in kubeconf["clusters"] if _["name"] == clustername]
             assert len(user_info) == len(cluster_info) == 1
@@ -204,6 +198,7 @@ def load_minikube_config(
         Config
 
     """
+    # Parse the kubeconfig file.
     name, user, cluster = load_kubeconfig(fname, context)
     if None in (name, user, cluster):
         return None
