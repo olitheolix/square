@@ -472,6 +472,12 @@ def version(config: Config, client) -> Tuple[Optional[Config], bool]:
     major, minor = resp['major'], resp['minor']
     version = f"{major}.{minor}"
 
+    # If we are talking to GKE, the version string may now be "1.10+". It
+    # simply indicates that GKE is running version 1.10.x. We need to remove
+    # the "+" because the version string is important in `square`, for instance
+    # to determines which URLs to contact, which fields are valid.
+    version = version.replace("+", "")
+
     # Return an updated `Config` tuple.
     config = config._replace(version=version)
     return (config, False)
