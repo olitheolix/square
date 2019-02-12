@@ -155,7 +155,7 @@ def load_gke_config(
             cluster["certificate-authority-data"]
         )
     except KeyError:
-        logit.error(f"Context {context} in <{fname}> does not look like a GKE config")
+        logit.error(f"Context {context} in <{fname}> is not a GKE config")
         return None
 
     # Save the certificate to a temporary file. This is only necessary because
@@ -207,19 +207,23 @@ def load_minikube_config(
 
     # Minikube uses client certificates to authenticate. We need to pass those
     # to the HTTP client of our choice when we create the session.
-    client_cert = ClientCert(
-        crt=user["client-certificate"],
-        key=user["client-key"],
-    )
+    try:
+        client_cert = ClientCert(
+            crt=user["client-certificate"],
+            key=user["client-key"],
+        )
 
-    # Return the config data.
-    return Config(
-        url=cluster["server"],
-        token=None,
-        ca_cert=cluster["certificate-authority"],
-        client_cert=client_cert,
-        version=None,
-    )
+        # Return the config data.
+        return Config(
+            url=cluster["server"],
+            token=None,
+            ca_cert=cluster["certificate-authority"],
+            client_cert=client_cert,
+            version=None,
+        )
+    except KeyError:
+        logit.error(f"Context {context} in <{fname}> is not a Minikube config")
+        return None
 
 
 def load_auto_config(

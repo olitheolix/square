@@ -331,6 +331,9 @@ class TestK8sKubeconfig:
         # explicit context must return the same information.
         assert ret == k8s.load_minikube_config(fname, None)
 
+        # Try to load a GKE context - must fail.
+        assert k8s.load_minikube_config(fname, "gke") is None
+
     def test_load_minikube_config_err(self):
         # Must return None if the file name or context are invalid.
         assert k8s.load_minikube_config("support/invalid.yaml", None) is None
@@ -368,6 +371,9 @@ class TestK8sKubeconfig:
         # GKE is not the default context in the demo kubeconf file, which means
         # this must fail.
         assert ret != k8s.load_gke_config(fname, None)
+
+        # Try to load a Minikube context - must fail.
+        assert k8s.load_gke_config(fname, "minikube") is None
 
     def test_load_gke_config_err(self):
         # Must return None if the file name or context are invalid.
