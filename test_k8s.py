@@ -336,9 +336,11 @@ class TestK8sKubeconfig:
 
     def test_load_minikube_config_err(self):
         # Must return None if the file name or context are invalid.
-        assert k8s.load_minikube_config("support/invalid.yaml", None) is None
-        assert k8s.load_minikube_config("support/invalid.yaml", "invalid") is None
-        assert k8s.load_minikube_config("support/kubeconf.yaml", "invalid") is None
+        fun = k8s.load_minikube_config
+        assert fun("support/invalid.yaml", None) is None
+        assert fun("support/invalid.yaml", "invalid") is None
+        assert fun("support/kubeconf.yaml", "invalid") is None
+        assert fun("support/kubeconf_invalid.yaml", "minkube") is None
 
     @mock.patch.object(k8s.google.auth, "default")
     def test_load_gke_config_ok(self, m_google):
@@ -380,3 +382,4 @@ class TestK8sKubeconfig:
         assert k8s.load_gke_config("support/invalid.yaml", None) is None
         assert k8s.load_gke_config("support/invalid.yaml", "invalid") is None
         assert k8s.load_gke_config("support/kubeconf.yaml", "invalid") is None
+        assert k8s.load_gke_config("support/kubeconf_invalid.yaml", "gke") is None
