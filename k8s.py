@@ -130,6 +130,62 @@ def load_gke_config(
     )
 
 
+def load_kubeconfig(
+        fname: Filepath,
+        context: Optional[str]
+) -> Tuple[Optional[str], Optional[dict], Optional[dict]]:
+    """Return user name and user- and cluster information.
+
+    Return None on error.
+
+    Inputs:
+        fname: str
+            Path to kubeconfig file, eg "~/.kube/config.yaml"
+        context: str
+            Kubeconf context. Use `None` to use default context.
+
+    Returns:
+        name, user info, cluster info
+
+    """
+    # Load `kubeconfig`.
+    try:
+        kubeconf = yaml.load(open(fname))
+    except (IOError, PermissionError) as err:
+        logit.error(f"{err}")
+        return (None, None, None)
+
+    # Find the user and cluster information based on the specified `context`.
+    try:
+        # Use default context unless specified.
+        ctx = context if context else kubeconf["current-context"]
+        del context
+
+        try:
+            # Find the correct context.
+            ctx = [_ for _ in kubeconf["contexts"] if _["name"] == ctx]
+            assert len(ctx) == 1
+            ctx = ctx[0]["context"]
+
+            # Find the cluster and user information for the current context.
+            clustername, username = ctx["cluster"], ctx["user"]
+            user_info = [_ for _ in kubeconf["users"] if _["name"] == username]
+            cluster_info = [_ for _ in kubeconf["clusters"] if _["name"] == clustername]
+            assert len(user_info) == len(cluster_info) == 1
+        except AssertionError:
+            logit.error(f"Could not find information for context <{ctx}>")
+            return (None, None, None)
+    except KeyError:
+        logit.error(f"Kubeconfig YAML file <{fname}> is invalid")
+        return (None, None, None)
+    else:
+        # Unpack the cluster and user information.
+        cluster_info, user_info = cluster_info[0], user_info[0]
+
+    # Success.
+    return (username, user_info, cluster_info)
+
+
 def load_minikube_config(
         fname: Filepath,
         context: Optional[str],
@@ -148,34 +204,8 @@ def load_minikube_config(
         Config
 
     """
-    # Load `kubeconfig`.
-    try:
-        kubeconf = yaml.load(open(fname))
-    except (IOError, PermissionError) as err:
-        logit.error(f"{err}")
-        return None
-
-    # Find the user and cluster information based on the specified `context`.
-    try:
-        # Use default context unless specified.
-        ctx = context if context else kubeconf["current-context"]
-        del context
-
-        try:
-            ctx = [_ for _ in kubeconf["contexts"] if _["name"] == ctx]
-            assert len(ctx) == 1
-
-            cluster, user = ctx[0]["context"]["cluster"], ctx[0]["context"]["user"]
-            user = [_ for _ in kubeconf["users"] if _["name"] == user]
-            cluster = [_ for _ in kubeconf["clusters"] if _["name"] == cluster]
-            assert len(user) == len(cluster) == 1
-            cluster, user = cluster[0], user[0]
-        except AssertionError:
-            logit.error(f"Could not find information for context <{ctx}>")
-            return None
-
-    except KeyError:
-        logit.error(f"Kubeconfig YAML file <{fname}> is invalid")
+    name, user, cluster = load_kubeconfig(fname, context)
+    if None in (name, user, cluster):
         return None
 
     # Minikube uses client certificates to authenticate. We need to pass those
