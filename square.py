@@ -485,8 +485,8 @@ def main_patch(
     """
     try:
         # Load manifests from local files.
-        local_meta, local_files, err = manio.load(folder)
-        assert not err and local_meta and local_files
+        local_meta, _, err = manio.load(folder)
+        assert not err and local_meta is not None
 
         # Download manifests from K8s.
         server, err = manio.download(config, client, kinds, namespaces)
@@ -558,12 +558,12 @@ def main_diff(
     """
     try:
         # Load manifests from local files.
-        local_meta, local_files, err = manio.load(folder)
-        assert not err and local_meta and local_files
+        local_meta, _, err = manio.load(folder)
+        assert not err and local_meta is not None
 
         # Download manifests from K8s.
         server, err = manio.download(config, client, kinds, namespaces)
-        assert not err and server
+        assert not err and server is not None
 
         # Prune the manifests to only include manifests for the specified
         # resources and namespaces. The pruning is not technically necessary
@@ -606,12 +606,12 @@ def main_get(
     """
     try:
         # Load manifests from local files.
-        local_meta, local_files, err = manio.load(folder)
-        assert not err and local_meta and local_files
+        _, local_files, err = manio.load(folder)
+        assert not err and local_files is not None
 
         # Download manifests from K8s.
         server, err = manio.download(config, client, kinds, namespaces)
-        assert not err and server
+        assert not err and server is not None
 
         # Prune the manifests to only include manifests for the specified
         # resources and namespaces. This is not technically necessary
@@ -665,12 +665,11 @@ def main() -> int:
         _, err = main_patch(config, client, param.folder, param.kinds, param.namespaces)
     else:
         logit.error(f"Unknown command <{param.parser}>")
-        err = True
-
-    # Abort with non-zero exit code if there was an error.
-    if err:
         return 1
 
+    # Return error code.
+    if err:
+        return 1
     return 0
 
 
