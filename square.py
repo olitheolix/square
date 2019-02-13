@@ -311,7 +311,7 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
 
     # Use Green to list all the resources that we should create.
     for delta in plan.create:
-        name = f'{delta.meta.namespace}/{delta.meta.name}'
+        name = f"{delta.meta.kind.upper()} {delta.meta.namespace}/{delta.meta.name}"
 
         # Convert manifest to YAML string and print every line in Green.
         txt = yaml.dump(delta.manifest, default_flow_style=False)
@@ -341,14 +341,14 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
                 colour_lines.append(line)
         formatted_diff = str.join('\n', colour_lines)
 
-        name = f'{delta.meta.namespace}/{delta.meta.name}'
-        print('-' * 80 + '\n' + f'{name.upper()}\n' + '-' * 80)
+        name = f"{delta.meta.kind.upper()} {delta.meta.namespace}/{delta.meta.name}"
+        print('-' * 80 + '\n' + f"{name}\n" + '-' * 80)
         print(formatted_diff)
 
     # Use Red to list all the resources that we should delete.
     for delta in plan.delete:
-        name = f'--- {delta.meta.namespace}/{delta.meta.name} ---'
-        print(cRed + name + cReset + "\n")
+        name = f"{delta.meta.kind.upper()} {delta.meta.namespace}/{delta.meta.name}"
+        print(cRed + f"--- {name} ---" + cReset + "\n")
 
     return (None, False)
 
