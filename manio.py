@@ -25,7 +25,9 @@ def make_meta(manifest: dict) -> MetaManifest:
     if manifest["kind"] == "Namespace":
         ns = manifest['metadata']['name']
     else:
-        ns = manifest['metadata']['namespace']
+        # For non-Namespace manifests, the namespace may genuinely be None if
+        # the resource applies globally, eg ClusterRole.
+        ns = manifest['metadata'].get("namespace", None)
 
     # Return the populated MetaManifest.
     return MetaManifest(
