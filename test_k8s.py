@@ -274,8 +274,9 @@ class TestUrlPathBuilder:
         """
         assert SUPPORTED_VERSIONS == ("1.9", "1.10", "1.11")
         assert SUPPORTED_KINDS == (
-            "Namespace", "ConfigMap", "Secret", "Service",
-            "Deployment", "Ingress"
+            "Namespace", "ConfigMap", "Secret", "PersistentVolumeClaim",
+            "ClusterRole", "ClusterRoleBinding", "Role", "RoleBinding",
+            "Service", "Deployment", "DaemonSet", "StatefulSet", "Ingress",
         )
 
     def test_urlpath_ok(self):
