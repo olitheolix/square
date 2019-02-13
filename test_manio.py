@@ -49,6 +49,18 @@ class TestHelpers:
         )
         assert manio.make_meta(manifest) == expected
 
+        # Some resource kinds apply globally and have no namespace, eg
+        # ClusterRole and ClusterRoleBinding. For these, the namespace field
+        # must be empty.
+        manifest = make_manifest("ClusterRole", None, "name")
+        expected = MetaManifest(
+            apiVersion=manifest["apiVersion"],
+            kind=manifest["kind"],
+            namespace=None,
+            name=manifest["metadata"]["name"]
+        )
+        assert manio.make_meta(manifest) == expected
+
 
 class TestUnpackParse:
     @classmethod
