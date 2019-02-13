@@ -423,7 +423,8 @@ class TestManifestValidation:
             # Looks good.
             return True
 
-        # Check that all schemas exist and their definition is valid.
+        # Check that schemas for all kinds and versions exist and that their
+        # definitions at least look valid.
         for version in SUPPORTED_VERSIONS:
             assert version in schemas.RESOURCE_SCHEMA
             for kind in SUPPORTED_KINDS:
