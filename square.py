@@ -438,6 +438,9 @@ def prune(
     This is really just a glorified list comprehension without error
     checking of any kind.
 
+    NOTE: also remove precarious resources like the "default-token-*" secrets
+    to ensure `square` will always ignore them.
+
     Inputs:
         manifests: Dict[MetaManifest:dict]
         kinds: Iterable
@@ -456,6 +459,13 @@ def prune(
     # resources if `namespaces` is None.
     if namespaces is not None:
         out = {k: v for k, v in out.items() if k.namespace in namespaces}
+
+    # Ignore the default token because K8s creates that one automatically in
+    # each namespace and touching it is usually a bad idea.
+    out = {
+        k: v for k, v in out.items()
+        if not (k.kind == "Secret" and k.name.startswith("default-token-"))
+    }
     return out
 
 
