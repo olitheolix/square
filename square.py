@@ -13,8 +13,9 @@ import k8s
 import manio
 import yaml
 from dtypes import (
-    RESOURCE_ALIASES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, Filepath, JsonPatch, MetaManifest, ServerManifests,
+    RESOURCE_ALIASES, SUPPORTED_KINDS, Config, DeltaCreate, DeltaDelete,
+    DeltaPatch, DeploymentPlan, Filepath, JsonPatch, MetaManifest,
+    ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -38,6 +39,11 @@ def parse_commandline_args():
         For instance, `svc` -> `Service`.
         """
         kind = kind.lower()
+
+        # The "all" resource is special - do not expand.
+        if kind == "all":
+            return "all"
+
         out = [
             canonical for canonical, aliases in RESOURCE_ALIASES.items()
             if kind in aliases
@@ -113,7 +119,18 @@ def parse_commandline_args():
     parser_patch.add_argument(**kinds_kwargs)
 
     # Parse the actual arguments.
-    return parser.parse_args()
+    param = parser.parse_args()
+
+    # Remove duplicates but retain the original order of "param.kinds". This is
+    # a "trick" that will only work in Python 3.7+ because it guarantees a
+    # stable insertion order for dicts (but not sets).
+    param.kinds = list(dict.fromkeys(param.kinds))
+
+    # Expand the "all" resource (if present).
+    if "all" in param.kinds:
+        param.kinds = list(SUPPORTED_KINDS)
+
+    return param
 
 
 def make_patch(
