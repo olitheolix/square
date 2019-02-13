@@ -118,7 +118,12 @@ schema_1_9 = {
             "name": True,
             "namespace": True,
         },
-        "spec": True,
+        "spec": {
+            "ports": None,
+            "selector": None,
+            "sessionAffinity": True,
+            "type": None,
+        },
     },
     "StatefulSet": {
         "metadata": {
