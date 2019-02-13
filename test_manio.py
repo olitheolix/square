@@ -640,9 +640,15 @@ class TestManifestValidation:
                 "name": "mandatory",
                 "namespace": "ns",
                 "labels": "optional",
+                "skip": "this",
+            },
+            "spec": {
+                "ports": "optional",
+                "selector": "optional",
+                "sessionAffinity": "mandatory",
+                "type": "optional",
                 "skip": "this"
             },
-            "spec": "mandatory",
             "skip": "this",
         }
         expected = {
@@ -653,7 +659,12 @@ class TestManifestValidation:
                 "namespace": "ns",
                 "labels": "optional",
             },
-            "spec": "mandatory",
+            "spec": {
+                "ports": "optional",
+                "selector": "optional",
+                "sessionAffinity": "mandatory",
+                "type": "optional",
+            },
         }
         assert manio.strip(config, valid) == (expected, False)
         del valid, expected
@@ -667,7 +678,12 @@ class TestManifestValidation:
                 "labels": "optional",
                 "skip": "this"
             },
-            "spec": "mandatory",
+            "spec": {
+                "ports": "optional",
+                "selector": "optional",
+                "sessionAffinity": "mandatory",
+                "type": "optional",
+            },
             "skip": "this",
         }
         assert manio.strip(config, invalid) == (None, True)
