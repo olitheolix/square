@@ -8,8 +8,8 @@ import manio
 import pytest
 import square
 from dtypes import (
-    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, JsonPatch,
-    MetaManifest,
+    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+    JsonPatch, MetaManifest,
 )
 from k8s import urlpath
 from test_helpers import make_manifest
@@ -919,8 +919,26 @@ class TestMain:
         with mock.patch("sys.argv", ["square.py", "get", "deploy"]):
             assert square.main() == 1
 
-    def test_argparse(self):
-        """Verify the resource names will be correctly expanded."""
+    def test_parse_commandline_args_basic(self):
+        """Must correctly expand eg "svc" -> "Service" and remove duplicates."""
         with mock.patch("sys.argv", ["square.py", "get", "deploy", "svc"]):
             ret = square.parse_commandline_args()
             assert ret.kinds == ["Deployment", "Service"]
+
+        # Specify Service twice (once as "svc" and once as "Service"). The
+        # duplicate must be removed.
+        with mock.patch("sys.argv", ["square.py", "get", "service", "deploy", "svc"]):
+            ret = square.parse_commandline_args()
+            assert ret.kinds == ["Service", "Deployment"]
+
+    def test_parse_commandline_args_all(self):
+        """The "all" resource must expand to all supported resource kinds."""
+        # Specify "all" resources.
+        with mock.patch("sys.argv", ["square.py", "get", "all"]):
+            ret = square.parse_commandline_args()
+            assert ret.kinds == list(SUPPORTED_KINDS)
+
+        # Must ignore duplicates.
+        with mock.patch("sys.argv", ["square.py", "get", "all", "svc", "all"]):
+            ret = square.parse_commandline_args()
+            assert ret.kinds == list(SUPPORTED_KINDS)
