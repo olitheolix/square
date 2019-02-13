@@ -518,7 +518,8 @@ def main_patch(
 
         # Create the missing resources.
         for data in plan.create:
-            print(f"Creating {data.meta.namespace}/{data.meta.name}")
+            print(f"Creating {data.meta.kind.upper()} "
+                  f"{data.meta.namespace}/{data.meta.name}")
             _, err = k8s.post(client, data.url, data.manifest)
             assert not err
 
@@ -532,7 +533,8 @@ def main_patch(
 
         # Delete the excess resources.
         for data in plan.delete:
-            print(f"Deleting {data.meta.namespace}/{data.meta.name}")
+            print(f"Deleting {data.meta.kind.upper()} "
+                  f"{data.meta.namespace}/{data.meta.name}")
             _, err = k8s.delete(client, data.url, data.manifest)
             assert not err
     except AssertionError:
