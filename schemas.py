@@ -19,6 +19,23 @@ if the field is not mandatory but should be included.
 
 """
 schema_1_9 = {
+    "ClusterRole": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": False,
+        },
+        "rules": None,
+    },
+    "ClusterRoleBinding": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": False,
+        },
+        "roleRef": None,
+        "subjects": None
+    },
     "ConfigMap": {
         "metadata": {
             "labels": None,
@@ -27,6 +44,14 @@ schema_1_9 = {
         },
         "data": None,
         "binaryData": None,
+    },
+    "DaemonSet": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "spec": True,
     },
     "Deployment": {
         "metadata": {
@@ -52,34 +77,7 @@ schema_1_9 = {
         },
         "spec": True,
     },
-    "Service": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "spec": True,
-    },
-    "Secret": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "data": None,
-        "stringData": None,
-        "type": None,
-    },
-
-    "StatefulSet": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "spec": True,
-    },
-    "DaemonSet": {
+    "PersistentVolumeClaim": {
         "metadata": {
             "labels": None,
             "name": True,
@@ -95,14 +93,6 @@ schema_1_9 = {
         },
         "rules": None,
     },
-    "ClusterRole": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": False,
-        },
-        "rules": None,
-    },
     "RoleBinding": {
         "metadata": {
             "labels": None,
@@ -112,16 +102,25 @@ schema_1_9 = {
         "roleRef": None,
         "subjects": None
     },
-    "ClusterRoleBinding": {
+    "Secret": {
         "metadata": {
             "labels": None,
             "name": True,
-            "namespace": False,
+            "namespace": True,
         },
-        "roleRef": None,
-        "subjects": None
+        "data": None,
+        "stringData": None,
+        "type": None,
     },
-    "PersistentVolumeClaim": {
+    "Service": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "spec": True,
+    },
+    "StatefulSet": {
         "metadata": {
             "labels": None,
             "name": True,

@@ -31,19 +31,19 @@ SUPPORTED_KINDS = (
 # need to worry about capitalisation because `square.parse_commandline_args`
 # will always convert everything to lower case letters first.
 RESOURCE_ALIASES = {
-    "Namespace": {"namespace", "namespaces", "ns"},
-    "ConfigMap": {"configmap", "cm"},
-    "Ingress": {"ingress", "ingresses", "ing"},
-    "Secret": {"secret", "secrets"},
-    "Service": {"service", "services", "svc"},
-    "Deployment": {"deployment", "deployments", "deploy"},
     "ClusterRole": {"clusterrole", "clusterroles"},
     "ClusterRoleBinding": {"clusterrolebinding", "clusterrolebindings"},
+    "ConfigMap": {"configmap", "cm"},
+    "DaemonSet": {"daemonset", "daemonsets", "ds"},
+    "Deployment": {"deployment", "deployments", "deploy"},
+    "Ingress": {"ingress", "ingresses", "ing"},
+    "Namespace": {"namespace", "namespaces", "ns"},
+    "PersistentVolumeClaim": {"persistentVolumeClaim", "persistentvolumeclaims", "pvc"},
     "Role": {"role", "roles"},
     "RoleBinding": {"rolebinding", "rolebindings"},
-    "DaemonSet": {"daemonset", "daemonsets", "ds"},
+    "Secret": {"secret", "secrets"},
+    "Service": {"service", "services", "svc"},
     "StatefulSet": {"statefulset", "statefulsets"},
-    "PersistentVolumeClaim": {"persistentVolumeClaim", "persistentvolumeclaims", "pvc"},
 }
 
 # Sanity check: we must have aliases for every supported resource kind.
