@@ -5,8 +5,26 @@ from typing import Dict, List, Tuple, Union
 # We support these resource types. The order matters because it determines the
 # order in which the manifests will be grouped in the output files.
 SUPPORTED_KINDS = (
-    "Namespace", "ConfigMap", "Secret", "Service", "Deployment", "Ingress",
+    # Namespaces must come first to ensure the other resources can be created
+    # within them.
+    "Namespace",
+
+    # Configuration and PVC before Deployments & friends use them.
+    "ConfigMap", "Secret", "PersistentVolumeClaim",
+
+    # RBAC.
+    "ClusterRole", "ClusterRoleBinding", "Role", "RoleBinding",
+
+    # Define Services before creating Deployments & friends.
+    "Service",
+
+    # Everything that will spawn pods.
+    "Deployment", "DaemonSet", "StatefulSet",
+
+    # Ingresses should be after Deployments & friends.
+    "Ingress",
 )
+
 
 # Declare aliases for each resource type. Will be used in command line parsing
 # to save the user some typing and match what `kubectl` would accept. We do not
@@ -19,7 +37,15 @@ RESOURCE_ALIASES = {
     "Secret": {"secret", "secrets"},
     "Service": {"service", "services", "svc"},
     "Deployment": {"deployment", "deployments", "deploy"},
+    "ClusterRole": {"clusterrole", "clusterroles"},
+    "ClusterRoleBinding": {"clusterrolebinding", "clusterrolebindings"},
+    "Role": {"role", "roles"},
+    "RoleBinding": {"rolebinding", "rolebindings"},
+    "DaemonSet": {"daemonset", "daemonsets", "ds"},
+    "StatefulSet": {"statefulset", "statefulsets"},
+    "PersistentVolumeClaim": {"persistentVolumeClaim", "persistentvolumeclaims", "pvc"},
 }
+
 # Sanity check: we must have aliases for every supported resource kind.
 assert set(SUPPORTED_KINDS) == set(RESOURCE_ALIASES.keys())
 
@@ -32,7 +58,6 @@ DeltaPatch = namedtuple("Delta", "meta diff patch")
 DeploymentPlan = namedtuple('DeploymentPlan', 'create patch delete')
 JsonPatch = namedtuple('Patch', 'url ops')
 MetaManifest = namedtuple('MetaManifest', 'apiVersion kind namespace name')
-
 
 # Data types.
 Filepath = Union[str, pathlib.PurePath]

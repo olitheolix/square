@@ -70,6 +70,65 @@ schema_1_9 = {
         "stringData": None,
         "type": None,
     },
+
+    "StatefulSet": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "spec": True,
+    },
+    "DaemonSet": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "spec": True,
+    },
+    "Role": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "rules": None,
+    },
+    "ClusterRole": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": False,
+        },
+        "rules": None,
+    },
+    "RoleBinding": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "roleRef": None,
+        "subjects": None
+    },
+    "ClusterRoleBinding": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": False,
+        },
+        "roleRef": None,
+        "subjects": None
+    },
+    "PersistentVolumeClaim": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "spec": True,
+    },
 }
 
 

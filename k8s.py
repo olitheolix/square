@@ -410,6 +410,13 @@ def urlpath(
             "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
             "Namespace": f"api/v1/namespaces",
             "Service": f"api/v1/{namespace}/services",
+            "StatefulSet": f"apis/apps/v1/{namespace}/statefulsets",
+            "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
+            "ClusterRole": f"apis/rbac.authorization.k8s.io/v1/clusterroles",
+            "ClusterRoleBinding": f"apis/rbac.authorization.k8s.io/v1/clusterrolebindings",  # NOQA
+            "Role": f"apis/rbac.authorization.k8s.io/v1/{namespace}/roles",
+            "RoleBinding": f"apis/rbac.authorization.k8s.io/v1/{namespace}/rolebindings",
+            "PersistentVolumeClaim": f"api/v1/{namespace}/persistentvolumeclaims",
         },
         "1.10": {
             "ConfigMap": f"api/v1/{namespace}/configmaps",
@@ -418,6 +425,13 @@ def urlpath(
             "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
             "Namespace": f"api/v1/namespaces",
             "Service": f"api/v1/{namespace}/services",
+            "StatefulSet": f"apis/apps/v1/{namespace}/statefulsets",
+            "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
+            "ClusterRole": f"apis/rbac.authorization.k8s.io/v1/clusterroles",
+            "ClusterRoleBinding": f"apis/rbac.authorization.k8s.io/v1/clusterrolebindings",  # NOQA
+            "Role": f"apis/rbac.authorization.k8s.io/v1/{namespace}/roles",
+            "RoleBinding": f"apis/rbac.authorization.k8s.io/v1/{namespace}/rolebindings",
+            "PersistentVolumeClaim": f"api/v1/{namespace}/persistentvolumeclaims",
         },
         "1.11": {
             "ConfigMap": f"api/v1/{namespace}/configmaps",
@@ -426,6 +440,13 @@ def urlpath(
             "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
             "Namespace": f"api/v1/namespaces",
             "Service": f"api/v1/{namespace}/services",
+            "StatefulSet": f"apis/apps/v1/{namespace}/statefulsets",
+            "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
+            "ClusterRole": f"apis/rbac.authorization.k8s.io/v1/clusterroles",
+            "ClusterRoleBinding": f"apis/rbac.authorization.k8s.io/v1/clusterrolebindings",  # NOQA
+            "Role": f"apis/rbac.authorization.k8s.io/v1/{namespace}/roles",
+            "RoleBinding": f"apis/rbac.authorization.k8s.io/v1/{namespace}/rolebindings",
+            "PersistentVolumeClaim": f"api/v1/{namespace}/persistentvolumeclaims",
         },
     }
 
