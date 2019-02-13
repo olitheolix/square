@@ -99,7 +99,11 @@ class TestBasic:
         assert square.print_deltas(plan) == (None, False)
 
     def test_prune(self):
-        mm = manio.make_meta
+        """Prune a list of manifests based on namespace and resource."""
+        # Convenience.
+        mm, prune = manio.make_meta, square.prune
+
+        # The list of manifests we will use in this test.
         man = {
             mm(make_manifest("Namespace", None, "ns0")): "ns0",
             mm(make_manifest("Namespace", None, "ns1")): "ns1",
@@ -107,22 +111,29 @@ class TestBasic:
             mm(make_manifest("Deployment", "ns1", "d_ns1")): "d_ns1",
             mm(make_manifest("Service", "ns0", "s_ns0")): "s_ns0",
             mm(make_manifest("Service", "ns1", "s_ns1")): "s_ns1",
+            mm(make_manifest("Secret", "ns1", "valid")): "valid-secret",
+
+            # K8s creates those automatically and we will not touch it.
+            mm(make_manifest("Secret", "ns1", "default-token-12345")): "ignore",
         }
 
-        # Service manifests in all namespaces.
+        # Ask for the Service manifests in all namespaces.
         expected = {
             mm(make_manifest("Service", "ns0", "s_ns0")): "s_ns0",
             mm(make_manifest("Service", "ns1", "s_ns1")): "s_ns1",
         }
-        assert square.prune(man, ["Service"], None) == expected
-        assert square.prune(man, ["Service"], ["ns0", "ns1"]) == expected
+        assert prune(man, ["Service"], None) == expected
+        assert prune(man, ["Service"], ["ns0", "ns1"]) == expected
 
-        # Namespace and Deployment manifests in "ns1"
+        # Ask for the Namespace-, Deployment and Secret manifests in "ns1"
+        # only. This one must contain the "valid" secret but not the
+        # "default-token-12345" secret.
         expected = {
             mm(make_manifest("Namespace", None, "ns1")): "ns1",
             mm(make_manifest("Deployment", "ns1", "d_ns1")): "d_ns1",
+            mm(make_manifest("Secret", "ns1", "valid")): "valid-secret",
         }
-        assert square.prune(man, ["Namespace", "Deployment"], ["ns1"]) == expected
+        assert prune(man, ["Namespace", "Deployment", "Secret"], ["ns1"]) == expected
 
 
 class TestPartition:
