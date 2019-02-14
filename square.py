@@ -159,7 +159,7 @@ def make_patch(
 
     # Log the manifest info for which we will try to compute a patch.
     man_id = f"{loc.kind.upper()}: {loc.metadata.name}/{loc.metadata.name}"
-    logit.debug(f"Attempting patch for {man_id}")
+    logit.debug(f"Making patch for {man_id}")
 
     # Sanity checks: abort if the manifests do not specify the same resource.
     try:
@@ -455,6 +455,7 @@ def setup_logging(log_level: int) -> None:
 
     # Attach stdout handlers to the `square` logger.
     logger.addHandler(ch)
+    logit.info(f"Set log level to {level}")
 
 
 def prune(

@@ -82,6 +82,7 @@ def load_kubeconfig(
         return (None, None, None)
 
     # Success. The explicit `dicts()` are to satisfy MyPy.
+    logit.info(f"Loaded {ctx} from Kubeconfig file <{fname}>")
     return (username, dict(user_info), dict(cluster_info))
 
 
@@ -112,17 +113,18 @@ def load_incluster_config(
         assert fname_cert.exists()
         assert fname_token.exists()
     except AssertionError:
+        logit.debug("Could not find incluster (service account) credentials.")
         return None
 
     # Return the compiled K8s access configuration.
-    conf = Config(
+    logit.info("Use incluster (service account) credentials.")
+    return Config(
         url=f'https://{server_ip}',
         token=fname_token.read_text(),
         ca_cert=str(fname_cert),
         client_cert=None,
         version=None,
     )
-    return conf
 
 
 def load_gke_config(
@@ -175,6 +177,7 @@ def load_gke_config(
         token = cred.token
 
     # Return the config data.
+    logit.info(f"Assuming GKE cluster.")
     return Config(
         url=cluster["server"],
         token=token,
@@ -239,6 +242,7 @@ def load_eks_config(
         return None
 
     # Return the config data.
+    logit.info(f"Assuming EKS cluster.")
     return Config(
         url=cluster["server"],
         token=token,
@@ -280,6 +284,7 @@ def load_minikube_config(
         )
 
         # Return the config data.
+        logit.info(f"Assuming Minikube cluster.")
         return Config(
             url=cluster["server"],
             token=None,
