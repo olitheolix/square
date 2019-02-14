@@ -381,10 +381,18 @@ def strip(config: Config, manifest: dict) -> Tuple[Optional[dotdict.DotDict], bo
 
     # Every manifest must specify its "apiVersion" and "kind".
     try:
-        kind, version = manifest["kind"], manifest["apiVersion"]
+        kind = manifest["kind"]
+        version = manifest["apiVersion"]
     except KeyError as err:
         logit.error(f"Manifest is missing the <{err.args[0]}> key.")
         return (None, True)
+
+    # Unpack the name and namespace to produce a convenient log message.
+    # NOTE: we assume here that manifests may not have either.
+    name = manifest.get("metadata", {}).get("name", "unknown")
+    namespace = manifest.get("metadata", {}).get("namespace", "unknown")
+    man_id = f"{kind.upper()}: {namespace}/{name}"
+    del name, namespace
 
     def _update(schema, manifest, out):
         """Recursively traverse the `schema` dict and add `manifest` keys into `out`.
@@ -401,13 +409,13 @@ def strip(config: Config, manifest: dict) -> Tuple[Optional[dotdict.DotDict], bo
             if v is True:
                 # This key must exist in `manifest` and will be included.
                 if k not in manifest:
-                    logit.error(f"<{kind}> manifest must have a <{k}> key")
+                    logit.error(f"{man_id} must have a <{k}> key")
                     raise KeyError
                 out[k] = manifest[k]
             elif v is False:
                 # This key must not exist in `manifest` and will be excluded.
                 if k in manifest:
-                    logit.error(f"<{kind}> manifest must not have a <{k}> key")
+                    logit.error(f"{man_id} must not have a <{k}> key")
                     raise KeyError
             elif v is None:
                 # This key may exist in `manifest` and will be included in the

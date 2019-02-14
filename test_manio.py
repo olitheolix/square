@@ -561,7 +561,6 @@ class TestManifestValidation:
             # Valid manifest with no "metadata" key at all. The output
             # must also not contain a "metadata" key.
             manifest = {"apiVersion": "", "kind": "TEST"}
-            print(manio.strip(config, manifest))
             assert manio.strip(config, manifest) == (manifest, False)
 
             # Valid manifest where "metadata" contains an irrelevant key. The output
