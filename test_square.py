@@ -290,39 +290,42 @@ class TestPatchK8s:
         loc['metadata']['namespace'] = 'mismatch'
         assert square.make_patch(config, loc, srv) == (None, True)
 
-    def test_make_patch_namespace(self):
-        """`Namespace` specific corner cases.
+    def test_make_patch_special(self):
+        """Namespace, ClusterRole(Bindings) etc are special.
 
-        Namespaces are special because, by definition, they must not contain a
-        `metadata.Namespace` attribute. This will trigger a subtly different
-        code path in `make_patch`.
+        What makes them special is that they exist outside namespaces.
+        Therefore, they will/must not contain a `metadata.Namespace` attribute
+        and require special treatment in `make_patch`.
 
         """
+        # Generic fixtures; values are irrelevant.
         config = types.SimpleNamespace(url='http://examples.com/', version="1.10")
-        kind, name = 'Namespace', 'foo'
+        name = "foo"
 
-        url = urlpath(config, kind, None)[0] + f'/{name}'
+        for kind in ["Namespace", "ClusterRole"]:
+            # Determine the resource path so we can verify it later.
+            url = urlpath(config, kind, None)[0] + f'/{name}'
 
-        # Must succeed and return an empty patch for identical manifests.
-        loc = srv = make_manifest(kind, None, name)
-        assert square.make_patch(config, loc, srv) == ((url, []), False)
+            # The patch between two identical manifests must be empty but valid.
+            loc = srv = make_manifest(kind, None, name)
+            assert square.make_patch(config, loc, srv) == ((url, []), False)
 
-        # Second manifest specifies a `metadata.namespace` attribute. This is
-        # invalid and must result in an error.
-        loc = make_manifest(kind, None, name)
-        srv = copy.deepcopy(loc)
-        loc['metadata']['namespace'] = 'foo'
-        data, err = square.make_patch(config, loc, srv)
-        assert data is None and err is not None
+            # Create two almost identical manifests, except the second one has
+            # the forbidden `metadata.namespace` attribute. This must fail.
+            loc = make_manifest(kind, None, name)
+            srv = copy.deepcopy(loc)
+            loc['metadata']['namespace'] = 'foo'
+            data, err = square.make_patch(config, loc, srv)
+            assert data is None and err is not None
 
-        # Must not return an error if the input are the same namespace resource
-        # but with different labels.
-        loc = make_manifest(kind, None, name)
-        srv = copy.deepcopy(loc)
-        loc['metadata']['labels'] = {"key": "value"}
+            # Create two almost identical manifests, except the second one has
+            # different `metadata.labels`. This must succeed.
+            loc = make_manifest(kind, None, name)
+            srv = copy.deepcopy(loc)
+            loc['metadata']['labels'] = {"key": "value"}
 
-        data, err = square.make_patch(config, loc, srv)
-        assert err is False and len(data) > 0
+            data, err = square.make_patch(config, loc, srv)
+            assert err is False and len(data) > 0
 
     @mock.patch.object(k8s, "urlpath")
     def test_make_patch_error_urlpath(self, m_url):

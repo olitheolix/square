@@ -156,13 +156,25 @@ def make_patch(
     if err1 or err2 or loc is None or srv is None:
         return (None, True)
 
+    # Log the manifest info for which we will try to compute a patch.
+    man_id = f"{loc.kind.upper()}: {loc.metadata.name}/{loc.metadata.name}"
+    logit.debug(f"Attempting patch for {man_id}")
+
     # Sanity checks: abort if the manifests do not specify the same resource.
     try:
         assert srv.apiVersion == loc.apiVersion
         assert srv.kind == loc.kind
         assert srv.metadata.name == loc.metadata.name
-        if srv.kind != "Namespace":
+
+        # Not all resources live in a namespace, for instance Namespaces,
+        # ClusterRoles, ClusterRoleBindings. Here we ensure that the namespace
+        # in the local and server manifest matches for those resources that
+        # have a namespace.
+        if srv.kind in {"Namespace", "ClusterRole", "ClusterRoleBinding"}:
+            namespace = None
+        else:
             assert srv.metadata.namespace == loc.metadata.namespace
+            namespace = srv.metadata.namespace
     except AssertionError:
         # Log the invalid manifests and return with an error.
         keys = ("apiVersion", "kind", "metadata")
@@ -175,7 +187,6 @@ def make_patch(
         return (None, True)
 
     # Determine the PATCH URL for the resource.
-    namespace = srv.metadata.namespace if srv.kind != "Namespace" else None
     url, err = k8s.urlpath(config, srv.kind, namespace)
     if err:
         return (None, True)
