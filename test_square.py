@@ -945,3 +945,9 @@ class TestMain:
         with mock.patch("sys.argv", ["square.py", "get", "all", "svc", "all"]):
             ret = square.parse_commandline_args()
             assert ret.kinds == list(SUPPORTED_KINDS)
+
+    def test_parse_commandline_args_invalid(self):
+        """An invalid resource name must abort the program."""
+        with mock.patch("sys.argv", ["square.py", "get", "invalid"]):
+            with pytest.raises(SystemExit):
+                square.parse_commandline_args()

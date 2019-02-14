@@ -50,7 +50,8 @@ def parse_commandline_args():
         ]
 
         # Must have found at most one or there is a serious bug.
-        assert len(out) < 2
+        if len(out) != 1:
+            raise argparse.ArgumentTypeError(kind)
         return out[0]
 
     # A dummy top level parser that will become the parent for all sub-parsers
