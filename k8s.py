@@ -515,7 +515,7 @@ def delete(client, url: str, payload: dict) -> Tuple[Optional[dict], bool]:
     resp, code = request(client, 'DELETE', url, payload, headers=None)
     err = (code not in (200, 202))
     if err:
-        logit.error(f"{code} - DELETE - {url}")
+        logit.error(f"{code} - DELETE - {url} - {resp}")
     return (resp, err)
 
 
@@ -524,7 +524,7 @@ def get(client, url: str) -> Tuple[Optional[dict], bool]:
     resp, code = request(client, 'GET', url, payload=None, headers=None)
     err = (code != 200)
     if err:
-        logit.error(f"{code} - GET - {url}")
+        logit.error(f"{code} - GET - {url} - {resp}")
     return (resp, err)
 
 
@@ -534,7 +534,7 @@ def patch(client, url: str, payload: dict) -> Tuple[Optional[dict], bool]:
     resp, code = request(client, 'PATCH', url, payload, headers)
     err = (code != 200)
     if err:
-        logit.error(f"{code} - PATCH - {url}")
+        logit.error(f"{code} - PATCH - {url} - {resp}")
     return (resp, err)
 
 
@@ -543,7 +543,7 @@ def post(client, url: str, payload: dict) -> Tuple[Optional[dict], bool]:
     resp, code = request(client, 'POST', url, payload, headers=None)
     err = (code != 201)
     if err:
-        logit.error(f"{code} - POST - {url}")
+        logit.error(f"{code} - POST - {url} - {resp}")
     return (resp, err)
 
 
