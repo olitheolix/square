@@ -348,7 +348,7 @@ def diff(
     if err1 or err2:
         return (None, True)
 
-    # Undo the DotDicts. This is a pre-caution because the YAML parser can
+    # Undo the DotDicts. This is a precaution because the YAML parser can
     # otherwise not dump the manifests.
     srv = dotdict.undo(srv)
     loc = dotdict.undo(loc)
