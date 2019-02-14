@@ -334,8 +334,9 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
 
     """
     # Terminal colours for convenience.
-    cGreen = colorama.Fore.GREEN
-    cRed = colorama.Fore.RED
+    cAdd = colorama.Fore.GREEN
+    cDel = colorama.Fore.RED
+    cMod = colorama.Fore.CYAN
     cReset = colorama.Fore.RESET
 
     # Use Green to list all the resources that we should create.
@@ -344,18 +345,18 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
 
         # Convert manifest to YAML string and print every line in Green.
         txt = yaml.dump(delta.manifest, default_flow_style=False)
-        txt = [cGreen + line + cReset for line in txt.splitlines()]
+        txt = [cAdd + line + cReset for line in txt.splitlines()]
 
         # Add header line.
-        txt.insert(0, cGreen + f"--- {name} ---" + cReset)
+        txt = [f"    {line}" for line in txt]
+        txt.insert(0, cAdd + f"Create {name}" + cReset)
 
         # Print the reassembled string.
         print(str.join('\n', txt) + '\n')
 
     # Print the diff (already contains terminal colours) for all the resources
     # that we should patch.
-    deltas = plan.patch
-    for delta in deltas:
+    for delta in plan.patch:
         if len(delta.diff) == 0:
             continue
 
@@ -363,21 +364,21 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
         colour_lines = []
         for line in delta.diff.splitlines():
             if line.startswith('+'):
-                colour_lines.append(colorama.Fore.GREEN + line + colorama.Fore.RESET)
+                colour_lines.append(cAdd + line + cReset)
             elif line.startswith('-'):
-                colour_lines.append(colorama.Fore.RED + line + colorama.Fore.RESET)
+                colour_lines.append(cDel + line + cReset)
             else:
                 colour_lines.append(line)
+        colour_lines = [f"    {line}" for line in colour_lines]
         formatted_diff = str.join('\n', colour_lines)
 
         name = f"{delta.meta.kind.upper()} {delta.meta.namespace}/{delta.meta.name}"
-        print('-' * 80 + '\n' + f"{name}\n" + '-' * 80)
-        print(formatted_diff)
+        print(cMod + f"Patch {name}" + cReset + "\n" + formatted_diff + "\n")
 
     # Use Red to list all the resources that we should delete.
     for delta in plan.delete:
         name = f"{delta.meta.kind.upper()} {delta.meta.namespace}/{delta.meta.name}"
-        print(cRed + f"--- {name} ---" + cReset + "\n")
+        print(cDel + f"Delete {name}" + cReset + "\n")
 
     return (None, False)
 
