@@ -108,7 +108,7 @@ schema_1_9 = {
             "name": True,
             "namespace": True,
             "annotations": {
-                "kubernetes.io/service-account.name": True,
+                "kubernetes.io/service-account.name": None,
             }
         },
         "data": None,
