@@ -75,7 +75,7 @@ schema_1_9 = {
             "name": True,
             "namespace": False
         },
-        "spec": True,
+        "spec": None,
     },
     "PersistentVolumeClaim": {
         "metadata": {
