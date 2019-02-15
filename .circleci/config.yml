@@ -50,37 +50,7 @@ jobs:
             codecov
             pipenv run mypy --ignore-missing-imports *.py
 
-  linux-binary:
-    docker:
-      - image: olitheolix/square:linux-latest
-    working_directory: ~/repo
-    steps:
-      - checkout
-      - run:
-          name: install dependencies
-          command: |
-            pip3 install awscli
-            pipenv install --system --deploy --dev
-            pyinstaller square.py --onefile
-            aws s3 cp dist/square s3://olitheolix-square/square
-
-  windows-binary:
-    docker:
-      - image: olitheolix/square:windows-latest
-    working_directory: ~/repo
-    steps:
-      - checkout
-      - run:
-          name: install dependencies
-          command: |
-            apt install python3-setuptools python3-pip --no-install-recommends -y
-            pip3 install awscli
-            wine pyinstaller --onefile --noupx square.py
-            aws s3 cp dist/square.exe s3://olitheolix-square/square.exe
-
 workflows:
   build_and_test:
     jobs:
       - build
-      - linux-binary
-      - windows-binary
