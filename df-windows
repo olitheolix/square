@@ -1,17 +1,35 @@
+# Use Wine to create a Windows binary in "/src/dist/square.exe".
+
+# ------------------------------------------------------------------------------
+# Stage 1: Create a requirements.txt from Pipfile.
+# ------------------------------------------------------------------------------
+FROM python:3.7 as python-requirements
+
+# Install Pipenv and a converter tool to create a requirements.txt from Pipfile.
+RUN pip install pipenv pipenv-to-requirements
+
+# Copy the source code into the container.
+WORKDIR /src
+RUN mkdir -p /src
+ADD . /src
+
+# Convert the Pipfile to requirements.txt for the next stage.
+RUN pipenv run pipenv_to_requirements
+
+
+# ------------------------------------------------------------------------------
+# Stage 2: Create virtual environment and build Windows binary via Wine.
+# ------------------------------------------------------------------------------
 FROM tobix/pywine:py3.7
 
-RUN wine pip install \
-  colorama \
-  flake8 \
-  flake8-isort \
-  google \
-  google-api-python-client \
-  ipython \
-  isort \
-  jsonpatch \
-  pyinstaller \
-  pytest \
-  pytest-cov \
-  pyyaml==4.2b4 \
-  requests \
-  requests-mock
+# Copy source code.
+WORKDIR /src
+RUN mkdir -p /src
+ADD . /src
+
+# Copy the requirements file from the previous stage.
+COPY --from=python-requirements /src/requirements.txt /src
+
+# Use Wine to install the Python requirements and build the Windows binary.
+RUN wine pip install -r requirements.txt
+RUN wine pyinstaller --onefile --noupx square.py
