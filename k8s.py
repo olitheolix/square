@@ -421,6 +421,7 @@ def urlpath(
             "RoleBinding": f"apis/rbac.authorization.k8s.io/v1/{namespace}/rolebindings",
             "Secret": f"api/v1/{namespace}/secrets",
             "Service": f"api/v1/{namespace}/services",
+            "ServiceAccount": f"api/v1/{namespace}/serviceaccounts",
             "StatefulSet": f"apis/apps/v1/{namespace}/statefulsets",
         },
         "1.10": {
@@ -436,6 +437,7 @@ def urlpath(
             "RoleBinding": f"apis/rbac.authorization.k8s.io/v1/{namespace}/rolebindings",
             "Secret": f"api/v1/{namespace}/secrets",
             "Service": f"api/v1/{namespace}/services",
+            "ServiceAccount": f"api/v1/{namespace}/serviceaccounts",
             "StatefulSet": f"apis/apps/v1/{namespace}/statefulsets",
         },
         "1.11": {
@@ -451,6 +453,7 @@ def urlpath(
             "RoleBinding": f"apis/rbac.authorization.k8s.io/v1/{namespace}/rolebindings",
             "Secret": f"api/v1/{namespace}/secrets",
             "Service": f"api/v1/{namespace}/services",
+            "ServiceAccount": f"api/v1/{namespace}/serviceaccounts",
             "StatefulSet": f"apis/apps/v1/{namespace}/statefulsets",
         },
     }

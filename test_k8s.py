@@ -275,7 +275,7 @@ class TestUrlPathBuilder:
         assert SUPPORTED_VERSIONS == ("1.9", "1.10", "1.11")
         assert SUPPORTED_KINDS == (
             "Namespace", "ConfigMap", "Secret", "PersistentVolumeClaim",
-            "ClusterRole", "ClusterRoleBinding", "Role", "RoleBinding",
+            "ClusterRole", "ClusterRoleBinding", "Role", "RoleBinding", "ServiceAccount",
             "Service", "Deployment", "DaemonSet", "StatefulSet", "Ingress",
         )
 

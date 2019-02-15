@@ -128,6 +128,16 @@ schema_1_9 = {
             "type": None,
         },
     },
+    "ServiceAccount": {
+        "kind": None,
+        "imagePullSecrets": None,
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "secrets": None,
+    },
     "StatefulSet": {
         "metadata": {
             "labels": None,
