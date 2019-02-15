@@ -12,6 +12,13 @@ FROM centos:7.2.1511 as builder
 ARG PYTHONVERSION=3.7.2
 
 # Dependencies.
+RUN yum update -y
+
+# Fixes a problem when building on Dockerhub. See this post for more info:
+# https://github.com/CentOS/sig-cloud-instance-images/issues/15
+RUN yum install -y yum-plugin-ovl
+
+# Install the core dependencies to build Python and run PyInstaller.
 RUN yum install -y \
   bzip2-devel \
   db4-devel \
