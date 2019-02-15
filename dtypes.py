@@ -13,7 +13,7 @@ SUPPORTED_KINDS = (
     "ConfigMap", "Secret", "PersistentVolumeClaim",
 
     # RBAC.
-    "ClusterRole", "ClusterRoleBinding", "Role", "RoleBinding",
+    "ClusterRole", "ClusterRoleBinding", "Role", "RoleBinding", "ServiceAccount",
 
     # Define Services before creating Deployments & friends.
     "Service",
@@ -43,6 +43,7 @@ RESOURCE_ALIASES = {
     "RoleBinding": {"rolebinding", "rolebindings"},
     "Secret": {"secret", "secrets"},
     "Service": {"service", "services", "svc"},
+    "ServiceAccount": {"serviceaccount", "serviceaccounts", "sa"},
     "StatefulSet": {"statefulset", "statefulsets"},
 }
 
