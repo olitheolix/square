@@ -824,10 +824,13 @@ class TestMain:
         `main_*` function will be called with the correct parameters.
 
         """
+        # Dummy configuration.
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+
         # Mock all calls to the K8s API.
-        m_k8s.load_auto_config.return_value = "config"
+        m_k8s.load_auto_config.return_value = config
         m_k8s.session.return_value = "client"
-        m_k8s.version.return_value = ("config", False)
+        m_k8s.version.return_value = (config, False)
 
         # Pretend all main functions return success.
         m_get.return_value = (None, False)
@@ -841,7 +844,7 @@ class TestMain:
                 square.main()
 
         # Every main function must have been called exactly once.
-        args = "config", "client", "myfolder", ["Deployment", "Service"], None
+        args = config, "client", "myfolder", ["Deployment", "Service"], None
         m_get.assert_called_once_with(*args)
         m_diff.assert_called_once_with(*args)
         m_patch.assert_called_once_with(*args)
@@ -878,10 +881,13 @@ class TestMain:
         `square.main` must return with a non-zero exit code.
 
         """
+        # Dummy configuration.
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+
         # Mock all calls to the K8s API.
-        m_k8s.load_auto_config.return_value = "config"
+        m_k8s.load_auto_config.return_value = config
         m_k8s.session.return_value = "client"
-        m_k8s.version.return_value = ("config", False)
+        m_k8s.version.return_value = (config, False)
 
         # Pretend all main functions return errors.
         m_get.return_value = (None, True)
@@ -902,10 +908,13 @@ class TestMain:
         harmless gap in the test coverage.
 
         """
+        # Dummy configuration.
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+
         # Mock all calls to the K8s API.
-        m_k8s.load_auto_config.return_value = "config"
+        m_k8s.load_auto_config.return_value = config
         m_k8s.session.return_value = "client"
-        m_k8s.version.return_value = ("config", False)
+        m_k8s.version.return_value = (config, False)
 
         # Pretend all main functions return errors.
         m_cmd.return_value = types.SimpleNamespace(

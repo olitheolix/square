@@ -700,6 +700,10 @@ def main() -> int:
     except AssertionError:
         return 1
 
+    # Log the K8s API address and version.
+    logit.info(f"Kubernetes server at {config.url}")
+    logit.info(f"Kubernetes version is {config.version}")
+
     # Do what user asked us to do.
     if param.parser == "get":
         _, err = main_get(config, client, param.folder, param.kinds, param.namespaces)
