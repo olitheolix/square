@@ -1,3 +1,4 @@
+import os
 import pathlib
 import random
 import types
@@ -443,7 +444,7 @@ class TestK8sKubeconfig:
         ret = k8s.load_eks_config(fname, "eks")
         assert isinstance(ret, Config)
 
-        # The certificate will be in a temporary folder because the `requests`
+        # The certificate will be in a temporary folder because the `Requests`
         # library insists on reading it from a file. Here we load that file and
         # manually insert its value into the returned Config structure. This
         # will make the verification step below easier to read.
@@ -458,6 +459,16 @@ class TestK8sKubeconfig:
             client_cert=None,
             version=None,
         )
+
+        # Verify that the correct external command was called, including
+        # environment variables. The "expected_*" values are directly from
+        # "support/kubeconf.yaml".
+        expected_cmd = ["aws-iam-authenticator", "token", "-i", "eks-cluster-name"]
+        expected_env = os.environ.copy()
+        expected_env.update({"foo1": "bar1", "foo2": "bar2"})
+        actual_cmd, actual_env = m_run.call_args[0][0], m_run.call_args[1]["env"]
+        assert actual_cmd == expected_cmd
+        assert actual_env == expected_env
 
         # EKS is not the default context in the demo kubeconf file, which means
         # this must fail.

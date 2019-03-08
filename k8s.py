@@ -212,15 +212,23 @@ def load_eks_config(
     if name is None or user is None or cluster is None:
         return None
 
+    # Get a copy of all env vars. We will pass that one along to the
+    # sub-process, plus the env vars specified in the kubeconfig file.
+    env = os.environ.copy()
+
     # Unpack the self signed certificate (AWS does not register the K8s API
     # server certificate with a public CA).
     try:
         ssl_ca_cert_data = base64.b64decode(cluster["certificate-authority-data"])
         cmd = user["exec"]["command"]
         args = user["exec"]["args"]
+        env_kubeconf = user["exec"].get("env", [])
     except KeyError:
         logit.debug(f"Context {context} in <{fname}> is not an EKS config")
         return None
+
+    # Convert a None value (valid value in YAML) to an empty list of env vars.
+    env_kubeconf = env_kubeconf if env_kubeconf is not None else []
 
     # Save the certificate to a temporary file. This is only necessary because
     # the requests library will need a path to the CA file - unfortunately, we
@@ -229,10 +237,16 @@ def load_eks_config(
     with open(ssl_ca_cert, "wb") as fd:
         fd.write(ssl_ca_cert_data)
 
-    # Run the `aws-iam-authenticator` tool with the arguments from the
-    # kubeconfig file. This will produce a YAML document with the bearer token.
+    # Compile the name, arguments and env vars for the command specified in kubeconf.
+    cmd_args = [cmd] + args
+    env_kubeconf = {_["name"]: _["value"] for _ in env_kubeconf}
+    env.update(env_kubeconf)
+    logit.debug(f"Requesting EKS certificate: {cmd_args} with envs: {env_kubeconf}")
+
+    # Run the specified command to produce the access token. That program must
+    # produce a YAML document on stdout that specifies the bearer token.
     try:
-        out = subprocess.run([cmd] + args, stdout=subprocess.PIPE)
+        out = subprocess.run(cmd_args, stdout=subprocess.PIPE, env=env)
         token = yaml.load(out.stdout.decode("utf8"))["status"]["token"]
     except FileNotFoundError:
         logit.error(f"Could not find <{cmd}> application to get token")
