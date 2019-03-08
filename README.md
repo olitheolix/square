@@ -28,8 +28,8 @@ it.
 
 
 ## Get Current Cluster State
-Download all namespace and deployment manifests from the cluster and save it to
-`./manifests` (override with `--folder`).
+Download all _Namespace_- and _Deployment_ manifests from the cluster and save
+them to `./manifests`:
 
 ```console
 foo@bar:~$ square get ns deployment
@@ -37,27 +37,28 @@ foo@bar:~$ ls manifests/
 _default.yaml  _kube-public.yaml  _kube-system.yaml  _None.yaml
 ```
 
-This are the files created from a vanilla Minikube cluster. Each Yaml file
-contains all the manifests for the respective Kubernetes name space. The
-`_None.yaml` contains the manifests that exist outside of namespaces like
-`ClusterRole` and `ClusterRoleBinding`.
+These are the Yaml files for a vanilla Minikube cluster. Each file contains the
+manifests for the respective Kubernetes _Namespace_ except `_None.yaml`, which
+contains the manifests that exist independent of name spaces like `ClusterRole`
+and `ClusterRoleBinding`.
 
 The file names are arbitrary. Feel free to rename them as you please. The same
 applies to their content: you may chop up the manifests in those files
 as you see fit because *square* will internally concatenate all the files
-anyway. However, it is smart enough to sync changes back to the correct file.
+anyway. It is also smart enough to sync changes back to the correct file when
+you use `square get ...` again.
 
 ## Diff Cluster State
-Following on from the previous example, the local files and the cluster should
-now be in sync, which means the diff is empty:
+Following on from the previous example, the local files and the cluster state
+should now be in sync, which means an empty diff:
 
 ```console
 foo@bar:~$ square diff ns
 foo@bar:~$
 ```
 
-Now add a label to the Namespace manifest in `_default.yaml` (it is the very
-first one) so that it looks like this:
+To make this more interesting, add a label to the _Namespace_ manifest in
+`_default.yaml` to make it look like this:
 ```yaml
 apiVersion: v1
 kind: Namespace
@@ -70,7 +71,7 @@ spec:
   - kubernetes
 ```
 
-Save the file and compute the diff:
+Save it and compute the diff:
 ```console
 foo@bar:~$ square diff ns
 Patch NAMESPACE default/default
@@ -87,10 +88,9 @@ Patch NAMESPACE default/default
        finalizers:
 ```
 
-This will produce the usual diff and shows that *square* would patch the
-`default` namespace to bring the K8s cluster back into sync with the local
-files. Let's do just that and then verify K8s is in sync with the local files
-again:
+This will show the difference in standard `diff` format. In words: *square*
+would patch the `default` name space to bring the K8s cluster back into sync
+with the local files. Let's do just that:
 
 ```console
 foo@bar:~$ square patch ns
@@ -115,10 +115,10 @@ foo@bar:~$
 ```
 
 *Square* will first print the same diff we saw earlier already, followed by the
-JSON patch it sent to K8s to update the `Namespace` resource.
+JSON patch it sent to K8s to update the _Namespace_ resource.
 
-We can use *kubectl* to verify that the patch worked and the namespace now has
-a `foo:bar` label.
+Use *kubectl* to verify that the patch worked and the name space now has a
+`foo:bar` label.
 
 ```console
 foo@bar:~$ kubectl describe ns default
@@ -135,13 +135,13 @@ No resource limits.
 
 # Create and Destroy Resources
 The `patch` operation we just saw is also the tool to create and delete
-resource. To add a new resource, simply add its manifest to one of the files in
-`manifests/` (or create it in a new file), then patch it.
+resources. To add a new one, simply add its manifest to `manifests/` (create a
+new file or add it to an existing one). Then use _square_ to patch it.
 
 For instance, to deploy the latest *square* image from
 [Dockerhub](https://hub.docker.com/r/olitheolix/square), download the [example
-manifests](examples/square.yaml) into the `manifests/` folder and patch the
-deployment:
+manifests](examples/square.yaml) into the `manifests/` folder and use _square_
+to deploy it:
 
 ```console
 foo@bar:~$ wget https://github.com/olitheolix/square/raw/master/examples/square.yaml -O manifests/square.yaml

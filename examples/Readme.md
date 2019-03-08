@@ -3,11 +3,10 @@ These examples were tested with Minikube v1.10.0.
 The [manifest](square-single-namespace.yaml) deploys `square` into a new
 namespace (also called `square`). Use `kubectl` or `square` to deploy it.
 
-IMPORTANT: the RBAC for the *square* container are very liberal. This is only
-useful if you want a single *square* container to sync and patch your entire
-cluster. In practice, you may only want to eg track configuration drift of
-deployments, in which case you would only need read access to deployments.
-Adjust the RBAC role as necessary.
+IMPORTANT: the RBAC configuration in this example is probably too liberal for
+production clusters. For instance, you should only grant read access to
+deployments if you only want to track the drift of _Deployment_
+manifests.
 
 
 ```console
