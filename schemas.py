@@ -153,4 +153,5 @@ RESOURCE_SCHEMA = {
     "1.9": schema_1_9,
     "1.10": schema_1_9,
     "1.11": schema_1_9,
+    "1.14": schema_1_9,
 }

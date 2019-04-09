@@ -470,6 +470,22 @@ def urlpath(
             "ServiceAccount": f"api/v1/{namespace}/serviceaccounts",
             "StatefulSet": f"apis/apps/v1/{namespace}/statefulsets",
         },
+        "1.14": {
+            "ClusterRole": f"apis/rbac.authorization.k8s.io/v1/clusterroles",
+            "ClusterRoleBinding": f"apis/rbac.authorization.k8s.io/v1/clusterrolebindings",  # NOQA
+            "ConfigMap": f"api/v1/{namespace}/configmaps",
+            "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
+            "Deployment": f"apis/apps/v1/{namespace}/deployments",
+            "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
+            "Namespace": f"api/v1/namespaces",
+            "PersistentVolumeClaim": f"api/v1/{namespace}/persistentvolumeclaims",
+            "Role": f"apis/rbac.authorization.k8s.io/v1/{namespace}/roles",
+            "RoleBinding": f"apis/rbac.authorization.k8s.io/v1/{namespace}/rolebindings",
+            "Secret": f"api/v1/{namespace}/secrets",
+            "Service": f"api/v1/{namespace}/services",
+            "ServiceAccount": f"api/v1/{namespace}/serviceaccounts",
+            "StatefulSet": f"apis/apps/v1/{namespace}/statefulsets",
+        },
     }
 
     # Look up the resource path and remove duplicate "/" characters (may have
