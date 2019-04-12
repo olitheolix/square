@@ -25,7 +25,7 @@ jobs:
           name: install dependencies
           command: |
             # Create a non-root user because the file permission tests
-            # will otherwise since root always has access to all files.
+            # will otherwise fail since root always has access to all files.
             apt update && apt install -y sudo
             groupadd square
             useradd -g square square
