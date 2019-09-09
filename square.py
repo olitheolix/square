@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import os
+import re
 import sys
 import textwrap
 from pprint import pprint
@@ -54,6 +55,15 @@ def parse_commandline_args():
             raise argparse.ArgumentTypeError(kind)
         return out[0]
 
+    def _validate_label(label: str) -> Tuple[str, ...]:
+        """Convert resource `kind` from aliases to canonical name.
+        For instance, `svc` -> `Service`.
+        """
+        pat = re.compile(r"^[a-z0-9][-a-z0-9_.]*=[-A-Za-z0-9_.]*[A-Za-z0-9]$")
+        if pat.match(label) is None:
+            raise argparse.ArgumentTypeError(label)
+        return tuple(label.split("="))
+
     # A dummy top level parser that will become the parent for all sub-parsers
     # to share all its arguments.
     parent = argparse.ArgumentParser(
@@ -70,6 +80,11 @@ def parse_commandline_args():
         "-n", type=str, nargs="*",
         metavar="ns", dest="namespaces",
         help="List of namespaces (omit to operate in all namespaces)",
+    )
+    parent.add_argument(
+        "-l", type=_validate_label, nargs="*",
+        metavar="labels", dest="labels", default=tuple(),
+        help="Only consider resources with these labels",
     )
     parent.add_argument(
         "--folder", type=str, default="./manifests/",
@@ -130,6 +145,9 @@ def parse_commandline_args():
     # Expand the "all" resource (if present).
     if "all" in param.kinds:
         param.kinds = list(SUPPORTED_KINDS)
+
+    # Make label list immutable.
+    param.labels = tuple(param.labels)
 
     return param
 
@@ -462,7 +480,8 @@ def setup_logging(log_level: int) -> None:
 def prune(
         manifests: ServerManifests,
         kinds: Iterable[str],
-        namespaces: Optional[Iterable[str]]
+        namespaces: Optional[Iterable[str]],
+        labels: Iterable[Tuple[str, str]],
 ) -> ServerManifests:
     """Return the `manifests` subset that meets the requirement.
 
@@ -484,17 +503,33 @@ def prune(
 
     """
     # Compile the list of manifests that have the correct resource kind.
-    out = {k: v for k, v in manifests.items() if k.kind in kinds}
+    out1 = {k: v for k, v in manifests.items() if k.kind in kinds}
 
-    # Remove all resources outside the specified namespaces. Retain all
-    # resources if `namespaces` is None.
-    if namespaces is not None:
-        out = {k: v for k, v in out.items() if k.namespace in namespaces}
+    # Retain only those for which all labels match.
+    label_selectors = set(labels)
+    out2 = {}
+    for meta, manifest in out1.items():
+        # Unpack the labels of the resource and convert them to a set of tuples.
+        # Example: {"foo": "bar", "x": "y"} -> {("foo", "bar"), ("x", "y")}
+        resource_labels = manifest.get("metadata", {}).get("labels", {})
+        resource_labels = set(resource_labels.items())
+
+        # Only pick the current manifest if it has all the specified labels.
+        if label_selectors.issubset(resource_labels):
+            out2[meta] = manifest
+        del meta, manifest, resource_labels
+
+    # Remove all resources outside the specified namespaces. Skip the filter
+    # if `namespaces` is None (ie user does not want to filter by namespace).
+    if namespaces is None:
+        out3 = out2
+    else:
+        out3 = {k: v for k, v in out2.items() if k.namespace in namespaces}
 
     # Ignore the default token because K8s creates that one automatically in
     # each namespace and touching it is usually a bad idea.
     out = {
-        k: v for k, v in out.items()
+        k: v for k, v in out3.items()
         if not (k.kind == "Secret" and k.name.startswith("default-token-"))
     }
     return out
@@ -505,7 +540,9 @@ def main_patch(
         client,
         folder: Filepath,
         kinds: Iterable[str],
-        namespaces: Optional[Iterable[str]]) -> Tuple[None, bool]:
+        namespaces: Optional[Iterable[str]],
+        labels: Iterable[Tuple[str, str]],
+) -> Tuple[None, bool]:
     """Update K8s to match the specifications in `local_manifests`.
 
     Create a deployment plan that will transition the K8s state
@@ -537,8 +574,8 @@ def main_patch(
         # Prune the manifests to only include manifests for the specified
         # resources and namespaces. The pruning is not technically necessary
         # for the `server` manifests but does not hurt.
-        local = prune(local_meta, kinds, namespaces)
-        server = prune(server, kinds, namespaces)
+        local = prune(local_meta, kinds, namespaces, labels)
+        server = prune(server, kinds, namespaces, labels)
 
         # Create the deployment plan.
         plan, err = compile_plan(config, local, server)
@@ -580,7 +617,9 @@ def main_diff(
         client,
         folder: Filepath,
         kinds: Iterable[str],
-        namespaces: Optional[Iterable[str]]) -> Tuple[None, bool]:
+        namespaces: Optional[Iterable[str]],
+        labels: Iterable[Tuple[str, str]],
+) -> Tuple[None, bool]:
     """Print the diff between `local_manifests` and `server_manifests`.
 
     The diff shows what would have to change on the K8s server in order for it
@@ -612,8 +651,8 @@ def main_diff(
         # Prune the manifests to only include manifests for the specified
         # resources and namespaces. The pruning is not technically necessary
         # for the `server` manifests but does not hurt.
-        loc = prune(local_meta, kinds, namespaces)
-        srv = prune(server, kinds, namespaces)
+        loc = prune(local_meta, kinds, namespaces, labels)
+        srv = prune(server, kinds, namespaces, labels)
 
         # Create deployment plan.
         plan, err = compile_plan(config, loc, srv)
@@ -631,7 +670,10 @@ def main_get(
         client,
         folder: Filepath,
         kinds: Iterable[str],
-        namespaces: Optional[Iterable[str]]) -> Tuple[None, bool]:
+        namespaces: Optional[Iterable[str]],
+        labels: Iterable[Tuple[str, str]],
+) -> Tuple[None, bool]:
+
     """Download all K8s manifests and merge them into local files.
 
     Inputs:
@@ -661,7 +703,7 @@ def main_get(
         # resources and namespaces. This is not technically necessary
         # for the `server` manifests but does not hurt and makes it consistent
         # with how the other main_* functions operate.
-        server = prune(server, kinds, namespaces)
+        server = prune(server, kinds, namespaces, labels)
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see next step.
@@ -705,12 +747,13 @@ def main() -> int:
     logit.info(f"Kubernetes version is {config.version}")
 
     # Do what user asked us to do.
+    args = param.folder, param.kinds, param.namespaces, param.labels
     if param.parser == "get":
-        _, err = main_get(config, client, param.folder, param.kinds, param.namespaces)
+        _, err = main_get(config, client, *args)
     elif param.parser == "diff":
-        _, err = main_diff(config, client, param.folder, param.kinds, param.namespaces)
+        _, err = main_diff(config, client, *args)
     elif param.parser == "patch":
-        _, err = main_patch(config, client, param.folder, param.kinds, param.namespaces)
+        _, err = main_patch(config, client, *args)
     else:
         logit.error(f"Unknown command <{param.parser}>")
         return 1

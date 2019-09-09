@@ -103,37 +103,57 @@ class TestBasic:
         # Convenience.
         mm, prune = manio.make_meta, square.prune
 
+        # Two sets of labels for the test.
+        l11 = {"app": "app1", "env": "env1"}
+        l22 = {"app": "app2", "env": "env2"}
+
         # The list of manifests we will use in this test.
-        man = {
-            mm(make_manifest("Namespace", None, "ns0")): "ns0",
-            mm(make_manifest("Namespace", None, "ns1")): "ns1",
-            mm(make_manifest("Deployment", "ns0", "d_ns0")): "d_ns0",
-            mm(make_manifest("Deployment", "ns1", "d_ns1")): "d_ns1",
-            mm(make_manifest("Service", "ns0", "s_ns0")): "s_ns0",
-            mm(make_manifest("Service", "ns1", "s_ns1")): "s_ns1",
-            mm(make_manifest("Secret", "ns1", "valid")): "valid-secret",
+        man_list = [
+            make_manifest("Namespace", None, "ns0", l11),      # id=0
+            make_manifest("Namespace", None, "ns1", l11),      # id=1
+            make_manifest("Deployment", "ns0", "d_ns0", l11),  # id=2
+            make_manifest("Deployment", "ns1", "d_ns1", l11),  # id=3
+            make_manifest("Service", "ns0", "s_ns0", l11),     # id=4
+            make_manifest("Service", "ns1", "s_ns1", l22),     # id=5
+            make_manifest("Secret", "ns1", "valid", l22),      # id=6
 
             # K8s creates those automatically and we will not touch it.
-            mm(make_manifest("Secret", "ns1", "default-token-12345")): "ignore",
-        }
+            make_manifest("Secret", "ns1", "default-token-12345")
+        ]
+        man = {mm(_): _ for _ in man_list}
 
         # Ask for the Service manifests in all namespaces.
         expected = {
-            mm(make_manifest("Service", "ns0", "s_ns0")): "s_ns0",
-            mm(make_manifest("Service", "ns1", "s_ns1")): "s_ns1",
+            mm(man_list[4]): man_list[4],
+            mm(man_list[5]): man_list[5],
         }
-        assert prune(man, ["Service"], None) == expected
-        assert prune(man, ["Service"], ["ns0", "ns1"]) == expected
+        assert prune(man, ["Service"], None, tuple()) == expected
+        assert prune(man, ["Service"], ["ns0", "ns1"], tuple()) == expected
 
         # Ask for the Namespace-, Deployment and Secret manifests in "ns1"
         # only. This one must contain the "valid" secret but not the
         # "default-token-12345" secret.
         expected = {
-            mm(make_manifest("Namespace", None, "ns1")): "ns1",
-            mm(make_manifest("Deployment", "ns1", "d_ns1")): "d_ns1",
-            mm(make_manifest("Secret", "ns1", "valid")): "valid-secret",
+            mm(man_list[1]): man_list[1],
+            mm(man_list[3]): man_list[3],
+            mm(man_list[6]): man_list[6],
         }
-        assert prune(man, ["Namespace", "Deployment", "Secret"], ["ns1"]) == expected
+        assert prune(
+            man, ["Namespace", "Deployment", "Secret"], ["ns1"], tuple()) == expected
+
+        # Ask for all Services with label "app=app1"
+        expected = {
+            mm(man_list[4]): man_list[4],
+        }
+        assert prune(man, ["Service"], None, (("app", "app1"),)) == expected
+
+        # Ask for all resources with label "env=env2"
+        expected = {
+            mm(man_list[5]): man_list[5],
+            mm(man_list[6]): man_list[6],
+        }
+        all_res = ["Namespace", "Deployment", "Service", "Secret"]
+        assert prune(man, all_res, None, (("env", "env2"),)) == expected
 
 
 class TestPartition:
@@ -672,7 +692,7 @@ class TestMainOptions:
         m_delete.return_value = (None, False)
 
         # The arguments to the test function will always be the same in this test.
-        args = config, "client", "folder", "kinds", "ns"
+        args = config, "client", "folder", "kinds", "ns", (("foo", "bar"), ("x", "y"))
 
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
@@ -737,7 +757,7 @@ class TestMainOptions:
         m_plan.return_value = (plan, False)
 
         # The arguments to the test function will always be the same in this test.
-        args = "config", "client", "folder", "kinds", "ns"
+        args = "config", "client", "folder", "kinds", "ns", (("foo", "bar"), ("x", "y"))
 
         # A successfull DIFF only computes and prints the plan.
         assert square.main_diff(*args) == (None, False)
@@ -781,13 +801,13 @@ class TestMainOptions:
         m_save.return_value = (None, False)
 
         # The arguments to the test function will always be the same in this test.
-        args = "config", "client", "folder", "kinds", "ns"
+        args = "config", "client", "folder", "kinds", "ns", (("foo", "bar"), ("x", "y"))
 
         # Call test function and verify it passed the correct arguments.
         assert square.main_get(*args) == (None, False)
         m_load.assert_called_once_with("folder")
         m_down.assert_called_once_with("config", "client", "kinds", "ns")
-        m_prun.assert_called_once_with({}, "kinds", "ns")
+        m_prun.assert_called_once_with({}, "kinds", "ns", (("foo", "bar"), ("x", "y")))
         m_sync.assert_called_once_with({}, "server", "kinds", "ns")
         m_save.assert_called_once_with("folder", "synced")
 
@@ -842,9 +862,10 @@ class TestMain:
             args = ("square.py", option, "deployment", "service", "--folder", "myfolder")
             with mock.patch("sys.argv", args):
                 square.main()
+            del args
 
         # Every main function must have been called exactly once.
-        args = config, "client", "myfolder", ["Deployment", "Service"], None
+        args = config, "client", "myfolder", ["Deployment", "Service"], None, tuple()
         m_get.assert_called_once_with(*args)
         m_diff.assert_called_once_with(*args)
         m_patch.assert_called_once_with(*args)
@@ -919,6 +940,7 @@ class TestMain:
         # Pretend all main functions return errors.
         m_cmd.return_value = types.SimpleNamespace(
             verbosity=0, parser="invalid", kubeconfig="conf", ctx="ctx",
+            folder=None, kinds=None, namespaces=None, labels=None
         )
         assert square.main() == 1
 
@@ -960,3 +982,31 @@ class TestMain:
         with mock.patch("sys.argv", ["square.py", "get", "invalid"]):
             with pytest.raises(SystemExit):
                 square.parse_commandline_args()
+
+    def test_parse_commandline_args_labels_valid(self):
+        """The labels must be returned as (name, value) tuples."""
+        # No labels.
+        with mock.patch("sys.argv", ["square.py", "get", "all"]):
+            ret = square.parse_commandline_args()
+            assert ret.labels == tuple()
+
+        # One label.
+        with mock.patch("sys.argv", ["square.py", "get", "all", "-l", "foo=bar"]):
+            ret = square.parse_commandline_args()
+            assert ret.labels == (("foo", "bar"),)
+
+        # Two labels.
+        with mock.patch("sys.argv", ["square.py", "get", "all", "-l", "foo=bar", "x=y"]):
+            ret = square.parse_commandline_args()
+            assert ret.labels == (("foo", "bar"), ("x", "y"))
+
+    def test_parse_commandline_args_labels_invalid(self):
+        """Must abort on invalid labels."""
+        invalid_labels = (
+            "foo", "foo=", "=foo", "foo=bar=foobar", "foo==bar",
+            "fo/o=bar",
+        )
+        for label in invalid_labels:
+            with mock.patch("sys.argv", ["square.py", "get", "all", "-l", label]):
+                with pytest.raises(SystemExit):
+                    square.parse_commandline_args()
