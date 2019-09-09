@@ -71,6 +71,10 @@ schema_1_9 = {
     },
     "Ingress": {
         "metadata": {
+            "annotations": {
+                "ingress.kubernetes.io/configuration-snippet": None,
+                "kubernetes.io/ingress.class": None,
+            },
             "labels": None,
             "name": True,
             "namespace": True,
