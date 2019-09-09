@@ -428,6 +428,7 @@ def urlpath(
             "ConfigMap": f"api/v1/{namespace}/configmaps",
             "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
             "Deployment": f"apis/extensions/v1beta1/{namespace}/deployments",
+            "HorizontalPodAutoscaler": f"apis/autoscaling/v1/{namespace}/horizontalpodautoscalers",   # NOQA
             "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
             "Namespace": f"api/v1/namespaces",
             "PersistentVolumeClaim": f"api/v1/{namespace}/persistentvolumeclaims",
@@ -444,6 +445,7 @@ def urlpath(
             "ConfigMap": f"api/v1/{namespace}/configmaps",
             "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
             "Deployment": f"apis/extensions/v1beta1/{namespace}/deployments",
+            "HorizontalPodAutoscaler": f"apis/autoscaling/v1/{namespace}/horizontalpodautoscalers",   # NOQA
             "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
             "Namespace": f"api/v1/namespaces",
             "PersistentVolumeClaim": f"api/v1/{namespace}/persistentvolumeclaims",
@@ -460,6 +462,7 @@ def urlpath(
             "ConfigMap": f"api/v1/{namespace}/configmaps",
             "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
             "Deployment": f"apis/apps/v1/{namespace}/deployments",
+            "HorizontalPodAutoscaler": f"apis/autoscaling/v1/{namespace}/horizontalpodautoscalers",   # NOQA
             "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
             "Namespace": f"api/v1/namespaces",
             "PersistentVolumeClaim": f"api/v1/{namespace}/persistentvolumeclaims",
@@ -476,6 +479,7 @@ def urlpath(
             "ConfigMap": f"api/v1/{namespace}/configmaps",
             "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
             "Deployment": f"apis/apps/v1/{namespace}/deployments",
+            "HorizontalPodAutoscaler": f"apis/autoscaling/v1/{namespace}/horizontalpodautoscalers",   # NOQA
             "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
             "Namespace": f"api/v1/namespaces",
             "PersistentVolumeClaim": f"api/v1/{namespace}/persistentvolumeclaims",
@@ -492,6 +496,7 @@ def urlpath(
             "ConfigMap": f"api/v1/{namespace}/configmaps",
             "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
             "Deployment": f"apis/apps/v1/{namespace}/deployments",
+            "HorizontalPodAutoscaler": f"apis/autoscaling/v1/{namespace}/horizontalpodautoscalers",   # NOQA
             "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
             "Namespace": f"api/v1/namespaces",
             "PersistentVolumeClaim": f"api/v1/{namespace}/persistentvolumeclaims",

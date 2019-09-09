@@ -61,6 +61,14 @@ schema_1_9 = {
         },
         "spec": True,
     },
+    "HorizontalPodAutoscaler": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "spec": True,
+    },
     "Ingress": {
         "metadata": {
             "labels": None,
