@@ -19,7 +19,7 @@ SUPPORTED_KINDS = (
     "Service",
 
     # Everything that will spawn pods.
-    "Deployment", "DaemonSet", "StatefulSet",
+    "Deployment", "DaemonSet", "StatefulSet", "HorizontalPodAutoscaler",
 
     # Ingresses should be after Deployments & friends.
     "Ingress",
@@ -36,6 +36,7 @@ RESOURCE_ALIASES = {
     "ConfigMap": {"configmap", "cm"},
     "DaemonSet": {"daemonset", "daemonsets", "ds"},
     "Deployment": {"deployment", "deployments", "deploy"},
+    "HorizontalPodAutoscaler": {"hpa"},
     "Ingress": {"ingress", "ingresses", "ing"},
     "Namespace": {"namespace", "namespaces", "ns"},
     "PersistentVolumeClaim": {"persistentVolumeClaim", "persistentvolumeclaims", "pvc"},
