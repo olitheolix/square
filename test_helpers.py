@@ -1,14 +1,15 @@
 from typing import Any, Dict
 
 
-def make_manifest(kind: str, namespace: str, name: str) -> dict:
+def make_manifest(kind: str, namespace: str, name: str,
+                  labels: Dict[str, str] = {}) -> dict:
     manifest: Dict[str, Any]
     manifest = {
         'apiVersion': 'v1',
         'kind': kind,
         'metadata': {
             'name': name,
-            'labels': {'key': 'val'},
+            'labels': labels,
             'foo': 'bar',
         },
         'spec': {
