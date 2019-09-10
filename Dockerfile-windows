@@ -20,7 +20,7 @@ RUN pipenv run pipenv_to_requirements
 # ------------------------------------------------------------------------------
 # Stage 2: Create virtual environment and build Windows binary via Wine.
 # ------------------------------------------------------------------------------
-FROM tobix/pywine:py3.7
+FROM tobix/pywine
 
 # Copy source code.
 WORKDIR /src
