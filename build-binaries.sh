@@ -14,15 +14,15 @@ mkdir -p dist
 rm -f dist/*
 
 # Build the binaries.
-docker build -t square-linux -f df-linux .
-docker build -t square-windows -f df-windows .
+docker build -t square-linux -f Dockerfile .
+docker build -t square-windows -f Dockerfile-windows .
 
 # Copy the Linux binary from the container without starting the container.
 docker create --name tmp square-linux:latest
-docker cp tmp:/home/square/dist/square ./dist/
+docker cp tmp:/usr/local/bin/square ./dist/
 docker rm tmp
 
 # Copy the Window binary from the container without starting the container.
 docker create --name tmp square-windows:latest
-docker cp tmp:/home/square/dist/square.exe ./dist/
+docker cp tmp:/src/dist/square.exe ./dist/
 docker rm tmp
