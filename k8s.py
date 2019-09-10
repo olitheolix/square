@@ -46,7 +46,7 @@ def load_kubeconfig(
     """
     # Load `kubeconfig`.
     try:
-        kubeconf = yaml.load(open(fname))
+        kubeconf = yaml.safe_load(open(fname))
     except (IOError, PermissionError) as err:
         logit.error(f"{err}")
         return (None, None, None)
@@ -247,7 +247,7 @@ def load_eks_config(
     # produce a YAML document on stdout that specifies the bearer token.
     try:
         out = subprocess.run(cmd_args, stdout=subprocess.PIPE, env=env)
-        token = yaml.load(out.stdout.decode("utf8"))["status"]["token"]
+        token = yaml.safe_load(out.stdout.decode("utf8"))["status"]["token"]
     except FileNotFoundError:
         logit.error(f"Could not find <{cmd}> application to get token")
         return None
