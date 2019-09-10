@@ -64,6 +64,20 @@ def parse_commandline_args():
             raise argparse.ArgumentTypeError(label)
         return tuple(label.split("="))
 
+    def _validate_kubeconfig(kubeconf: str) -> str:
+        """Return Kubeconfig file or raise an error."""
+        # Return `kubeconf` unless it has the default value which denotes an
+        # impossible file name.
+        if kubeconf is not None:
+            if kubeconf != "--unknown--":
+                return kubeconf
+
+        # Return the environment variable, or raise an error if it does not exist.
+        try:
+            return os.environ["KUBECONFIG"]
+        except KeyError:
+            raise argparse.ArgumentTypeError(kubeconf)
+
     # A dummy top level parser that will become the parent for all sub-parsers
     # to share all its arguments.
     parent = argparse.ArgumentParser(
@@ -91,7 +105,8 @@ def parse_commandline_args():
         help="Manifest folder (defaults='./manifests')"
     )
     parent.add_argument(
-        "--kubeconfig", type=str, metavar="path", default="~/.kube/config",
+        "--kubeconfig", type=_validate_kubeconfig, metavar="path",
+        default=os.environ.get("KUBECONFIG", "--unknown--"),
         help="Location of kubeconfig file (default='~/kube/config')",
     )
     parent.add_argument(
