@@ -1010,3 +1010,30 @@ class TestMain:
             with mock.patch("sys.argv", ["square.py", "get", "all", "-l", label]):
                 with pytest.raises(SystemExit):
                     square.parse_commandline_args()
+
+    def test_parse_commandline_args_kubeconfig(self):
+        """Use the correct Kubeconfig file."""
+        # Backup environment variables and set a custom KUBECONFIG value.
+        new_env = os.environ.copy()
+
+        # Populate the environment with a KUBECONFIG.
+        new_env["KUBECONFIG"] = "envvar"
+        with mock.patch.dict("os.environ", values=new_env, clear=True):
+            # Square must use the supplied Kubeconfig file and ignore the
+            # environment variable.
+            with mock.patch("sys.argv", ["square.py", "get", "svc", "--kubeconfig", "/file"]):  # noqa
+                ret = square.parse_commandline_args()
+                assert ret.kubeconfig == "/file"
+
+            # Square must fall back to the KUBECONFIG environment variable.
+            with mock.patch("sys.argv", ["square.py", "get", "svc"]):
+                ret = square.parse_commandline_args()
+                assert ret.kubeconfig == "envvar"
+
+        # Square must raise an error without an explicit kubeconfig
+        # parameters and environment variable.
+        del new_env["KUBECONFIG"]
+        with mock.patch.dict("os.environ", values=new_env, clear=True):
+            with mock.patch("sys.argv", ["square.py", "get", "svc"]):
+                with pytest.raises(SystemExit):
+                    square.parse_commandline_args()
