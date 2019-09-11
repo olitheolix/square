@@ -550,14 +550,16 @@ def prune(
     return out
 
 
-def user_confirmed() -> bool:
-    """Return True iff the user answers with `yes`."""
+def user_confirmed(answer: str = "yes") -> bool:
+    """Return True iff the user answers with `answer`."""
+    assert answer, "BUG: desired answer must be non-empty string"
     print(f"Apply the changes?")
-    print('Only "yes" will commence the rollout')
+    print(f'Only "{answer}" will commence the rollout.')
 
     try:
-        return input("  Your answer: ") == "yes"
+        return input("  Your answer: ") == answer
     except KeyboardInterrupt:
+        print()
         return False
 
 
@@ -611,7 +613,7 @@ def main_patch(
         print_deltas(plan)
 
         # Ask for user confirmation. Abort if the user does not give it.
-        if not user_confirmed():
+        if not user_confirmed(config.name):
             logit.error("User abort")
             return (None, True)
 

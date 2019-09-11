@@ -663,7 +663,8 @@ class TestMainOptions:
         test because it shares virtually all the boiler plate code.
         """
         # Valid client config and MetaManifest.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
+        cname = "clustername"
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", cname)
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
 
         # Valid Patch.
@@ -706,7 +707,7 @@ class TestMainOptions:
         # Square must never create/patch/delete anything if the user did not
         # answer "yes".
         reset_mocks()
-        with mock.patch.object(square, 'input', lambda _: "no"):
+        with mock.patch.object(square, 'input', lambda _: "wrong answer"):
             assert square.main_patch(*args) == (None, True)
         assert not m_load.post.called
         assert not m_load.patch.called
@@ -715,7 +716,7 @@ class TestMainOptions:
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
         reset_mocks()
-        with mock.patch.object(square, 'input', lambda _: "yes"):
+        with mock.patch.object(square, 'input', lambda _: cname):
             assert square.main_patch(*args) == (None, False)
         m_load.assert_called_once_with("folder")
         m_down.assert_called_once_with(config, "client", "kinds", "ns")
@@ -730,35 +731,35 @@ class TestMainOptions:
         # Make `delete` fail.
         m_prun.side_effect = ["local", "server"]
         m_delete.return_value = (None, True)
-        with mock.patch.object(square, 'input', lambda _: "yes"):
+        with mock.patch.object(square, 'input', lambda _: cname):
             assert square.main_patch(*args) == (None, True)
 
         # Make `patch` fail.
         m_prun.side_effect = ["local", "server"]
         m_patch.return_value = (None, True)
-        with mock.patch.object(square, 'input', lambda _: "yes"):
+        with mock.patch.object(square, 'input', lambda _: cname):
             assert square.main_patch(*args) == (None, True)
 
         # Make `post` fail.
         m_prun.side_effect = ["local", "server"]
         m_post.return_value = (None, True)
-        with mock.patch.object(square, 'input', lambda _: "yes"):
+        with mock.patch.object(square, 'input', lambda _: cname):
             assert square.main_patch(*args) == (None, True)
 
         # Make `compile_plan` fail.
         m_prun.side_effect = ["local", "server"]
         m_plan.return_value = (None, True)
-        with mock.patch.object(square, 'input', lambda _: "yes"):
+        with mock.patch.object(square, 'input', lambda _: cname):
             assert square.main_patch(*args) == (None, True)
 
         # Make `download_manifests` fail.
         m_down.return_value = (None, True)
-        with mock.patch.object(square, 'input', lambda _: "yes"):
+        with mock.patch.object(square, 'input', lambda _: cname):
             assert square.main_patch(*args) == (None, True)
 
         # Make `load` fail.
         m_load.return_value = (None, None, True)
-        with mock.patch.object(square, 'input', lambda _: "yes"):
+        with mock.patch.object(square, 'input', lambda _: cname):
             assert square.main_patch(*args) == (None, True)
 
     @mock.patch.object(manio, "load")
@@ -1065,12 +1066,12 @@ class TestMain:
                     square.parse_commandline_args()
 
     def test_user_confirmed(self):
-        # "yes" must return true.
-        with mock.patch.object(square, 'input', lambda _: 'yes'):
-            assert square.user_confirmed() is True
+        # "yes" must return True.
+        with mock.patch.object(square, 'input', lambda _: "yes"):
+            assert square.user_confirmed("yes") is True
 
-        # Everything else must return false.
+        # Everything other than "yes" must return False.
         answers = ("YES", "", "y", "ye", "yess", "blah")
         for answer in answers:
             with mock.patch.object(square, 'input', lambda _: answer):
-                assert square.user_confirmed() is False
+                assert square.user_confirmed("yes") is False
