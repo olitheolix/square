@@ -731,35 +731,35 @@ class TestMainOptions:
         # Make `delete` fail.
         m_prun.side_effect = ["local", "server"]
         m_delete.return_value = (None, True)
-        with mock.patch.object(square, 'input', lambda _: cname):
+        with mock.patch.object(square, 'input'):
             assert square.main_patch(*args) == (None, True)
 
         # Make `patch` fail.
         m_prun.side_effect = ["local", "server"]
         m_patch.return_value = (None, True)
-        with mock.patch.object(square, 'input', lambda _: cname):
+        with mock.patch.object(square, 'input'):
             assert square.main_patch(*args) == (None, True)
 
         # Make `post` fail.
         m_prun.side_effect = ["local", "server"]
         m_post.return_value = (None, True)
-        with mock.patch.object(square, 'input', lambda _: cname):
+        with mock.patch.object(square, 'input'):
             assert square.main_patch(*args) == (None, True)
 
         # Make `compile_plan` fail.
         m_prun.side_effect = ["local", "server"]
         m_plan.return_value = (None, True)
-        with mock.patch.object(square, 'input', lambda _: cname):
+        with mock.patch.object(square, 'input'):
             assert square.main_patch(*args) == (None, True)
 
         # Make `download_manifests` fail.
         m_down.return_value = (None, True)
-        with mock.patch.object(square, 'input', lambda _: cname):
+        with mock.patch.object(square, 'input'):
             assert square.main_patch(*args) == (None, True)
 
         # Make `load` fail.
         m_load.return_value = (None, None, True)
-        with mock.patch.object(square, 'input', lambda _: cname):
+        with mock.patch.object(square, 'input'):
             assert square.main_patch(*args) == (None, True)
 
     @mock.patch.object(manio, "load")
@@ -1075,3 +1075,8 @@ class TestMain:
         for answer in answers:
             with mock.patch.object(square, 'input', lambda _: answer):
                 assert square.user_confirmed("yes") is False
+
+        # Must gracefully handle keyboard interrupts and return False.
+        with mock.patch.object(square, 'input') as m_input:
+            m_input.side_effect = KeyboardInterrupt
+            assert square.user_confirmed("yes") is False
