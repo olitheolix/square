@@ -682,21 +682,41 @@ class TestMainOptions:
             delete=[DeltaDelete(meta, "delete_url", "delete_man")],
         )
 
-        # Pretend that all K8s requests succeed.
-        m_down.return_value = ({}, False)
-        m_load.return_value = ({}, {}, False)
-        m_prun.side_effect = ["local", "server"]
-        m_plan.return_value = (plan, False)
-        m_post.return_value = (None, False)
-        m_patch.return_value = (None, False)
-        m_delete.return_value = (None, False)
+        def reset_mocks():
+            m_down.reset_mock()
+            m_load.reset_mock()
+            m_prun.reset_mock()
+            m_plan.reset_mock()
+            m_post.reset_mock()
+            m_patch.reset_mock()
+            m_delete.reset_mock()
+
+            # Pretend that all K8s requests succeed.
+            m_down.return_value = ({}, False)
+            m_load.return_value = ({}, {}, False)
+            m_prun.side_effect = ["local", "server"]
+            m_plan.return_value = (plan, False)
+            m_post.return_value = (None, False)
+            m_patch.return_value = (None, False)
+            m_delete.return_value = (None, False)
 
         # The arguments to the test function will always be the same in this test.
         args = config, "client", "folder", "kinds", "ns", (("foo", "bar"), ("x", "y"))
 
+        # Square must never create/patch/delete anything if the user did not
+        # answer "yes".
+        reset_mocks()
+        with mock.patch.object(square, 'input', lambda _: "no"):
+            assert square.main_patch(*args) == (None, True)
+        assert not m_load.post.called
+        assert not m_load.patch.called
+        assert not m_load.delete.called
+
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
-        assert square.main_patch(*args) == (None, False)
+        reset_mocks()
+        with mock.patch.object(square, 'input', lambda _: "yes"):
+            assert square.main_patch(*args) == (None, False)
         m_load.assert_called_once_with("folder")
         m_down.assert_called_once_with(config, "client", "kinds", "ns")
         m_plan.assert_called_once_with(config, "local", "server")
@@ -710,30 +730,36 @@ class TestMainOptions:
         # Make `delete` fail.
         m_prun.side_effect = ["local", "server"]
         m_delete.return_value = (None, True)
-        assert square.main_patch(*args) == (None, True)
+        with mock.patch.object(square, 'input', lambda _: "yes"):
+            assert square.main_patch(*args) == (None, True)
 
         # Make `patch` fail.
         m_prun.side_effect = ["local", "server"]
         m_patch.return_value = (None, True)
-        assert square.main_patch(*args) == (None, True)
+        with mock.patch.object(square, 'input', lambda _: "yes"):
+            assert square.main_patch(*args) == (None, True)
 
         # Make `post` fail.
         m_prun.side_effect = ["local", "server"]
         m_post.return_value = (None, True)
-        assert square.main_patch(*args) == (None, True)
+        with mock.patch.object(square, 'input', lambda _: "yes"):
+            assert square.main_patch(*args) == (None, True)
 
         # Make `compile_plan` fail.
         m_prun.side_effect = ["local", "server"]
         m_plan.return_value = (None, True)
-        assert square.main_patch(*args) == (None, True)
+        with mock.patch.object(square, 'input', lambda _: "yes"):
+            assert square.main_patch(*args) == (None, True)
 
         # Make `download_manifests` fail.
         m_down.return_value = (None, True)
-        assert square.main_patch(*args) == (None, True)
+        with mock.patch.object(square, 'input', lambda _: "yes"):
+            assert square.main_patch(*args) == (None, True)
 
         # Make `load` fail.
         m_load.return_value = (None, None, True)
-        assert square.main_patch(*args) == (None, True)
+        with mock.patch.object(square, 'input', lambda _: "yes"):
+            assert square.main_patch(*args) == (None, True)
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
@@ -1037,3 +1063,14 @@ class TestMain:
             with mock.patch("sys.argv", ["square.py", "get", "svc"]):
                 with pytest.raises(SystemExit):
                     square.parse_commandline_args()
+
+    def test_user_confirmed(self):
+        # "yes" must return true.
+        with mock.patch.object(square, 'input', lambda _: 'yes'):
+            assert square.user_confirmed() is True
+
+        # Everything else must return false.
+        answers = ("YES", "", "y", "ye", "yess", "blah")
+        for answer in answers:
+            with mock.patch.object(square, 'input', lambda _: answer):
+                assert square.user_confirmed() is False

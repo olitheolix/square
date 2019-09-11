@@ -550,6 +550,17 @@ def prune(
     return out
 
 
+def user_confirmed() -> bool:
+    """Return True iff the user answers with `yes`."""
+    print(f"Apply the changes?")
+    print('Only "yes" will commence the rollout')
+
+    try:
+        return input("  Your answer: ") == "yes"
+    except KeyboardInterrupt:
+        return False
+
+
 def main_patch(
         config: Config,
         client,
@@ -596,8 +607,13 @@ def main_patch(
         plan, err = compile_plan(config, local, server)
         assert not err and plan is not None
 
-        # Present the plan confirm to go ahead with the user.
+        # Present the plan to the user.
         print_deltas(plan)
+
+        # Ask for user confirmation. Abort if the user does not give it.
+        if not user_confirmed():
+            logit.error("User abort")
+            return (None, True)
 
         # Create the missing resources.
         for data in plan.create:
