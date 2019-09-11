@@ -387,7 +387,7 @@ class TestK8sKubeconfig:
             ca_cert="ca.crt",
             client_cert=k8s.ClientCert(crt="client.crt", key="client.key"),
             version=None,
-            name="minikube",
+            name="clustername-minikube",
         )
 
         # Function must also accept pathlib.Path instances.
@@ -426,7 +426,7 @@ class TestK8sKubeconfig:
             ca_cert="ca.cert",
             client_cert=None,
             version=None,
-            name="gke_foo-bar-123456_australia-southeast1-foobar",
+            name="clustername-gke",
         )
 
         # GKE is not the default context in the demo kubeconf file, which means
@@ -462,7 +462,7 @@ class TestK8sKubeconfig:
             ca_cert="ca.cert",
             client_cert=None,
             version=None,
-            name="eks",
+            name="clustername-eks",
         )
 
         # Verify that the correct external command was called, including
