@@ -68,9 +68,8 @@ def parse_commandline_args():
         """Return Kubeconfig file or raise an error."""
         # Return `kubeconf` unless it has the default value which denotes an
         # impossible file name.
-        if kubeconf is not None:
-            if kubeconf != "--unknown--":
-                return kubeconf
+        if kubeconf != "--unknown--":
+            return kubeconf
 
         # Return the environment variable, or raise an error if it does not exist.
         try:
