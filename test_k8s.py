@@ -26,18 +26,18 @@ class TestK8sDeleteGetPatchPost:
     def test_session(self):
         """Verify the `requests.Session` object is correctly setup."""
         # Basic.
-        config = Config("", token=None, ca_cert="ca_cert", client_cert=None, version=None)
+        config = Config("", None, "ca_cert", client_cert=None, version=None, name="")
         sess = k8s.session(config)
         assert "authorization" not in sess.headers
 
         # With access token.
-        config = Config("", "token", "ca_cert", client_cert=None, version=None)
+        config = Config("", "token", "ca_cert", client_cert=None, version=None, name="")
         sess = k8s.session(config)
         assert sess.headers["authorization"] == f"Bearer token"
 
         # With access token and client certificate.
         ccert = k8s.ClientCert(crt="foo", key="bar")
-        config = Config("", "token", "ca_cert", client_cert=ccert, version=None)
+        config = Config("", "token", "ca_cert", client_cert=ccert, version=None, name="")
         sess = k8s.session(config)
         assert sess.headers["authorization"] == f"Bearer token"
         assert sess.cert == ("foo", "bar")
@@ -221,7 +221,7 @@ class TestK8sVersion:
 
         # Create vanilla `Config` instance.
         m_client = mock.MagicMock()
-        config = Config("url", "token", "ca_cert", "client_cert", None)
+        config = Config("url", "token", "ca_cert", "client_cert", None, "")
 
         # Test function must contact the K8s API and return a `Config` tuple
         # with the correct version number.
@@ -253,7 +253,7 @@ class TestK8sVersion:
 
         # Create vanilla `Config` instance.
         m_client = mock.MagicMock()
-        config = Config("url", "token", "ca_cert", "client_cert", None)
+        config = Config("url", "token", "ca_cert", "client_cert", None, "")
 
         # Simulate an error in `get`.
         m_get.return_value = (None, True)
@@ -284,7 +284,7 @@ class TestUrlPathBuilder:
     def test_urlpath_ok(self):
         """Must work for all supported K8s versions and resources."""
         for version in SUPPORTED_VERSIONS:
-            cfg = Config("url", "token", "ca_cert", "client_cert", version)
+            cfg = Config("url", "token", "ca_cert", "client_cert", version, "")
             for kind in SUPPORTED_KINDS:
                 for ns in (None, "foo-namespace"):
                     path, err = k8s.urlpath(cfg, kind, ns)
@@ -297,7 +297,7 @@ class TestUrlPathBuilder:
         """Test various error scenarios."""
         # Valid version but invalid resource kind or invalid namespace spelling.
         for version in SUPPORTED_VERSIONS:
-            cfg = Config("url", "token", "ca_cert", "client_cert", version)
+            cfg = Config("url", "token", "ca_cert", "client_cert", version, "")
 
             # Invalid resource kind.
             assert k8s.urlpath(cfg, "fooresource", "ns") == (None, True)
@@ -306,7 +306,7 @@ class TestUrlPathBuilder:
             assert k8s.urlpath(cfg, "Deployment", "namEspACe") == (None, True)
 
         # Invalid version.
-        cfg = Config("url", "token", "ca_cert", "client_cert", "invalid")
+        cfg = Config("url", "token", "ca_cert", "client_cert", "invalid", "")
         assert k8s.urlpath(cfg, "Deployment", "valid-ns") == (None, True)
 
 
@@ -340,6 +340,7 @@ class TestK8sKubeconfig:
             ca_cert=str(fname_cert),
             client_cert=None,
             version=None,
+            name="",
         )
 
     @mock.patch.object(k8s, "load_incluster_config")
@@ -386,6 +387,7 @@ class TestK8sKubeconfig:
             ca_cert="ca.crt",
             client_cert=k8s.ClientCert(crt="client.crt", key="client.key"),
             version=None,
+            name="minikube",
         )
 
         # Function must also accept pathlib.Path instances.
@@ -424,6 +426,7 @@ class TestK8sKubeconfig:
             ca_cert="ca.cert",
             client_cert=None,
             version=None,
+            name="gke_foo-bar-123456_australia-southeast1-foobar",
         )
 
         # GKE is not the default context in the demo kubeconf file, which means
@@ -459,6 +462,7 @@ class TestK8sKubeconfig:
             ca_cert="ca.cert",
             client_cert=None,
             version=None,
+            name="eks",
         )
 
         # Verify that the correct external command was called, including

@@ -265,7 +265,7 @@ class TestPatchK8s:
         """Basic test: compute patch between two identical resources."""
         # Setup.
         kind, ns, name = 'Deployment', 'ns', 'foo'
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # PATCH URLs require the resource name at the end of the request path.
         url = urlpath(config, kind, ns)[0] + f'/{name}'
@@ -285,7 +285,7 @@ class TestPatchK8s:
 
         """
         # Setup.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Demo manifest.
         srv = make_manifest('Deployment', 'Namespace', 'name')
@@ -352,7 +352,7 @@ class TestPatchK8s:
         """Coverage gap: simulate `urlpath` error."""
         # Setup.
         kind, ns, name = "Deployment", "ns", "foo"
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Simulate `urlpath` error.
         m_url.return_value = (None, True)
@@ -376,7 +376,7 @@ class TestPlan:
         label and one to add the new ones.
 
         """
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Two valid manifests.
         kind, namespace, name = "Deployment", "namespace", "name"
@@ -405,8 +405,8 @@ class TestPlan:
 
     def test_make_patch_err(self):
         """Verify error cases with invalid or incompatible manifests."""
-        valid_cfg = k8s.Config("url", "token", "cert", "client_cert", "1.10")
-        invalid_cfg = k8s.Config("url", "token", "cert", "client_cert", "invalid")
+        valid_cfg = k8s.Config("url", "token", "cert", "client_cert", "1.10", "")
+        invalid_cfg = k8s.Config("url", "token", "cert", "client_cert", "invalid", "")
 
         # Create two valid manifests, then stunt one in such a way that
         # `manio.strip` will reject it.
@@ -438,7 +438,7 @@ class TestPlan:
 
         """
         # Create vanilla `Config` instance.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Allocate arrays for the MetaManifests and resource URLs.
         meta = [None] * 5
@@ -503,7 +503,7 @@ class TestPlan:
     def test_compile_plan_create_delete_err(self, m_part):
         """Simulate `urlpath` errors"""
         # Invalid configuration. We will use it to trigger an error in `urlpath`.
-        cfg_invalid = k8s.Config("url", "token", "cert", "cert", "invalid")
+        cfg_invalid = k8s.Config("url", "token", "cert", "cert", "invalid", "")
 
         # Valid ManifestMeta and dummy manifest dict.
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
@@ -534,7 +534,7 @@ class TestPlan:
 
         """
         # Create vanilla `Config` instance.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Allocate arrays for the MetaManifests.
         meta = [None] * 4
@@ -581,7 +581,7 @@ class TestPlan:
 
         """
         # Create vanilla `Config` instance.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Define a single resource.
         meta = MetaManifest('v1', 'Namespace', None, 'ns1')
@@ -614,7 +614,7 @@ class TestPlan:
     def test_compile_plan_err(self, m_patch, m_diff, m_part):
         """Use mocks for the internal function calls to simulate errors."""
         # Create vanilla `Config` instance.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Define a single resource and valid dummy return value for
         # `square.partition_manifests`.
@@ -663,7 +663,7 @@ class TestMainOptions:
         test because it shares virtually all the boiler plate code.
         """
         # Valid client config and MetaManifest.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
 
         # Valid Patch.
@@ -871,7 +871,7 @@ class TestMain:
 
         """
         # Dummy configuration.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Mock all calls to the K8s API.
         m_k8s.load_auto_config.return_value = config
@@ -929,7 +929,7 @@ class TestMain:
 
         """
         # Dummy configuration.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Mock all calls to the K8s API.
         m_k8s.load_auto_config.return_value = config
@@ -956,7 +956,7 @@ class TestMain:
 
         """
         # Dummy configuration.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Mock all calls to the K8s API.
         m_k8s.load_auto_config.return_value = config

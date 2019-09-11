@@ -451,7 +451,7 @@ class TestManifestValidation:
 
         """
         version = "1.10"
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", version)
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", version, "")
         schema = {
             "invalid": False,
             "metadata": {
@@ -539,7 +539,7 @@ class TestManifestValidation:
 
         """
         version = "1.10"
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", version)
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", version, "")
         schema = {
             "metadata": {
                 "name": None,
@@ -572,7 +572,7 @@ class TestManifestValidation:
     def test_strip_invalid_schema(self):
         """Create a corrupt schema and verify we get a proper error message."""
         version = "1.10"
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", version)
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", version, "")
         schema = {version: {"TEST": {"invalid": "foo"}}}
 
         with mock.patch("manio.schemas.RESOURCE_SCHEMA", schema):
@@ -587,18 +587,18 @@ class TestManifestValidation:
 
         with mock.patch("manio.schemas.RESOURCE_SCHEMA", schema):
             # Valid version but unknown resource.
-            config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+            config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
             manifest = {"apiVersion": "v1", "kind": "Unknown"}
             assert manio.strip(config, manifest) == (None, True)
 
             # Invalid version but known resource.
-            config = k8s.Config("url", "token", "ca_cert", "client_cert", "unknown")
+            config = k8s.Config("url", "token", "ca_cert", "client_cert", "unknown", "")
             manifest = {"apiVersion": "v1", "kind": "TEST"}
             assert manio.strip(config, manifest) == (None, True)
 
     def test_strip_namespace(self):
         """Validate NAMESPACE manifests."""
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # A valid namespace manifest with a few optional and irrelevant keys.
         valid = {
@@ -629,7 +629,7 @@ class TestManifestValidation:
 
     def test_strip_service(self):
         """Validate SERVICE manifests."""
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # A valid service manifest with a few optional and irrelevant keys.
         valid = {
@@ -689,7 +689,7 @@ class TestManifestValidation:
 
     def test_strip_deployment(self):
         """Validate DEPLOYMENT manifests."""
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # A valid service manifest with a few optional and irrelevant keys.
         valid = {
@@ -740,7 +740,7 @@ class TestDiff:
     def test_diff_ok(self):
         """Diff two valid manifests and (roughly) verify the output."""
         # Dummy config for (only "version" is relevant).
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Two valid manifests.
         srv = make_manifest("Deployment", "namespace", "name1")
@@ -763,7 +763,7 @@ class TestDiff:
     def test_diff_err(self):
         """Diff two valid manifests and verify the output."""
         # Dummy config for (only "version" is relevant).
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Create two valid manifests, then stunt one in such a way that
         # `essential` will reject it.
@@ -1281,7 +1281,7 @@ class TestDownloadManifests:
         actually execute.
 
         """
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
         meta = [
             make_manifest("Namespace", None, "ns0"),
             make_manifest("Namespace", None, "ns1"),
@@ -1397,7 +1397,7 @@ class TestDownloadManifests:
     @mock.patch.object(k8s, 'get')
     def test_download_err(self, m_get):
         """Simulate a download error."""
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10")
+        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # A valid NamespaceList with one element.
         man_list_ns = {
