@@ -3,26 +3,26 @@ clusters:
 - cluster:
     certificate-authority-data: Y2EuY2VydAo= # Base64 encoded "ca.crt"
     server: https://1.2.3.4
-  name: gke_foo-bar-123456_australia-southeast1-foobar
+  name: clustername-gke
 - cluster:
     certificate-authority: ca.crt
     server: https://192.168.0.177:8443
-  name: minikube
+  name: clustername-minikube
 - cluster:
     certificate-authority-data: Y2EuY2VydAo= # Base64 encoded "ca.crt"
     server: https://5.6.7.8
-  name: eks
+  name: clustername-eks
 contexts:
 - context:
-    cluster: eks
+    cluster: clustername-eks
     user: aws
   name: eks
 - context:
-    cluster: gke_foo-bar-123456_australia-southeast1-foobar
+    cluster: clustername-gke
     user: gke_foo-bar-123456_australia-southeast1-foobar
   name: gke
 - context:
-    cluster: minikube
+    cluster: clustername-minikube
     user: minikube
   name: minikube
 current-context: minikube
