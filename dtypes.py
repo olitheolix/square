@@ -53,7 +53,7 @@ assert set(SUPPORTED_KINDS) == set(RESOURCE_ALIASES.keys())
 
 SUPPORTED_VERSIONS = ("1.9", "1.10", "1.11", "1.13", "1.14")
 
-Config = namedtuple('Config', 'url token ca_cert client_cert version')
+Config = namedtuple('Config', 'url token ca_cert client_cert version name')
 DeltaCreate = namedtuple("DeltaCreate", "meta url manifest")
 DeltaDelete = namedtuple("DeltaDelete", "meta url manifest")
 DeltaPatch = namedtuple("Delta", "meta diff patch")

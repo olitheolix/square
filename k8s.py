@@ -74,16 +74,19 @@ def load_kubeconfig(
             logit.error(f"Could not find information for context <{ctx}>")
             return (None, None, None)
 
-        # Unpack the cluster and user information.
-        cluster_info = cluster_info[0]["cluster"]
+        # Unpack the cluster- and user information.
+        cluster_name = cluster_info[0]["name"]
+        cluster_info_out = cluster_info[0]["cluster"]
+        cluster_info_out["name"] = cluster_name
         user_info = user_info[0]["user"]
+        del cluster_info
     except KeyError:
         logit.error(f"Kubeconfig YAML file <{fname}> is invalid")
         return (None, None, None)
 
     # Success. The explicit `dicts()` are to satisfy MyPy.
     logit.info(f"Loaded {ctx} from Kubeconfig file <{fname}>")
-    return (username, dict(user_info), dict(cluster_info))
+    return (username, dict(user_info), dict(cluster_info_out))
 
 
 def load_incluster_config(
@@ -124,6 +127,7 @@ def load_incluster_config(
         ca_cert=str(fname_cert),
         client_cert=None,
         version=None,
+        name="",
     )
 
 
@@ -184,6 +188,7 @@ def load_gke_config(
         ca_cert=ssl_ca_cert,
         client_cert=None,
         version=None,
+        name=cluster["name"],
     )
 
 
@@ -263,6 +268,7 @@ def load_eks_config(
         ca_cert=ssl_ca_cert,
         client_cert=None,
         version=None,
+        name=cluster["name"],
     )
 
 
@@ -305,6 +311,7 @@ def load_minikube_config(
             ca_cert=cluster["certificate-authority"],
             client_cert=client_cert,
             version=None,
+            name=cluster["name"],
         )
     except KeyError:
         logit.debug(f"Context {context} in <{fname}> is not a Minikube config")
