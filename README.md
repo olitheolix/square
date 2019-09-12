@@ -243,6 +243,24 @@ square-b6bc65f6d-2xmzm   1/1     Running   0          37s
 foo@bar:~$ 
 ```
 
+# Build The Binary
+Build a shared library version of Python version with `pyenv`:
+
+```bash
+    # Build a new Python distribution with shared libraries.
+    pipenv --rm
+    env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.4
+    pyenv local 3.7.4
+    pip install pipenv
+
+    # Install pyinstaller and run it.
+    pipenv install pyinstaller
+    pipenv run pyinstaller square.py --onefile
+```
+
+This should produce the `./dist/square` executable.
+
+
 # Development Status
 *Square* is still under development. Several rough edges remain but the core
 has become stable enough for more serious work.
