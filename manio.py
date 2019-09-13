@@ -107,7 +107,7 @@ def parse(file_yaml: Dict[Filepath, str]) -> Tuple[Optional[LocalManifestLists],
             return (None, True)
 
         # Convert List[manifest] into List[(MetaManifest, manifest)].
-        out[fname] = [(make_meta(_), _) for _ in manifests]
+        out[fname] = [(make_meta(_), _) for _ in manifests if _ is not None]
 
     # Drop all files without manifests.
     out = {k: v for k, v in out.items() if len(v) > 0}
