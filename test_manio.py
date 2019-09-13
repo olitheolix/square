@@ -1,3 +1,4 @@
+import copy
 import itertools
 import random
 import unittest.mock as mock
@@ -162,6 +163,18 @@ class TestYamlManifestIO:
             "m2.yaml": [(meta[2], dply[2])],
         }
         assert manio.parse(fdata_test_in) == (expected, False)
+
+        # Add a superfluous "---" at the beginning/end of the document. This
+        # mast not throw the parser and it must not include it in the output as
+        # an empty document.
+        fdata_test_blank_pre = copy.deepcopy(fdata_test_in)
+        fdata_test_blank_post = copy.deepcopy(fdata_test_in)
+        fdata_test_blank_post["m2.yaml"] = fdata_test_blank_pre["m2.yaml"] + "\n---\n"
+        fdata_test_blank_pre["m2.yaml"] = "\n---\n" + fdata_test_blank_pre["m2.yaml"]
+        out, err = manio.parse(fdata_test_blank_post)
+        assert not err and len(out["m2.yaml"]) == len(expected["m2.yaml"])
+        out, err = manio.parse(fdata_test_blank_pre)
+        assert not err and len(out["m2.yaml"]) == len(expected["m2.yaml"])
 
     def test_parse_err(self):
         """Intercept YAML decoding errors."""
