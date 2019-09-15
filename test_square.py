@@ -854,6 +854,10 @@ class TestMainOptions:
         m_load.return_value = (None, None, True)
         assert square.main_get(*args) == (None, True)
 
+    def test_main_version(self):
+        """Just run the function - nothing to actually test."""
+        assert square.main_version() == (None, False)
+
 
 class TestMain:
     @classmethod
@@ -896,6 +900,11 @@ class TestMain:
         m_get.assert_called_once_with(*args)
         m_diff.assert_called_once_with(*args)
         m_patch.assert_called_once_with(*args)
+
+    def test_main_version(self):
+        """Simulate "version" command."""
+        with mock.patch("sys.argv", ("square.py", "version")):
+            assert square.main() == 0
 
     @mock.patch.object(square, "k8s")
     def test_main_invalid_option(self, m_k8s):
