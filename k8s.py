@@ -80,7 +80,7 @@ def load_kubeconfig(
         cluster_info_out["name"] = cluster_name
         user_info = user_info[0]["user"]
         del cluster_info
-    except KeyError:
+    except (KeyError, TypeError):
         logit.error(f"Kubeconfig YAML file <{fname}> is invalid")
         return (None, None, None)
 
@@ -318,6 +318,65 @@ def load_minikube_config(
         return None
 
 
+def load_kind_config(
+        fname: Filepath,
+        context: Optional[str],
+) -> Optional[Config]:
+    """Load Kind configuration from `fname`.
+
+    https://github.com/bsycorp/kind
+
+    Kind is just another Minikube cluster. The only notable difference
+    is that it does not store its credentials as files but directly in
+    the Kubeconfig file. This function will copy those files into /tmp.
+
+    Return None on error.
+
+    Inputs:
+        kubconfig: str
+            Path to kubeconfig for Kind cluster.
+        context: str
+            Kubeconf context. Use `None` to use default context.
+
+    Returns:
+        Config
+
+    """
+    # Parse the kubeconfig file.
+    name, user, cluster = load_kubeconfig(fname, context)
+    if name is None or user is None or cluster is None:
+        return None
+
+    # Kind/Minikube use client certificates to authenticate. We need to pass
+    # those to the HTTP client of our choice when we create the session.
+    try:
+        client_crt = base64.b64decode(user["client-certificate-data"]).decode()
+        client_key = base64.b64decode(user["client-key-data"]).decode()
+        client_ca = base64.b64decode(cluster["certificate-authority-data"]).decode()
+        path = pathlib.Path("/tmp/")  # nosec
+        p_client_crt = path / "kind-client.crt"
+        p_client_key = path / "kind-client.key"
+        p_ca = path / "kind.ca"
+        open(p_client_crt, "w").write(client_crt)
+        open(p_client_key, "w").write(client_key)
+        open(p_ca, "w").write(client_ca)
+        client_cert = ClientCert(crt=p_client_crt, key=p_client_key)
+
+        # Return the config data.
+        logit.debug(f"Assuming Minikube/Kind cluster.")
+        return Config(
+            url=cluster["server"],
+            token=None,
+            ca_cert=p_ca,
+            client_cert=client_cert,
+            version=None,
+            name=cluster["name"],
+        )
+    except KeyError:
+        logit.debug(f"Context {context} in <{fname}> is not a Minikube config")
+        return None
+
+
 def load_auto_config(
         fname: Filepath,
         context: Optional[str],
@@ -351,6 +410,11 @@ def load_auto_config(
     if conf is not None:
         return conf
     logit.debug("Minikube config failed")
+
+    conf = load_kind_config(fname, context)
+    if conf is not None:
+        return conf
+    logit.debug("KIND config failed")
 
     conf = load_eks_config(fname, context, disable_warnings)
     if conf is not None:
