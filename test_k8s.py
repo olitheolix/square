@@ -345,9 +345,10 @@ class TestK8sKubeconfig:
 
     @mock.patch.object(k8s, "load_incluster_config")
     @mock.patch.object(k8s, "load_minikube_config")
+    @mock.patch.object(k8s, "load_kind_config")
     @mock.patch.object(k8s, "load_eks_config")
     @mock.patch.object(k8s, "load_gke_config")
-    def test_load_auto_config(self, m_gke, m_eks, m_mini, m_incluster):
+    def test_load_auto_config(self, m_gke, m_eks, m_kind, m_mini, m_incluster):
         """`load_auto_config` must pick the first successful configuration."""
         fun = k8s.load_auto_config
 
@@ -361,12 +362,17 @@ class TestK8sKubeconfig:
         assert fun(kubeconf, context) == m_mini.return_value
         m_mini.assert_called_once_with(kubeconf, context)
 
-        # Incluster and Minikube fail but EKS succeeds.
+        # Incluster & Minikube fail but KIND succeeds.
         m_mini.return_value = None
+        assert fun(kubeconf, context) == m_kind.return_value
+        m_kind.assert_called_once_with(kubeconf, context)
+
+        # Incluster & Minikube & KIND fail but EKS succeeds.
+        m_kind.return_value = None
         assert fun(kubeconf, context) == m_eks.return_value
         m_eks.assert_called_once_with(kubeconf, context, False)
 
-        # Incluster, Minikube and EKS fail but GKE succeeds.
+        # Incluster & Minikube & KIND & EKS fail but GKE succeeds.
         m_eks.return_value = None
         assert fun(kubeconf, context) == m_gke.return_value
         m_gke.assert_called_once_with(kubeconf, context, False)
@@ -399,6 +405,51 @@ class TestK8sKubeconfig:
 
         # Try to load a GKE context - must fail.
         assert k8s.load_minikube_config(fname, "gke") is None
+
+    def test_load_kind_config_ok(self):
+        # Load the K8s configuration for a Kind cluster.
+        fname = "support/kubeconf.yaml"
+        ret = k8s.load_kind_config(fname, "kind")
+
+        # Verify the expected output.
+        assert ret == Config(
+            url="https://localhost:8443",
+            token=None,
+            ca_cert=pathlib.Path("/tmp/kind.ca"),
+            client_cert=k8s.ClientCert(
+                crt=pathlib.Path("/tmp/kind-client.crt"),
+                key=pathlib.Path("/tmp/kind-client.key"),
+            ),
+            version=None,
+            name="kind",
+        )
+
+        # Function must also accept pathlib.Path instances.
+        assert ret == k8s.load_kind_config(pathlib.Path(fname), "kind")
+
+        # Function must have create the credential files.
+        assert ret == k8s.load_kind_config(fname, "kind")
+        assert pathlib.Path("/tmp/kind.ca").exists()
+        assert pathlib.Path("/tmp/kind-client.crt").exists()
+        assert pathlib.Path("/tmp/kind-client.key").exists()
+
+        # Try to load a GKE context - must fail.
+        assert k8s.load_kind_config(fname, "gke") is None
+
+    def test_load_kind_config_invalid_context_err(self, tmp_path):
+        """Gracefully abort if we cannot parse Kubeconfig."""
+        # Valid Kubeconfig file but it has no "invalid" context.
+        fname = "support/kubeconf.yaml"
+        assert k8s.load_kind_config(fname, "invalid") is None
+
+        # Create a corrupt Kubeconfig file.
+        fname = tmp_path / "kubeconfig"
+        fname.write_text("")
+        assert k8s.load_kind_config(fname, None) is None
+
+        # Try to load a non-existing file.
+        fname = tmp_path / "does-not-exist"
+        assert k8s.load_kind_config(fname, None) is None
 
     @mock.patch.object(k8s.google.auth, "default")
     def test_load_gke_config_ok(self, m_google):
