@@ -50,10 +50,10 @@ you use `square get ...` again.
 
 ## Diff Cluster State
 Following on from the previous example, the local files and the cluster state
-should now be in sync, which means an empty diff:
+should now be in sync, which means an empty plan:
 
 ```console
-foo@bar:~$ square diff ns
+foo@bar:~$ square plan ns
 foo@bar:~$
 ```
 
@@ -71,9 +71,9 @@ spec:
   - kubernetes
 ```
 
-Save it and compute the diff:
+Save it and compute the difference:
 ```console
-foo@bar:~$ square diff ns
+foo@bar:~$ square plan ns
 Patch NAMESPACE default/default
     ---
     +++
@@ -93,7 +93,7 @@ would patch the `default` name space to bring the K8s cluster back into sync
 with the local files. Let's do just that:
 
 ```console
-foo@bar:~$ square patch ns
+foo@bar:~$ square apply ns
 Patch NAMESPACE default/default
     ---
     +++
@@ -110,7 +110,7 @@ Patch NAMESPACE default/default
 Compiled 1 patches.
 Patch(url='https://192.168.0.177:8443/api/v1/namespaces/default', ops=[{'op': 'add', 'path': '/metadata/labels', 'value': {'foo': 'bar'}}])
 
-foo@bar:~$ square diff ns
+foo@bar:~$ square plan ns
 foo@bar:~$
 ```
 
@@ -134,7 +134,7 @@ No resource limits.
 ```
 
 # Create and Destroy Resources
-The `patch` operation we just saw is also the tool to create and delete
+The `apply` operation we just saw is also the tool to create and delete
 resources. To add a new one, simply add its manifest to `manifests/` (create a
 new file or add it to an existing one). Then use _square_ to patch it.
 
@@ -145,7 +145,7 @@ to deploy it:
 
 ```console
 foo@bar:~$ wget https://github.com/olitheolix/square/raw/master/examples/square.yaml -O manifests/square.yaml
-foo@bar:~$ square patch all
+foo@bar:~$ square apply all
 Create NAMESPACE square/square
     apiVersion: v1
     kind: Namespace
