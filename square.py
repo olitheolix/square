@@ -371,8 +371,10 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
     # Terminal colours for convenience.
     cAdd = colorama.Fore.GREEN
     cDel = colorama.Fore.RED
-    cMod = colorama.Fore.CYAN
+    cMod = colorama.Fore.YELLOW
     cReset = colorama.Fore.RESET
+
+    n_add, n_mod, n_del = 0, 0, 0
 
     # Use Green to list all the resources that we should create.
     for delta in plan.create:
@@ -388,6 +390,7 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
 
         # Print the reassembled string.
         print(str.join('\n', txt) + '\n')
+        n_add += 1
 
     # Print the diff (already contains terminal colours) for all the resources
     # that we should patch.
@@ -409,12 +412,20 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
 
         name = f"{delta.meta.kind.upper()} {delta.meta.namespace}/{delta.meta.name}"
         print(cMod + f"Patch {name}" + cReset + "\n" + formatted_diff + "\n")
+        n_mod += 1
 
     # Use Red to list all the resources that we should delete.
     for delta in plan.delete:
         name = f"{delta.meta.kind.upper()} {delta.meta.namespace}/{delta.meta.name}"
         print(cDel + f"Delete {name}" + cReset + "\n")
+        n_del += 1
 
+    print("-" * 80)
+    print("Summary: " +                    # noqa
+          cAdd + f"Add: {n_add:,}   " +     # noqa
+          cMod + f"Modify: {n_mod:,}   " +  # noqa
+          cDel + f"Delete: {n_del:,}   " +  # noqa
+          cReset + "\n")
     return (None, False)
 
 
