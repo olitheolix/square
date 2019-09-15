@@ -2,7 +2,6 @@ import argparse
 import json
 import logging
 import os
-import pathlib
 import re
 import sys
 import textwrap
@@ -13,6 +12,7 @@ import colorama
 import jsonpatch
 import k8s
 import manio
+import VERSION
 import yaml
 from dtypes import (
     RESOURCE_ALIASES, SUPPORTED_KINDS, Config, DeltaCreate, DeltaDelete,
@@ -761,10 +761,7 @@ def main_get(
 
 def main_version() -> Tuple[None, bool]:
     """Print Square version."""
-    path = pathlib.Path(__file__).resolve().parent
-    fname = path / "VERSION"
-    version = fname.read_text().strip()
-    print(f"v{version}")
+    print(f"v{VERSION.version}")
     return None, False
 
 
