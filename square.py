@@ -759,18 +759,12 @@ def main_get(
     return (None, False)
 
 
-def main_version() -> Tuple[None, bool]:
-    """Print Square version."""
-    print(f"v{VERSION.version}")
-    return None, False
-
-
 def main() -> int:
     param = parse_commandline_args()
 
     if param.parser == "version":
-        _, err = main_version()
-        return 1 if err else 0
+        print(f"v{VERSION.version}")
+        return 0
 
     # Initialise logging.
     setup_logging(param.verbosity)

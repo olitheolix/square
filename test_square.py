@@ -854,10 +854,6 @@ class TestMainOptions:
         m_load.return_value = (None, None, True)
         assert square.main_get(*args) == (None, True)
 
-    def test_main_version(self):
-        """Just run the function - nothing to actually test."""
-        assert square.main_version() == (None, False)
-
 
 class TestMain:
     @classmethod
