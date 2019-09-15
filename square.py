@@ -106,7 +106,7 @@ def parse_commandline_args():
     parent.add_argument(
         "--kubeconfig", type=_validate_kubeconfig, metavar="path",
         default=os.environ.get("KUBECONFIG", "--unknown--"),
-        help="Location of kubeconfig file (default='~/kube/config')",
+        help="Location of kubeconfig file",
     )
     parent.add_argument(
         "--context", type=str, metavar="ctx", dest="ctx", default=None,
@@ -483,7 +483,11 @@ def setup_logging(log_level: int) -> None:
     # Configure stdout handler.
     ch = logging.StreamHandler()
     ch.setLevel(level)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - "
+        f"%(filename)s:%(funcName)s:%(lineno)d - "
+        f"%(message)s"
+    )
     ch.setFormatter(formatter)
 
     # Attach stdout handlers to the `square` logger.
@@ -613,7 +617,7 @@ def main_patch(
 
         # Ask for user confirmation. Abort if the user does not give it.
         if not user_confirmed(config.name):
-            logit.error("User abort")
+            print("User abort - no changes were made.")
             return (None, True)
 
         # Create the missing resources.
