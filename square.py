@@ -2,6 +2,7 @@ import argparse
 import json
 import logging
 import os
+import pathlib
 import re
 import sys
 import textwrap
@@ -148,20 +149,28 @@ def parse_commandline_args():
     )
     parser_patch.add_argument(**kinds_kwargs)
 
+    # Sub-command VERSION.
+    subparsers.add_parser(
+        'version', help="Show Square version and exit", parents=[parent]
+    )
+
     # Parse the actual arguments.
     param = parser.parse_args()
 
     # Remove duplicates but retain the original order of "param.kinds". This is
     # a "trick" that will only work in Python 3.7+ because it guarantees a
     # stable insertion order for dicts (but not sets).
-    param.kinds = list(dict.fromkeys(param.kinds))
+    # NOTE: skip this step if the user for `version` requests since
+    # the relevant variables will not be be defined then.
+    if param.parser != "version":
+        param.kinds = list(dict.fromkeys(param.kinds))
 
-    # Expand the "all" resource (if present).
-    if "all" in param.kinds:
-        param.kinds = list(SUPPORTED_KINDS)
+        # Expand the "all" resource (if present).
+        if "all" in param.kinds:
+            param.kinds = list(SUPPORTED_KINDS)
 
-    # Make label list immutable.
-    param.labels = tuple(param.labels)
+        # Make label list immutable.
+        param.labels = tuple(param.labels)
 
     return param
 
@@ -756,8 +765,21 @@ def main_get(
     return (None, False)
 
 
+def main_version() -> Tuple[None, bool]:
+    """Print Square version."""
+    path = pathlib.Path(__file__).resolve().parent
+    fname = path / "VERSION"
+    version = fname.read_text().strip()
+    print(f"v{version}")
+    return None, False
+
+
 def main() -> int:
     param = parse_commandline_args()
+
+    if param.parser == "version":
+        _, err = main_version()
+        return 1 if err else 0
 
     # Initialise logging.
     setup_logging(param.verbosity)
