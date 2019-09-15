@@ -674,7 +674,6 @@ class TestManifestValidation:
             "spec": {
                 "ports": "optional",
                 "selector": "optional",
-                "sessionAffinity": "mandatory",
                 "type": "optional",
             },
         }

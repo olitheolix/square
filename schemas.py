@@ -59,6 +59,7 @@ schema_1_9 = {
             "name": True,
             "namespace": True,
         },
+        "creationTimestamp": False,
         "spec": True,
     },
     "HorizontalPodAutoscaler": {
@@ -136,8 +137,7 @@ schema_1_9 = {
         "spec": {
             "ports": None,
             "selector": None,
-            "sessionAffinity": True,
-            "type": None,
+            "type": True,
         },
     },
     "ServiceAccount": {
