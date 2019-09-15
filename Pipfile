@@ -19,6 +19,7 @@ requests-mock = "*"
 pytest-cov = "*"
 "pytest-flake8" = "*"
 mypy = "*"
+bumpversion = "*"
 
 [dev-packages]
 
