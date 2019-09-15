@@ -80,26 +80,26 @@ def parse_commandline_args():
     parent.add_argument(
         "-n", type=str, nargs="*",
         metavar="ns", dest="namespaces",
-        help="List of namespaces (omit to operate in all namespaces)",
+        help="List of namespaces (omit to consider all)",
     )
     parent.add_argument(
         "-l", type=_validate_label, nargs="*",
         metavar="labels", dest="labels", default=tuple(),
-        help="Only consider resources with these labels",
+        help="List of K8s resources to consider or just 'all'",
     )
     parent.add_argument(
         "--kubeconfig", type=str, metavar="path",
         default=os.environ.get("KUBECONFIG", None),
-        help="Location of kubeconfig file (defaults to KUBECONFIG env var)",
+        help="Location of kubeconfig file (defaults to env KUBECONFIG)",
     )
     parent.add_argument(
         "--folder", type=str, metavar="path",
         default=os.environ.get("SQUARE_FOLDER", "./"),
-        help="Manifest folder (defaults to SQUARE_FOLDER env var)",
+        help="Manifest folder (defaults to env SQUARE_FOLDER)",
     )
     parent.add_argument(
         "--context", type=str, metavar="ctx", dest="ctx", default=None,
-        help="Kubernetes context",
+        help="Kubernetes context (use default one if unspecified)",
     )
 
     # The primary parser for the top level options (eg GET, PATCH, ...).
