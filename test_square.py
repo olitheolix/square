@@ -611,7 +611,7 @@ class TestPlan:
     @mock.patch.object(square, "partition_manifests")
     @mock.patch.object(manio, "diff")
     @mock.patch.object(square, "make_patch")
-    def test_compile_plan_err(self, m_patch, m_diff, m_part):
+    def test_compile_plan_err(self, m_apply, m_plan, m_part):
         """Use mocks for the internal function calls to simulate errors."""
         # Create vanilla `Config` instance.
         config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
@@ -631,13 +631,13 @@ class TestPlan:
 
         # Simulate an error in `diff`.
         m_part.return_value = (plan, False)
-        m_diff.return_value = (None, True)
+        m_plan.return_value = (None, True)
         assert square.compile_plan(config, loc_man, srv_man) == (None, True)
 
         # Simulate an error in `make_patch`.
         m_part.return_value = (plan, False)
-        m_diff.return_value = ("some string", False)
-        m_patch.return_value = (None, True)
+        m_plan.return_value = ("some string", False)
+        m_apply.return_value = (None, True)
         assert square.compile_plan(config, loc_man, srv_man) == (None, True)
 
 
@@ -653,7 +653,7 @@ class TestMainOptions:
     @mock.patch.object(k8s, "post")
     @mock.patch.object(k8s, "patch")
     @mock.patch.object(k8s, "delete")
-    def test_main_patch(self, m_delete, m_patch, m_post, m_plan, m_prun, m_down, m_load):
+    def test_main_apply(self, m_delete, m_apply, m_post, m_plan, m_prun, m_down, m_load):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -689,7 +689,7 @@ class TestMainOptions:
             m_prun.reset_mock()
             m_plan.reset_mock()
             m_post.reset_mock()
-            m_patch.reset_mock()
+            m_apply.reset_mock()
             m_delete.reset_mock()
 
             # Pretend that all K8s requests succeed.
@@ -698,7 +698,7 @@ class TestMainOptions:
             m_prun.side_effect = ["local", "server"]
             m_plan.return_value = (plan, False)
             m_post.return_value = (None, False)
-            m_patch.return_value = (None, False)
+            m_apply.return_value = (None, False)
             m_delete.return_value = (None, False)
 
         # The arguments to the test function will always be the same in this test.
@@ -708,7 +708,7 @@ class TestMainOptions:
         # answer "yes".
         reset_mocks()
         with mock.patch.object(square, 'input', lambda _: "wrong answer"):
-            assert square.main_patch(*args) == (None, True)
+            assert square.main_apply(*args) == (None, True)
         assert not m_load.post.called
         assert not m_load.patch.called
         assert not m_load.delete.called
@@ -717,12 +717,12 @@ class TestMainOptions:
         # corresponding calls to K8s.
         reset_mocks()
         with mock.patch.object(square, 'input', lambda _: cname):
-            assert square.main_patch(*args) == (None, False)
+            assert square.main_apply(*args) == (None, False)
         m_load.assert_called_once_with("folder")
         m_down.assert_called_once_with(config, "client", "kinds", "ns")
         m_plan.assert_called_once_with(config, "local", "server")
         m_post.assert_called_once_with("client", "create_url", "create_man")
-        m_patch.assert_called_once_with("client", patch.url, patch.ops)
+        m_apply.assert_called_once_with("client", patch.url, patch.ops)
         m_delete.assert_called_once_with("client", "delete_url", "delete_man")
 
         # -----------------------------------------------------------------
@@ -732,41 +732,41 @@ class TestMainOptions:
         m_prun.side_effect = ["local", "server"]
         m_delete.return_value = (None, True)
         with mock.patch.object(square, 'input'):
-            assert square.main_patch(*args) == (None, True)
+            assert square.main_apply(*args) == (None, True)
 
         # Make `patch` fail.
         m_prun.side_effect = ["local", "server"]
-        m_patch.return_value = (None, True)
+        m_apply.return_value = (None, True)
         with mock.patch.object(square, 'input'):
-            assert square.main_patch(*args) == (None, True)
+            assert square.main_apply(*args) == (None, True)
 
         # Make `post` fail.
         m_prun.side_effect = ["local", "server"]
         m_post.return_value = (None, True)
         with mock.patch.object(square, 'input'):
-            assert square.main_patch(*args) == (None, True)
+            assert square.main_apply(*args) == (None, True)
 
         # Make `compile_plan` fail.
         m_prun.side_effect = ["local", "server"]
         m_plan.return_value = (None, True)
         with mock.patch.object(square, 'input'):
-            assert square.main_patch(*args) == (None, True)
+            assert square.main_apply(*args) == (None, True)
 
         # Make `download_manifests` fail.
         m_down.return_value = (None, True)
         with mock.patch.object(square, 'input'):
-            assert square.main_patch(*args) == (None, True)
+            assert square.main_apply(*args) == (None, True)
 
         # Make `load` fail.
         m_load.return_value = (None, None, True)
         with mock.patch.object(square, 'input'):
-            assert square.main_patch(*args) == (None, True)
+            assert square.main_apply(*args) == (None, True)
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
     @mock.patch.object(square, "prune")
     @mock.patch.object(square, "compile_plan")
-    def test_main_diff(self, m_plan, m_prune, m_down, m_load):
+    def test_main_plan(self, m_plan, m_prune, m_down, m_load):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -787,7 +787,7 @@ class TestMainOptions:
         args = "config", "client", "folder", "kinds", "ns", (("foo", "bar"), ("x", "y"))
 
         # A successfull DIFF only computes and prints the plan.
-        assert square.main_diff(*args) == (None, False)
+        assert square.main_plan(*args) == (None, False)
         m_load.assert_called_once_with("folder")
         m_down.assert_called_once_with("config", "client", "kinds", "ns")
         m_plan.assert_called_once_with("config", "local", "server")
@@ -795,15 +795,15 @@ class TestMainOptions:
         # Make `compile_plan` fail.
         m_prune.side_effect = ["local", "server"]
         m_plan.return_value = (None, True)
-        assert square.main_diff(*args) == (None, True)
+        assert square.main_plan(*args) == (None, True)
 
         # Make `download_manifests` fail.
         m_down.return_value = (None, True)
-        assert square.main_diff(*args) == (None, True)
+        assert square.main_plan(*args) == (None, True)
 
         # Make `load` fail.
         m_load.return_value = (None, None, True)
-        assert square.main_diff(*args) == (None, True)
+        assert square.main_plan(*args) == (None, True)
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
@@ -866,9 +866,9 @@ class TestMain:
 
     @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "main_get")
-    @mock.patch.object(square, "main_diff")
-    @mock.patch.object(square, "main_patch")
-    def test_main_valid_options(self, m_patch, m_diff, m_get, m_k8s):
+    @mock.patch.object(square, "main_plan")
+    @mock.patch.object(square, "main_apply")
+    def test_main_valid_options(self, m_apply, m_plan, m_get, m_k8s):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
@@ -885,11 +885,11 @@ class TestMain:
 
         # Pretend all main functions return success.
         m_get.return_value = (None, False)
-        m_diff.return_value = (None, False)
-        m_patch.return_value = (None, False)
+        m_plan.return_value = (None, False)
+        m_apply.return_value = (None, False)
 
         # Simulate all input options.
-        for option in ["get", "diff", "patch"]:
+        for option in ["get", "plan", "apply"]:
             args = ("square.py", option, "deployment", "service", "--folder", "myfolder")
             with mock.patch("sys.argv", args):
                 square.main()
@@ -898,8 +898,8 @@ class TestMain:
         # Every main function must have been called exactly once.
         args = config, "client", "myfolder", ["Deployment", "Service"], None, tuple()
         m_get.assert_called_once_with(*args)
-        m_diff.assert_called_once_with(*args)
-        m_patch.assert_called_once_with(*args)
+        m_plan.assert_called_once_with(*args)
+        m_apply.assert_called_once_with(*args)
 
     def test_main_version(self):
         """Simulate "version" command."""
@@ -927,9 +927,9 @@ class TestMain:
 
     @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "main_get")
-    @mock.patch.object(square, "main_diff")
-    @mock.patch.object(square, "main_patch")
-    def test_main_nonzero_exit_on_error(self, m_patch, m_diff, m_get, m_k8s):
+    @mock.patch.object(square, "main_plan")
+    @mock.patch.object(square, "main_apply")
+    def test_main_nonzero_exit_on_error(self, m_apply, m_plan, m_get, m_k8s):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
@@ -948,11 +948,11 @@ class TestMain:
 
         # Pretend all main functions return errors.
         m_get.return_value = (None, True)
-        m_diff.return_value = (None, True)
-        m_patch.return_value = (None, True)
+        m_plan.return_value = (None, True)
+        m_apply.return_value = (None, True)
 
         # Simulate all input options.
-        for option in ["get", "diff", "patch"]:
+        for option in ["get", "plan", "apply"]:
             with mock.patch("sys.argv", ["square.py", option, "ns"]):
                 assert square.main() == 1
 

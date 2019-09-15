@@ -32,8 +32,8 @@ def parse_commandline_args():
 
     Examples:
       {name} get
-      {name} diff
-      {name} patch
+      {name} plan
+      {name} apply
     ''')
 
     def _validate_kind(kind: str) -> str:
@@ -126,16 +126,16 @@ def parse_commandline_args():
     parser_get.add_argument(**kinds_kwargs)
 
     # Sub-command DIFF.
-    parser_diff = subparsers.add_parser(
-        'diff', help="Diff local and K8s manifests", parents=[parent]
+    parser_plan = subparsers.add_parser(
+        'plan', help="Diff local and K8s manifests", parents=[parent]
     )
-    parser_diff.add_argument(**kinds_kwargs)
+    parser_plan.add_argument(**kinds_kwargs)
 
     # Sub-command PATCH.
-    parser_patch = subparsers.add_parser(
-        'patch', help="Patch K8s to match local manifests", parents=[parent]
+    parser_apply = subparsers.add_parser(
+        'apply', help="Patch K8s to match local manifests", parents=[parent]
     )
-    parser_patch.add_argument(**kinds_kwargs)
+    parser_apply.add_argument(**kinds_kwargs)
 
     # Sub-command VERSION.
     subparsers.add_parser(
@@ -569,7 +569,7 @@ def user_confirmed(answer: str = "yes") -> bool:
         return False
 
 
-def main_patch(
+def main_apply(
         config: Config,
         client,
         folder: Filepath,
@@ -651,7 +651,7 @@ def main_patch(
     return (None, False)
 
 
-def main_diff(
+def main_plan(
         config: Config,
         client,
         folder: Filepath,
@@ -799,10 +799,10 @@ def main() -> int:
     args = param.folder, param.kinds, param.namespaces, param.labels
     if param.parser == "get":
         _, err = main_get(config, client, *args)
-    elif param.parser == "diff":
-        _, err = main_diff(config, client, *args)
-    elif param.parser == "patch":
-        _, err = main_patch(config, client, *args)
+    elif param.parser == "plan":
+        _, err = main_plan(config, client, *args)
+    elif param.parser == "apply":
+        _, err = main_apply(config, client, *args)
     else:
         logit.error(f"Unknown command <{param.parser}>")
         return 1
