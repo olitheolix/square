@@ -65,19 +65,6 @@ def parse_commandline_args():
             raise argparse.ArgumentTypeError(label)
         return tuple(label.split("="))
 
-    def _validate_kubeconfig(kubeconf: str) -> str:
-        """Return Kubeconfig file or raise an error."""
-        # Return `kubeconf` unless it has the default value which denotes an
-        # impossible file name.
-        if kubeconf != "--unknown--":
-            return kubeconf
-
-        # Return the environment variable, or raise an error if it does not exist.
-        try:
-            return os.environ["KUBECONFIG"]
-        except KeyError:
-            raise argparse.ArgumentTypeError(kubeconf)
-
     # A dummy top level parser that will become the parent for all sub-parsers
     # to share all its arguments.
     parent = argparse.ArgumentParser(
@@ -101,13 +88,14 @@ def parse_commandline_args():
         help="Only consider resources with these labels",
     )
     parent.add_argument(
-        "--folder", type=str, default="./manifests/",
-        help="Manifest folder (defaults='./manifests')"
+        "--kubeconfig", type=str, metavar="path",
+        default=os.environ.get("KUBECONFIG", None),
+        help="Location of kubeconfig file (defaults to KUBECONFIG env var)",
     )
     parent.add_argument(
-        "--kubeconfig", type=_validate_kubeconfig, metavar="path",
-        default=os.environ.get("KUBECONFIG", "--unknown--"),
-        help="Location of kubeconfig file",
+        "--folder", type=str, metavar="path",
+        default=os.environ.get("SQUARE_FOLDER", "./"),
+        help="Manifest folder (defaults to SQUARE_FOLDER env var)",
     )
     parent.add_argument(
         "--context", type=str, metavar="ctx", dest="ctx", default=None,
@@ -157,20 +145,26 @@ def parse_commandline_args():
     # Parse the actual arguments.
     param = parser.parse_args()
 
+    # NOTE: skip this step if the user for `version` requests since
+    # the relevant variables will not be be defined then.
+    if param.parser == "version":
+        return param
+
+    if not param.kubeconfig:
+        print("ERROR: must either specify --kubeconfig or set KUBECONFIG")
+        sys.exit(1)
+
     # Remove duplicates but retain the original order of "param.kinds". This is
     # a "trick" that will only work in Python 3.7+ because it guarantees a
     # stable insertion order for dicts (but not sets).
-    # NOTE: skip this step if the user for `version` requests since
-    # the relevant variables will not be be defined then.
-    if param.parser != "version":
-        param.kinds = list(dict.fromkeys(param.kinds))
+    param.kinds = list(dict.fromkeys(param.kinds))
 
-        # Expand the "all" resource (if present).
-        if "all" in param.kinds:
-            param.kinds = list(SUPPORTED_KINDS)
+    # Expand the "all" resource (if present).
+    if "all" in param.kinds:
+        param.kinds = list(SUPPORTED_KINDS)
 
-        # Make label list immutable.
-        param.labels = tuple(param.labels)
+    # Make label list immutable.
+    param.labels = tuple(param.labels)
 
     return param
 
