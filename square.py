@@ -417,7 +417,7 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
     # Use Red to list all the resources that we should delete.
     for delta in plan.delete:
         name = f"{delta.meta.kind.upper()} {delta.meta.namespace}/{delta.meta.name}"
-        print(cDel + f"Delete {name}" + cReset + "\n")
+        print(cDel + f"Delete {name}" + cReset)
         n_del += 1
 
     print("-" * 80)
