@@ -3,16 +3,17 @@ import os
 import types
 import unittest.mock as mock
 
-import k8s
-import manio
 import pytest
-import square
-from dtypes import (
+import square.k8s as k8s
+import square.manio as manio
+import square.square as square
+from square.dtypes import (
     SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
     JsonPatch, MetaManifest,
 )
-from k8s import urlpath
-from test_helpers import make_manifest
+from square.k8s import urlpath
+
+from .test_helpers import make_manifest
 
 
 class TestLogging:

@@ -3,15 +3,16 @@ import itertools
 import random
 import unittest.mock as mock
 
-import dotdict
-import k8s
-import manio
-import schemas
-import square
+import square.dotdict as dotdict
+import square.k8s as k8s
+import square.manio as manio
+import square.schemas as schemas
+import square.square as square
 import yaml
-from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, MetaManifest
-from k8s import urlpath
-from test_helpers import make_manifest, mk_deploy
+from square.dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, MetaManifest
+from square.k8s import urlpath
+
+from .test_helpers import make_manifest, mk_deploy
 
 
 class TestHelpers:
@@ -478,7 +479,7 @@ class TestManifestValidation:
         }
         schema = {version: {"TEST": schema}}
 
-        with mock.patch("manio.schemas.RESOURCE_SCHEMA", schema):
+        with mock.patch("square.schemas.RESOURCE_SCHEMA", schema):
             # Valid manifest with purely mandatory fields.
             valid = {
                 "apiVersion": "v1",
@@ -560,7 +561,7 @@ class TestManifestValidation:
         }
         schema = {version: {"TEST": schema}}
 
-        with mock.patch("manio.schemas.RESOURCE_SCHEMA", schema):
+        with mock.patch("square.schemas.RESOURCE_SCHEMA", schema):
             # Valid manifest with the optional metadata key "name".
             manifest = {"apiVersion": "", "kind": "TEST", "metadata": {"name": "name"}}
             assert manio.strip(config, manifest) == (manifest, False)
@@ -588,7 +589,7 @@ class TestManifestValidation:
         config = k8s.Config("url", "token", "ca_cert", "client_cert", version, "")
         schema = {version: {"TEST": {"invalid": "foo"}}}
 
-        with mock.patch("manio.schemas.RESOURCE_SCHEMA", schema):
+        with mock.patch("square.schemas.RESOURCE_SCHEMA", schema):
             # Valid manifest with purely mandatory fields.
             valid = {"apiVersion": "v1", "kind": "TEST"}
             assert manio.strip(config, valid) == (None, True)
@@ -598,7 +599,7 @@ class TestManifestValidation:
         # Minimal valid schema.
         schema = {"1.10": {"TEST": {"metadata": None}}}
 
-        with mock.patch("manio.schemas.RESOURCE_SCHEMA", schema):
+        with mock.patch("square.schemas.RESOURCE_SCHEMA", schema):
             # Valid version but unknown resource.
             config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
             manifest = {"apiVersion": "v1", "kind": "Unknown"}

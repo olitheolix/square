@@ -4,12 +4,12 @@ import random
 import types
 import unittest.mock as mock
 
-import k8s
 import pytest
 import requests_mock
-import square
+import square.k8s as k8s
+import square.square as square
 import yaml
-from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config
+from square.dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config
 
 
 @pytest.fixture
@@ -383,7 +383,7 @@ class TestK8sKubeconfig:
 
     def test_load_minikube_config_ok(self):
         # Load the K8s configuration for "minikube" context.
-        fname = "support/kubeconf.yaml"
+        fname = "tests/support/kubeconf.yaml"
         ret = k8s.load_minikube_config(fname, "minikube")
 
         # Verify the expected output.
@@ -408,7 +408,7 @@ class TestK8sKubeconfig:
 
     def test_load_kind_config_ok(self):
         # Load the K8s configuration for a Kind cluster.
-        fname = "support/kubeconf.yaml"
+        fname = "tests/support/kubeconf.yaml"
         ret = k8s.load_kind_config(fname, "kind")
 
         # Verify the expected output.
@@ -439,7 +439,7 @@ class TestK8sKubeconfig:
     def test_load_kind_config_invalid_context_err(self, tmp_path):
         """Gracefully abort if we cannot parse Kubeconfig."""
         # Valid Kubeconfig file but it has no "invalid" context.
-        fname = "support/kubeconf.yaml"
+        fname = "tests/support/kubeconf.yaml"
         assert k8s.load_kind_config(fname, "invalid") is None
 
         # Create a corrupt Kubeconfig file.
@@ -459,7 +459,7 @@ class TestK8sKubeconfig:
         m_google.token = "google token"
 
         # Load the K8s configuration for "gke" context.
-        fname = "support/kubeconf.yaml"
+        fname = "tests/support/kubeconf.yaml"
         ret = k8s.load_gke_config(fname, "gke")
         assert isinstance(ret, Config)
 
@@ -495,7 +495,7 @@ class TestK8sKubeconfig:
         m_run.return_value = types.SimpleNamespace(stdout=token.encode("utf8"))
 
         # Load the K8s configuration for "eks" context.
-        fname = "support/kubeconf.yaml"
+        fname = "tests/support/kubeconf.yaml"
         ret = k8s.load_eks_config(fname, "eks")
         assert isinstance(ret, Config)
 
@@ -537,7 +537,7 @@ class TestK8sKubeconfig:
     def test_load_eks_config_err(self, m_run):
         """Load EKS configuration from demo kubeconfig."""
         # Valid kubeconfig file.
-        fname = "support/kubeconf.yaml"
+        fname = "tests/support/kubeconf.yaml"
 
         # Pretend the `aws-iam-authenticator` binary does not exist.
         m_run.side_effect = FileNotFoundError
@@ -558,19 +558,19 @@ class TestK8sKubeconfig:
     def test_wrong_conf(self):
         # Minikube
         fun = k8s.load_minikube_config
-        assert fun("support/invalid.yaml", None) is None
-        assert fun("support/invalid.yaml", "invalid") is None
-        assert fun("support/kubeconf.yaml", "invalid") is None
-        assert fun("support/kubeconf_invalid.yaml", "minkube") is None
+        assert fun("tests/support/invalid.yaml", None) is None
+        assert fun("tests/support/invalid.yaml", "invalid") is None
+        assert fun("tests/support/kubeconf.yaml", "invalid") is None
+        assert fun("tests/support/kubeconf_invalid.yaml", "minkube") is None
 
         # GKE
-        assert k8s.load_gke_config("support/invalid.yaml", None) is None
-        assert k8s.load_gke_config("support/invalid.yaml", "invalid") is None
-        assert k8s.load_gke_config("support/kubeconf.yaml", "invalid") is None
-        assert k8s.load_gke_config("support/kubeconf_invalid.yaml", "gke") is None
+        assert k8s.load_gke_config("tests/support/invalid.yaml", None) is None
+        assert k8s.load_gke_config("tests/support/invalid.yaml", "invalid") is None
+        assert k8s.load_gke_config("tests/support/kubeconf.yaml", "invalid") is None
+        assert k8s.load_gke_config("tests/support/kubeconf_invalid.yaml", "gke") is None
 
         # EKS
-        assert k8s.load_eks_config("support/invalid.yaml", None) is None
-        assert k8s.load_eks_config("support/invalid.yaml", "invalid") is None
-        assert k8s.load_eks_config("support/kubeconf.yaml", "invalid") is None
-        assert k8s.load_eks_config("support/kubeconf_invalid.yaml", "eks") is None
+        assert k8s.load_eks_config("tests/support/invalid.yaml", None) is None
+        assert k8s.load_eks_config("tests/support/invalid.yaml", "invalid") is None
+        assert k8s.load_eks_config("tests/support/kubeconf.yaml", "invalid") is None
+        assert k8s.load_eks_config("tests/support/kubeconf_invalid.yaml", "eks") is None

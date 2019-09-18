@@ -49,7 +49,7 @@ jobs:
             export KUBECONFIG=/does/not/exist/but/necessary/for/tests
             sudo -E -u square pipenv run pytest --cov=./
             codecov
-            pipenv run mypy --ignore-missing-imports *.py
+            pipenv run mypy --ignore-missing-imports square/*.py
 
 workflows:
   build_and_test:
