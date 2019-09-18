@@ -10,11 +10,11 @@ from typing import Iterable, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
-import k8s
-import manio
-import VERSION
+import square.k8s as k8s
+import square.manio as manio
+import square.VERSION as VERSION
 import yaml
-from dtypes import (
+from square.dtypes import (
     RESOURCE_ALIASES, SUPPORTED_KINDS, Config, DeltaCreate, DeltaDelete,
     DeltaPatch, DeploymentPlan, Filepath, JsonPatch, MetaManifest,
     ServerManifests,
@@ -421,10 +421,10 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
         n_del += 1
 
     print("-" * 80)
-    print("Summary: " +                    # noqa
-          cAdd + f"Add: {n_add:,}   " +     # noqa
-          cMod + f"Modify: {n_mod:,}   " +  # noqa
-          cDel + f"Delete: {n_del:,}   " +  # noqa
+    print("Plan: " +                         # noqa
+          cAdd + f"{n_add:,} to add, " +     # noqa
+          cMod + f"{n_mod:,} to change, " +  # noqa
+          cDel + f"{n_del:,} to destroy." +  # noqa
           cReset + "\n")
     return (None, False)
 

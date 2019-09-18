@@ -14,7 +14,7 @@ import google.auth
 import google.auth.transport.requests
 import requests
 import yaml
-from dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config, Filepath
+from square.dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config, Filepath
 
 ClientCert = namedtuple('ClientCert', 'crt key')
 

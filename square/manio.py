@@ -5,18 +5,19 @@ import logging
 import pathlib
 from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple
 
-import dotdict
-import k8s
-import schemas
+import square.dotdict
+import square.k8s
+import square.schemas
 import yaml
 import yaml.scanner
-from dtypes import (
+from square.dtypes import (
     SUPPORTED_KINDS, Config, Filepath, LocalManifestLists, LocalManifests,
     MetaManifest, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
+DotDict = square.dotdict.DotDict
 
 
 def make_meta(manifest: dict) -> MetaManifest:
@@ -202,7 +203,7 @@ def unparse(
 
     # Ensure that all dicts are pure Python dicts or there will be problems
     # with the YAML generation below.
-    out_clean = {k: dotdict.undo(v) for k, v in out_nonempty.items()}
+    out_clean = {k: square.dotdict.undo(v) for k, v in out_nonempty.items()}
     del out_nonempty
 
     # Convert all manifest dicts into YAML strings.
@@ -350,8 +351,8 @@ def diff(
 
     # Undo the DotDicts. This is a precaution because the YAML parser can
     # otherwise not dump the manifests.
-    srv = dotdict.undo(srv)
-    loc = dotdict.undo(loc)
+    srv = square.dotdict.undo(srv)
+    loc = square.dotdict.undo(loc)
     srv_lines = yaml.dump(srv, default_flow_style=False).splitlines()
     loc_lines = yaml.dump(loc, default_flow_style=False).splitlines()
 
@@ -360,7 +361,7 @@ def diff(
     return (str.join("\n", diff_lines), False)
 
 
-def strip(config: Config, manifest: dict) -> Tuple[Optional[dotdict.DotDict], bool]:
+def strip(config: Config, manifest: dict) -> Tuple[Optional[DotDict], bool]:
     """Return stripped version of `manifest` with only the essential keys.
 
     The "essential" keys for each supported resource type are defined in the
@@ -455,7 +456,7 @@ def strip(config: Config, manifest: dict) -> Tuple[Optional[dotdict.DotDict], bo
 
     # Verify the schema for the current resource and K8s version exist.
     try:
-        schema = schemas.RESOURCE_SCHEMA[config.version][manifest["kind"]]
+        schema = square.schemas.RESOURCE_SCHEMA[config.version][manifest["kind"]]
     except KeyError:
         logit.error(
             f"Unknown K8s version (<{config.version}>) "
@@ -469,7 +470,7 @@ def strip(config: Config, manifest: dict) -> Tuple[Optional[dotdict.DotDict], bo
     except KeyError:
         return (None, True)
     else:
-        return (dotdict.make(stripped), False)
+        return (square.dotdict.make(stripped), False)
 
 
 def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> Tuple[None, bool]:
@@ -676,11 +677,11 @@ def download(
         for kind in kinds:
             try:
                 # Get the HTTP URL for the resource request.
-                url, err = k8s.urlpath(config, kind, namespace)
+                url, err = square.k8s.urlpath(config, kind, namespace)
                 assert not err and url is not None
 
                 # Make HTTP request.
-                manifest_list, err = k8s.get(client, url)
+                manifest_list, err = square.k8s.get(client, url)
                 assert not err and manifest_list is not None
 
                 # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a

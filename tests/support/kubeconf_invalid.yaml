@@ -1,0 +1,2 @@
+# A valid YAML file but not a kubeconfig file.
+foo: bar

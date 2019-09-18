@@ -1,6 +1,6 @@
 import copy
 
-import dotdict as dd
+import square.dotdict as dd
 
 
 class TestBasic:
