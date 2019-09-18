@@ -12,8 +12,8 @@ import colorama
 import jsonpatch
 import square.k8s as k8s
 import square.manio as manio
-import square.VERSION as VERSION
 import yaml
+from square import __version__
 from square.dtypes import (
     RESOURCE_ALIASES, SUPPORTED_KINDS, Config, DeltaCreate, DeltaDelete,
     DeltaPatch, DeploymentPlan, Filepath, JsonPatch, MetaManifest,
@@ -774,7 +774,7 @@ def main() -> int:
     param = parse_commandline_args()
 
     if param.parser == "version":
-        print(f"v{VERSION.version}")
+        print(f"v{__version__}")
         return 0
 
     # Initialise logging.
