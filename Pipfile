@@ -5,23 +5,23 @@ name = "pypi"
 
 [packages]
 colorama = "*"
-flake8 = "*"
-flake8-isort = "*"
 google = "*"
 google-api-python-client = "*"
-ipython = "*"
-isort = "*"
 jsonpatch = "*"
-pytest = "*"
 pyyaml = "*"
 requests = "*"
+
+[dev-packages]
+flake8 = "*"
+flake8-isort = "*"
+ipython = "*"
+isort = "*"
+pytest = "*"
 requests-mock = "*"
 pytest-cov = "*"
 "pytest-flake8" = "*"
 mypy = "*"
 bumpversion = "*"
-
-[dev-packages]
 
 [requires]
 python_version = "3.7"
