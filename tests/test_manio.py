@@ -183,6 +183,15 @@ class TestYamlManifestIO:
         fdata_test_in = {"m0.yaml": "invalid :: - yaml"}
         assert manio.parse(fdata_test_in) == (None, True)
 
+        # Corrupt manifests (can happen when files are read from local YAML
+        # files that are not actually K8s manifests).
+        not_a_k8s_manifest = {
+            'apiVersion': 'v1', 'kind': 'DeploymentList',
+            'items': [{"invalid": "manifest"}]
+        }
+        fdata_test_in = {"m0.yaml": yaml.safe_dump(not_a_k8s_manifest)}
+        assert manio.parse(fdata_test_in) == (None, True)
+
     def test_unpack_ok(self):
         """Test function must remove the filename dimension.
 
