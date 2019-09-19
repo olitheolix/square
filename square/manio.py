@@ -21,7 +21,12 @@ DotDict = square.dotdict.DotDict
 
 
 def make_meta(manifest: dict) -> MetaManifest:
-    """Compile `MetaManifest` information from `manifest` and return it."""
+    """Compile `MetaManifest` information from `manifest` and return it.
+
+    Throw `KeyError` if manifest lacks essential fields like `apiVersion`,
+    `kind`, etc because it cannot possibly be a valid K8s manifest then.
+
+    """
     # Unpack the namespace. For Namespace resources, this will be the "name".
     if manifest["kind"] == "Namespace":
         ns = manifest['metadata']['name']
@@ -108,7 +113,14 @@ def parse(file_yaml: Dict[Filepath, str]) -> Tuple[Optional[LocalManifestLists],
             return (None, True)
 
         # Convert List[manifest] into List[(MetaManifest, manifest)].
-        out[fname] = [(make_meta(_), _) for _ in manifests if _ is not None]
+        # Abort if `make_meta` throws a KeyError which happens if `file_yaml`
+        # does not actually contain a Kubernetes manifest but some other
+        # (valid) YAML.
+        try:
+            out[fname] = [(make_meta(_), _) for _ in manifests if _ is not None]
+        except KeyError:
+            logit.error(f"{file_yaml} does not look like a K8s manifest file.")
+            return None, True
 
     # Drop all files without manifests.
     out = {k: v for k, v in out.items() if len(v) > 0}
@@ -567,7 +579,7 @@ def load_files(
 
 def load(folder: Filepath) -> Tuple[
         Optional[ServerManifests], Optional[LocalManifestLists], bool]:
-    """Load all "*.yaml" files under `folder` (recursively).
+    """Recursively load all "*.yaml" files under `folder`.
 
     Ignores all files not ending in ".yaml".
 
