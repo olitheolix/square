@@ -8,25 +8,25 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.7"
 colorama = "^0.4.1"
-flake8 = "^3.7"
-flake8-isort = "^2.7"
 google = "^2.0"
 google-api-python-client = "^1.7"
-ipython = "^7.8"
-isort = "^4.3"
 jsonpatch = "^1.24"
+python = "^3.7"
 pyyaml = "^5.1"
 requests = "^2.22"
-requests-mock = "^1.7"
-bumpversion = "^0.5.3"
-pytest-cov = "^2.7"
-pytest-flake8 = "^1.0"
-pytest-dotenv = "^0.4.0"
 
 [tool.poetry.dev-dependencies]
+bumpversion = "^0.5.3"
+flake8 = "^3.7"
+flake8-isort = "^2.7"
+ipython = "^7.8"
+isort = "^4.3"
 pytest = "^3.0"
+pytest-cov = "^2.7"
+pytest-dotenv = "^0.4.0"
+pytest-flake8 = "^1.0"
+requests-mock = "^1.7"
 
 [tool.poetry.scripts]
 square = 'square.square:main'
