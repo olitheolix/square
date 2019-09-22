@@ -136,7 +136,7 @@ class TestUnpackParse:
     def setup_class(cls):
         square.setup_logging(9)
 
-    def test_unpack_list_ok(self):
+    def test_unpack_list_without_selectors_ok(self):
         """Convert eg a `DeploymentList` into a Python dict of `Deployments`."""
         # Demo manifests.
         manifests = [
@@ -153,7 +153,7 @@ class TestUnpackParse:
         }
 
         # Parse the DeploymentList into a dict. The keys are ManifestTuples and
-        # the values are the Deployment (*not* DeploymentList) manifests.
+        # the values are the Deployments (*not* DeploymentList) manifests.
         data, err = manio.unpack_list(manifest_list, selectors)
         assert err is False
 
@@ -170,6 +170,64 @@ class TestUnpackParse:
         for src, out_key in zip(manifests, data):
             assert src == data[out_key]
             assert src is not data[out_key]
+
+    def test_unpack_list_with_selectors_ok(self):
+        """Function must correctly apply the `selectors`."""
+        # Demo manifests.
+        manifests = [
+            make_manifest('Deployment', f'ns_{_}', f'name_{_}',
+                          {"cluster": "testing", "app": f"d_{_}"})
+            for _ in range(3)
+        ]
+
+        # The actual DeploymentList returned from K8s.
+        manifest_list = {
+            'apiVersion': 'v1',
+            'kind': 'DeploymentList',
+            'items': manifests,
+        }
+
+        # Select all.
+        for ns in (None, ["ns_0", "ns_1", "ns_2"]):
+            selectors = Selectors(["Deployment"], ns, set())
+            data, err = manio.unpack_list(manifest_list, selectors)
+            assert err is False and data == {
+                MetaManifest('v1', 'Deployment', 'ns_0', 'name_0'): manifests[0],
+                MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
+                MetaManifest('v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
+            }
+
+        # Must select nothing because no resource is in the "foo" namespace.
+        selectors = Selectors(["Deployment"], ["foo"], set())
+        data, err = manio.unpack_list(manifest_list, selectors)
+        assert err is False and data == {}
+
+        # Must select nothing because we have no resource kind "foo".
+        selectors = Selectors(["foo"], None, set())
+        data, err = manio.unpack_list(manifest_list, selectors)
+        assert err is False and data == {}
+
+        # Must select the Deployment in the "ns_1" namespace.
+        selectors = Selectors(["Deployment"], ["ns_1"], set())
+        data, err = manio.unpack_list(manifest_list, selectors)
+        assert err is False and data == {
+            MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
+        }
+
+        # Must select the Deployment in the "ns_1" & "ns_2" namespace.
+        selectors = Selectors(["Deployment"], ["ns_1", "ns_2"], set())
+        data, err = manio.unpack_list(manifest_list, selectors)
+        assert err is False and data == {
+            MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
+            MetaManifest('v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
+        }
+
+        # Must select the second Deployment due to label selector.
+        selectors = Selectors(["Deployment"], None, {("app", "d_1")})
+        data, err = manio.unpack_list(manifest_list, selectors)
+        assert err is False and data == {
+            MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
+        }
 
     def test_unpack_list_invalid_list_manifest(self):
         """The input manifest must have `apiVersion`, `kind` and `items`.

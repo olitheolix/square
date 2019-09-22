@@ -116,6 +116,8 @@ def unpack_list(manifest_list: dict,
         dict[MetaManifest:dict]
 
     """
+    # Ensure the server manifests have the essential fields. If not then
+    # something is seriously wrong.
     must_have = ("apiVersion", "kind", "items")
     missing = [key for key in must_have if key not in manifest_list]
     if len(missing) > 0:
@@ -124,21 +126,27 @@ def unpack_list(manifest_list: dict,
         return (None, True)
     del must_have, missing
 
+    # Sanity check: resource kind must end in "List", eg "DeploymentList".
     kind = manifest_list["kind"]
     if not kind.endswith('List'):
         logit.error(f"Kind {kind} is not a list")
         return (None, True)
+
+    # Strip of the "List".
     kind = kind[:-4]
 
+    # Convenience.
     apiversion = manifest_list["apiVersion"]
 
+    # Compile the manifests into a {MetaManifest: Manifest} dictionary. Skip
+    # all the manifests that do not match the `selectors`.
     manifests = {}
     for manifest in manifest_list["items"]:
-        manifest = copy.deepcopy(manifest)
-        manifest['apiVersion'] = apiversion
-        manifest['kind'] = kind
-
-        manifests[make_meta(manifest)] = manifest
+        if select(manifest, selectors):
+            manifest = copy.deepcopy(manifest)
+            manifest['apiVersion'] = apiversion
+            manifest['kind'] = kind
+            manifests[make_meta(manifest)] = manifest
     return (manifests, False)
 
 
