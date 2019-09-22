@@ -643,7 +643,7 @@ class TestMainOptions:
             m_delete.return_value = (None, False)
 
         # The arguments to the test function will always be the same in this test.
-        selectors = Selectors(["kinds"], ["ns"], (("foo", "bar"), ("x", "y")))
+        selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
         args = config, "client", "folder", selectors
 
         # Square must never create/patch/delete anything if the user did not
@@ -720,7 +720,7 @@ class TestMainOptions:
         m_plan.return_value = (plan, False)
 
         # The arguments to the test function will always be the same in this test.
-        selectors = Selectors(["kinds"], ["ns"], (("foo", "bar"), ("x", "y")))
+        selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
         args = "config", "client", "folder", selectors
 
         # A successfull DIFF only computes and prints the plan.
@@ -762,7 +762,7 @@ class TestMainOptions:
         m_save.return_value = (None, False)
 
         # The arguments to the test function will always be the same in this test.
-        selectors = Selectors(["kinds"], ["ns"], (("foo", "bar"), ("x", "y")))
+        selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
         args = "config", "client", "folder", selectors
 
         # Call test function and verify it passed the correct arguments.
