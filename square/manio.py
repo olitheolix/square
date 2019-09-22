@@ -12,7 +12,7 @@ import yaml
 import yaml.scanner
 from square.dtypes import (
     SUPPORTED_KINDS, Config, Filepath, LocalManifestLists, LocalManifests,
-    MetaManifest, ServerManifests,
+    MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -581,11 +581,12 @@ def load_files(
     return (out, False)
 
 
-def load(folder: Filepath) -> Tuple[
+def load(folder: Filepath, selectors: Selectors) -> Tuple[
         Optional[ServerManifests], Optional[LocalManifestLists], bool]:
     """Recursively load all "*.yaml" files under `folder`.
 
-    Ignores all files not ending in ".yaml".
+    Ignores all files not ending in ".yaml". Also removes all manifests that do
+    not match the `selectors`.
 
     Returns no data in the case of an error.
 
@@ -595,6 +596,7 @@ def load(folder: Filepath) -> Tuple[
     Input:
         folder: Filepath
             Source folder.
+        selectors: Selectors
 
     Returns:
         (local manifest without file info, local manifests with file info)
@@ -656,22 +658,19 @@ def save(folder: Filepath, manifests: LocalManifestLists) -> Tuple[None, bool]:
 def download(
         config: Config,
         client,
-        kinds: Iterable[str],
-        namespaces: Optional[Iterable[str]]
+        selectors: Selectors,
 ) -> Tuple[Optional[ServerManifests], bool]:
-    """Download and return the specified resource `kinds`.
+    """Download and return the resources that match `selectors`.
 
-    Set `namespace` to None to download from all namespaces.
+    Set `selectors.namespace` to `None` to download the resources from all
+    Kubernetes namespaces.
 
-    Either returns all the data or an error, never partial results.
+    Either returns all the data or an error; never returns partial results.
 
     Inputs:
         config: Config
         client: `requests` session with correct K8s certificates.
-        kinds: Iterable
-            The resource kinds, eg ["Deployment", "Namespace"]
-        namespaces: Iterable
-            Only query those namespaces. Set to None to download from all.
+        selectors: Selectors
 
     Returns:
         Dict[MetaManifest, dict]: the K8s manifests from K8s.
@@ -682,15 +681,14 @@ def download(
 
     # Ensure `namespaces` is always a list to avoid special casing below.
     all_namespaces: Iterable[Optional[str]]
-    if namespaces is None:
+    if selectors.namespaces is None:
         all_namespaces = [None]
     else:
-        all_namespaces = namespaces
-    del namespaces
+        all_namespaces = selectors.namespaces
 
     # Download each resource type. Abort at the first error and return nothing.
     for namespace in all_namespaces:
-        for kind in kinds:
+        for kind in selectors.kinds:
             try:
                 # Get the HTTP URL for the resource request.
                 url, err = square.k8s.urlpath(config, kind, namespace)

@@ -9,7 +9,9 @@ import square.manio as manio
 import square.schemas as schemas
 import square.square as square
 import yaml
-from square.dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, MetaManifest
+from square.dtypes import (
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, MetaManifest, Selectors,
+)
 from square.k8s import urlpath
 
 from .test_helpers import make_manifest, mk_deploy
@@ -869,6 +871,9 @@ class TestYamlManifestIOIntegration:
 
     def test_load_save_ok(self, tmp_path):
         """Basic test that uses the {load,save} convenience functions."""
+        # Dummy filter.
+        sel = Selectors(["service"], None, None)
+
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
         meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
@@ -881,7 +886,7 @@ class TestYamlManifestIOIntegration:
 
         # Save the test data, then load it back and verify.
         assert manio.save(tmp_path, man_files) == (None, False)
-        assert manio.load(tmp_path) == (*expected, False)
+        assert manio.load(tmp_path, sel) == (*expected, False)
 
         # Glob the folder and ensure it contains exactly the files specified in
         # the `fdata_test_in` dict.
@@ -891,10 +896,13 @@ class TestYamlManifestIOIntegration:
         # Create non-YAML files. The `load_files` function must skip those.
         (tmp_path / "delme.txt").touch()
         (tmp_path / "foo" / "delme.txt").touch()
-        assert manio.load(tmp_path) == (*expected, False)
+        assert manio.load(tmp_path, sel) == (*expected, False)
 
     def test_save_delete_stale_yaml(self, tmp_path):
         """`save_file` must remove all excess YAML files."""
+        # Dummy filter.
+        sel = Selectors(["service"], None, None)
+
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
         meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
@@ -911,7 +919,7 @@ class TestYamlManifestIOIntegration:
 
         # Save and load the test data.
         assert manio.save(tmp_path, man_files) == (None, False)
-        assert manio.load(tmp_path) == (*expected, False)
+        assert manio.load(tmp_path, sel) == (*expected, False)
 
         # Save a reduced set of files. Compared to `fdata_full`, it is two
         # files short and a third one ("bar/m4.yaml") is empty.
@@ -932,7 +940,7 @@ class TestYamlManifestIOIntegration:
         # Load the data. It must neither contain the files we removed from the
         # dict above, nor "bar/m4.yaml" which contained an empty manifest list.
         del fdata_reduced["bar/m4.yaml"]
-        assert manio.load(tmp_path) == (*expected, False)
+        assert manio.load(tmp_path, sel) == (*expected, False)
 
         # Verify that the files physically do not exist anymore.
         assert not (tmp_path / "m0.yaml").exists()
@@ -942,8 +950,10 @@ class TestYamlManifestIOIntegration:
     @mock.patch.object(manio, "load_files")
     def test_load_err(self, m_load, tmp_path):
         """Simulate an error in `load_files` function."""
+        # Dummy filter.
+        sel = Selectors(["service"], None, None)
         m_load.return_value = (None, True)
-        assert manio.load(tmp_path) == (None, None, True)
+        assert manio.load(tmp_path, sel) == (None, None, True)
 
     @mock.patch.object(manio, "unparse")
     def test_save_err(self, m_unparse, tmp_path):
@@ -1351,8 +1361,7 @@ class TestDownloadManifests:
         }
         ret = manio.download(
             config, "client",
-            kinds=["Namespace", "Deployment"],
-            namespaces=None,
+            Selectors(["Namespace", "Deployment"], None, None)
         )
         assert ret == (expected, False)
         assert m_get.call_args_list == [
@@ -1381,8 +1390,7 @@ class TestDownloadManifests:
         }
         assert (expected, False) == manio.download(
             config, "client",
-            kinds=["Namespace", "Deployment"],
-            namespaces=["ns0", "ns1"]
+            Selectors(["Namespace", "Deployment"], ["ns0", "ns1"], None)
         )
         assert m_get.call_args_list == [
             mock.call("client", url_ns_0),
@@ -1408,8 +1416,7 @@ class TestDownloadManifests:
         }
         assert (expected, False) == manio.download(
             config, "client",
-            kinds=["Namespace", "Deployment"],
-            namespaces=["ns0"]
+            Selectors(["Namespace", "Deployment"], ["ns0"], None)
         )
         assert m_get.call_args_list == [
             mock.call("client", url_ns_0),
@@ -1439,7 +1446,8 @@ class TestDownloadManifests:
         # Run test function and verify it returns an error and no data, despite
         # a successful `NamespaceList` download.
         ret = manio.download(
-            config, "client", ["Namespace", "Deployment"], None
+            config, "client",
+            Selectors(["Namespace", "Deployment"], None, None)
         )
         assert ret == (None, True)
         assert m_get.call_args_list == [

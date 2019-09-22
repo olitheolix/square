@@ -16,7 +16,7 @@ import yaml
 from square import __version__
 from square.dtypes import (
     RESOURCE_ALIASES, SUPPORTED_KINDS, Config, DeltaCreate, DeltaDelete,
-    DeltaPatch, DeploymentPlan, Filepath, JsonPatch, MetaManifest,
+    DeltaPatch, DeploymentPlan, Filepath, JsonPatch, MetaManifest, Selectors,
     ServerManifests,
 )
 
@@ -509,12 +509,7 @@ def setup_logging(log_level: int) -> None:
     logit.info(f"Set log level to {level}")
 
 
-def prune(
-        manifests: ServerManifests,
-        kinds: Iterable[str],
-        namespaces: Optional[Iterable[str]],
-        labels: Iterable[Tuple[str, str]],
-) -> ServerManifests:
+def prune(manifests: ServerManifests, selectors: Selectors) -> ServerManifests:
     """Return the `manifests` subset that meets the requirement.
 
     This is really just a glorified list comprehension without error
@@ -535,10 +530,10 @@ def prune(
 
     """
     # Compile the list of manifests that have the correct resource kind.
-    out1 = {k: v for k, v in manifests.items() if k.kind in kinds}
+    out1 = {k: v for k, v in manifests.items() if k.kind in selectors.kinds}
 
     # Retain only those for which all labels match.
-    label_selectors = set(labels)
+    label_selectors = set(selectors.labels) if selectors.labels else set()
     out2 = {}
     for meta, manifest in out1.items():
         # Unpack the labels of the resource and convert them to a set of tuples.
@@ -553,10 +548,10 @@ def prune(
 
     # Remove all resources outside the specified namespaces. Skip the filter
     # if `namespaces` is None (ie user does not want to filter by namespace).
-    if namespaces is None:
+    if selectors.namespaces is None:
         out3 = out2
     else:
-        out3 = {k: v for k, v in out2.items() if k.namespace in namespaces}
+        out3 = {k: v for k, v in out2.items() if k.namespace in selectors.namespaces}
 
     # Ignore the "default-token-*" Secrets that K8s creates automatically since
     # it is usually a bad good idea to touch them at all.
@@ -610,19 +605,22 @@ def main_apply(
 
     """
     try:
+        # Manifest selection filter.
+        selectors = Selectors(kinds, namespaces, labels)
+
         # Load manifests from local files.
-        local_meta, _, err = manio.load(folder)
+        local_meta, _, err = manio.load(folder, selectors)
         assert not err and local_meta is not None
 
         # Download manifests from K8s.
-        server, err = manio.download(config, client, kinds, namespaces)
+        server, err = manio.download(config, client, selectors)
         assert not err and server is not None
 
         # Prune the manifests to only include manifests for the specified
         # resources and namespaces. The pruning is not technically necessary
         # for the `server` manifests but does not hurt.
-        local = prune(local_meta, kinds, namespaces, labels)
-        server = prune(server, kinds, namespaces, labels)
+        local = prune(local_meta, selectors)
+        server = prune(server, selectors)
 
         # Create the deployment plan.
         plan, err = compile_plan(config, local, server)
@@ -695,18 +693,19 @@ def main_plan(
     """
     try:
         # Load manifests from local files.
-        local_meta, _, err = manio.load(folder)
+        selectors = Selectors(kinds, namespaces, labels)
+        local_meta, _, err = manio.load(folder, selectors)
         assert not err and local_meta is not None
 
         # Download manifests from K8s.
-        server, err = manio.download(config, client, kinds, namespaces)
+        server, err = manio.download(config, client, selectors)
         assert not err and server is not None
 
         # Prune the manifests to only include manifests for the specified
         # resources and namespaces. The pruning is not technically necessary
         # for the `server` manifests but does not hurt.
-        loc = prune(local_meta, kinds, namespaces, labels)
-        srv = prune(server, kinds, namespaces, labels)
+        loc = prune(local_meta, selectors)
+        srv = prune(server, selectors)
 
         # Create deployment plan.
         plan, err = compile_plan(config, loc, srv)
@@ -747,19 +746,21 @@ def main_get(
 
     """
     try:
+        selectors = Selectors(kinds, namespaces, labels)
+
         # Load manifests from local files.
-        _, local_files, err = manio.load(folder)
+        _, local_files, err = manio.load(folder, selectors)
         assert not err and local_files is not None
 
         # Download manifests from K8s.
-        server, err = manio.download(config, client, kinds, namespaces)
+        server, err = manio.download(config, client, selectors)
         assert not err and server is not None
 
         # Prune the manifests to only include manifests for the specified
         # resources and namespaces. This is not technically necessary
         # for the `server` manifests but does not hurt and makes it consistent
         # with how the other main_* functions operate.
-        server = prune(server, kinds, namespaces, labels)
+        server = prune(server, selectors)
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see next step.
