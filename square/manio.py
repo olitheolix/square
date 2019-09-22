@@ -142,12 +142,16 @@ def unpack_list(manifest_list: dict,
     return (manifests, False)
 
 
-def parse(file_yaml: Dict[Filepath, str]) -> Tuple[Optional[LocalManifestLists], bool]:
+def parse(
+        file_yaml: Dict[Filepath, str],
+        selectors: Selectors) -> Tuple[Optional[LocalManifestLists], bool]:
     """Parse all YAML strings in `file_yaml` and return result.
 
     Inputs:
         file_yaml: Dict[Filepath, str]
             Raw data as returned by `load_files`.
+        selectors: Selectors
+            Skip all manifests that do not match these `selectors`.
 
     Returns:
         LocalManifestLists: The YAML parsed manifests of each file.
@@ -305,7 +309,7 @@ def sync(
     Inputs:
         local_manifests: Dict[Filepath, Tuple[MetaManifest, dict]]
         server_manifests: Dict[MetaManifest, dict]
-        selectors: Selectors,
+        selectors: Selectors
             Only operate on resources that match the selectors.
 
     Returns:
@@ -671,7 +675,7 @@ def load(folder: Filepath, selectors: Selectors) -> Tuple[
         assert not err and fdata_raw is not None
 
         # Return the YAML parsed manifests.
-        man_files, err = parse(fdata_raw)
+        man_files, err = parse(fdata_raw, selectors)
         assert not err and man_files is not None
 
         # Remove the Filepath dimension.
