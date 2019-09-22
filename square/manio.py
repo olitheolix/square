@@ -158,15 +158,15 @@ def unpack(manifests: LocalManifestLists) -> Tuple[Optional[ServerManifests], bo
 
     # Find out if all meta manifests were unique. If not, log the culprits and
     # return with an error.
-    is_unique = True
+    unique = True
     for meta, fnames in all_meta.items():
         if len(fnames) > 1:
-            is_unique = False
+            unique = False
             logit.error(
                 f"Meta manifest {meta} was defined {len(fnames)} times: "
                 f"{str.join(', ', fnames)}"
             )
-    if not is_unique:
+    if not unique:
         return (None, True)
 
     # Compile the input manifests into a new dict with the meta manifest as key.
