@@ -132,21 +132,25 @@ def parse(file_yaml: Dict[Filepath, str]) -> Tuple[Optional[LocalManifestLists],
 
 
 def unpack(manifests: LocalManifestLists) -> Tuple[Optional[ServerManifests], bool]:
-    """Drop the "Filepath" dimension from `manifests`.
+    """Convert `manifests` to `ServerManifests` for internal processing.
 
-    Returns an error unless all resources are unique. For instance, return an
-    error if two files define the same namespace or the same deployment.
+    Returns `False` unless all resources in `manifests` are unique. For
+    instance, returns False if two files define the same namespace or the same
+    deployment.
+
+    The primary use case is to convert the manifests we read from local files
+    into the format Square uses internally for the server manifests as well.
 
     Inputs:
-        manifests: Dict[Filepath, Tuple[MetaManifest, dict]]
+        manifests: LocalManifestLists
 
     Returns:
-        Dict[MetaManifest, dict]: flattened version of `data`.
+        ServerManifests: flattened version of `data`.
 
     """
     # Compile a dict that shows which meta manifest was defined in which file.
-    # We will use this information short to determine if any resources were
-    # specified multiple times in either the same or different file.
+    # We will shortly use this information to determine if all resources were
+    # defined exactly once across all files.
     all_meta: DefaultDict[MetaManifest, list] = collections.defaultdict(list)
     for fname in manifests:
         for meta, _ in manifests[fname]:
@@ -537,7 +541,7 @@ def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> Tuple[None, 
 def load_files(
         folder: Filepath,
         fnames: Iterable[Filepath]) -> Tuple[Optional[Dict[Filepath, str]], bool]:
-    """Load all `fnames` relative `folder`.
+    """Load all `fnames` in `folder` and return their content.
 
     The elements of `fname` can have sub-paths, eg `foo/bar/file.txt` is valid
     and would ultimately open f"{folder}/foo/bar/file.txt".

@@ -558,8 +558,8 @@ def prune(
     else:
         out3 = {k: v for k, v in out2.items() if k.namespace in namespaces}
 
-    # Ignore the default token because K8s creates that one automatically in
-    # each namespace and touching it is usually a bad idea.
+    # Ignore the "default-token-*" Secrets that K8s creates automatically since
+    # it is usually a bad good idea to touch them at all.
     out = {
         k: v for k, v in out3.items()
         if not (k.kind == "Secret" and k.name.startswith("default-token-"))
@@ -602,6 +602,8 @@ def main_apply(
             Resource types to fetch, eg ["Deployment", "Namespace"]
         namespaces: Iterable
             Only use those namespaces. Set to `None` to use all.
+        labels: Iterable
+            Only use manifests with those labels.
 
     Returns:
         None
@@ -684,6 +686,8 @@ def main_plan(
             Resource types to fetch, eg ["Deployment", "Namespace"]
         namespaces: Iterable
             Only use those namespaces. Set to `None` to use all.
+        labels: Iterable
+            Only use manifests with those labels.
 
     Returns:
         None
@@ -735,6 +739,8 @@ def main_get(
             Resource types to fetch, eg ["Deployment", "Namespace"]
         namespaces: Iterable
             Only use those namespaces. Set to `None` to use all.
+        labels: Iterable
+            Only use manifests with those labels.
 
     Returns:
         None
@@ -780,8 +786,8 @@ def main() -> int:
     # Initialise logging.
     setup_logging(param.verbosity)
 
-    # Create a `requests` client with proper security certificates to access
-    # K8s API.
+    # Create a `requests` client with proper security certificates to access the
+    # Kubernetes API.
     kubeconfig = os.path.expanduser(param.kubeconfig)
     try:
         config = k8s.load_auto_config(kubeconfig, param.ctx, disable_warnings=True)
