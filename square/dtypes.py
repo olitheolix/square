@@ -1,6 +1,8 @@
 import pathlib
 from collections import namedtuple
-from typing import Dict, Iterable, List, NamedTuple, Optional, Tuple, Union
+from typing import (
+    Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Union,
+)
 
 # We support these resource types. The order matters because it determines the
 # order in which the manifests will be grouped in the output files.
@@ -72,4 +74,4 @@ class Selectors(NamedTuple):
     """Comprises all the filters to select manifests."""
     kinds: Iterable[str]
     namespaces: Optional[Iterable[str]]
-    labels: Optional[Iterable[Tuple[str, str]]]
+    labels: Optional[Set[Tuple[str, str]]]

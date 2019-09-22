@@ -44,6 +44,62 @@ def make_meta(manifest: dict) -> MetaManifest:
     )
 
 
+def select(manifest: dict, selectors: Selectors) -> bool:
+    """Return `False` unless `manifest` satisfies _all_ `selectors`.
+
+    Inputs:
+        manifests: dict
+        selectors: Selectors,
+
+    Returns:
+        bool: `True` iff the resource matches all selectors.
+
+    """
+    # "kinds" cannot be an empty list or `None`.
+    if not selectors.kinds:
+        logit.error(f"BUG: selector must specify a `kind`: {selectors}")
+        return False
+
+    # Unpack the resource's kind and labels.
+    kind = manifest.get("kind", None)
+    labels = manifest.get("metadata", {}).get("labels", {})
+    name = manifest.get("metadata", {}).get("name", "")
+
+    # Unpack the resource's namespace. We need to pay special attention to
+    # `Namespace` resource because they have no namespace, and the
+    # "default-token" Secrets that K8s creates automatically (we must not mess
+    # with them).
+    if kind == "Namespace":
+        ns = manifest.get("metadata", {}).get("name", None)
+    elif kind == "Secret":
+        if name.startswith("default-token-"):
+            return False
+    else:
+        ns = manifest.get("metadata", {}).get("namespace", None)
+
+    # Proceed only if the resource kind is among the desired ones.
+    if kind not in selectors.kinds:
+        return False
+
+    # Unless the namespace selector is None, the resource must match it.
+    if selectors.namespaces is not None:
+        if ns not in selectors.namespaces:
+            return False
+
+    # Convert the labels dictionary into a set of (key, value) tuples. We can
+    # then use set logic to determine if the resource specifies the desired
+    # labels or not.
+    labels = {(k, v) for k, v in labels.items()}
+
+    # Unless the label selector is None, the resource must match it.
+    if selectors.labels is not None:
+        if not selectors.labels.issubset(labels):
+            return False
+
+    # If we get to here then the resource matches all selectors.
+    return True
+
+
 def unpack_list(manifest_list: dict) -> Tuple[Optional[ServerManifests], bool]:
     """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
 
