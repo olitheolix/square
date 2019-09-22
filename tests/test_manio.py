@@ -65,6 +65,71 @@ class TestHelpers:
         )
         assert manio.make_meta(manifest) == expected
 
+    def test_select(self):
+        """Prune a list of manifests based on namespace and resource."""
+        # Convenience.
+        select = manio.select
+
+        labels = [set(), {("app", "a")}, {("env", "e")}, {("app", "a"), ("env", "e")}]
+
+        # ---------------------------------------------------------------------
+        #                      Namespace Manifest
+        # ---------------------------------------------------------------------
+        # Iterate over (almost) all valid selectors.
+        manifest = make_manifest("Namespace", None, "name", {"app": "a", "env": "e"})
+        namespaces = (["name"], ["name", "ns5"])
+        kinds = (["Namespace"], ["Deployment", "Namespace"])
+        for kind, ns, lab in itertools.product(kinds, namespaces, labels):
+            assert select(manifest, Selectors(kind, ns, lab)) is True
+
+        # Function must reject these because the selectors match only partially.
+        selectors = [
+            Selectors(["blah"], None, set()),
+            Selectors(["Namespace"], ["foo-ns"], set()),
+            Selectors(["Namespace"], ["ns0"], {("app", "b")}),
+            Selectors(["Namespace"], ["ns0"], {("app", "a"), ("env", "x")}),
+        ]
+        for sel in selectors:
+            assert select(manifest, sel) is False
+
+        # Reject the manifest if the selector does not specify at least one "kind".
+        assert select(manifest, Selectors(["Namespace"], None, set())) is True
+        assert select(manifest, Selectors([], None, set())) is False
+        assert select(manifest, Selectors(None, None, set())) is False
+
+        # ---------------------------------------------------------------------
+        #                      Deployment Manifest
+        # ---------------------------------------------------------------------
+        # Iterate over (almost) all valid selectors.
+        manifest = make_manifest("Deployment", "my-ns", "name", {"app": "a", "env": "e"})
+        kinds = (["Deployment"], ["Deployment", "Namespace"])
+        namespaces = (["my-ns"], ["my-ns", "other-ns"])
+        for kind, ns, lab in itertools.product(kinds, namespaces, labels):
+            assert select(manifest, Selectors(kind, ns, lab)) is True
+
+        # Function must reject these because the selectors match only partially.
+        selectors = [
+            Selectors(["blah"], None, set()),
+            Selectors(["Deployment"], ["foo-ns"], set()),
+            Selectors(["Deployment"], ["ns0"], {("app", "b")}),
+            Selectors(["Deployment"], ["ns0"], {("app", "a"), ("env", "x")}),
+        ]
+        for sel in selectors:
+            assert select(manifest, sel) is False
+
+        # Reject the manifest if the selector does not specify at least one "kind".
+        assert select(manifest, Selectors(["Deployment"], None, set())) is True
+        assert select(manifest, Selectors([], None, set())) is False
+        assert select(manifest, Selectors(None, None, set())) is False
+
+        # ---------------------------------------------------------------------
+        #                      Default Token Secret
+        # ---------------------------------------------------------------------
+        # Iterate over (almost) all valid selectors.
+        kind, ns = "Secret", "ns1"
+        manifest = make_manifest(kind, ns, "default-token-12345")
+        assert select(manifest, Selectors(kind, ns, set())) is False
+
 
 class TestUnpackParse:
     @classmethod
