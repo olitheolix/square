@@ -509,59 +509,6 @@ def setup_logging(log_level: int) -> None:
     logit.info(f"Set log level to {level}")
 
 
-def prune(manifests: ServerManifests, selectors: Selectors) -> ServerManifests:
-    """Return the `manifests` subset that meets the requirement.
-
-    This is really just a glorified list comprehension without error
-    checking of any kind.
-
-    NOTE: also remove precarious resources like the "default-token-*" secrets
-    to ensure `square` will always ignore them.
-
-    Inputs:
-        manifests: Dict[MetaManifest:dict]
-        kinds: Iterable
-            Allowed resource types (eg ["Deployment", "Namespace"]).
-        namespaces: Iterable
-            Only use those namespaces. Set to `None` to use all.
-
-    Returns:
-        Dict[MetaManifest:dict]: subset of input `manifests`.
-
-    """
-    # Compile the list of manifests that have the correct resource kind.
-    out1 = {k: v for k, v in manifests.items() if k.kind in selectors.kinds}
-
-    # Retain only those for which all labels match.
-    label_selectors = set(selectors.labels) if selectors.labels else set()
-    out2 = {}
-    for meta, manifest in out1.items():
-        # Unpack the labels of the resource and convert them to a set of tuples.
-        # Example: {"foo": "bar", "x": "y"} -> {("foo", "bar"), ("x", "y")}
-        resource_labels = manifest.get("metadata", {}).get("labels", {})
-        resource_labels = set(resource_labels.items())
-
-        # Only pick the current manifest if it has all the specified labels.
-        if label_selectors.issubset(resource_labels):
-            out2[meta] = manifest
-        del meta, manifest, resource_labels
-
-    # Remove all resources outside the specified namespaces. Skip the filter
-    # if `namespaces` is None (ie user does not want to filter by namespace).
-    if selectors.namespaces is None:
-        out3 = out2
-    else:
-        out3 = {k: v for k, v in out2.items() if k.namespace in selectors.namespaces}
-
-    # Ignore the "default-token-*" Secrets that K8s creates automatically since
-    # it is usually a bad good idea to touch them at all.
-    out = {
-        k: v for k, v in out3.items()
-        if not (k.kind == "Secret" and k.name.startswith("default-token-"))
-    }
-    return out
-
-
 def user_confirmed(answer: str = "yes") -> bool:
     """Return True iff the user answers with `answer`."""
     assert answer, "BUG: desired answer must be non-empty string"
@@ -607,14 +554,8 @@ def main_apply(
         server, err = manio.download(config, client, selectors)
         assert not err and server is not None
 
-        # Prune the manifests to only include manifests for the specified
-        # resources and namespaces. The pruning is not technically necessary
-        # for the `server` manifests but does not hurt.
-        local = prune(local_meta, selectors)
-        server = prune(server, selectors)
-
         # Create the deployment plan.
-        plan, err = compile_plan(config, local, server)
+        plan, err = compile_plan(config, local_meta, server)
         assert not err and plan is not None
 
         # Present the plan to the user.
@@ -685,14 +626,8 @@ def main_plan(
         server, err = manio.download(config, client, selectors)
         assert not err and server is not None
 
-        # Prune the manifests to only include manifests for the specified
-        # resources and namespaces. The pruning is not technically necessary
-        # for the `server` manifests but does not hurt.
-        loc = prune(local_meta, selectors)
-        srv = prune(server, selectors)
-
         # Create deployment plan.
-        plan, err = compile_plan(config, loc, srv)
+        plan, err = compile_plan(config, local_meta, server)
         assert not err and plan
     except AssertionError:
         return (None, True)
@@ -731,12 +666,6 @@ def main_get(
         # Download manifests from K8s.
         server, err = manio.download(config, client, selectors)
         assert not err and server is not None
-
-        # Prune the manifests to only include manifests for the specified
-        # resources and namespaces. This is not technically necessary
-        # for the `server` manifests but does not hurt and makes it consistent
-        # with how the other main_* functions operate.
-        server = prune(server, selectors)
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see next step.
