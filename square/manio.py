@@ -240,26 +240,23 @@ def unparse(
 def sync(
         local_manifests: LocalManifestLists,
         server_manifests: ServerManifests,
-        kinds: Iterable[str],
-        namespaces: Optional[Iterable[str]]
+        selectors: Selectors,
 ) -> Tuple[Optional[LocalManifestLists], bool]:
     """Update the local manifests with the server values and return the result.
 
     Inputs:
         local_manifests: Dict[Filepath, Tuple[MetaManifest, dict]]
         server_manifests: Dict[MetaManifest, dict]
-        kinds: Iterable
-            Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespaces: Iterable
-            Set to None to load all namespaces.
+        selectors: Selectors,
+            Only operate on resources that match the selectors.
 
     Returns:
         Dict[Filepath, Tuple[MetaManifest, dict]]
 
     """
     # Sanity check: all `kinds` must be supported or we abort.
-    if not set(kinds).issubset(SUPPORTED_KINDS):
-        unsupported = set(kinds) - set(SUPPORTED_KINDS)
+    if not set(selectors.kinds).issubset(SUPPORTED_KINDS):
+        unsupported = set(selectors.kinds) - set(SUPPORTED_KINDS)
         logit.error(f"Cannot sync unsupported kinds: {unsupported}")
         return (None, True)
 
@@ -268,13 +265,15 @@ def sync(
 
     # If the user did not specify any namespaces then we will operate on all
     # the namespaces that are currently in K8s.
-    if namespaces is None:
+    if selectors.namespaces is None:
         namespaces = {meta.namespace for meta in server_manifests}
+    else:
+        namespaces = set(selectors.namespaces)
 
     # Only retain server manifests with correct `kinds` and `namespaces`.
     server_manifests = {
         meta: v for meta, v in server_manifests.items()
-        if meta.kind in kinds and meta.namespace in namespaces
+        if meta.kind in selectors.kinds and meta.namespace in namespaces
     }
 
     # Add all local manifests outside the specified `kinds` and `namespaces`
@@ -284,10 +283,9 @@ def sync(
     # that local and server manifests are already in sync.
     for fname, manifests in local_manifests.items():
         for meta, manifest in manifests:
-            if meta.kind in kinds and meta.namespace in namespaces:
+            if meta.kind in selectors.kinds and meta.namespace in namespaces:
                 continue
             server_manifests[meta] = manifest
-    del kinds, namespaces
 
     # Create map for MetaManifest -> (File, doc-idx). The doc-idx denotes the
     # index of the manifest inside the YAML files (it may contain multiple
