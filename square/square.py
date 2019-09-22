@@ -668,7 +668,7 @@ def main_get(
         assert not err and server is not None
 
         # Sync the server manifests into the local manifests. All this happens in
-        # memory and no files will be modified here - see next step.
+        # memory and no files will be modified here - see `manio.save` in the next step.
         synced_manifests, err = manio.sync(local_files, server, selectors)
         assert not err and synced_manifests
 
