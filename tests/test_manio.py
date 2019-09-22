@@ -138,18 +138,26 @@ class TestUnpackParse:
 
     def test_unpack_list_without_selectors_ok(self):
         """Convert eg a `DeploymentList` into a Python dict of `Deployments`."""
-        # Demo manifests.
-        manifests = [
+        # Demo manifests for this test.
+        manifests_withkind = [
             make_manifest('Deployment', f'ns_{_}', f'name_{_}')
             for _ in range(3)
         ]
+        # K8s does not include the "kind" key when it provides a resource in a
+        # list. Here we mimic this behaviour and manually delete it. The test
+        # function must be able to cope with that.
+        manifests_nokind = copy.deepcopy(manifests_withkind)
+        for manifest in manifests_nokind:
+            del manifest["kind"]
+
+        # Generic selector that matches all manifests in this test.
         selectors = Selectors(["Deployment"], None, set())
 
         # The actual DeploymentList returned from K8s.
         manifest_list = {
             'apiVersion': 'v1',
             'kind': 'DeploymentList',
-            'items': manifests,
+            'items': manifests_nokind,
         }
 
         # Parse the DeploymentList into a dict. The keys are ManifestTuples and
@@ -157,17 +165,22 @@ class TestUnpackParse:
         data, err = manio.unpack_list(manifest_list, selectors)
         assert err is False
 
+        # The test function must not have modified our original dictionaries,
+        # which means they must still miss the "kind" field. However, it must
+        # have added the correct "kind" value the manifests it returned.
+        assert all(["kind" not in _ for _ in manifests_nokind])
+        assert all(["kind" in v for k, v in data.items()])
+
         # Verify the Python dict.
-        assert len(manifests) == 3
         assert data == {
-            MetaManifest('v1', 'Deployment', 'ns_0', 'name_0'): manifests[0],
-            MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
-            MetaManifest('v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
+            MetaManifest('v1', 'Deployment', 'ns_0', 'name_0'): manifests_withkind[0],
+            MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests_withkind[1],
+            MetaManifest('v1', 'Deployment', 'ns_2', 'name_2'): manifests_withkind[2],
         }
 
         # Function must return deep copies of the manifests to avoid difficult
         # to debug reference bugs.
-        for src, out_key in zip(manifests, data):
+        for src, out_key in zip(manifests_withkind, data):
             assert src == data[out_key]
             assert src is not data[out_key]
 

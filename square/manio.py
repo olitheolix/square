@@ -146,10 +146,13 @@ def unpack_list(manifest_list: dict,
     # all the manifests that do not match the `selectors`.
     manifests = {}
     for manifest in manifest_list["items"]:
+        # The "kind" key is missing from the manifest when K8s returns them in
+        # a list. Here we manually add it again because it is part of every
+        # properly formatted stand-alone manifest.
+        manifest = copy.deepcopy(manifest)
+        manifest["kind"] = kind
+        manifest['apiVersion'] = apiversion
         if select(manifest, selectors):
-            manifest = copy.deepcopy(manifest)
-            manifest['apiVersion'] = apiversion
-            manifest['kind'] = kind
             manifests[make_meta(manifest)] = manifest
     return (manifests, False)
 
