@@ -216,8 +216,11 @@ class TestYamlManifestIO:
         }
 
     def test_parse_ok(self):
-        """Test function must be able to parse the Yaml string and compile a dict."""
-        # Construct manifests in the way as `load_files` returns them.
+        """Test function must be able to parse the YAML string and compile a dict."""
+        # Generic selector that matches all manifests in this test.
+        selectors = Selectors(["Deployment"], None, set())
+
+        # Construct manifests like `load_files` would return them.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
         meta = [manio.make_meta(_) for _ in dply]
         fdata_test_in = {
@@ -234,7 +237,7 @@ class TestYamlManifestIO:
             "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
             "m2.yaml": [(meta[2], dply[2])],
         }
-        assert manio.parse(fdata_test_in) == (expected, False)
+        assert manio.parse(fdata_test_in, selectors) == (expected, False)
 
         # Add a superfluous "---" at the beginning/end of the document. This
         # mast not throw the parser and it must not include it in the output as
@@ -243,16 +246,19 @@ class TestYamlManifestIO:
         fdata_test_blank_post = copy.deepcopy(fdata_test_in)
         fdata_test_blank_post["m2.yaml"] = fdata_test_blank_pre["m2.yaml"] + "\n---\n"
         fdata_test_blank_pre["m2.yaml"] = "\n---\n" + fdata_test_blank_pre["m2.yaml"]
-        out, err = manio.parse(fdata_test_blank_post)
+        out, err = manio.parse(fdata_test_blank_post, selectors)
         assert not err and len(out["m2.yaml"]) == len(expected["m2.yaml"])
-        out, err = manio.parse(fdata_test_blank_pre)
+        out, err = manio.parse(fdata_test_blank_pre, selectors)
         assert not err and len(out["m2.yaml"]) == len(expected["m2.yaml"])
 
     def test_parse_err(self):
         """Intercept YAML decoding errors."""
-        # Construct manifests in the way as `load_files` returns them.
+        # Generic selector that matches all manifests in this test.
+        selectors = Selectors(["Deployment"], None, set())
+
+        # Construct manifests like `load_files` would return them.
         fdata_test_in = {"m0.yaml": "invalid :: - yaml"}
-        assert manio.parse(fdata_test_in) == (None, True)
+        assert manio.parse(fdata_test_in, selectors) == (None, True)
 
         # Corrupt manifests (can happen when files are read from local YAML
         # files that are not actually K8s manifests).
@@ -261,7 +267,7 @@ class TestYamlManifestIO:
             'items': [{"invalid": "manifest"}]
         }
         fdata_test_in = {"m0.yaml": yaml.safe_dump(not_a_k8s_manifest)}
-        assert manio.parse(fdata_test_in) == (None, True)
+        assert manio.parse(fdata_test_in, selectors) == (None, True)
 
     def test_unpack_ok(self):
         """Test function must remove the filename dimension.
@@ -432,6 +438,9 @@ class TestYamlManifestIO:
         This test does not load or save any files.
 
         """
+        # Generic selector that matches all manifests in this test.
+        selectors = Selectors(["Deployment"], None, set())
+
         # Construct demo manifests in the same way as `load_files` would.
         dply = [mk_deploy(f"d_{_}", "nsfoo") for _ in range(10)]
         meta = [manio.make_meta(_) for _ in dply]
@@ -446,7 +455,7 @@ class TestYamlManifestIO:
         # ---------- PARSE YAML FILES ----------
         # Parse Yaml string, extract MetaManifest and compile new dict from it.
         # :: Dict[Filename:YamlStr] -> Dict[Filename:List[(MetaManifest, YamlDict)]]
-        fdata_meta, err = manio.parse(fdata_test_in)
+        fdata_meta, err = manio.parse(fdata_test_in, selectors)
         assert err is False
 
         # Drop the filenames and create a dict that uses MetaManifests as keys.
