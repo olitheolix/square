@@ -73,17 +73,20 @@ def select(manifest: dict, selectors: Selectors) -> bool:
         ns = manifest.get("metadata", {}).get("name", None)
     elif kind == "Secret":
         if name.startswith("default-token-"):
+            logit.debug("Skipping default token Secret")
             return False
     else:
         ns = manifest.get("metadata", {}).get("namespace", None)
 
     # Proceed only if the resource kind is among the desired ones.
     if kind not in selectors.kinds:
+        logit.debug(f"Kind {kind} does not match selector {selectors.kinds}")
         return False
 
     # Unless the namespace selector is None, the resource must match it.
     if selectors.namespaces is not None:
         if ns not in selectors.namespaces:
+            logit.debug(f"Namespace {ns} does not match selector {selectors.namespaces}")
             return False
 
     # Convert the labels dictionary into a set of (key, value) tuples. We can
@@ -94,6 +97,7 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     # Unless the label selector is None, the resource must match it.
     if selectors.labels is not None:
         if not selectors.labels.issubset(labels):
+            logit.debug(f"Labels {labels} do not match selector {selectors.labels}")
             return False
 
     # If we get to here then the resource matches all selectors.
@@ -242,8 +246,8 @@ def unpack(manifests: LocalManifestLists) -> Tuple[Optional[ServerManifests], bo
         if len(fnames) > 1:
             unique = False
             logit.error(
-                f"Meta manifest {meta} was defined {len(fnames)} times: "
-                f"{str.join(', ', fnames)}"
+                f"Duplicate ({len(fnames)}x) manifest {meta}. "
+                f"Defined in {str.join(', ', fnames)}"
             )
     if not unique:
         return (None, True)
