@@ -99,64 +99,6 @@ class TestBasic:
         )
         assert square.print_deltas(plan) == (None, False)
 
-    def test_prune(self):
-        """Prune a list of manifests based on namespace and resource."""
-        # Convenience.
-        mm, prune = manio.make_meta, square.prune
-
-        # Two sets of labels for the test.
-        l11 = {"app": "app1", "env": "env1"}
-        l22 = {"app": "app2", "env": "env2"}
-
-        # The list of manifests we will use in this test.
-        man_list = [
-            make_manifest("Namespace", None, "ns0", l11),      # id=0
-            make_manifest("Namespace", None, "ns1", l11),      # id=1
-            make_manifest("Deployment", "ns0", "d_ns0", l11),  # id=2
-            make_manifest("Deployment", "ns1", "d_ns1", l11),  # id=3
-            make_manifest("Service", "ns0", "s_ns0", l11),     # id=4
-            make_manifest("Service", "ns1", "s_ns1", l22),     # id=5
-            make_manifest("Secret", "ns1", "valid", l22),      # id=6
-
-            # K8s creates those automatically and we will not touch it.
-            make_manifest("Secret", "ns1", "default-token-12345")
-        ]
-        man = {mm(_): _ for _ in man_list}
-
-        # Ask for the Service manifests in all namespaces.
-        expected = {
-            mm(man_list[4]): man_list[4],
-            mm(man_list[5]): man_list[5],
-        }
-        assert prune(man, Selectors(["Service"], None, tuple())) == expected
-        assert prune(man, Selectors(["Service"], ["ns0", "ns1"], tuple())) == expected
-
-        # Ask for the Namespace-, Deployment and Secret manifests in "ns1"
-        # only. This one must contain the "valid" secret but not the
-        # "default-token-12345" secret.
-        expected = {
-            mm(man_list[1]): man_list[1],
-            mm(man_list[3]): man_list[3],
-            mm(man_list[6]): man_list[6],
-        }
-        sel = Selectors(["Namespace", "Deployment", "Secret"], ["ns1"], tuple())
-        assert prune(man, sel) == expected
-
-        # Ask for all Services with label "app=app1"
-        expected = {
-            mm(man_list[4]): man_list[4],
-        }
-        sel = Selectors(["Service"], None, (("app", "app1"),))
-        assert prune(man, sel) == expected
-
-        # Ask for all resources with label "env=env2"
-        expected = {
-            mm(man_list[5]): man_list[5],
-            mm(man_list[6]): man_list[6],
-        }
-        all_res = ["Namespace", "Deployment", "Service", "Secret"]
-        assert prune(man, Selectors(all_res, None, (("env", "env2"),))) == expected
-
 
 class TestPartition:
     @classmethod
@@ -650,12 +592,11 @@ class TestMainOptions:
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
-    @mock.patch.object(square, "prune")
     @mock.patch.object(square, "compile_plan")
     @mock.patch.object(k8s, "post")
     @mock.patch.object(k8s, "patch")
     @mock.patch.object(k8s, "delete")
-    def test_main_apply(self, m_delete, m_apply, m_post, m_plan, m_prun, m_down, m_load):
+    def test_main_apply(self, m_delete, m_apply, m_post, m_plan, m_down, m_load):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -688,16 +629,14 @@ class TestMainOptions:
         def reset_mocks():
             m_down.reset_mock()
             m_load.reset_mock()
-            m_prun.reset_mock()
             m_plan.reset_mock()
             m_post.reset_mock()
             m_apply.reset_mock()
             m_delete.reset_mock()
 
             # Pretend that all K8s requests succeed.
-            m_down.return_value = ({}, False)
-            m_load.return_value = ({}, {}, False)
-            m_prun.side_effect = ["local", "server"]
+            m_down.return_value = ("server", False)
+            m_load.return_value = ("local", None, False)
             m_plan.return_value = (plan, False)
             m_post.return_value = (None, False)
             m_apply.return_value = (None, False)
@@ -732,25 +671,21 @@ class TestMainOptions:
         #                   Simulate Error Scenarios
         # -----------------------------------------------------------------
         # Make `delete` fail.
-        m_prun.side_effect = ["local", "server"]
         m_delete.return_value = (None, True)
         with mock.patch.object(square, 'input'):
             assert square.main_apply(*args) == (None, True)
 
         # Make `patch` fail.
-        m_prun.side_effect = ["local", "server"]
         m_apply.return_value = (None, True)
         with mock.patch.object(square, 'input'):
             assert square.main_apply(*args) == (None, True)
 
         # Make `post` fail.
-        m_prun.side_effect = ["local", "server"]
         m_post.return_value = (None, True)
         with mock.patch.object(square, 'input'):
             assert square.main_apply(*args) == (None, True)
 
         # Make `compile_plan` fail.
-        m_prun.side_effect = ["local", "server"]
         m_plan.return_value = (None, True)
         with mock.patch.object(square, 'input'):
             assert square.main_apply(*args) == (None, True)
@@ -767,9 +702,8 @@ class TestMainOptions:
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
-    @mock.patch.object(square, "prune")
     @mock.patch.object(square, "compile_plan")
-    def test_main_plan(self, m_plan, m_prune, m_down, m_load):
+    def test_main_plan(self, m_plan, m_down, m_load):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -781,9 +715,8 @@ class TestMainOptions:
         plan = DeploymentPlan(create=[], patch=[], delete=[])
 
         # All auxiliary functions will succeed.
-        m_load.return_value = ({}, {}, False)
-        m_down.return_value = ({}, False)
-        m_prune.side_effect = ["local", "server"]
+        m_load.return_value = ("local", None, False)
+        m_down.return_value = ("server", False)
         m_plan.return_value = (plan, False)
 
         # The arguments to the test function will always be the same in this test.
@@ -797,7 +730,6 @@ class TestMainOptions:
         m_plan.assert_called_once_with("config", "local", "server")
 
         # Make `compile_plan` fail.
-        m_prune.side_effect = ["local", "server"]
         m_plan.return_value = (None, True)
         assert square.main_plan(*args) == (None, True)
 
@@ -811,23 +743,21 @@ class TestMainOptions:
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
-    @mock.patch.object(square, "prune")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
-    def test_main_get(self, m_save, m_sync, m_prun, m_down, m_load):
+    def test_main_get(self, m_save, m_sync, m_down, m_load):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
         verify it calls the correct functions with the correct arguments and
-        handles errors correctly.
+        handles errors.
 
         """
         # Simulate successful responses from the two auxiliary functions.
         # The `load` function must return empty dicts to ensure the error
         # conditions are properly coded.
-        m_load.return_value = ({}, {}, False)
-        m_down.return_value = ({}, False)
-        m_prun.return_value = "server"
+        m_load.return_value = ("local", {}, False)
+        m_down.return_value = ("server", False)
         m_sync.return_value = ("synced", False)
         m_save.return_value = (None, False)
 
@@ -839,7 +769,6 @@ class TestMainOptions:
         assert square.main_get(*args) == (None, False)
         m_load.assert_called_once_with("folder", selectors)
         m_down.assert_called_once_with("config", "client", selectors)
-        m_prun.assert_called_once_with({}, selectors)
         m_sync.assert_called_once_with({}, "server", selectors)
         m_save.assert_called_once_with("folder", "synced")
 
