@@ -713,7 +713,7 @@ def main() -> int:
     logit.info(f"Kubernetes version is {config.version}")
 
     # Do what user asked us to do.
-    selectors = Selectors(param.kinds, param.namespaces, param.labels)
+    selectors = Selectors(param.kinds, param.namespaces, set(param.labels))
     if param.parser == "get":
         _, err = main_get(config, client, param.folder, selectors)
     elif param.parser == "plan":
