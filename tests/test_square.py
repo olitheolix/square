@@ -826,7 +826,7 @@ class TestMain:
             del args
 
         # Every main function must have been called exactly once.
-        selectors = Selectors(["Deployment", "Service"], None, tuple())
+        selectors = Selectors(["Deployment", "Service"], None, set())
         args = config, "client", "myfolder", selectors
         m_get.assert_called_once_with(*args)
         m_plan.assert_called_once_with(*args)
@@ -907,7 +907,7 @@ class TestMain:
         # Pretend all main functions return errors.
         m_cmd.return_value = types.SimpleNamespace(
             verbosity=0, parser="invalid", kubeconfig="conf", ctx="ctx",
-            folder=None, kinds=None, namespaces=None, labels=None
+            folder=None, kinds=None, namespaces=None, labels=set()
         )
         assert square.main() == 1
 
