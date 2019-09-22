@@ -9,7 +9,7 @@ import square.manio as manio
 import square.square as square
 from square.dtypes import (
     SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    JsonPatch, MetaManifest,
+    JsonPatch, MetaManifest, Selectors,
 )
 from square.k8s import urlpath
 
@@ -128,8 +128,8 @@ class TestBasic:
             mm(man_list[4]): man_list[4],
             mm(man_list[5]): man_list[5],
         }
-        assert prune(man, ["Service"], None, tuple()) == expected
-        assert prune(man, ["Service"], ["ns0", "ns1"], tuple()) == expected
+        assert prune(man, Selectors(["Service"], None, tuple())) == expected
+        assert prune(man, Selectors(["Service"], ["ns0", "ns1"], tuple())) == expected
 
         # Ask for the Namespace-, Deployment and Secret manifests in "ns1"
         # only. This one must contain the "valid" secret but not the
@@ -139,14 +139,15 @@ class TestBasic:
             mm(man_list[3]): man_list[3],
             mm(man_list[6]): man_list[6],
         }
-        assert prune(
-            man, ["Namespace", "Deployment", "Secret"], ["ns1"], tuple()) == expected
+        sel = Selectors(["Namespace", "Deployment", "Secret"], ["ns1"], tuple())
+        assert prune(man, sel) == expected
 
         # Ask for all Services with label "app=app1"
         expected = {
             mm(man_list[4]): man_list[4],
         }
-        assert prune(man, ["Service"], None, (("app", "app1"),)) == expected
+        sel = Selectors(["Service"], None, (("app", "app1"),))
+        assert prune(man, sel) == expected
 
         # Ask for all resources with label "env=env2"
         expected = {
@@ -154,7 +155,7 @@ class TestBasic:
             mm(man_list[6]): man_list[6],
         }
         all_res = ["Namespace", "Deployment", "Service", "Secret"]
-        assert prune(man, all_res, None, (("env", "env2"),)) == expected
+        assert prune(man, Selectors(all_res, None, (("env", "env2"),))) == expected
 
 
 class TestPartition:
@@ -703,7 +704,8 @@ class TestMainOptions:
             m_delete.return_value = (None, False)
 
         # The arguments to the test function will always be the same in this test.
-        args = config, "client", "folder", "kinds", "ns", (("foo", "bar"), ("x", "y"))
+        args = config, "client", "folder", ["kinds"], ["ns"], (("foo", "bar"), ("x", "y"))
+        sel = Selectors(["kinds"], ["ns"], (("foo", "bar"), ("x", "y")))
 
         # Square must never create/patch/delete anything if the user did not
         # answer "yes".
@@ -719,8 +721,8 @@ class TestMainOptions:
         reset_mocks()
         with mock.patch.object(square, 'input', lambda _: cname):
             assert square.main_apply(*args) == (None, False)
-        m_load.assert_called_once_with("folder")
-        m_down.assert_called_once_with(config, "client", "kinds", "ns")
+        m_load.assert_called_once_with("folder", sel)
+        m_down.assert_called_once_with(config, "client", sel)
         m_plan.assert_called_once_with(config, "local", "server")
         m_post.assert_called_once_with("client", "create_url", "create_man")
         m_apply.assert_called_once_with("client", patch.url, patch.ops)
@@ -785,13 +787,14 @@ class TestMainOptions:
         m_plan.return_value = (plan, False)
 
         # The arguments to the test function will always be the same in this test.
-        args = "config", "client", "folder", "kinds", "ns", (("foo", "bar"), ("x", "y"))
+        args = "cfg", "client", "folder", ["kinds"], ["ns"], (("foo", "bar"), ("x", "y"))
+        sel = Selectors(["kinds"], ["ns"], (("foo", "bar"), ("x", "y")))
 
         # A successfull DIFF only computes and prints the plan.
         assert square.main_plan(*args) == (None, False)
-        m_load.assert_called_once_with("folder")
-        m_down.assert_called_once_with("config", "client", "kinds", "ns")
-        m_plan.assert_called_once_with("config", "local", "server")
+        m_load.assert_called_once_with("folder", sel)
+        m_down.assert_called_once_with("cfg", "client", sel)
+        m_plan.assert_called_once_with("cfg", "local", "server")
 
         # Make `compile_plan` fail.
         m_prune.side_effect = ["local", "server"]
@@ -830,12 +833,13 @@ class TestMainOptions:
 
         # The arguments to the test function will always be the same in this test.
         args = "config", "client", "folder", "kinds", "ns", (("foo", "bar"), ("x", "y"))
+        sel = Selectors("kinds", "ns", (("foo", "bar"), ("x", "y")))
 
         # Call test function and verify it passed the correct arguments.
         assert square.main_get(*args) == (None, False)
-        m_load.assert_called_once_with("folder")
-        m_down.assert_called_once_with("config", "client", "kinds", "ns")
-        m_prun.assert_called_once_with({}, "kinds", "ns", (("foo", "bar"), ("x", "y")))
+        m_load.assert_called_once_with("folder", sel)
+        m_down.assert_called_once_with("config", "client", sel)
+        m_prun.assert_called_once_with({}, sel)
         m_sync.assert_called_once_with({}, "server", "kinds", "ns")
         m_save.assert_called_once_with("folder", "synced")
 
