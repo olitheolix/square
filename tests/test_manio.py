@@ -239,9 +239,9 @@ class TestYamlManifestIO:
         }
         assert manio.parse(fdata_test_in, selectors) == (expected, False)
 
-        # Add a superfluous "---" at the beginning/end of the document. This
-        # mast not throw the parser and it must not include it in the output as
-        # an empty document.
+        # Add a superfluous "---" at the beginning or end of the document. The
+        # function must silently remove the empty document the YAML parser
+        # would produce.
         fdata_test_blank_pre = copy.deepcopy(fdata_test_in)
         fdata_test_blank_post = copy.deepcopy(fdata_test_in)
         fdata_test_blank_post["m2.yaml"] = fdata_test_blank_pre["m2.yaml"] + "\n---\n"

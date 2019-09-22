@@ -145,7 +145,9 @@ def unpack_list(manifest_list: dict,
 def parse(
         file_yaml: Dict[Filepath, str],
         selectors: Selectors) -> Tuple[Optional[LocalManifestLists], bool]:
-    """Parse all YAML strings in `file_yaml` and return result.
+    """Parse all YAML strings from `file_yaml` into `LocalManifestLists`.
+
+    Exclude all manifests that do not satisfy the `selectors`.
 
     Inputs:
         file_yaml: Dict[Filepath, str]
