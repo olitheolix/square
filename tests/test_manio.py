@@ -215,13 +215,14 @@ class TestYamlManifestIO:
             for k, v in data.items()
         }
 
-    def test_parse_ok(self):
+    def test_parse_noselector_ok(self):
         """Test function must be able to parse the YAML string and compile a dict."""
         # Generic selector that matches all manifests in this test.
         selectors = Selectors(["Deployment"], None, set())
 
         # Construct manifests like `load_files` would return them.
-        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
+        kind, ns, labels = "Deployment", "namespace", {"app": "name"}
+        dply = [make_manifest(kind, ns, f"d_{_}", labels) for _ in range(10)]
         meta = [manio.make_meta(_) for _ in dply]
         fdata_test_in = {
             "m0.yaml": [dply[0], dply[1]],
@@ -251,6 +252,54 @@ class TestYamlManifestIO:
         out, err = manio.parse(fdata_test_blank_pre, selectors)
         assert not err and len(out["m2.yaml"]) == len(expected["m2.yaml"])
 
+    def test_parse_with_selector_ok(self):
+        """Verify the the function correctly apply the selectors."""
+        # Construct manifests like `load_files` would return them.
+        kind, ns = "Deployment", "namespace"
+        dply = [
+            make_manifest(kind, ns, f"d_{_}", {"app": f"d_{_}", "cluster": "test"})
+            for _ in range(10)
+        ]
+        meta = [manio.make_meta(_) for _ in dply]
+        fdata_test_in = {
+            "m0.yaml": [dply[0], dply[1]],
+            "m2.yaml": [dply[2]],
+            "m3.yaml": [],
+        }
+        fdata_test_in = self.yamlfy(fdata_test_in)
+
+        # We expect a dict with the same keys as the input. The dict values
+        # must be a list of tuples, each of which contains the MetaManifest and
+        # actual manifest as a Python dict.
+        expected = {
+            "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
+            "m2.yaml": [(meta[2], dply[2])],
+        }
+        # Generic selector that matches all manifests in this test.
+        selectors = Selectors(["Deployment"], None, {("cluster", "test")})
+        assert manio.parse(fdata_test_in, selectors) == (expected, False)
+
+        # Same as before, but this time with the explicit namespace.
+        selectors = Selectors(["Deployment"], ["namespace"], {("cluster", "test")})
+        assert manio.parse(fdata_test_in, selectors) == (expected, False)
+
+        # Must match nothing because no resource has a "cluster=foo" label.
+        selectors = Selectors(["Deployment"], None, {("cluster", "foo")})
+        assert manio.parse(fdata_test_in, selectors) == ({}, False)
+
+        # Must match nothing because we do not have a namespace "blah".
+        selectors = Selectors(["Deployment"], ["blah"], {("cluster", "test")})
+        assert manio.parse(fdata_test_in, selectors) == ({}, False)
+
+        # Must match nothing because we do not have a resource kind "blah".
+        selectors = Selectors(["blah"], ["namespace"], {("cluster", "test")})
+        assert manio.parse(fdata_test_in, selectors) == ({}, False)
+
+        # Must match exactly one deployment due to label selector.
+        selectors = Selectors(["Deployment"], ["namespace"], {("app", "d_1")})
+        expected = {"m0.yaml": [(meta[1], dply[1])]}
+        assert manio.parse(fdata_test_in, selectors) == (expected, False)
+
     def test_parse_err(self):
         """Intercept YAML decoding errors."""
         # Generic selector that matches all manifests in this test.
@@ -261,9 +310,12 @@ class TestYamlManifestIO:
         assert manio.parse(fdata_test_in, selectors) == (None, True)
 
         # Corrupt manifests (can happen when files are read from local YAML
-        # files that are not actually K8s manifests).
+        # files that are not actually K8s manifests). This one looks valid
+        # except it misses the `metadata.name` field.
         not_a_k8s_manifest = {
-            'apiVersion': 'v1', 'kind': 'DeploymentList',
+            'apiVersion': 'v1',
+            'kind': 'Deployment',
+            'metadata': {'namespace': 'namespace'},
             'items': [{"invalid": "manifest"}]
         }
         fdata_test_in = {"m0.yaml": yaml.safe_dump(not_a_k8s_manifest)}
@@ -949,8 +1001,8 @@ class TestYamlManifestIOIntegration:
 
     def test_load_save_ok(self, tmp_path):
         """Basic test that uses the {load,save} convenience functions."""
-        # Dummy filter.
-        sel = Selectors(["service"], None, None)
+        # Generic selector that matches all manifests in this test.
+        selectors = Selectors(["Deployment"], None, set())
 
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
@@ -964,7 +1016,7 @@ class TestYamlManifestIOIntegration:
 
         # Save the test data, then load it back and verify.
         assert manio.save(tmp_path, man_files) == (None, False)
-        assert manio.load(tmp_path, sel) == (*expected, False)
+        assert manio.load(tmp_path, selectors) == (*expected, False)
 
         # Glob the folder and ensure it contains exactly the files specified in
         # the `fdata_test_in` dict.
@@ -974,12 +1026,12 @@ class TestYamlManifestIOIntegration:
         # Create non-YAML files. The `load_files` function must skip those.
         (tmp_path / "delme.txt").touch()
         (tmp_path / "foo" / "delme.txt").touch()
-        assert manio.load(tmp_path, sel) == (*expected, False)
+        assert manio.load(tmp_path, selectors) == (*expected, False)
 
     def test_save_delete_stale_yaml(self, tmp_path):
         """`save_file` must remove all excess YAML files."""
-        # Dummy filter.
-        sel = Selectors(["service"], None, None)
+        # Generic selector that matches all manifests in this test.
+        selectors = Selectors(["Deployment"], None, set())
 
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
@@ -997,7 +1049,7 @@ class TestYamlManifestIOIntegration:
 
         # Save and load the test data.
         assert manio.save(tmp_path, man_files) == (None, False)
-        assert manio.load(tmp_path, sel) == (*expected, False)
+        assert manio.load(tmp_path, selectors) == (*expected, False)
 
         # Save a reduced set of files. Compared to `fdata_full`, it is two
         # files short and a third one ("bar/m4.yaml") is empty.
@@ -1018,7 +1070,7 @@ class TestYamlManifestIOIntegration:
         # Load the data. It must neither contain the files we removed from the
         # dict above, nor "bar/m4.yaml" which contained an empty manifest list.
         del fdata_reduced["bar/m4.yaml"]
-        assert manio.load(tmp_path, sel) == (*expected, False)
+        assert manio.load(tmp_path, selectors) == (*expected, False)
 
         # Verify that the files physically do not exist anymore.
         assert not (tmp_path / "m0.yaml").exists()
@@ -1028,10 +1080,10 @@ class TestYamlManifestIOIntegration:
     @mock.patch.object(manio, "load_files")
     def test_load_err(self, m_load, tmp_path):
         """Simulate an error in `load_files` function."""
-        # Dummy filter.
-        sel = Selectors(["service"], None, None)
+        # Generic selector that matches all manifests in this test.
+        selectors = Selectors(["Deployment"], None, set())
         m_load.return_value = (None, True)
-        assert manio.load(tmp_path, sel) == (None, None, True)
+        assert manio.load(tmp_path, selectors) == (None, None, True)
 
     @mock.patch.object(manio, "unparse")
     def test_save_err(self, m_unparse, tmp_path):

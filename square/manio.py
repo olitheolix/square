@@ -176,12 +176,19 @@ def parse(
             )
             return (None, True)
 
+        # Remove all empty manifests. This typically happens when the YAML
+        # file ends with a "---" string.
+        manifests = [_ for _ in manifests if _ is not None]
+
+        # Retain only those manifests that satisfy the selectors.
+        manifests = [_ for _ in manifests if select(_, selectors)]
+
         # Convert List[manifest] into List[(MetaManifest, manifest)].
         # Abort if `make_meta` throws a KeyError which happens if `file_yaml`
         # does not actually contain a Kubernetes manifest but some other
         # (valid) YAML.
         try:
-            out[fname] = [(make_meta(_), _) for _ in manifests if _ is not None]
+            out[fname] = [(make_meta(_), _) for _ in manifests]
         except KeyError:
             logit.error(f"{file_yaml} does not look like a K8s manifest file.")
             return None, True
