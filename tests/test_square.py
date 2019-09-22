@@ -704,8 +704,8 @@ class TestMainOptions:
             m_delete.return_value = (None, False)
 
         # The arguments to the test function will always be the same in this test.
-        args = config, "client", "folder", ["kinds"], ["ns"], (("foo", "bar"), ("x", "y"))
-        sel = Selectors(["kinds"], ["ns"], (("foo", "bar"), ("x", "y")))
+        selectors = Selectors(["kinds"], ["ns"], (("foo", "bar"), ("x", "y")))
+        args = config, "client", "folder", selectors
 
         # Square must never create/patch/delete anything if the user did not
         # answer "yes".
@@ -721,8 +721,8 @@ class TestMainOptions:
         reset_mocks()
         with mock.patch.object(square, 'input', lambda _: cname):
             assert square.main_apply(*args) == (None, False)
-        m_load.assert_called_once_with("folder", sel)
-        m_down.assert_called_once_with(config, "client", sel)
+        m_load.assert_called_once_with("folder", selectors)
+        m_down.assert_called_once_with(config, "client", selectors)
         m_plan.assert_called_once_with(config, "local", "server")
         m_post.assert_called_once_with("client", "create_url", "create_man")
         m_apply.assert_called_once_with("client", patch.url, patch.ops)
@@ -787,14 +787,14 @@ class TestMainOptions:
         m_plan.return_value = (plan, False)
 
         # The arguments to the test function will always be the same in this test.
-        args = "cfg", "client", "folder", ["kinds"], ["ns"], (("foo", "bar"), ("x", "y"))
-        sel = Selectors(["kinds"], ["ns"], (("foo", "bar"), ("x", "y")))
+        selectors = Selectors(["kinds"], ["ns"], (("foo", "bar"), ("x", "y")))
+        args = "config", "client", "folder", selectors
 
         # A successfull DIFF only computes and prints the plan.
         assert square.main_plan(*args) == (None, False)
-        m_load.assert_called_once_with("folder", sel)
-        m_down.assert_called_once_with("cfg", "client", sel)
-        m_plan.assert_called_once_with("cfg", "local", "server")
+        m_load.assert_called_once_with("folder", selectors)
+        m_down.assert_called_once_with("config", "client", selectors)
+        m_plan.assert_called_once_with("config", "local", "server")
 
         # Make `compile_plan` fail.
         m_prune.side_effect = ["local", "server"]
@@ -832,15 +832,15 @@ class TestMainOptions:
         m_save.return_value = (None, False)
 
         # The arguments to the test function will always be the same in this test.
-        args = "config", "client", "folder", "kinds", "ns", (("foo", "bar"), ("x", "y"))
-        sel = Selectors("kinds", "ns", (("foo", "bar"), ("x", "y")))
+        selectors = Selectors(["kinds"], ["ns"], (("foo", "bar"), ("x", "y")))
+        args = "config", "client", "folder", selectors
 
         # Call test function and verify it passed the correct arguments.
         assert square.main_get(*args) == (None, False)
-        m_load.assert_called_once_with("folder", sel)
-        m_down.assert_called_once_with("config", "client", sel)
-        m_prun.assert_called_once_with({}, sel)
-        m_sync.assert_called_once_with({}, "server", "kinds", "ns")
+        m_load.assert_called_once_with("folder", selectors)
+        m_down.assert_called_once_with("config", "client", selectors)
+        m_prun.assert_called_once_with({}, selectors)
+        m_sync.assert_called_once_with({}, "server", selectors)
         m_save.assert_called_once_with("folder", "synced")
 
         # Simulate an error with `manio.save`.
@@ -897,7 +897,8 @@ class TestMain:
             del args
 
         # Every main function must have been called exactly once.
-        args = config, "client", "myfolder", ["Deployment", "Service"], None, tuple()
+        selectors = Selectors(["Deployment", "Service"], None, tuple())
+        args = config, "client", "myfolder", selectors
         m_get.assert_called_once_with(*args)
         m_plan.assert_called_once_with(*args)
         m_apply.assert_called_once_with(*args)

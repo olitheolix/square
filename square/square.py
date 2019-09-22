@@ -579,9 +579,7 @@ def main_apply(
         config: Config,
         client,
         folder: Filepath,
-        kinds: Iterable[str],
-        namespaces: Optional[Iterable[str]],
-        labels: Iterable[Tuple[str, str]],
+        selectors: Selectors,
 ) -> Tuple[None, bool]:
     """Update K8s to match the specifications in `local_manifests`.
 
@@ -593,21 +591,14 @@ def main_apply(
         client: `requests` session with correct K8s certificates.
         folder: Filepath
             Path to local manifests eg "./foo"
-        kinds: Iterable
-            Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespaces: Iterable
-            Only use those namespaces. Set to `None` to use all.
-        labels: Iterable
-            Only use manifests with those labels.
+        selectors: Selectors
+            Only operate on resources that match the selectors.
 
     Returns:
         None
 
     """
     try:
-        # Manifest selection filter.
-        selectors = Selectors(kinds, namespaces, labels)
-
         # Load manifests from local files.
         local_meta, _, err = manio.load(folder, selectors)
         assert not err and local_meta is not None
@@ -666,9 +657,7 @@ def main_plan(
         config: Config,
         client,
         folder: Filepath,
-        kinds: Iterable[str],
-        namespaces: Optional[Iterable[str]],
-        labels: Iterable[Tuple[str, str]],
+        selectors: Selectors,
 ) -> Tuple[None, bool]:
     """Print the diff between `local_manifests` and `server_manifests`.
 
@@ -680,12 +669,8 @@ def main_plan(
         client: `requests` session with correct K8s certificates.
         folder: Path
             Path to local manifests eg "./foo"
-        kinds: Iterable
-            Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespaces: Iterable
-            Only use those namespaces. Set to `None` to use all.
-        labels: Iterable
-            Only use manifests with those labels.
+        selectors: Selectors
+            Only operate on resources that match the selectors.
 
     Returns:
         None
@@ -693,7 +678,6 @@ def main_plan(
     """
     try:
         # Load manifests from local files.
-        selectors = Selectors(kinds, namespaces, labels)
         local_meta, _, err = manio.load(folder, selectors)
         assert not err and local_meta is not None
 
@@ -722,9 +706,7 @@ def main_get(
         config: Config,
         client,
         folder: Filepath,
-        kinds: Iterable[str],
-        namespaces: Optional[Iterable[str]],
-        labels: Iterable[Tuple[str, str]],
+        selectors: Selectors,
 ) -> Tuple[None, bool]:
 
     """Download all K8s manifests and merge them into local files.
@@ -734,20 +716,14 @@ def main_get(
         client: `requests` session with correct K8s certificates.
         folder: Path
             Path to local manifests eg "./foo"
-        kinds: Iterable
-            Resource types to fetch, eg ["Deployment", "Namespace"]
-        namespaces: Iterable
-            Only use those namespaces. Set to `None` to use all.
-        labels: Iterable
-            Only use manifests with those labels.
+        selectors: Selectors
+            Only operate on resources that match the selectors.
 
     Returns:
         None
 
     """
     try:
-        selectors = Selectors(kinds, namespaces, labels)
-
         # Load manifests from local files.
         _, local_files, err = manio.load(folder, selectors)
         assert not err and local_files is not None
@@ -764,7 +740,7 @@ def main_get(
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see next step.
-        synced_manifests, err = manio.sync(local_files, server, kinds, namespaces)
+        synced_manifests, err = manio.sync(local_files, server, selectors)
         assert not err and synced_manifests
 
         # Write the new manifest files.
@@ -808,13 +784,13 @@ def main() -> int:
     logit.info(f"Kubernetes version is {config.version}")
 
     # Do what user asked us to do.
-    args = param.folder, param.kinds, param.namespaces, param.labels
+    selectors = Selectors(param.kinds, param.namespaces, param.labels)
     if param.parser == "get":
-        _, err = main_get(config, client, *args)
+        _, err = main_get(config, client, param.folder, selectors)
     elif param.parser == "plan":
-        _, err = main_plan(config, client, *args)
+        _, err = main_plan(config, client, param.folder, selectors)
     elif param.parser == "apply":
-        _, err = main_apply(config, client, *args)
+        _, err = main_apply(config, client, param.folder, selectors)
     else:
         logit.error(f"Unknown command <{param.parser}>")
         return 1
