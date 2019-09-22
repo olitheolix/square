@@ -100,7 +100,8 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     return True
 
 
-def unpack_list(manifest_list: dict) -> Tuple[Optional[ServerManifests], bool]:
+def unpack_list(manifest_list: dict,
+                selectors: Selectors) -> Tuple[Optional[ServerManifests], bool]:
     """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
 
     Return a dictionary where each key uniquely identifies the resource via a
@@ -109,6 +110,7 @@ def unpack_list(manifest_list: dict) -> Tuple[Optional[ServerManifests], bool]:
     Input:
         manifest_list: dict
             K8s response from GET request for eg `deployments`.
+        selectors: Selectors
 
     Returns:
         dict[MetaManifest:dict]
@@ -754,7 +756,7 @@ def download(
 
                 # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a
                 # Dict[MetaManifest, dict] dictionary.
-                manifests, err = unpack_list(manifest_list)
+                manifests, err = unpack_list(manifest_list, selectors)
                 assert not err and manifests is not None
 
                 # Drop all manifest fields except "apiVersion", "metadata" and "spec".

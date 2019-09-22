@@ -137,12 +137,13 @@ class TestUnpackParse:
         square.setup_logging(9)
 
     def test_unpack_list_ok(self):
-        """Convert eg a DeploymentList into a Python dict of Deployments."""
+        """Convert eg a `DeploymentList` into a Python dict of `Deployments`."""
         # Demo manifests.
         manifests = [
             make_manifest('Deployment', f'ns_{_}', f'name_{_}')
             for _ in range(3)
         ]
+        selectors = Selectors(["Deployment"], None, set())
 
         # The actual DeploymentList returned from K8s.
         manifest_list = {
@@ -153,7 +154,7 @@ class TestUnpackParse:
 
         # Parse the DeploymentList into a dict. The keys are ManifestTuples and
         # the values are the Deployment (*not* DeploymentList) manifests.
-        data, err = manio.unpack_list(manifest_list)
+        data, err = manio.unpack_list(manifest_list, selectors)
         assert err is False
 
         # Verify the Python dict.
@@ -177,27 +178,30 @@ class TestUnpackParse:
         `DeploymentList`.
 
         """
+        # Generic selector that matches all manifests in this test.
+        selectors = Selectors(["Deployment"], None, set())
+
         # Valid input.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList', 'items': []}
-        ret = manio.unpack_list(src)
+        ret = manio.unpack_list(src, selectors)
         assert ret == ({}, False)
 
         # Missing `apiVersion`.
         src = {'kind': 'DeploymentList', 'items': []}
-        assert manio.unpack_list(src) == (None, True)
+        assert manio.unpack_list(src, selectors) == (None, True)
 
         # Missing `kind`.
         src = {'apiVersion': 'v1', 'items': []}
-        assert manio.unpack_list(src) == (None, True)
+        assert manio.unpack_list(src, selectors) == (None, True)
 
         # Missing `items`.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList'}
-        assert manio.unpack_list(src) == (None, True)
+        assert manio.unpack_list(src, selectors) == (None, True)
 
         # All fields present but `kind` does not end in List (case sensitive).
         for invalid_kind in ('Deploymentlist', 'Deployment'):
             src = {'apiVersion': 'v1', 'kind': invalid_kind, 'items': []}
-            assert manio.unpack_list(src) == (None, True)
+            assert manio.unpack_list(src, selectors) == (None, True)
 
 
 class TestYamlManifestIO:
@@ -262,7 +266,7 @@ class TestYamlManifestIO:
     def test_unpack_ok(self):
         """Test function must remove the filename dimension.
 
-        All meta manifests are unique in this test. See `test_unpakc_err` for
+        All meta manifests are unique in this test. See `test_unpack_err` for
         what happens if not.
 
         """
