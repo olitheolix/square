@@ -125,10 +125,14 @@ class TestHelpers:
         # ---------------------------------------------------------------------
         #                      Default Token Secret
         # ---------------------------------------------------------------------
-        # Iterate over (almost) all valid selectors.
+        # Must always ignore "default-token-*" Secrets.
         kind, ns = "Secret", "ns1"
         manifest = make_manifest(kind, ns, "default-token-12345")
         assert select(manifest, Selectors(kind, ns, set())) is False
+
+        # Must select all other Secret that match the selector.
+        manifest = make_manifest(kind, ns, "some-secret")
+        assert select(manifest, Selectors(kind, ns, set())) is True
 
 
 class TestUnpackParse:
