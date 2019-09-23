@@ -75,6 +75,7 @@ def select(manifest: dict, selectors: Selectors) -> bool:
         if name.startswith("default-token-"):
             logit.debug("Skipping default token Secret")
             return False
+        ns = manifest.get("metadata", {}).get("namespace", None)
     else:
         ns = manifest.get("metadata", {}).get("namespace", None)
 
