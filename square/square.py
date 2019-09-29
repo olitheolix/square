@@ -510,8 +510,11 @@ def setup_logging(log_level: int) -> None:
     logit.info(f"Set log level to {level}")
 
 
-def user_confirmed(answer: str = "yes") -> bool:
-    """Return True iff the user answers with `answer`."""
+def user_confirmed(answer: Optional[str] = "yes") -> bool:
+    """Return True iff the user answers with `answer` or `answer` is None."""
+    if answer is None:
+        return True
+
     assert answer, "BUG: desired answer must be non-empty string"
     print(f"Apply the changes?")
     print(f'Only "{answer}" will commence the rollout.')
