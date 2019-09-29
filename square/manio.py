@@ -433,16 +433,6 @@ def filename_for_manifest(
         Filepath
 
     """
-    if grouping is None:
-        # Put the resource into the correct "catch-all" file. However, we
-        # must first determine the namespace, which differs depending on
-        # whether the resource is a Namespace or other resource.
-        if meta.kind == "Namespace":
-            catch_all = f"_{meta.name}.yaml"
-        else:
-            catch_all = f"_{meta.namespace}.yaml"
-        return catch_all, False
-
     # -------------------------------------------------------------------------
     #                            Sanity checks
     # -------------------------------------------------------------------------
