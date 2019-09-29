@@ -399,7 +399,8 @@ def sync(
             # Find the file that defined `meta` and its position inside that file.
             fname, idx = meta_to_fname[meta]
         except KeyError:
-            fname, err = filename_for_manifest(meta, manifest, None)
+            groupby = ManifestGrouping(order=[], label="")
+            fname, err = filename_for_manifest(meta, manifest, groupby)
             if err:
                 return (None, True)
             out_add_mod[fname].append((meta, manifest))
@@ -457,7 +458,7 @@ def filename_for_manifest(
     # -------------------------------------------------------------------------
     #                           Compile The Path
     # -------------------------------------------------------------------------
-    labels = manifest["metadata"].get("labels", {})
+    labels = manifest.get("metadata", {}).get("labels", {})
     lut = {
         "ns": meta.namespace,
         "kind": meta.kind.lower(),
