@@ -645,7 +645,7 @@ class TestMainOptions:
 
         # The arguments to the test function will always be the same in this test.
         selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
-        args = config, "client", "folder", selectors
+        args = config, "client", "folder", selectors, "correct answer"
 
         # Square must never create/patch/delete anything if the user did not
         # answer "yes".
@@ -659,7 +659,7 @@ class TestMainOptions:
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
         reset_mocks()
-        with mock.patch.object(square, 'input', lambda _: cname):
+        with mock.patch.object(square, 'input', lambda _: "correct answer"):
             assert square.main_apply(*args) == (None, False)
         m_load.assert_called_once_with("folder", selectors)
         m_down.assert_called_once_with(config, "client", selectors)
@@ -671,35 +671,32 @@ class TestMainOptions:
         # -----------------------------------------------------------------
         #                   Simulate Error Scenarios
         # -----------------------------------------------------------------
+        # Same arguments, but disable security question.
+        args = config, "client", "folder", selectors, None
+
         # Make `delete` fail.
         m_delete.return_value = (None, True)
-        with mock.patch.object(square, 'input'):
-            assert square.main_apply(*args) == (None, True)
+        assert square.main_apply(*args) == (None, True)
 
         # Make `patch` fail.
         m_apply.return_value = (None, True)
-        with mock.patch.object(square, 'input'):
-            assert square.main_apply(*args) == (None, True)
+        assert square.main_apply(*args) == (None, True)
 
         # Make `post` fail.
         m_post.return_value = (None, True)
-        with mock.patch.object(square, 'input'):
-            assert square.main_apply(*args) == (None, True)
+        assert square.main_apply(*args) == (None, True)
 
         # Make `compile_plan` fail.
         m_plan.return_value = (None, True)
-        with mock.patch.object(square, 'input'):
-            assert square.main_apply(*args) == (None, True)
+        assert square.main_apply(*args) == (None, True)
 
         # Make `download_manifests` fail.
         m_down.return_value = (None, True)
-        with mock.patch.object(square, 'input'):
-            assert square.main_apply(*args) == (None, True)
+        assert square.main_apply(*args) == (None, True)
 
         # Make `load` fail.
         m_load.return_value = (None, None, True)
-        with mock.patch.object(square, 'input'):
-            assert square.main_apply(*args) == (None, True)
+        assert square.main_apply(*args) == (None, True)
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
@@ -831,7 +828,7 @@ class TestMain:
         args = config, "client", pathlib.Path("myfolder"), selectors
         m_get.assert_called_once_with(*args)
         m_plan.assert_called_once_with(*args)
-        m_apply.assert_called_once_with(*args)
+        m_apply.assert_called_once_with(*args, config.name)
 
     def test_main_version(self):
         """Simulate "version" command."""
