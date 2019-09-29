@@ -1033,11 +1033,15 @@ class TestMain:
                 assert ret.folder == "./"
 
     def test_user_confirmed(self):
-        # "yes" must return True.
+        """Verify user confirmation dialog."""
+        # Disable dialog and assume a correct answer.
+        assert square.user_confirmed(None) is True
+
+        # Answer matches expected answer: must return True.
         with mock.patch.object(square, 'input', lambda _: "yes"):
             assert square.user_confirmed("yes") is True
 
-        # Everything other than "yes" must return False.
+        # Every other answer must return False.
         answers = ("YES", "", "y", "ye", "yess", "blah")
         for answer in answers:
             with mock.patch.object(square, 'input', lambda _: answer):
