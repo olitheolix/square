@@ -399,27 +399,42 @@ def sync(
             # Find the file that defined `meta` and its position inside that file.
             fname, idx = meta_to_fname[meta]
         except KeyError:
-            # Put the resource into the correct "catch-all" file. However, we
-            # must first determine the namespace, which differs depending on
-            # whether the resource is a Namespace or other resource.
-            if meta.kind == "Namespace":
-                catch_all = f"_{meta.name}.yaml"
-            else:
-                catch_all = f"_{meta.namespace}.yaml"
-            out_add_mod[catch_all].append((meta, manifest))
+            fname = filename_for_manifest(meta)
+            out_add_mod[fname].append((meta, manifest))
         else:
             # Update the correct YAML document in the correct file.
             out_add_mod[fname][idx] = (meta, manifest)
 
     # Iterate over all manifests in all files and drop the resources that do
     # not exist on the server. This will, in effect, delete those resources in
-    # the local files if the caller chooser to save them.
+    # the local files if the caller chooses to save them.
     out_add_mod_del = {}
     for fname, manifests in out_add_mod.items():
         pruned = [(meta, man) for (meta, man) in manifests if meta in server_manifests]
         out_add_mod_del[fname] = pruned
 
     return (out_add_mod_del, False)
+
+
+def filename_for_manifest(meta: MetaManifest) -> Filepath:
+    """Return the file for the manifest based on `groupby`.
+
+    Inputs:
+        meta: MetaManifest
+        groupby: ManifestGrouping
+
+    Output:
+        Filepath
+
+    """
+    # Put the resource into the correct "catch-all" file. However, we
+    # must first determine the namespace, which differs depending on
+    # whether the resource is a Namespace or other resource.
+    if meta.kind == "Namespace":
+        catch_all = f"_{meta.name}.yaml"
+    else:
+        catch_all = f"_{meta.namespace}.yaml"
+    return catch_all
 
 
 def diff(
@@ -443,8 +458,8 @@ def diff(
         produce it.
 
     """
-    # Clean up the input manifests because we do not want to diff the eg
-    # `status` fields.
+    # Clean up the input manifests because we do not want to diff, for instance,
+    # the `status` fields.
     srv, err1 = strip(config, server)
     loc, err2 = strip(config, local)
     if err1 or err2:
