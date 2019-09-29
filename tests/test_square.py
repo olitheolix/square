@@ -28,10 +28,6 @@ class TestLogging:
 
 class TestBasic:
     @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
-    @classmethod
     def teardown_class(cls):
         pass
 
@@ -102,10 +98,6 @@ class TestBasic:
 
 
 class TestPartition:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     def test_partition_manifests_patch(self):
         """Local and server manifests match.
 
@@ -202,10 +194,6 @@ class TestPartition:
 
 
 class TestPatchK8s:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     def test_make_patch_empty(self):
         """Basic test: compute patch between two identical resources."""
         # Setup.
@@ -308,10 +296,6 @@ class TestPatchK8s:
 
 
 class TestPlan:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     def test_make_patch_ok(self):
         """Compute patch between two manifests.
 
@@ -587,10 +571,6 @@ class TestPlan:
 
 
 class TestMainOptions:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
     @mock.patch.object(square, "compile_plan")
@@ -788,10 +768,6 @@ class TestMainOptions:
 
 
 class TestMain:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "main_get")
     @mock.patch.object(square, "main_plan")

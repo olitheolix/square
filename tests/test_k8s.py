@@ -7,7 +7,6 @@ import unittest.mock as mock
 import pytest
 import requests_mock
 import square.k8s as k8s
-import square.square as square
 import yaml
 from square.dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config
 
@@ -19,10 +18,6 @@ def m_requests(request):
 
 
 class TestK8sDeleteGetPatchPost:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     def test_session(self):
         """Verify the `requests.Session` object is correctly setup."""
         # Basic.
@@ -199,10 +194,6 @@ class TestK8sDeleteGetPatchPost:
 
 
 class TestK8sVersion:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     @mock.patch.object(k8s, "get")
     def test_version_auto_ok(self, m_get):
         """Get K8s version number from API server."""
@@ -263,10 +254,6 @@ class TestK8sVersion:
 
 
 class TestUrlPathBuilder:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     def test_supported_resources_versions(self):
         """Verify the global variables.
 
@@ -311,10 +298,6 @@ class TestUrlPathBuilder:
 
 
 class TestK8sKubeconfig:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     @mock.patch.object(k8s.os, "getenv")
     def test_incluster(self, m_getenv, tmp_path):
         """Create dummy certificate files and ensure the function loads them."""
