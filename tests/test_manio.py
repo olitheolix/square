@@ -7,7 +7,6 @@ import square.dotdict as dotdict
 import square.k8s as k8s
 import square.manio as manio
 import square.schemas as schemas
-import square.square as square
 import yaml
 from square.dtypes import (
     SUPPORTED_KINDS, SUPPORTED_VERSIONS, MetaManifest, Selectors,
@@ -18,10 +17,6 @@ from .test_helpers import make_manifest, mk_deploy
 
 
 class TestHelpers:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     def test_make_meta(self):
         """Basic test for helper class, especially Namespaces.
 
@@ -136,10 +131,6 @@ class TestHelpers:
 
 
 class TestUnpackParse:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     def test_unpack_list_without_selectors_ok(self):
         """Convert eg a `DeploymentList` into a Python dict of `Deployments`."""
         # Demo manifests for this test.
@@ -280,10 +271,6 @@ class TestUnpackParse:
 
 
 class TestYamlManifestIO:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     def yamlfy(self, data):
         return {
             k: yaml.safe_dump_all(v, default_flow_style=False)
@@ -636,10 +623,6 @@ class TestYamlManifestIO:
 
 
 class TestManifestValidation:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     def test_schemas(self):
         """There must be schemas for all supported versions and kinds.
 
@@ -962,10 +945,6 @@ class TestManifestValidation:
 
 
 class TestDiff:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     def test_diff_ok(self):
         """Diff two valid manifests and (roughly) verify the output."""
         # Dummy config for (only "version" is relevant).
@@ -1009,11 +988,6 @@ class TestDiff:
 
 class TestYamlManifestIOIntegration:
     """These integration tests all write files to temporary folders."""
-
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     def test_load_save_files(self, tmp_path):
         """Basic file loading/saving tests."""
         # Demo file names and content.
@@ -1168,10 +1142,6 @@ class TestYamlManifestIOIntegration:
 
 
 class TestSync:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     def test_sync_modify_selective_kind_and_namespace_ok(self):
         """Add, modify and delete a few manifests.
 
@@ -1511,10 +1481,6 @@ class TestSync:
 
 
 class TestDownloadManifests:
-    @classmethod
-    def setup_class(cls):
-        square.setup_logging(9)
-
     @mock.patch.object(k8s, 'get')
     def test_download_ok(self, m_get):
         """Download two kinds of manifests: Deployments and Namespaces.
