@@ -1170,6 +1170,61 @@ class TestSync:
         groupby = G(order=["label"], label="app")
         assert fun(meta, man, groupby) == ("app.yaml", False)
 
+    def test_filename_for_manifest_namespace(self):
+        """Namespace related tests.
+
+        Namespaces are special since they are not themselves namespaced.
+
+        """
+        # Convenience.
+        fun, G = manio.filename_for_manifest, ManifestGrouping
+
+        # Valid manifest with an "app" LABEL.
+        man = make_manifest("Namespace", None, "nsname", {"app": "app"})
+        meta = manio.make_meta(man)
+
+        # No grouping - all namespaces must end up in `_all.yaml`.
+        groupby = G(order=[], label="")
+        assert fun(meta, man, groupby) == ("_all.yaml", False)
+
+        # Group by NAMESPACE and kind.
+        groupby = G(order=["ns", "kind"], label="")
+        assert fun(meta, man, groupby) == ("nsname/namespace.yaml", False)
+
+        # Group by KIND and NAMESPACE (inverse of previous test).
+        groupby = G(order=["kind", "ns"], label="")
+        assert fun(meta, man, groupby) == ("namespace/nsname.yaml", False)
+
+        # Group by the existing LABEL "app".
+        groupby = G(order=["label"], label="app")
+        assert fun(meta, man, groupby) == ("app.yaml", False)
+
+    def test_filename_for_manifest_not_namespaced(self):
+        """Resources that exist outside namespaces, like ClusterRole."""
+        # Convenience.
+        fun, G = manio.filename_for_manifest, ManifestGrouping
+
+        # Valid manifest with an "app" LABEL.
+        for kind in ("ClusterRole", "ClusterRoleBinding"):
+            man = make_manifest(kind, None, "name", {"app": "app"})
+            meta = manio.make_meta(man)
+
+            # No grouping - all resources must end up in `_all.yaml`.
+            groupby = G(order=[], label="")
+            assert fun(meta, man, groupby) == ("_all.yaml", False)
+
+            # Group by NAMESPACE and kind: must ignore the folder.
+            groupby = G(order=["ns", "kind"], label="")
+            assert fun(meta, man, groupby) == (f"{kind.lower()}.yaml", False)
+
+            # Group by KIND and NAMESPACE (inverse of previous test).
+            groupby = G(order=["kind", "ns"], label="")
+            assert fun(meta, man, groupby) == (f"{kind.lower()}.yaml", False)
+
+            # Group by the existing LABEL "app".
+            groupby = G(order=["label"], label="app")
+            assert fun(meta, man, groupby) == ("app.yaml", False)
+
     def test_filename_for_manifest_valid_but_no_label(self):
         """Consider corner cases when sorting by a non-existing label."""
         # Convenience.
@@ -1428,7 +1483,7 @@ class TestSync:
 
         # First, create the local manifests as `load_files` would return it.
         # The `{0: "blah"}` like dicts are necessary because the
-        # `filename_from_manifest` function requires a dict to operate on. The
+        # `filename_for_manifest` function requires a dict to operate on. The
         # "0" part of the dict is otherwise meaningless.
         meta_1 = [manio.make_meta(mk_deploy(f"d_{_}", "ns1")) for _ in range(10)]
         meta_2 = [manio.make_meta(mk_deploy(f"d_{_}", "ns2")) for _ in range(10)]

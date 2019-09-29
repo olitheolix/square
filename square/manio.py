@@ -435,9 +435,7 @@ def filename_for_manifest(
         Filepath
 
     """
-    # -------------------------------------------------------------------------
-    #                            Sanity checks
-    # -------------------------------------------------------------------------
+    # --- Sanity checks ---
     if not set(grouping.order).issubset({"ns", "kind", "label"}):
         logit.error(f"Invalid resource ordering: {grouping.order}")
         return "", True
@@ -447,18 +445,31 @@ def filename_for_manifest(
             logit.error("Must specify a non-empty label when grouping by it")
             return "", True
 
-    # -------------------------------------------------------------------------
-    #                           Compile The Path
-    # -------------------------------------------------------------------------
+    # --- Special case: non-namespaced resources ---.
+    # Ignore "namespace" grouping for non-namespaced resources like `ClusterRole`.
+    order = list(grouping.order)
+    if meta.kind in ("ClusterRole", "ClusterRoleBinding") and "ns" in order:
+        order = [_ for _ in order if _ != "ns"]
+
+    # Convenience: reliably extract a label dictionary even when the original
+    # manifest has none.
     labels = manifest.get("metadata", {}).get("labels", {})
+
+    # Helper LookUpTable to match the user specified group name with the actual
+    # name from of that resource from the manifest... yeah, that makes sense.
     lut = {
         "ns": meta.namespace,
         "kind": meta.kind.lower(),
         "label": labels.get(grouping.label, "_all"),
     }
-    path_constituents = [lut[_] for _ in grouping.order]
+
+    # Concatenate the components according to `grouping.order` to produce the
+    # full file name.
+    path_constituents = [lut[_] for _ in order]
     path = str.join("/", path_constituents)
 
+    # Default to the catch-all `_all.yaml` resource if the order did not
+    # produce a file name. This typically happens when `grouping.order = []`.
     path = "_all.yaml" if path == "" else f"{path}.yaml"
     return path, False
 
