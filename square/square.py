@@ -515,10 +515,13 @@ def user_confirmed(answer: Optional[str] = "yes") -> bool:
     if answer is None:
         return True
 
-    assert answer, "BUG: desired answer must be non-empty string"
-    print(f"Apply the changes?")
-    print(f'Only "{answer}" will commence the rollout.')
+    assert answer, "BUG: desired answer must be non-empty string or `None`"
 
+    cDel = colorama.Fore.RED
+    cReset = colorama.Fore.RESET
+
+    # Confirm with user.
+    print(f"Type {cDel}{answer}{cReset} to apply the plan.")
     try:
         return input("  Your answer: ") == answer
     except KeyboardInterrupt:
