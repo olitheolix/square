@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tests
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: demo-secret
+  namespace: tests
+data:
+  mysecret: blah
+
+---
+
+apiVersion: v1
+data:
+  version: v1
+kind: ConfigMap
+metadata:
+  name: demo-configmap
+  namespace: tests
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demoapp
+  namespace: tests
+  labels:
+    app: demoapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demoapp
+  template:
+    metadata:
+      labels:
+        app: demoapp
+        tag: v1
+    spec:
+      containers:
+        - name: demoapp
+          image: alpine:latest
+          command: ["sleep", "100d"]
