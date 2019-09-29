@@ -1174,10 +1174,25 @@ class TestSync:
         meta, man = _mm("Deployment", "ns", "name", {"app": "app"})
         assert fun(meta, man, groupby) == (P("app.yaml"), False)
 
+    def test_filename_for_manifest_valid_but_no_label(self):
+        """Consider corner cases when sorting by a non-existing label."""
+        # Convenience.
+        fun, P, G = manio.filename_for_manifest, pathlib.Path, ManifestGrouping
+
+        # This manifest has no label, most notably not a "app" LABEL.
+        man = make_manifest("Deployment", "ns", "name", {})
+        meta = manio.make_meta(man)
+
         # Dump everything into "_all.yaml" if LABEL "app" does not exist.
         groupby = G(order=["label"], label="app")
-        meta, man = _mm("Deployment", "ns", "name", {})
         assert fun(meta, man, groupby) == (P("_all.yaml"), False)
+
+        # Use `_all` as the name if LABEL "app" does not exist.
+        groupby = G(order=["ns", "label"], label="app")
+        assert fun(meta, man, groupby) == (P("ns/_all.yaml"), False)
+
+        groupby = G(order=["label", "ns"], label="app")
+        assert fun(meta, man, groupby) == (P("_all/ns.yaml"), False)
 
     def test_filename_for_manifest_err(self):
         """Verify a few invalid file name conventions."""
