@@ -1149,29 +1149,24 @@ class TestSync:
         # Convenience.
         fun, P, G = manio.filename_for_manifest, pathlib.Path, ManifestGrouping
 
-        def _mm(kind, ns, name, labels):
-            man = make_manifest(kind, ns, name, labels)
-            meta = manio.make_meta(man)
-            return meta, man
+        # Valid manifest with an "app" LABEL.
+        man = make_manifest("Deployment", "ns", "name", {"app": "app"})
+        meta = manio.make_meta(man)
 
         # No grouping - all manifests must end up in `_all.yaml`.
         groupby = G(order=[], label="")
-        meta, man = _mm("Deployment", "ns", "name", {"app": "app"})
         assert fun(meta, man, groupby) == (P("_all.yaml"), False)
 
         # Group by NAMESPACE and kind.
         groupby = G(order=["ns", "kind"], label="")
-        meta, man = _mm("Deployment", "ns", "name", {"app": "app"})
         assert fun(meta, man, groupby) == (P("ns/deployment.yaml"), False)
 
         # Group by KIND and NAMESPACE (inverse of previous test).
         groupby = G(order=["kind", "ns"], label="")
-        meta, man = _mm("Deployment", "ns", "name", {"app": "app"})
         assert fun(meta, man, groupby) == (P("deployment/ns.yaml"), False)
 
         # Group by the existing LABEL "app".
         groupby = G(order=["label"], label="app")
-        meta, man = _mm("Deployment", "ns", "name", {"app": "app"})
         assert fun(meta, man, groupby) == (P("app.yaml"), False)
 
     def test_filename_for_manifest_valid_but_no_label(self):
@@ -1199,18 +1194,15 @@ class TestSync:
         # Convenience.
         fun, P, G = manio.filename_for_manifest, pathlib.Path, ManifestGrouping
 
-        def _mm(kind, ns, name, labels):
-            man = make_manifest(kind, ns, name, labels)
-            meta = manio.make_meta(man)
-            return meta, man
+        # A valid manifest - content is irrelevant for this test.
+        man = make_manifest("Deployment", "ns", "name", {})
+        meta = manio.make_meta(man)
 
         # The "label" must not be a non-empty string if it is in the group.
-        meta, man = _mm("Deployment", "ns", "name", {})
         groupby = G(order=["label"], label="")
         assert fun(meta, man, groupby) == (P(), True)
 
         # Gracefully abort for unknown types.
-        meta, man = _mm("Deployment", "ns", "name", {})
         groupby = G(order=["ns", "blah"], label="")
         assert fun(meta, man, groupby) == (P(), True)
 
