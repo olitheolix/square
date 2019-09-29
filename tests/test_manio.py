@@ -1,6 +1,5 @@
 import copy
 import itertools
-import pathlib
 import random
 import unittest.mock as mock
 
@@ -1147,7 +1146,7 @@ class TestSync:
     def test_filename_for_manifest_ok(self):
         """Verify a few valid file name conventions."""
         # Convenience.
-        fun, P, G = manio.filename_for_manifest, pathlib.Path, ManifestGrouping
+        fun, G = manio.filename_for_manifest, ManifestGrouping
 
         # Valid manifest with an "app" LABEL.
         man = make_manifest("Deployment", "ns", "name", {"app": "app"})
@@ -1155,24 +1154,24 @@ class TestSync:
 
         # No grouping - all manifests must end up in `_all.yaml`.
         groupby = G(order=[], label="")
-        assert fun(meta, man, groupby) == (P("_all.yaml"), False)
+        assert fun(meta, man, groupby) == ("_all.yaml", False)
 
         # Group by NAMESPACE and kind.
         groupby = G(order=["ns", "kind"], label="")
-        assert fun(meta, man, groupby) == (P("ns/deployment.yaml"), False)
+        assert fun(meta, man, groupby) == ("ns/deployment.yaml", False)
 
         # Group by KIND and NAMESPACE (inverse of previous test).
         groupby = G(order=["kind", "ns"], label="")
-        assert fun(meta, man, groupby) == (P("deployment/ns.yaml"), False)
+        assert fun(meta, man, groupby) == ("deployment/ns.yaml", False)
 
         # Group by the existing LABEL "app".
         groupby = G(order=["label"], label="app")
-        assert fun(meta, man, groupby) == (P("app.yaml"), False)
+        assert fun(meta, man, groupby) == ("app.yaml", False)
 
     def test_filename_for_manifest_valid_but_no_label(self):
         """Consider corner cases when sorting by a non-existing label."""
         # Convenience.
-        fun, P, G = manio.filename_for_manifest, pathlib.Path, ManifestGrouping
+        fun, G = manio.filename_for_manifest, ManifestGrouping
 
         # This manifest has no label, most notably not a "app" LABEL.
         man = make_manifest("Deployment", "ns", "name", {})
@@ -1180,19 +1179,19 @@ class TestSync:
 
         # Dump everything into "_all.yaml" if LABEL "app" does not exist.
         groupby = G(order=["label"], label="app")
-        assert fun(meta, man, groupby) == (P("_all.yaml"), False)
+        assert fun(meta, man, groupby) == ("_all.yaml", False)
 
         # Use `_all` as the name if LABEL "app" does not exist.
         groupby = G(order=["ns", "label"], label="app")
-        assert fun(meta, man, groupby) == (P("ns/_all.yaml"), False)
+        assert fun(meta, man, groupby) == ("ns/_all.yaml", False)
 
         groupby = G(order=["label", "ns"], label="app")
-        assert fun(meta, man, groupby) == (P("_all/ns.yaml"), False)
+        assert fun(meta, man, groupby) == ("_all/ns.yaml", False)
 
     def test_filename_for_manifest_err(self):
         """Verify a few invalid file name conventions."""
         # Convenience.
-        fun, P, G = manio.filename_for_manifest, pathlib.Path, ManifestGrouping
+        fun, G = manio.filename_for_manifest, ManifestGrouping
 
         # A valid manifest - content is irrelevant for this test.
         man = make_manifest("Deployment", "ns", "name", {})
@@ -1200,11 +1199,11 @@ class TestSync:
 
         # The "label" must not be a non-empty string if it is in the group.
         groupby = G(order=["label"], label="")
-        assert fun(meta, man, groupby) == (P(), True)
+        assert fun(meta, man, groupby) == ("", True)
 
         # Gracefully abort for unknown types.
         groupby = G(order=["ns", "blah"], label="")
-        assert fun(meta, man, groupby) == (P(), True)
+        assert fun(meta, man, groupby) == ("", True)
 
     def test_sync_modify_selective_kind_and_namespace_ok(self):
         """Add, modify and delete a few manifests.
