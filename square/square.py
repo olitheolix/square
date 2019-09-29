@@ -531,6 +531,7 @@ def main_apply(
         client,
         folder: Filepath,
         selectors: Selectors,
+        confirm_string: Optional[str]
 ) -> Tuple[None, bool]:
     """Update K8s to match the specifications in `local_manifests`.
 
@@ -544,6 +545,9 @@ def main_apply(
             Path to local manifests eg "./foo"
         selectors: Selectors
             Only operate on resources that match the selectors.
+        confirm_string:
+            Only apply the plan if user answers with this string in the
+        confirmation dialog (set to `None` to disable confirmation).
 
     Returns:
         None
@@ -566,7 +570,7 @@ def main_apply(
         print_deltas(plan)
 
         # Ask for user confirmation. Abort if the user does not give it.
-        if not user_confirmed(config.name):
+        if not user_confirmed(confirm_string):
             print("User abort - no changes were made.")
             return (None, True)
 
@@ -756,7 +760,7 @@ def main() -> int:
     elif param.parser == "plan":
         _, err = main_plan(config, client, folder, selectors)
     elif param.parser == "apply":
-        _, err = main_apply(config, client, folder, selectors)
+        _, err = main_apply(config, client, folder, selectors, config.name)
     else:
         logit.error(f"Unknown command <{param.parser}>")
         return 1
