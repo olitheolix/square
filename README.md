@@ -10,8 +10,14 @@ Terraform, just for Kubernetes. Unlike Terraform, it can also seamlessly
 download all the cluster manifests to get a snapshot of the current state.
 
 ## Binaries
-Linux and Windows binaries are available on the
+Linux and Windows binaries for some versions are available on the
 [Release page](https://github.com/olitheolix/square/releases).
+
+## Pip
+You can install *Square* in any Python 3.7 environment with:
+
+    $ pip install kubernetes-square
+    $ square version
 
 ## Docker
 The [examples](examples) explain how to deploy the official [Docker
