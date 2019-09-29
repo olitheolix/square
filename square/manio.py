@@ -447,12 +447,12 @@ def filename_for_manifest(
     # -------------------------------------------------------------------------
     if not set(grouping.order).issubset({"ns", "kind", "label"}):
         logit.error(f"Invalid resource ordering: {grouping.order}")
-        return pathlib.Path(), True
+        return "", True
 
     if "label" in grouping.order:
         if len(grouping.label) == 0:
             logit.error("Must specify a non-empty label when grouping by it")
-            return pathlib.Path(), True
+            return "", True
 
     # -------------------------------------------------------------------------
     #                           Compile The Path
@@ -467,7 +467,7 @@ def filename_for_manifest(
     path = str.join("/", path_constituents)
 
     path = "_all.yaml" if path == "" else f"{path}.yaml"
-    return pathlib.Path(path), False
+    return path, False
 
 
 def diff(
