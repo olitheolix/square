@@ -10,7 +10,7 @@ import square.manio as manio
 import square.square as square
 from square.dtypes import (
     SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    JsonPatch, MetaManifest, Selectors,
+    JsonPatch, ManifestGrouping, MetaManifest, Selectors,
 )
 from square.k8s import urlpath
 
@@ -731,6 +731,10 @@ class TestMainOptions:
         handles errors.
 
         """
+        # Define a grouping (not relevant for this test but a necessary
+        # argument to the test function).
+        groupby = ManifestGrouping(order=[], label="")
+
         # Simulate successful responses from the two auxiliary functions.
         # The `load` function must return empty dicts to ensure the error
         # conditions are properly coded.
@@ -741,13 +745,13 @@ class TestMainOptions:
 
         # The arguments to the test function will always be the same in this test.
         selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
-        args = "config", "client", "folder", selectors
+        args = "config", "client", "folder", selectors, groupby
 
         # Call test function and verify it passed the correct arguments.
         assert square.main_get(*args) == (None, False)
         m_load.assert_called_once_with("folder", selectors)
         m_down.assert_called_once_with("config", "client", selectors)
-        m_sync.assert_called_once_with({}, "server", selectors)
+        m_sync.assert_called_once_with({}, "server", selectors, groupby)
         m_save.assert_called_once_with("folder", "synced")
 
         # Simulate an error with `manio.save`.
@@ -782,6 +786,9 @@ class TestMain:
         # Dummy configuration.
         config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
+        # Define the default grouping for when user does not specify one.
+        groupby = ManifestGrouping(order=[], label="")
+
         # Mock all calls to the K8s API.
         m_k8s.load_auto_config.return_value = config
         m_k8s.session.return_value = "client"
@@ -802,7 +809,7 @@ class TestMain:
         # Every main function must have been called exactly once.
         selectors = Selectors(["Deployment", "Service"], None, set())
         args = config, "client", pathlib.Path("myfolder"), selectors
-        m_get.assert_called_once_with(*args)
+        m_get.assert_called_once_with(*args, groupby)
         m_plan.assert_called_once_with(*args)
         m_apply.assert_called_once_with(*args, config.name)
 

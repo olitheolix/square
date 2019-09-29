@@ -328,6 +328,7 @@ def sync(
         local_manifests: LocalManifestLists,
         server_manifests: ServerManifests,
         selectors: Selectors,
+        groupby: ManifestGrouping,
 ) -> Tuple[Optional[LocalManifestLists], bool]:
     """Update the local manifests with the server values and return the result.
 
@@ -336,6 +337,8 @@ def sync(
         server_manifests: Dict[MetaManifest, dict]
         selectors: Selectors
             Only operate on resources that match the selectors.
+        groupby: ManifestGrouping
+            Specify relationship between new manifests and file names.
 
     Returns:
         Dict[Filepath, Tuple[MetaManifest, dict]]
@@ -399,7 +402,6 @@ def sync(
             # Find the file that defined `meta` and its position inside that file.
             fname, idx = meta_to_fname[meta]
         except KeyError:
-            groupby = ManifestGrouping(order=[], label="")
             fname, err = filename_for_manifest(meta, manifest, groupby)
             if err:
                 return (None, True)
