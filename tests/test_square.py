@@ -1,5 +1,6 @@
 import copy
 import os
+import pathlib
 import types
 import unittest.mock as mock
 
@@ -827,7 +828,7 @@ class TestMain:
 
         # Every main function must have been called exactly once.
         selectors = Selectors(["Deployment", "Service"], None, set())
-        args = config, "client", "myfolder", selectors
+        args = config, "client", pathlib.Path("myfolder"), selectors
         m_get.assert_called_once_with(*args)
         m_plan.assert_called_once_with(*args)
         m_apply.assert_called_once_with(*args)
@@ -907,7 +908,7 @@ class TestMain:
         # Pretend all main functions return errors.
         m_cmd.return_value = types.SimpleNamespace(
             verbosity=0, parser="invalid", kubeconfig="conf", ctx="ctx",
-            folder=None, kinds=None, namespaces=None, labels=set()
+            folder=pathlib.Path("/tmp"), kinds=None, namespaces=None, labels=set()
         )
         assert square.main() == 1
 

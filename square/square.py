@@ -2,11 +2,12 @@ import argparse
 import json
 import logging
 import os
+import pathlib
 import re
 import sys
 import textwrap
 from pprint import pprint
-from typing import Iterable, Optional, Set, Tuple
+from typing import Any, Iterable, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
@@ -682,6 +683,49 @@ def main_get(
     return (None, False)
 
 
+def cluster_config(
+        kubeconfig: str,
+        kube_context: str) -> Tuple[Tuple[Optional[Config], Any], bool]:
+    """Return web session to K8s API.
+
+    This will read the Kubernetes credentials, contact Kubernetes to
+    interrogate its version and then return the configuration and web-session.
+
+    Inputs:
+        kubeconfig: str
+            Path to kubeconfig file.
+        kube_context: str
+            Kubernetes context to use (can be `None` to use default).
+
+    Returns:
+        Config, client
+
+    """
+    # Read Kubeconfig file and use it to create a `requests` client session.
+    # That session will have the proper security certificates and headers so
+    # that subsequent calls to K8s need not deal with anymore.
+    kubeconfig = os.path.expanduser(kubeconfig)
+    try:
+        # Parse Kubeconfig file.
+        config = k8s.load_auto_config(kubeconfig, kube_context, disable_warnings=True)
+        assert config
+
+        # Configure web session.
+        client = k8s.session(config)
+        assert client
+
+        # Contact the K8s API to update version field in `config`.
+        config, err = k8s.version(config, client)
+        assert not err and config
+    except AssertionError:
+        return ((None, None), True)
+
+    # Log the K8s API address and version.
+    logit.info(f"Kubernetes server at {config.url}")
+    logit.info(f"Kubernetes version is {config.version}")
+    return (config, client), False
+
+
 def main() -> int:
     param = parse_commandline_args()
 
@@ -692,42 +736,30 @@ def main() -> int:
     # Initialise logging.
     setup_logging(param.verbosity)
 
-    # Create a `requests` client with proper security certificates to access the
-    # Kubernetes API.
-    kubeconfig = os.path.expanduser(param.kubeconfig)
-    try:
-        config = k8s.load_auto_config(kubeconfig, param.ctx, disable_warnings=True)
-        assert config
-
-        client = k8s.session(config)
-        assert client
-
-        # Update the config with the correct K8s API version.
-        config, err = k8s.version(config, client)
-        assert not err and config
-    except AssertionError:
+    # Create properly configured Requests session to talk with K8s API.
+    (config, client), err = cluster_config(param.kubeconfig, param.ctx)
+    if err or config is None or client is None:
         return 1
 
-    # Log the K8s API address and version.
-    logit.info(f"Kubernetes server at {config.url}")
-    logit.info(f"Kubernetes version is {config.version}")
+    # Folder must be `Path` object.
+    folder = pathlib.Path(param.folder)
+
+    # Specify the selectors (see definition `dtypes.Selectors` in for arguments).
+    selectors = Selectors(param.kinds, param.namespaces, set(param.labels))
 
     # Do what user asked us to do.
-    selectors = Selectors(param.kinds, param.namespaces, set(param.labels))
     if param.parser == "get":
-        _, err = main_get(config, client, param.folder, selectors)
+        _, err = main_get(config, client, folder, selectors)
     elif param.parser == "plan":
-        _, err = main_plan(config, client, param.folder, selectors)
+        _, err = main_plan(config, client, folder, selectors)
     elif param.parser == "apply":
-        _, err = main_apply(config, client, param.folder, selectors)
+        _, err = main_apply(config, client, folder, selectors)
     else:
         logit.error(f"Unknown command <{param.parser}>")
         return 1
 
     # Return error code.
-    if err:
-        return 1
-    return 0
+    return 1 if err else 0
 
 
 if __name__ == '__main__':
