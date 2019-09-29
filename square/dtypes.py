@@ -75,3 +75,11 @@ class Selectors(NamedTuple):
     kinds: Iterable[str]
     namespaces: Optional[Iterable[str]]
     labels: Optional[Set[Tuple[str, str]]]
+
+
+class ManifestGrouping(NamedTuple):
+    """Define how to name manifest files on the files system."""
+    kind: bool
+    label: Optional[str]
+    ns: bool
+    order: Tuple[str, str, str]

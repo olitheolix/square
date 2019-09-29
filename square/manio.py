@@ -12,7 +12,7 @@ import yaml
 import yaml.scanner
 from square.dtypes import (
     SUPPORTED_KINDS, Config, Filepath, LocalManifestLists, LocalManifests,
-    MetaManifest, Selectors, ServerManifests,
+    ManifestGrouping, MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -399,7 +399,10 @@ def sync(
             # Find the file that defined `meta` and its position inside that file.
             fname, idx = meta_to_fname[meta]
         except KeyError:
-            fname = filename_for_manifest(meta)
+            # print(manifest.get("metadata", {}).get("labels", {}))
+            fname, err = filename_for_manifest(meta, {}, None)
+            if err:
+                return (None, True)
             out_add_mod[fname].append((meta, manifest))
         else:
             # Update the correct YAML document in the correct file.
@@ -416,7 +419,7 @@ def sync(
     return (out_add_mod_del, False)
 
 
-def filename_for_manifest(meta: MetaManifest) -> Filepath:
+def filename_for_manifest(meta: MetaManifest, grouping: ManifestGrouping) -> Filepath:
     """Return the file for the manifest based on `groupby`.
 
     Inputs:
@@ -427,14 +430,15 @@ def filename_for_manifest(meta: MetaManifest) -> Filepath:
         Filepath
 
     """
-    # Put the resource into the correct "catch-all" file. However, we
-    # must first determine the namespace, which differs depending on
-    # whether the resource is a Namespace or other resource.
-    if meta.kind == "Namespace":
-        catch_all = f"_{meta.name}.yaml"
-    else:
-        catch_all = f"_{meta.namespace}.yaml"
-    return catch_all
+    if grouping is None:
+        # Put the resource into the correct "catch-all" file. However, we
+        # must first determine the namespace, which differs depending on
+        # whether the resource is a Namespace or other resource.
+        if meta.kind == "Namespace":
+            catch_all = f"_{meta.name}.yaml"
+        else:
+            catch_all = f"_{meta.namespace}.yaml"
+        return catch_all, False
 
 
 def diff(
