@@ -555,6 +555,7 @@ class TestYamlManifestIO:
         """
         # Generic selector that matches all manifests in this test.
         selectors = Selectors(["Deployment"], None, set())
+        groupby = ManifestGrouping(order=[], label="")
 
         # Construct demo manifests in the same way as `load_files` would.
         dply = [mk_deploy(f"d_{_}", "nsfoo") for _ in range(10)]
@@ -600,7 +601,8 @@ class TestYamlManifestIO:
         # :: Dict[MetaManifests:YamlDict] -> Dict[Filename:List[(MetaManifest, YamlDict)]]
         updated_manifests, err = manio.sync(
             fdata_meta, server_manifests,
-            Selectors(["Deployment"], namespaces=None, labels=None)
+            Selectors(["Deployment"], namespaces=None, labels=None),
+            groupby,
         )
         assert err is False
 
@@ -1216,6 +1218,7 @@ class TestSync:
         """
         # Convenience shorthand.
         fun = manio.sync
+        groupby = ManifestGrouping(order=[], label="")
 
         # Various MetaManifests to use in the tests.
         ns0 = manio.make_meta(make_manifest("Namespace", None, "ns0"))
@@ -1252,22 +1255,22 @@ class TestSync:
         # ----------------------------------------------------------------------
         expected = loc_man
         selectors = Selectors([], namespaces=None, labels=None)
-        assert manio.sync(loc_man, srv_man, selectors) == (expected, False)
+        assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         selectors = Selectors([], namespaces=[], labels=None)
-        assert manio.sync(loc_man, srv_man, selectors) == (expected, False)
+        assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         selectors = Selectors(["Deployment", "Service"], namespaces=[], labels=None)
-        assert manio.sync(loc_man, srv_man, selectors) == (expected, False)
+        assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # NOTE: this must *not* sync the Namespace manifest from "ns1" because
         # it was not an explicitly specified resource.
         selectors = Selectors([], namespaces=["ns1"], labels=None)
-        assert manio.sync(loc_man, srv_man, selectors) == (expected, False)
+        assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # Invalid/unsupported kinds.
         selectors = Selectors(["Foo"], namespaces=None, labels=None)
-        assert manio.sync(loc_man, srv_man, selectors) == (None, True)
+        assert fun(loc_man, srv_man, selectors, groupby) == (None, True)
 
         # ----------------------------------------------------------------------
         # Sync all namespaces implicitly (Namespaces, Deployments, Services).
@@ -1287,12 +1290,12 @@ class TestSync:
         for kinds in itertools.permutations(["Namespace", "Deployment", "Service"]):
             # Implicitly use all namespaces.
             selectors = Selectors(kinds, namespaces=None, labels=None)
-            assert fun(loc_man, srv_man, selectors) == (expected, False)
+            assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
             # Specify all namespaces explicitly.
             for ns in itertools.permutations(["ns0", "ns1"]):
                 selectors = Selectors(kinds, namespaces=ns, labels=None)
-                assert fun(loc_man, srv_man, selectors) == (expected, False)
+                assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # ----------------------------------------------------------------------
         # Sync the server manifests in namespace "ns0".
@@ -1309,7 +1312,7 @@ class TestSync:
         }
         for kinds in itertools.permutations(["Deployment", "Service"]):
             selectors = Selectors(kinds, namespaces=["ns0"], labels=None)
-            assert fun(loc_man, srv_man, selectors) == (expected, False)
+            assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # ----------------------------------------------------------------------
         # Sync only Deployments (all namespaces).
@@ -1325,7 +1328,7 @@ class TestSync:
             ],
         }
         selectors = Selectors(["Deployment"], namespaces=None, labels=None)
-        assert fun(loc_man, srv_man, selectors) == (expected, False)
+        assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # ----------------------------------------------------------------------
         # Sync only Deployments in namespace "ns0".
@@ -1341,7 +1344,7 @@ class TestSync:
             ],
         }
         selectors = Selectors(["Deployment"], namespaces=["ns0"], labels=None)
-        assert manio.sync(loc_man, srv_man, selectors) == (expected, False)
+        assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # ----------------------------------------------------------------------
         # Sync only Services in namespace "ns1".
@@ -1357,7 +1360,7 @@ class TestSync:
             ],
         }
         selectors = Selectors(["Service"], namespaces=["ns1"], labels=None)
-        assert manio.sync(loc_man, srv_man, selectors) == (expected, False)
+        assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
     @mock.patch.object(manio, "filename_for_manifest")
     def test_sync_modify_delete_ok(self, m_fname):
@@ -1369,6 +1372,7 @@ class TestSync:
         server ones do not.
 
         """
+        groupby = ManifestGrouping(order=[], label="")
         m_fname.return_value = ("catchall.yaml", False)
 
         # Args for `sync`. In this test, we only have Deployments and want to
@@ -1408,7 +1412,7 @@ class TestSync:
             "catchall.yaml": [(meta_1[6], "new"), (meta_2[7], "new"), (meta_1[8], "new")],
         }
         selectors = Selectors(kinds, namespaces, labels=None)
-        assert manio.sync(loc_man, srv_man, selectors) == (expected, False)
+        assert manio.sync(loc_man, srv_man, selectors, groupby) == (expected, False)
 
     def test_sync_catch_all_files(self):
         """Verify that syncing the catch-all files works as expected.
@@ -1420,6 +1424,7 @@ class TestSync:
         # Args for `sync`. In this test, we only have Deployments and want to
         # sync them across all namespaces.
         kinds, namespaces = ["Deployment"], None
+        groupby = ManifestGrouping(order=[], label="")
 
         # First, create the local manifests as `load_files` would return it.
         # The `{0: "blah"}` like dicts are necessary because the
@@ -1485,7 +1490,7 @@ class TestSync:
             ],
         }
         selectors = Selectors(kinds, namespaces, labels=None)
-        assert manio.sync(loc_man, srv_man, selectors) == (expected, False)
+        assert manio.sync(loc_man, srv_man, selectors, groupby) == (expected, False)
 
 
 class TestDownloadManifests:

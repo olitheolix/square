@@ -17,8 +17,8 @@ import yaml
 from square import __version__
 from square.dtypes import (
     RESOURCE_ALIASES, SUPPORTED_KINDS, Config, DeltaCreate, DeltaDelete,
-    DeltaPatch, DeploymentPlan, Filepath, JsonPatch, MetaManifest, Selectors,
-    ServerManifests,
+    DeltaPatch, DeploymentPlan, Filepath, JsonPatch, ManifestGrouping,
+    MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -653,6 +653,7 @@ def main_get(
         client,
         folder: Filepath,
         selectors: Selectors,
+        groupby: ManifestGrouping,
 ) -> Tuple[None, bool]:
 
     """Download all K8s manifests and merge them into local files.
@@ -664,6 +665,8 @@ def main_get(
             Path to local manifests eg "./foo"
         selectors: Selectors
             Only operate on resources that match the selectors.
+        groupby: ManifestGrouping
+            Specify relationship between new manifests and file names.
 
     Returns:
         None
@@ -680,7 +683,7 @@ def main_get(
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see `manio.save` in the next step.
-        synced_manifests, err = manio.sync(local_files, server, selectors)
+        synced_manifests, err = manio.sync(local_files, server, selectors, groupby)
         assert not err and synced_manifests
 
         # Write the new manifest files.
@@ -756,10 +759,11 @@ def main() -> int:
 
     # Specify the selectors (see definition `dtypes.Selectors` in for arguments).
     selectors = Selectors(param.kinds, param.namespaces, set(param.labels))
+    groupby = ManifestGrouping(order=[], label="")
 
     # Do what user asked us to do.
     if param.parser == "get":
-        _, err = main_get(config, client, folder, selectors)
+        _, err = main_get(config, client, folder, selectors, groupby)
     elif param.parser == "plan":
         _, err = main_plan(config, client, folder, selectors)
     elif param.parser == "apply":
