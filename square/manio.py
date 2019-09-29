@@ -419,7 +419,9 @@ def sync(
     return (out_add_mod_del, False)
 
 
-def filename_for_manifest(meta: MetaManifest, grouping: ManifestGrouping) -> Filepath:
+def filename_for_manifest(
+        meta: MetaManifest, labels: Dict[str, str],
+        grouping: ManifestGrouping) -> Tuple[Filepath, bool]:
     """Return the file for the manifest based on `groupby`.
 
     Inputs:
@@ -439,6 +441,32 @@ def filename_for_manifest(meta: MetaManifest, grouping: ManifestGrouping) -> Fil
         else:
             catch_all = f"_{meta.namespace}.yaml"
         return catch_all, False
+
+    # -------------------------------------------------------------------------
+    #                            Sanity checks
+    # -------------------------------------------------------------------------
+    if not set(grouping.order).issubset({"ns", "kind", "label"}):
+        logit.error(f"Invalid resource ordering: {grouping.order}")
+        return pathlib.Path(), True
+
+    if "label" in grouping.order:
+        if len(grouping.label) == 0:
+            logit.error("Must specify a non-empty label when grouping by it")
+            return pathlib.Path(), True
+
+    # -------------------------------------------------------------------------
+    #                           Compile The Path
+    # -------------------------------------------------------------------------
+    lut = {
+        "ns": meta.namespace,
+        "kind": meta.kind.lower(),
+        "label": labels.get(grouping.label, ""),
+    }
+    path_constituents = [lut[_] for _ in grouping.order]
+    path = str.join("/", path_constituents)
+
+    path = "_all.yaml" if path == "" else f"{path}.yaml"
+    return pathlib.Path(path), False
 
 
 def diff(

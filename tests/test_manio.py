@@ -1,5 +1,6 @@
 import copy
 import itertools
+import pathlib
 import random
 import unittest.mock as mock
 
@@ -9,7 +10,8 @@ import square.manio as manio
 import square.schemas as schemas
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, MetaManifest, Selectors,
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, ManifestGrouping, MetaManifest,
+    Selectors,
 )
 from square.k8s import urlpath
 
@@ -1142,6 +1144,54 @@ class TestYamlManifestIOIntegration:
 
 
 class TestSync:
+    def test_filename_for_manifest_ok(self):
+        # Convenience.
+        fun, P, G = manio.filename_for_manifest, pathlib.Path, ManifestGrouping
+
+        def _mm(kind, ns, name, labels):
+            meta = manio.make_meta(make_manifest(kind, ns, name, labels))
+            return meta, labels
+
+        groupby = G(order=[], label="")
+        meta, lab = _mm("Deployment", "ns", "name", {"app": "app"})
+        assert fun(meta, lab, groupby) == (P("_all.yaml"), False)
+
+        groupby = G(order=["ns", "kind"], label="")
+        meta, labe = _mm("Deployment", "ns", "name", {"app": "app"})
+        assert fun(meta, lab, groupby) == (P("ns/deployment.yaml"), False)
+
+        groupby = G(order=["ns", "kind"], label="")
+        meta, labe = _mm("Deployment", "ns", "name", {"app": "app"})
+        assert fun(meta, lab, groupby) == (P("ns/deployment.yaml"), False)
+
+        groupby = G(order=["label"], label="app")
+        meta, lab = _mm("Deployment", "ns", "name", {"app": "app"})
+        assert fun(meta, lab, groupby) == (P("app.yaml"), False)
+
+        # Does not have "app" labels.
+        groupby = G(order=["label"], label="app")
+        meta, lab = _mm("Deployment", "ns", "name", {})
+        assert fun(meta, lab, groupby) == (P("_all.yaml"), False)
+
+    def test_filename_for_manifest_err(self):
+        # Convenience.
+        fun, P, G = manio.filename_for_manifest, pathlib.Path, ManifestGrouping
+
+        def _mm(kind, ns, name, labels):
+            meta = manio.make_meta(make_manifest(kind, ns, name, labels))
+            return meta, labels
+
+        # If "label" is part of the grouping then it must not be a non-empty
+        # string.
+        meta, lab = _mm("Deployment", "ns", "name", {})
+        groupby = G(order=["label"], label="")
+        assert fun(meta, lab, groupby) == (P(), True)
+
+        # Gracefully abort for unknown types.
+        meta, lab = _mm("Deployment", "ns", "name", {})
+        groupby = G(order=["ns", "blah"], label="")
+        assert fun(meta, lab, groupby) == (P(), True)
+
     def test_sync_modify_selective_kind_and_namespace_ok(self):
         """Add, modify and delete a few manifests.
 
