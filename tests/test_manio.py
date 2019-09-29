@@ -1145,6 +1145,7 @@ class TestYamlManifestIOIntegration:
 
 class TestSync:
     def test_filename_for_manifest_ok(self):
+        """Verify a few valid file name conventions."""
         # Convenience.
         fun, P, G = manio.filename_for_manifest, pathlib.Path, ManifestGrouping
 
@@ -1152,28 +1153,33 @@ class TestSync:
             meta = manio.make_meta(make_manifest(kind, ns, name, labels))
             return meta, labels
 
+        # No grouping - all manifests must end up in `_all.yaml`.
         groupby = G(order=[], label="")
         meta, lab = _mm("Deployment", "ns", "name", {"app": "app"})
         assert fun(meta, lab, groupby) == (P("_all.yaml"), False)
 
+        # Group by NAMESPACE and kind.
         groupby = G(order=["ns", "kind"], label="")
-        meta, labe = _mm("Deployment", "ns", "name", {"app": "app"})
+        meta, lab = _mm("Deployment", "ns", "name", {"app": "app"})
         assert fun(meta, lab, groupby) == (P("ns/deployment.yaml"), False)
 
-        groupby = G(order=["ns", "kind"], label="")
-        meta, labe = _mm("Deployment", "ns", "name", {"app": "app"})
-        assert fun(meta, lab, groupby) == (P("ns/deployment.yaml"), False)
+        # Group by KIND and NAMESPACE (inverse of previous test).
+        groupby = G(order=["kind", "ns"], label="")
+        meta, lab = _mm("Deployment", "ns", "name", {"app": "app"})
+        assert fun(meta, lab, groupby) == (P("deployment/ns.yaml"), False)
 
+        # Group by the existing LABEL "app".
         groupby = G(order=["label"], label="app")
         meta, lab = _mm("Deployment", "ns", "name", {"app": "app"})
         assert fun(meta, lab, groupby) == (P("app.yaml"), False)
 
-        # Does not have "app" labels.
+        # Dump everything into "_all.yaml" if LABEL "app" does not exist.
         groupby = G(order=["label"], label="app")
         meta, lab = _mm("Deployment", "ns", "name", {})
         assert fun(meta, lab, groupby) == (P("_all.yaml"), False)
 
     def test_filename_for_manifest_err(self):
+        """Verify a few invalid file name conventions."""
         # Convenience.
         fun, P, G = manio.filename_for_manifest, pathlib.Path, ManifestGrouping
 
@@ -1181,8 +1187,7 @@ class TestSync:
             meta = manio.make_meta(make_manifest(kind, ns, name, labels))
             return meta, labels
 
-        # If "label" is part of the grouping then it must not be a non-empty
-        # string.
+        # The "label" must not be a non-empty string if it is in the group.
         meta, lab = _mm("Deployment", "ns", "name", {})
         groupby = G(order=["label"], label="")
         assert fun(meta, lab, groupby) == (P(), True)
