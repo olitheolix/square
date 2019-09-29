@@ -79,7 +79,5 @@ class Selectors(NamedTuple):
 
 class ManifestGrouping(NamedTuple):
     """Define how to name manifest files on the files system."""
-    kind: bool
-    label: Optional[str]
-    ns: bool
-    order: Tuple[str, str, str]
+    label: str
+    order: Iterable[str]
