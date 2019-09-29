@@ -399,8 +399,7 @@ def sync(
             # Find the file that defined `meta` and its position inside that file.
             fname, idx = meta_to_fname[meta]
         except KeyError:
-            # print(manifest.get("metadata", {}).get("labels", {}))
-            fname, err = filename_for_manifest(meta, {}, None)
+            fname, err = filename_for_manifest(meta, manifest, None)
             if err:
                 return (None, True)
             out_add_mod[fname].append((meta, manifest))

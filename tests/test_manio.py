@@ -1346,7 +1346,8 @@ class TestSync:
         selectors = Selectors(["Service"], namespaces=["ns1"], labels=None)
         assert manio.sync(loc_man, srv_man, selectors) == (expected, False)
 
-    def test_sync_modify_delete_ok(self):
+    @mock.patch.object(manio, "filename_for_manifest")
+    def test_sync_modify_delete_ok(self, m_fname):
         """Add, modify and delete a few manifests.
 
         Create fake inputs for the test function, namely local- and remote
@@ -1355,6 +1356,8 @@ class TestSync:
         server ones do not.
 
         """
+        m_fname.return_value = ("catchall.yaml", False)
+
         # Args for `sync`. In this test, we only have Deployments and want to
         # sync them across all namespaces.
         kinds, namespaces = ["Deployment"], None
@@ -1389,8 +1392,7 @@ class TestSync:
             "m0.yaml": [(meta_1[0], "0"), (meta_1[1], "modified"), (meta_2[2], "2")],
             "m1.yaml": [(meta_1[4], "4")],
             "m2.yaml": [],
-            "_ns1.yaml": [(meta_1[6], "new"), (meta_1[8], "new")],
-            "_ns2.yaml": [(meta_2[7], "new")],
+            "catchall.yaml": [(meta_1[6], "new"), (meta_2[7], "new"), (meta_1[8], "new")],
         }
         selectors = Selectors(kinds, namespaces, labels=None)
         assert manio.sync(loc_man, srv_man, selectors) == (expected, False)
