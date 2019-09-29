@@ -240,7 +240,7 @@ Compiled 0 patches.
 foo@bar:~$ kubectl -n square get po
 NAME                     READY   STATUS    RESTARTS   AGE
 square-b6bc65f6d-2xmzm   1/1     Running   0          37s
-foo@bar:~$ 
+foo@bar:~$
 ```
 
 # Build The Binary
@@ -261,6 +261,23 @@ Build a shared library version of Python version with `pyenv`:
 This should produce the `./dist/square` executable.
 
 
+# Tests
+*Square* ships with a comprehensive unit test suit and a still nascent
+integration tests suite.
+
+To run the unit tests:
+
+    pipenv run pytest
+
+This will automatically run the integration tests as well if you have started
+the [KIND](https://github.com/bsycorp/kind) cluster:
+
+    cd deployment
+    ./start_minikube.sh
+    cd ..
+
+NOTE: currently, CI only runs the unit tests.
+
 # Development Status
 *Square* is still under development. Several rough edges remain but the core
-has become stable enough for more serious work.
+has become stable enough for serious work.
