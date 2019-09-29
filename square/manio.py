@@ -419,12 +419,13 @@ def sync(
 
 
 def filename_for_manifest(
-        meta: MetaManifest, labels: Dict[str, str],
+        meta: MetaManifest, manifest: dict,
         grouping: ManifestGrouping) -> Tuple[Filepath, bool]:
     """Return the file for the manifest based on `groupby`.
 
     Inputs:
         meta: MetaManifest
+        manifest: dict
         groupby: ManifestGrouping
 
     Output:
@@ -456,6 +457,7 @@ def filename_for_manifest(
     # -------------------------------------------------------------------------
     #                           Compile The Path
     # -------------------------------------------------------------------------
+    labels = manifest["metadata"].get("labels", {})
     lut = {
         "ns": meta.namespace,
         "kind": meta.kind.lower(),

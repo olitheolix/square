@@ -1150,33 +1150,34 @@ class TestSync:
         fun, P, G = manio.filename_for_manifest, pathlib.Path, ManifestGrouping
 
         def _mm(kind, ns, name, labels):
-            meta = manio.make_meta(make_manifest(kind, ns, name, labels))
-            return meta, labels
+            man = make_manifest(kind, ns, name, labels)
+            meta = manio.make_meta(man)
+            return meta, man
 
         # No grouping - all manifests must end up in `_all.yaml`.
         groupby = G(order=[], label="")
-        meta, lab = _mm("Deployment", "ns", "name", {"app": "app"})
-        assert fun(meta, lab, groupby) == (P("_all.yaml"), False)
+        meta, man = _mm("Deployment", "ns", "name", {"app": "app"})
+        assert fun(meta, man, groupby) == (P("_all.yaml"), False)
 
         # Group by NAMESPACE and kind.
         groupby = G(order=["ns", "kind"], label="")
-        meta, lab = _mm("Deployment", "ns", "name", {"app": "app"})
-        assert fun(meta, lab, groupby) == (P("ns/deployment.yaml"), False)
+        meta, man = _mm("Deployment", "ns", "name", {"app": "app"})
+        assert fun(meta, man, groupby) == (P("ns/deployment.yaml"), False)
 
         # Group by KIND and NAMESPACE (inverse of previous test).
         groupby = G(order=["kind", "ns"], label="")
-        meta, lab = _mm("Deployment", "ns", "name", {"app": "app"})
-        assert fun(meta, lab, groupby) == (P("deployment/ns.yaml"), False)
+        meta, man = _mm("Deployment", "ns", "name", {"app": "app"})
+        assert fun(meta, man, groupby) == (P("deployment/ns.yaml"), False)
 
         # Group by the existing LABEL "app".
         groupby = G(order=["label"], label="app")
-        meta, lab = _mm("Deployment", "ns", "name", {"app": "app"})
-        assert fun(meta, lab, groupby) == (P("app.yaml"), False)
+        meta, man = _mm("Deployment", "ns", "name", {"app": "app"})
+        assert fun(meta, man, groupby) == (P("app.yaml"), False)
 
         # Dump everything into "_all.yaml" if LABEL "app" does not exist.
         groupby = G(order=["label"], label="app")
-        meta, lab = _mm("Deployment", "ns", "name", {})
-        assert fun(meta, lab, groupby) == (P("_all.yaml"), False)
+        meta, man = _mm("Deployment", "ns", "name", {})
+        assert fun(meta, man, groupby) == (P("_all.yaml"), False)
 
     def test_filename_for_manifest_err(self):
         """Verify a few invalid file name conventions."""
@@ -1184,18 +1185,19 @@ class TestSync:
         fun, P, G = manio.filename_for_manifest, pathlib.Path, ManifestGrouping
 
         def _mm(kind, ns, name, labels):
-            meta = manio.make_meta(make_manifest(kind, ns, name, labels))
-            return meta, labels
+            man = make_manifest(kind, ns, name, labels)
+            meta = manio.make_meta(man)
+            return meta, man
 
         # The "label" must not be a non-empty string if it is in the group.
-        meta, lab = _mm("Deployment", "ns", "name", {})
+        meta, man = _mm("Deployment", "ns", "name", {})
         groupby = G(order=["label"], label="")
-        assert fun(meta, lab, groupby) == (P(), True)
+        assert fun(meta, man, groupby) == (P(), True)
 
         # Gracefully abort for unknown types.
-        meta, lab = _mm("Deployment", "ns", "name", {})
+        meta, man = _mm("Deployment", "ns", "name", {})
         groupby = G(order=["ns", "blah"], label="")
-        assert fun(meta, lab, groupby) == (P(), True)
+        assert fun(meta, man, groupby) == (P(), True)
 
     def test_sync_modify_selective_kind_and_namespace_ok(self):
         """Add, modify and delete a few manifests.
