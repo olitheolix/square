@@ -612,12 +612,12 @@ class TestYamlManifestIO:
 
         # Expected output after we merged back the changes (reminder: `dply[1]`
         # is different, `dply[{3,5}]` were deleted and `dply[{6,7}]` are new).
-        # The new manifests must all end up in "_nsfoo.yaml" file because they
+        # The new manifests must all end up in "_all.yaml" file because they
         # specify resources in the `nsfoo` namespace.
         expected = {
             "m0.yaml": [dply[0], server_manifests[meta[1]], dply[2]],
             "m1.yaml": [dply[4]],
-            "_nsfoo.yaml": [dply[6], dply[7]],
+            "_all.yaml": [dply[6], dply[7]],
         }
         expected = self.yamlfy(expected)
         assert fdata_raw_new == expected
@@ -1422,14 +1422,21 @@ class TestSync:
         kinds, namespaces = ["Deployment"], None
 
         # First, create the local manifests as `load_files` would return it.
+        # The `{0: "blah"}` like dicts are necessary because the
+        # `filename_from_manifest` function requires a dict to operate on. The
+        # "0" part of the dict is otherwise meaningless.
         meta_1 = [manio.make_meta(mk_deploy(f"d_{_}", "ns1")) for _ in range(10)]
         meta_2 = [manio.make_meta(mk_deploy(f"d_{_}", "ns2")) for _ in range(10)]
         loc_man = {
             "_ns1.yaml": [
-                (meta_1[1], "1"), (meta_1[2], "2"), (meta_1[3], "3"), (meta_1[5], "5")
+                (meta_1[1], {0: "1"}),
+                (meta_1[2], {0: "2"}),
+                (meta_1[3], {0: "3"}),
+                (meta_1[5], {0: "5"}),
             ],
             "_ns2.yaml": [
-                (meta_2[2], "2"), (meta_2[6], "6"),
+                (meta_2[2], {0: "2"}),
+                (meta_2[6], {0: "6"}),
             ]
         }
 
@@ -1438,21 +1445,21 @@ class TestSync:
         # are not but serve to improve code readability here.
         srv_man = {
             # --- _ns1.yaml ---
-            meta_1[0]: "0",         # new
-            meta_1[1]: "modified",  # modified
-            meta_1[2]: "2",         # same
-                                    # delete [3]
-                                    # [4] never existed
-                                    # delete [5]
+            meta_1[0]: {0: "0"},         # new
+            meta_1[1]: {0: "modified"},  # modified
+            meta_1[2]: {0: "2"},         # same
+                                         # delete [3]
+                                         # [4] never existed
+                                         # delete [5]
 
             # --- _ns2.yaml ---
-            meta_2[0]: "0",         # new
-            meta_2[9]: "9",         # new
-            meta_2[7]: "7",         # new
-            meta_2[6]: "modified",  # modified
-                                    # delete [2]
-            meta_2[5]: "5",         # new
-            meta_2[3]: "3",         # new
+            meta_2[0]: {0: "0"},         # new
+            meta_2[9]: {0: "9"},         # new
+            meta_2[7]: {0: "7"},         # new
+            meta_2[6]: {0: "modified"},  # modified
+                                         # delete [2]
+            meta_2[5]: {0: "5"},         # new
+            meta_2[3]: {0: "3"},         # new
         }
 
         # The expected outcome is that the local manifests were updated,
@@ -1462,12 +1469,20 @@ class TestSync:
         # keys in insertion order, which is guaranteed for Python 3.7.
         expected = {
             "_ns1.yaml": [
-                (meta_1[1], "modified"), (meta_1[2], "2"), (meta_1[0], "0"),
+                (meta_1[1], {0: "modified"}),
+                (meta_1[2], {0: "2"}),
             ],
             "_ns2.yaml": [
-                (meta_2[6], "modified"), (meta_2[0], "0"), (meta_2[9], "9"),
-                (meta_2[7], "7"), (meta_2[5], "5"), (meta_2[3], "3"),
-            ]
+                (meta_2[6], {0: "modified"}),
+            ],
+            "_all.yaml": [
+                (meta_1[0], {0: "0"}),
+                (meta_2[0], {0: "0"}),
+                (meta_2[9], {0: "9"}),
+                (meta_2[7], {0: "7"}),
+                (meta_2[5], {0: "5"}),
+                (meta_2[3], {0: "3"}),
+            ],
         }
         selectors = Selectors(kinds, namespaces, labels=None)
         assert manio.sync(loc_man, srv_man, selectors) == (expected, False)
@@ -1477,9 +1492,9 @@ class TestSync:
 
         This tests verifies that namespace resources end up in the correct
         catch-all files. This is a corner case because the correct catch-all
-        file for namespaces is based on the `name` attributed of that
-        namespace's `MetaManifest`, not the `namespace` attribute which is None
-        for namespaces.
+        file for namespaces is based on the `name` attribute of that
+        namespace's `MetaManifest`, not the `namespace` attribute in the
+        manifest because it is `None` for namespaces.
 
         """
         # Args for `sync`. In this test, we will use Namespaces, Deployments
@@ -1506,18 +1521,18 @@ class TestSync:
         # are not but serve to improve code readability here.
         srv_man = {
             # --- _a.yaml ---
-            meta_ns_a: "ns_a",
-            meta_svc_a[0]: "svc_a_0",
-            meta_svc_a[1]: "svc_a_1",
-            meta_dply_a[3]: "dply_a_3",
-            meta_dply_a[4]: "dply_a_4",
+            meta_ns_a: {0: "ns_a"},
+            meta_svc_a[0]: {0: "svc_a_0"},
+            meta_svc_a[1]: {0: "svc_a_1"},
+            meta_dply_a[3]: {0: "dply_a_3"},
+            meta_dply_a[4]: {0: "dply_a_4"},
 
             # --- _b.yaml ---
-            meta_ns_b: "ns_b",
-            meta_svc_b[0]: "svc_b_0",
-            meta_svc_b[1]: "svc_b_1",
-            meta_dply_b[3]: "dply_b_3",
-            meta_dply_b[4]: "dply_b_4",
+            meta_ns_b: {0: "ns_b"},
+            meta_svc_b[0]: {0: "svc_b_0"},
+            meta_svc_b[1]: {0: "svc_b_1"},
+            meta_dply_b[3]: {0: "dply_b_3"},
+            meta_dply_b[4]: {0: "dply_b_4"},
         }
 
         # The expected outcome is that the local manifests were updated,
@@ -1526,19 +1541,17 @@ class TestSync:
         # NOTE: this test _assumes_ that the `srv_man` dict iterates over its
         # keys in insertion order, which is guaranteed for Python 3.7.
         expected = {
-            "_a.yaml": [
-                (meta_ns_a, "ns_a"),
-                (meta_svc_a[0], "svc_a_0"),
-                (meta_svc_a[1], "svc_a_1"),
-                (meta_dply_a[3], "dply_a_3"),
-                (meta_dply_a[4], "dply_a_4"),
-            ],
-            "_b.yaml": [
-                (meta_ns_b, "ns_b"),
-                (meta_svc_b[0], "svc_b_0"),
-                (meta_svc_b[1], "svc_b_1"),
-                (meta_dply_b[3], "dply_b_3"),
-                (meta_dply_b[4], "dply_b_4"),
+            "_all.yaml": [
+                (meta_ns_a, {0: "ns_a"}),
+                (meta_svc_a[0], {0: "svc_a_0"}),
+                (meta_svc_a[1], {0: "svc_a_1"}),
+                (meta_dply_a[3], {0: "dply_a_3"}),
+                (meta_dply_a[4], {0: "dply_a_4"}),
+                (meta_ns_b, {0: "ns_b"}),
+                (meta_svc_b[0], {0: "svc_b_0"}),
+                (meta_svc_b[1], {0: "svc_b_1"}),
+                (meta_dply_b[3], {0: "dply_b_3"}),
+                (meta_dply_b[4], {0: "dply_b_4"}),
             ],
         }
         selectors = Selectors(kinds, namespaces, labels=None)
