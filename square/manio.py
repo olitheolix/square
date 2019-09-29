@@ -461,7 +461,7 @@ def filename_for_manifest(
     lut = {
         "ns": meta.namespace,
         "kind": meta.kind.lower(),
-        "label": labels.get(grouping.label, ""),
+        "label": labels.get(grouping.label, "_all"),
     }
     path_constituents = [lut[_] for _ in grouping.order]
     path = str.join("/", path_constituents)
