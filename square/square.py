@@ -698,7 +698,7 @@ def main_get(
 
 def cluster_config(
         kubeconfig: str,
-        kube_context: str) -> Tuple[Tuple[Optional[Config], Any], bool]:
+        context: Optional[str]) -> Tuple[Tuple[Optional[Config], Any], bool]:
     """Return web session to K8s API.
 
     This will read the Kubernetes credentials, contact Kubernetes to
@@ -716,11 +716,11 @@ def cluster_config(
     """
     # Read Kubeconfig file and use it to create a `requests` client session.
     # That session will have the proper security certificates and headers so
-    # that subsequent calls to K8s need not deal with anymore.
+    # that subsequent calls to K8s need not deal with it anymore.
     kubeconfig = os.path.expanduser(kubeconfig)
     try:
         # Parse Kubeconfig file.
-        config = k8s.load_auto_config(kubeconfig, kube_context, disable_warnings=True)
+        config = k8s.load_auto_config(kubeconfig, context, disable_warnings=True)
         assert config
 
         # Configure web session.
