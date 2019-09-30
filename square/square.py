@@ -16,9 +16,9 @@ import square.manio as manio
 import yaml
 from square import __version__
 from square.dtypes import (
-    RESOURCE_ALIASES, SUPPORTED_KINDS, Config, DeltaCreate, DeltaDelete,
-    DeltaPatch, DeploymentPlan, Filepath, JsonPatch, ManifestGrouping,
-    MetaManifest, Selectors, ServerManifests,
+    RESOURCE_ALIASES, SUPPORTED_KINDS, Config, Configuration, DeltaCreate,
+    DeltaDelete, DeltaPatch, DeploymentPlan, Filepath, JsonPatch,
+    ManifestGrouping, MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -145,27 +145,6 @@ def parse_commandline_args():
 
     # Parse the actual arguments.
     param = parser.parse_args()
-
-    # NOTE: skip this step if the user for `version` requests since
-    # the relevant variables will not be be defined then.
-    if param.parser == "version":
-        return param
-
-    if not param.kubeconfig:
-        print("ERROR: must either specify --kubeconfig or set KUBECONFIG")
-        sys.exit(1)
-
-    # Remove duplicates but retain the original order of "param.kinds". This is
-    # a "trick" that will only work in Python 3.7+ because it guarantees a
-    # stable insertion order for dicts (but not sets).
-    param.kinds = list(dict.fromkeys(param.kinds))
-
-    # Expand the "all" resource (if present).
-    if "all" in param.kinds:
-        param.kinds = list(SUPPORTED_KINDS)
-
-    # Make label list immutable.
-    param.labels = tuple(param.labels)
 
     return param
 
@@ -739,43 +718,80 @@ def cluster_config(
     return (config, client), False
 
 
+def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
+    """Return `Configuration` from `cmdline_param`.
+
+    Inputs:
+        cmdline_param: SimpleNamespace
+
+    Returns:
+        Configuration, err
+
+    """
+    # Convenience.
+    p = cmdline_param
+
+    # Abort without credentials.
+    if not p.kubeconfig:
+        logit.error("ERROR: must either specify --kubeconfig or set KUBECONFIG")
+        return None, True
+
+    # Remove duplicates but retain the original order of "p.kinds". This is
+    # a "trick" that will only work in Python 3.7+ which guarantees a stable
+    # insertion order for dictionaries (but not sets).
+    p.kinds = list(dict.fromkeys(p.kinds))
+
+    # Expand the "all" resource (if present) and ignore all other resources, if
+    # any were specified.
+    if "all" in p.kinds:
+        p.kinds = list(SUPPORTED_KINDS)
+
+    # Folder must be `Path` object.
+    folder = pathlib.Path(p.folder)
+
+    # Specify the selectors (see definition of `dtypes.Selectors`).
+    selectors = Selectors(p.kinds, p.namespaces, set(p.labels))
+
+    # Use default grouping until we have command line arguments for it.
+    groupby = ManifestGrouping(order=[], label="")
+
+    cfg = Configuration(
+        p.parser, p.verbosity, folder,
+        p.kinds, p.namespaces,
+        p.kubeconfig, p.ctx,
+        selectors, groupby
+    )
+    return cfg, False
+
+
 def main() -> int:
     param = parse_commandline_args()
-
     if param.parser == "version":
         print(f"v{__version__}")
         return 0
 
-    command, verbosity, folder = param.parser, param.verbosity, param.folder
-    kinds, labels, namespaces = param.kinds, param.labels, param.namespaces
-    kubeconfig, kube_ctx = param.kubeconfig, param.ctx
-
-    # Folder must be `Path` object.
-    folder = pathlib.Path(folder)
-
-    # Specify the selectors (see definition `dtypes.Selectors` in for arguments).
-    selectors = Selectors(kinds, namespaces, set(labels))
-    groupby = ManifestGrouping(order=[], label="")
-
-    del param
+    # Create Square configuration from command line arguments.
+    cfg, err = compile_config(param)
+    if cfg is None or err:
+        return 1
 
     # Initialise logging.
-    setup_logging(verbosity)
+    setup_logging(cfg.verbosity)
 
     # Create properly configured Requests session to talk with K8s API.
-    (config, client), err = cluster_config(kubeconfig, kube_ctx)
+    (config, client), err = cluster_config(cfg.kubeconfig, cfg.kube_ctx)
     if err or config is None or client is None:
         return 1
 
     # Do what user asked us to do.
-    if command == "get":
-        _, err = main_get(config, client, folder, selectors, groupby)
-    elif command == "plan":
-        _, err = main_plan(config, client, folder, selectors)
-    elif command == "apply":
-        _, err = main_apply(config, client, folder, selectors, config.name)
+    if cfg.command == "get":
+        _, err = main_get(config, client, cfg.folder, cfg.selectors, cfg.groupby)
+    elif cfg.command == "plan":
+        _, err = main_plan(config, client, cfg.folder, cfg.selectors)
+    elif cfg.command == "apply":
+        _, err = main_apply(config, client, cfg.folder, cfg.selectors, config.name)
     else:
-        logit.error(f"Unknown command <{command}>")
+        logit.error(f"Unknown command <{cfg.command}>")
         return 1
 
     # Return error code.

@@ -9,12 +9,30 @@ import square.k8s as k8s
 import square.manio as manio
 import square.square as square
 from square.dtypes import (
-    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    JsonPatch, ManifestGrouping, MetaManifest, Selectors,
+    SUPPORTED_KINDS, Configuration, DeltaCreate, DeltaDelete, DeltaPatch,
+    DeploymentPlan, JsonPatch, ManifestGrouping, MetaManifest, Selectors,
 )
 from square.k8s import urlpath
 
 from .test_helpers import make_manifest
+
+
+def dummy_command_param():
+    """Helper function: return a valid parsed command line.
+
+    This is mostly useful for `compile_config` related tests.
+
+    """
+    return types.SimpleNamespace(
+        parser="get",
+        verbosity=9,
+        folder="/tmp",
+        kinds=["Deployment"],
+        labels=[("app", "morty"), ("foo", "bar")],
+        namespaces=["default"],
+        kubeconfig="kubeconfig",
+        ctx=None,
+    )
 
 
 class TestLogging:
@@ -772,6 +790,52 @@ class TestMainOptions:
 
 
 class TestMain:
+    def test_compile_config_basic(self):
+        """Compile various valid configurations."""
+        param = dummy_command_param()
+        cfg, err = square.compile_config(param)
+        assert not err
+        assert cfg == Configuration(
+            command='get', verbosity=9, folder=pathlib.Path('/tmp'),
+            kinds=['Deployment'],
+            namespaces=['default'],
+            kubeconfig='kubeconfig', kube_ctx=None,
+            selectors=Selectors(
+                kinds=['Deployment'],
+                namespaces=['default'],
+                labels={("app", "morty"), ("foo", "bar")}
+            ),
+            groupby=ManifestGrouping(label='', order=[])
+        )
+
+    def test_compile_config_kinds(self):
+        """Parse resource kinds."""
+        # Specify `Service` twice.
+        param = dummy_command_param()
+        param.kinds = ["Service", "Deploy", "Service"]
+        cfg, err = square.compile_config(param)
+        assert not err
+        assert cfg.kinds == ["Service", "Deploy"]
+
+        # The "all" resource must expand to all supported kinds.
+        param.kinds = ["all"]
+        cfg, err = square.compile_config(param)
+        assert not err
+        assert cfg.kinds == list(SUPPORTED_KINDS)
+
+        # Must remove duplicate resources.
+        param.kinds = ["all", "svc", "all"]
+        cfg, err = square.compile_config(param)
+        assert not err
+        assert cfg.kinds == list(SUPPORTED_KINDS)
+
+    def test_compile_config_k8s_credentials(self):
+        """Parse K8s credentials."""
+        # Must return error without K8s credentials.
+        param = dummy_command_param()
+        param.kubeconfig = None
+        assert square.compile_config(param) == (None, True)
+
     @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "main_get")
     @mock.patch.object(square, "main_plan")
@@ -868,33 +932,33 @@ class TestMain:
             with mock.patch("sys.argv", ["square.py", option, "ns"]):
                 assert square.main() == 1
 
-    @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "parse_commandline_args")
-    def test_main_invalid_option_in_main(self, m_cmd, m_k8s):
+    @mock.patch.object(square, "cluster_config")
+    def test_main_invalid_option_in_main(self, m_cluster, m_cmd):
         """Simulate an option that `square` does not know about.
 
-        This is a somewhat pathological test and exists primarily to close a
-        harmless gap in the test coverage.
+        This is a somewhat pathological test and exists primarily to close some
+        harmless gaps in the unit test coverage.
 
         """
-        # Dummy configuration.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
+        # Pretend the call to get K8s credentials succeeded.
+        m_cluster.return_value = (("foo", "bar"), False)
 
-        # Mock all calls to the K8s API.
-        m_k8s.load_auto_config.return_value = config
-        m_k8s.session.return_value = "client"
-        m_k8s.version.return_value = (config, False)
+        # Force a configuration error due to the absence of K8s credentials.
+        cfg = dummy_command_param()
+        cfg.kubeconfig = None
+        m_cmd.return_value = cfg
+        assert square.main() == 1
 
-        # Pretend all main functions return errors.
-        m_cmd.return_value = types.SimpleNamespace(
-            verbosity=0, parser="invalid", kubeconfig="conf", ctx="ctx",
-            folder=pathlib.Path("/tmp"), kinds=None, namespaces=None, labels=set()
-        )
+        # Simulate an invalid Square command.
+        cfg = dummy_command_param()
+        cfg.parser = "invalid"
+        m_cmd.return_value = cfg
         assert square.main() == 1
 
     @mock.patch.object(square, "k8s")
     def test_main_version_error(self, m_k8s):
-        """Program must abort if it cannot download the K8s version."""
+        """Program must abort if it cannot get the version from K8s."""
         # Mock all calls to the K8s API.
         m_k8s.version.return_value = (None, True)
 
@@ -906,24 +970,6 @@ class TestMain:
         with mock.patch("sys.argv", ["square.py", "get", "deploy", "svc"]):
             ret = square.parse_commandline_args()
             assert ret.kinds == ["Deployment", "Service"]
-
-        # Specify Service twice (once as "svc" and once as "Service"). The
-        # duplicate must be removed.
-        with mock.patch("sys.argv", ["square.py", "get", "service", "deploy", "svc"]):
-            ret = square.parse_commandline_args()
-            assert ret.kinds == ["Service", "Deployment"]
-
-    def test_parse_commandline_args_all(self):
-        """The "all" resource must expand to all supported resource kinds."""
-        # Specify "all" resources.
-        with mock.patch("sys.argv", ["square.py", "get", "all"]):
-            ret = square.parse_commandline_args()
-            assert ret.kinds == list(SUPPORTED_KINDS)
-
-        # Must ignore duplicates.
-        with mock.patch("sys.argv", ["square.py", "get", "all", "svc", "all"]):
-            ret = square.parse_commandline_args()
-            assert ret.kinds == list(SUPPORTED_KINDS)
 
     def test_parse_commandline_args_invalid(self):
         """An invalid resource name must abort the program."""
@@ -941,12 +987,12 @@ class TestMain:
         # One label.
         with mock.patch("sys.argv", ["square.py", "get", "all", "-l", "foo=bar"]):
             ret = square.parse_commandline_args()
-            assert ret.labels == (("foo", "bar"),)
+            assert ret.labels == [("foo", "bar")]
 
         # Two labels.
         with mock.patch("sys.argv", ["square.py", "get", "all", "-l", "foo=bar", "x=y"]):
             ret = square.parse_commandline_args()
-            assert ret.labels == (("foo", "bar"), ("x", "y"))
+            assert ret.labels == [("foo", "bar"), ("x", "y")]
 
     def test_parse_commandline_args_labels_invalid(self):
         """Must abort on invalid labels."""
@@ -978,13 +1024,13 @@ class TestMain:
                 ret = square.parse_commandline_args()
                 assert ret.kubeconfig == "envvar"
 
-        # Square must raise an error without an explicit kubeconfig
-        # parameters and environment variable.
+        # Square must return `None` if there is neither a KUBECONFIG env var
+        # nor a user specified argument.
         del new_env["KUBECONFIG"]
         with mock.patch.dict("os.environ", values=new_env, clear=True):
             with mock.patch("sys.argv", ["square.py", "get", "svc"]):
-                with pytest.raises(SystemExit):
-                    square.parse_commandline_args()
+                ret = square.parse_commandline_args()
+                assert ret.kubeconfig is None
 
     def test_parse_commandline_args_folder(self):
         """Use the correct manifest folder."""
