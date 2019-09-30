@@ -81,3 +81,15 @@ class ManifestGrouping(NamedTuple):
     """Define how to name manifest files on the files system."""
     label: str
     order: Iterable[str]
+
+
+class Configuration(NamedTuple):
+    command: str
+    verbosity: int
+    folder: Filepath
+    kinds: Iterable[str]
+    namespaces: Iterable[str]
+    kubeconfig: str
+    kube_ctx: Optional[str]
+    selectors: Selectors
+    groupby: ManifestGrouping
