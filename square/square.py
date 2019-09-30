@@ -746,30 +746,36 @@ def main() -> int:
         print(f"v{__version__}")
         return 0
 
+    command, verbosity, folder = param.parser, param.verbosity, param.folder
+    kinds, labels, namespaces = param.kinds, param.labels, param.namespaces
+    kubeconfig, kube_ctx = param.kubeconfig, param.ctx
+
+    # Folder must be `Path` object.
+    folder = pathlib.Path(folder)
+
+    # Specify the selectors (see definition `dtypes.Selectors` in for arguments).
+    selectors = Selectors(kinds, namespaces, set(labels))
+    groupby = ManifestGrouping(order=[], label="")
+
+    del param
+
     # Initialise logging.
-    setup_logging(param.verbosity)
+    setup_logging(verbosity)
 
     # Create properly configured Requests session to talk with K8s API.
-    (config, client), err = cluster_config(param.kubeconfig, param.ctx)
+    (config, client), err = cluster_config(kubeconfig, kube_ctx)
     if err or config is None or client is None:
         return 1
 
-    # Folder must be `Path` object.
-    folder = pathlib.Path(param.folder)
-
-    # Specify the selectors (see definition `dtypes.Selectors` in for arguments).
-    selectors = Selectors(param.kinds, param.namespaces, set(param.labels))
-    groupby = ManifestGrouping(order=[], label="")
-
     # Do what user asked us to do.
-    if param.parser == "get":
+    if command == "get":
         _, err = main_get(config, client, folder, selectors, groupby)
-    elif param.parser == "plan":
+    elif command == "plan":
         _, err = main_plan(config, client, folder, selectors)
-    elif param.parser == "apply":
+    elif command == "apply":
         _, err = main_apply(config, client, folder, selectors, config.name)
     else:
-        logit.error(f"Unknown command <{param.parser}>")
+        logit.error(f"Unknown command <{command}>")
         return 1
 
     # Return error code.
