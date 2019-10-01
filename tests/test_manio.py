@@ -1547,6 +1547,28 @@ class TestSync:
         selectors = Selectors(kinds, namespaces, labels=None)
         assert manio.sync(loc_man, srv_man, selectors, groupby) == (expected, False)
 
+    def test_sync_filename_err(self):
+        """Must gracefully handle errors in `filename_for_manifest`.
+
+        This test will use an invalid grouping specification to force an error.
+        As a consequence, the function must abort cleanly and return an error.
+
+        """
+        # Valid selector for Deployment manifests.
+        selectors = Selectors(["Deployment"], namespaces=None, labels=None)
+
+        # Simulate the scenario where the server has a Deployment we lack
+        # locally. This will ensure that `sync` will try to create a new file
+        # for it, which is what we want to test.
+        loc_man = {}
+        srv_man = {manio.make_meta(mk_deploy(f"d_1", "ns1")): "1"}
+
+        # Define an invalid grouping specification. As a consequence,
+        # `filename_for_manifest` will return an error and we can verify if
+        # `sync` gracefully handles it and returns an error.
+        groupby = ManifestGrouping(order=["blah"], label="")
+        assert manio.sync(loc_man, srv_man, selectors, groupby) == (None, True)
+
 
 class TestDownloadManifests:
     @mock.patch.object(k8s, 'get')

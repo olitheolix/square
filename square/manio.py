@@ -396,7 +396,7 @@ def sync(
     del local_manifests
 
     # If the server's meta manifest exists locally then update the local one,
-    # otherwise add it to f"_{namespace}.yaml".
+    # otherwise add it to the catchall YAML file.
     for meta, manifest in server_manifests.items():
         try:
             # Find the file that defined `meta` and its position inside that file.
