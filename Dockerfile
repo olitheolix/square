@@ -59,7 +59,7 @@ RUN pip3 install pipenv pyinstaller awscli
 RUN git clone https://github.com/olitheolix/square.git --depth=1
 WORKDIR /src/square
 RUN pipenv install --system --deploy --dev
-RUN pyinstaller square.py --onefile
+RUN pyinstaller square/square.py --onefile
 
 
 # ------------------------------------------------------------------------------

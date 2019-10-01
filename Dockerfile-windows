@@ -32,4 +32,4 @@ COPY --from=python-requirements /src/requirements.txt /src
 
 # Use Wine to install the Python requirements and build the Windows binary.
 RUN wine pip install -r requirements.txt
-RUN wine pyinstaller --onefile --noupx square.py
+RUN wine pyinstaller --onefile --noupx square/square.py
