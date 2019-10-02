@@ -32,6 +32,7 @@ def dummy_command_param():
         namespaces=["default"],
         kubeconfig="kubeconfig",
         ctx=None,
+        groupby=None,
     )
 
 
@@ -836,6 +837,46 @@ class TestMain:
         param.kubeconfig = None
         assert square.compile_config(param) == (None, True)
 
+    def test_compile_hierarchy_ok(self):
+        """Parse file system hierarchy."""
+        param = dummy_command_param()
+
+        # ----------------------------------------------------------------------
+        # Default hierarchy.
+        # ----------------------------------------------------------------------
+        for cmd in ["apply", "get", "plan"]:
+            param.parser = cmd
+            ret, err = square.compile_config(param)
+            assert not err
+            assert ret.groupby == ManifestGrouping(order=[], label="")
+            del cmd, ret, err
+
+        # ----------------------------------------------------------------------
+        # User defined hierarchy with a valid label.
+        # ----------------------------------------------------------------------
+        param.parser = "get"
+        param.groupby = ("ns", "kind", "label=app", "ns")
+        ret, err = square.compile_config(param)
+        assert not err
+        assert ret.groupby == ManifestGrouping(
+            order=["ns", "kind", "label", "ns"], label="app")
+
+        # ----------------------------------------------------------------------
+        # User defined hierarchy with invalid labels.
+        # ----------------------------------------------------------------------
+        param.parser = "get"
+        invalid_labels = ["label", "label=", "label=foo=bar"]
+        for label in invalid_labels:
+            param.groupby = ("ns", "kind", label, "ns")
+            assert square.compile_config(param) == (None, True)
+
+        # ----------------------------------------------------------------------
+        # User defined hierarchy with invalid resource types.
+        # ----------------------------------------------------------------------
+        param.parser = "get"
+        param.groupby = ("ns", "unknown")
+        assert square.compile_config(param) == (None, True)
+
     @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "main_get")
     @mock.patch.object(square, "main_plan")
@@ -850,7 +891,7 @@ class TestMain:
         # Dummy configuration.
         config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
-        # Define the default grouping for when user does not specify one.
+        # Default grouping because we will not specify custom ones in this test.
         groupby = ManifestGrouping(order=[], label="")
 
         # Mock all calls to the K8s API.
@@ -990,9 +1031,58 @@ class TestMain:
             assert ret.labels == [("foo", "bar")]
 
         # Two labels.
-        with mock.patch("sys.argv", ["square.py", "get", "all", "-l", "foo=bar", "x=y"]):
+        with mock.patch("sys.argv",
+                        ["square.py", "get", "all", "-l", "foo=bar", "x=y"]):
             ret = square.parse_commandline_args()
             assert ret.labels == [("foo", "bar"), ("x", "y")]
+
+    def test_parse_commandline_get_grouping(self):
+        """The GET supports file hierarchy options."""
+        # ----------------------------------------------------------------------
+        # Default file system hierarchy.
+        # ----------------------------------------------------------------------
+        with mock.patch("sys.argv", ["square.py", "get", "all"]):
+            param = square.parse_commandline_args()
+            assert param.groupby is None
+
+        cfg, err = square.compile_config(param)
+        assert not err
+        assert cfg.groupby == ManifestGrouping(label="", order=[])
+
+        # ----------------------------------------------------------------------
+        # User defined file system hierarchy.
+        # ----------------------------------------------------------------------
+        cmd = ["--groupby", "ns", "kind"]
+        with mock.patch("sys.argv", ["square.py", "get", "all", *cmd]):
+            param = square.parse_commandline_args()
+            assert param.groupby == ["ns", "kind"]
+
+        cfg, err = square.compile_config(param)
+        assert not err
+        assert cfg.groupby == ManifestGrouping(label="", order=["ns", "kind"])
+
+        # ----------------------------------------------------------------------
+        # Include a label into the hierarchy and use "ns" twice.
+        # ----------------------------------------------------------------------
+        cmd = ("--groupby", "ns", "label=foo", "ns")
+        with mock.patch("sys.argv", ["square.py", "get", "all", *cmd]):
+            param = square.parse_commandline_args()
+            assert param.groupby == ["ns", "label=foo", "ns"]
+
+        cfg, err = square.compile_config(param)
+        assert not err
+        assert cfg.groupby == ManifestGrouping(label="foo", order=["ns", "label", "ns"])
+
+        # ----------------------------------------------------------------------
+        # The label resource, unlike "ns" or "kind", can only be specified
+        # at most once.
+        # ----------------------------------------------------------------------
+        cmd = ("--groupby", "ns", "label=foo", "label=bar")
+        with mock.patch("sys.argv", ["square.py", "get", "all", *cmd]):
+            param = square.parse_commandline_args()
+            assert param.groupby == ["ns", "label=foo", "label=bar"]
+
+        assert square.compile_config(param) == (None, True)
 
     def test_parse_commandline_args_labels_invalid(self):
         """Must abort on invalid labels."""
