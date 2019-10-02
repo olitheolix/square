@@ -125,6 +125,11 @@ def parse_commandline_args():
         'get', help="Get manifests from K8s and save them locally", parents=[parent]
     )
     parser_get.add_argument(**kinds_kwargs)
+    parser_get.add_argument(
+        "--groupby", type=str, nargs="*",
+        metavar="", dest="groupby",
+        help="Folder hierarchy (eg '--groupby ns kind label')",
+    )
 
     # Sub-command DIFF.
     parser_plan = subparsers.add_parser(
@@ -751,9 +756,40 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
     # Specify the selectors (see definition of `dtypes.Selectors`).
     selectors = Selectors(p.kinds, p.namespaces, set(p.labels))
 
-    # Use default grouping until we have command line arguments for it.
-    groupby = ManifestGrouping(order=[], label="")
+    # ------------------------------------------------------------------------
+    # Unpack the folder hierarchy. For example:
+    # From: `--groupby ns kind label=app` ->
+    # To  : ManifestGrouping(order=["ns", "kind", "label"], label="app")
+    # ------------------------------------------------------------------------
+    # Unpack the ordering and replace all `label=*` with `label`.
+    order = getattr(p, "groupby", None) or []
+    clean_order = [_ if not _.startswith("label") else "label" for _ in order]
+    if not set(clean_order).issubset({"ns", "kind", "label"}):
+        logit.error(f"Invalid resource names in <{order}>")
+        return None, True
 
+    labels = [_ for _ in order if _.startswith("label")]
+    if len(labels) > 1:
+        logit.error("Can only specify one label in file hierarchy")
+        return None, True
+
+    # Unpack the label name if the user specified it as part of `--groupby`.
+    # Example, if user specified `--groupby label=app` then we need to extract
+    # the `app` part. This also includes basic sanity checks.
+    label_name = ""
+    if len(labels) == 1:
+        try:
+            _, label_name = labels[0].split("=")
+            assert len(label_name) > 0
+        except (ValueError, AssertionError):
+            logit.error(f"Invalid label specification <{labels[0]}>")
+            return None, True
+    groupby = ManifestGrouping(order=clean_order, label=label_name)
+    del order, clean_order, label_name
+
+    # -------------------------------------------------------------------------
+    # Assemble the full configuration and return it.
+    # -------------------------------------------------------------------------
     cfg = Configuration(
         p.parser, p.verbosity, folder,
         p.kinds, p.namespaces,
