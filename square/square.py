@@ -778,7 +778,7 @@ def main() -> int:
     # Initialise logging.
     setup_logging(cfg.verbosity)
 
-    # Create properly configured Requests session to talk with K8s API.
+    # Create properly configured Requests session to talk to K8s API.
     (config, client), err = cluster_config(cfg.kubeconfig, cfg.kube_ctx)
     if err or config is None or client is None:
         return 1

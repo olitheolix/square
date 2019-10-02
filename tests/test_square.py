@@ -1015,7 +1015,9 @@ class TestMain:
         with mock.patch.dict("os.environ", values=new_env, clear=True):
             # Square must use the supplied Kubeconfig file and ignore the
             # environment variable.
-            with mock.patch("sys.argv", ["square.py", "get", "svc", "--kubeconfig", "/file"]):  # noqa
+            with mock.patch(
+                    "sys.argv",
+                    ["square.py", "get", "svc", "--kubeconfig", "/file"]):
                 ret = square.parse_commandline_args()
                 assert ret.kubeconfig == "/file"
 
