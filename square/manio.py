@@ -12,7 +12,7 @@ import yaml
 import yaml.scanner
 from square.dtypes import (
     SUPPORTED_KINDS, Config, Filepath, LocalManifestLists, LocalManifests,
-    ManifestGrouping, MetaManifest, Selectors, ServerManifests,
+    ManifestHierarchy, MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -328,7 +328,7 @@ def sync(
         local_manifests: LocalManifestLists,
         server_manifests: ServerManifests,
         selectors: Selectors,
-        groupby: ManifestGrouping,
+        groupby: ManifestHierarchy,
 ) -> Tuple[Optional[LocalManifestLists], bool]:
     """Update the local manifests with the server values and return the result.
 
@@ -337,7 +337,7 @@ def sync(
         server_manifests: Dict[MetaManifest, dict]
         selectors: Selectors
             Only operate on resources that match the selectors.
-        groupby: ManifestGrouping
+        groupby: ManifestHierarchy
             Specify relationship between new manifests and file names.
 
     Returns:
@@ -423,13 +423,13 @@ def sync(
 
 def filename_for_manifest(
         meta: MetaManifest, manifest: dict,
-        grouping: ManifestGrouping) -> Tuple[Filepath, bool]:
+        grouping: ManifestHierarchy) -> Tuple[Filepath, bool]:
     """Return the file for the manifest based on `groupby`.
 
     Inputs:
         meta: MetaManifest
         manifest: dict
-        groupby: ManifestGrouping
+        groupby: ManifestHierarchy
 
     Output:
         Filepath

@@ -9,7 +9,7 @@ import square.manio as manio
 import square.schemas as schemas
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, ManifestGrouping, MetaManifest,
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, ManifestHierarchy, MetaManifest,
     Selectors,
 )
 from square.k8s import urlpath
@@ -555,7 +555,7 @@ class TestYamlManifestIO:
         """
         # Generic selector that matches all manifests in this test.
         selectors = Selectors(["Deployment"], None, set())
-        groupby = ManifestGrouping(order=[], label="")
+        groupby = ManifestHierarchy(order=[], label="")
 
         # Construct demo manifests in the same way as `load_files` would.
         dply = [mk_deploy(f"d_{_}", "nsfoo") for _ in range(10)]
@@ -1148,7 +1148,7 @@ class TestSync:
     def test_filename_for_manifest_ok(self):
         """Verify a few valid file name conventions."""
         # Convenience.
-        fun, G = manio.filename_for_manifest, ManifestGrouping
+        fun, G = manio.filename_for_manifest, ManifestHierarchy
 
         # Valid manifest with an "app" LABEL.
         man = make_manifest("Deployment", "ns", "name", {"app": "app"})
@@ -1177,7 +1177,7 @@ class TestSync:
 
         """
         # Convenience.
-        fun, G = manio.filename_for_manifest, ManifestGrouping
+        fun, G = manio.filename_for_manifest, ManifestHierarchy
 
         # Valid manifest with an "app" LABEL.
         man = make_manifest("Namespace", None, "nsname", {"app": "app"})
@@ -1202,7 +1202,7 @@ class TestSync:
     def test_filename_for_manifest_not_namespaced(self):
         """Resources that exist outside namespaces, like ClusterRole."""
         # Convenience.
-        fun, G = manio.filename_for_manifest, ManifestGrouping
+        fun, G = manio.filename_for_manifest, ManifestHierarchy
 
         # Valid manifest with an "app" LABEL.
         for kind in ("ClusterRole", "ClusterRoleBinding"):
@@ -1228,7 +1228,7 @@ class TestSync:
     def test_filename_for_manifest_valid_but_no_label(self):
         """Consider corner cases when sorting by a non-existing label."""
         # Convenience.
-        fun, G = manio.filename_for_manifest, ManifestGrouping
+        fun, G = manio.filename_for_manifest, ManifestHierarchy
 
         # This manifest has no label, most notably not a "app" LABEL.
         man = make_manifest("Deployment", "ns", "name", {})
@@ -1248,7 +1248,7 @@ class TestSync:
     def test_filename_for_manifest_err(self):
         """Verify a few invalid file name conventions."""
         # Convenience.
-        fun, G = manio.filename_for_manifest, ManifestGrouping
+        fun, G = manio.filename_for_manifest, ManifestHierarchy
 
         # A valid manifest - content is irrelevant for this test.
         man = make_manifest("Deployment", "ns", "name", {})
@@ -1273,7 +1273,7 @@ class TestSync:
         """
         # Convenience shorthand.
         fun = manio.sync
-        groupby = ManifestGrouping(order=[], label="")
+        groupby = ManifestHierarchy(order=[], label="")
 
         # Various MetaManifests to use in the tests.
         ns0 = manio.make_meta(make_manifest("Namespace", None, "ns0"))
@@ -1427,7 +1427,7 @@ class TestSync:
         server ones do not.
 
         """
-        groupby = ManifestGrouping(order=[], label="")
+        groupby = ManifestHierarchy(order=[], label="")
         m_fname.return_value = ("catchall.yaml", False)
 
         # Args for `sync`. In this test, we only have Deployments and want to
@@ -1479,7 +1479,7 @@ class TestSync:
         # Args for `sync`. In this test, we only have Deployments and want to
         # sync them across all namespaces.
         kinds, namespaces = ["Deployment"], None
-        groupby = ManifestGrouping(order=[], label="")
+        groupby = ManifestHierarchy(order=[], label="")
 
         # First, create the local manifests as `load_files` would return it.
         # The `{0: "blah"}` like dicts are necessary because the
@@ -1566,7 +1566,7 @@ class TestSync:
         # Define an invalid grouping specification. As a consequence,
         # `filename_for_manifest` will return an error and we can verify if
         # `sync` gracefully handles it and returns an error.
-        groupby = ManifestGrouping(order=["blah"], label="")
+        groupby = ManifestHierarchy(order=["blah"], label="")
         assert manio.sync(loc_man, srv_man, selectors, groupby) == (None, True)
 
 

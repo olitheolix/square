@@ -10,7 +10,7 @@ import square.manio as manio
 import square.square as square
 from square.dtypes import (
     SUPPORTED_KINDS, Configuration, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, JsonPatch, ManifestGrouping, MetaManifest, Selectors,
+    DeploymentPlan, JsonPatch, ManifestHierarchy, MetaManifest, Selectors,
 )
 from square.k8s import urlpath
 
@@ -752,7 +752,7 @@ class TestMainOptions:
         """
         # Define a grouping (not relevant for this test but a necessary
         # argument to the test function).
-        groupby = ManifestGrouping(order=[], label="")
+        groupby = ManifestHierarchy(order=[], label="")
 
         # Simulate successful responses from the two auxiliary functions.
         # The `load` function must return empty dicts to ensure the error
@@ -806,7 +806,7 @@ class TestMain:
                 namespaces=['default'],
                 labels={("app", "morty"), ("foo", "bar")}
             ),
-            groupby=ManifestGrouping(label='', order=[])
+            groupby=ManifestHierarchy(label='', order=[])
         )
 
     def test_compile_config_kinds(self):
@@ -848,7 +848,7 @@ class TestMain:
             param.parser = cmd
             ret, err = square.compile_config(param)
             assert not err
-            assert ret.groupby == ManifestGrouping(order=[], label="")
+            assert ret.groupby == ManifestHierarchy(order=[], label="")
             del cmd, ret, err
 
         # ----------------------------------------------------------------------
@@ -858,7 +858,7 @@ class TestMain:
         param.groupby = ("ns", "kind", "label=app", "ns")
         ret, err = square.compile_config(param)
         assert not err
-        assert ret.groupby == ManifestGrouping(
+        assert ret.groupby == ManifestHierarchy(
             order=["ns", "kind", "label", "ns"], label="app")
 
         # ----------------------------------------------------------------------
@@ -892,7 +892,7 @@ class TestMain:
         config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Default grouping because we will not specify custom ones in this test.
-        groupby = ManifestGrouping(order=[], label="")
+        groupby = ManifestHierarchy(order=[], label="")
 
         # Mock all calls to the K8s API.
         m_k8s.load_auto_config.return_value = config
@@ -1047,7 +1047,7 @@ class TestMain:
 
         cfg, err = square.compile_config(param)
         assert not err
-        assert cfg.groupby == ManifestGrouping(label="", order=[])
+        assert cfg.groupby == ManifestHierarchy(label="", order=[])
 
         # ----------------------------------------------------------------------
         # User defined file system hierarchy.
@@ -1059,7 +1059,7 @@ class TestMain:
 
         cfg, err = square.compile_config(param)
         assert not err
-        assert cfg.groupby == ManifestGrouping(label="", order=["ns", "kind"])
+        assert cfg.groupby == ManifestHierarchy(label="", order=["ns", "kind"])
 
         # ----------------------------------------------------------------------
         # Include a label into the hierarchy and use "ns" twice.
@@ -1071,7 +1071,7 @@ class TestMain:
 
         cfg, err = square.compile_config(param)
         assert not err
-        assert cfg.groupby == ManifestGrouping(label="foo", order=["ns", "label", "ns"])
+        assert cfg.groupby == ManifestHierarchy(label="foo", order=["ns", "label", "ns"])
 
         # ----------------------------------------------------------------------
         # The label resource, unlike "ns" or "kind", can only be specified
