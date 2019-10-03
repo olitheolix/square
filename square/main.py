@@ -228,7 +228,7 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
 def main() -> int:
     param = parse_commandline_args()
     if param.parser == "version":
-        print(f"v{__version__}")
+        print(__version__)
         return 0
 
     # Initialise logging.
