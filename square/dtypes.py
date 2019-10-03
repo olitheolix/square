@@ -21,7 +21,7 @@ SUPPORTED_KINDS = (
     "Service",
 
     # Everything that will spawn pods.
-    "Deployment", "DaemonSet", "StatefulSet", "HorizontalPodAutoscaler",
+    "CronJob", "Deployment", "DaemonSet", "StatefulSet", "HorizontalPodAutoscaler",
 
     # Ingresses should be after Deployments & friends.
     "Ingress",
@@ -36,6 +36,7 @@ RESOURCE_ALIASES = {
     "ClusterRole": {"clusterrole", "clusterroles"},
     "ClusterRoleBinding": {"clusterrolebinding", "clusterrolebindings"},
     "ConfigMap": {"configmap", "cm"},
+    "CronJob": {"cronjob", "cj"},
     "DaemonSet": {"daemonset", "daemonsets", "ds"},
     "Deployment": {"deployment", "deployments", "deploy"},
     "HorizontalPodAutoscaler": {"hpa"},

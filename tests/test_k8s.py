@@ -264,7 +264,7 @@ class TestUrlPathBuilder:
         assert SUPPORTED_KINDS == (
             "Namespace", "ConfigMap", "Secret", "PersistentVolumeClaim",
             "ClusterRole", "ClusterRoleBinding", "Role", "RoleBinding", "ServiceAccount",
-            "Service", "Deployment", "DaemonSet", "StatefulSet",
+            "Service", "CronJob", "Deployment", "DaemonSet", "StatefulSet",
             "HorizontalPodAutoscaler", "Ingress",
         )
 
