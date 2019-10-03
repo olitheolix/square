@@ -497,6 +497,7 @@ def urlpath(
             "ClusterRole": f"apis/rbac.authorization.k8s.io/v1/clusterroles",
             "ClusterRoleBinding": f"apis/rbac.authorization.k8s.io/v1/clusterrolebindings",  # NOQA
             "ConfigMap": f"api/v1/{namespace}/configmaps",
+            "CronJob": f"apis/batch/v1beta1/{namespace}/cronjobs",
             "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
             "Deployment": f"apis/extensions/v1beta1/{namespace}/deployments",
             "HorizontalPodAutoscaler": f"apis/autoscaling/v1/{namespace}/horizontalpodautoscalers",   # NOQA
@@ -514,6 +515,7 @@ def urlpath(
             "ClusterRole": f"apis/rbac.authorization.k8s.io/v1/clusterroles",
             "ClusterRoleBinding": f"apis/rbac.authorization.k8s.io/v1/clusterrolebindings",  # NOQA
             "ConfigMap": f"api/v1/{namespace}/configmaps",
+            "CronJob": f"apis/batch/v1beta1/{namespace}/cronjobs",
             "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
             "Deployment": f"apis/extensions/v1beta1/{namespace}/deployments",
             "HorizontalPodAutoscaler": f"apis/autoscaling/v1/{namespace}/horizontalpodautoscalers",   # NOQA
@@ -531,6 +533,7 @@ def urlpath(
             "ClusterRole": f"apis/rbac.authorization.k8s.io/v1/clusterroles",
             "ClusterRoleBinding": f"apis/rbac.authorization.k8s.io/v1/clusterrolebindings",  # NOQA
             "ConfigMap": f"api/v1/{namespace}/configmaps",
+            "CronJob": f"apis/batch/v1beta1/{namespace}/cronjobs",
             "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
             "Deployment": f"apis/apps/v1/{namespace}/deployments",
             "HorizontalPodAutoscaler": f"apis/autoscaling/v1/{namespace}/horizontalpodautoscalers",   # NOQA
@@ -548,6 +551,7 @@ def urlpath(
             "ClusterRole": f"apis/rbac.authorization.k8s.io/v1/clusterroles",
             "ClusterRoleBinding": f"apis/rbac.authorization.k8s.io/v1/clusterrolebindings",  # NOQA
             "ConfigMap": f"api/v1/{namespace}/configmaps",
+            "CronJob": f"apis/batch/v1beta1/{namespace}/cronjobs",
             "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
             "Deployment": f"apis/apps/v1/{namespace}/deployments",
             "HorizontalPodAutoscaler": f"apis/autoscaling/v1/{namespace}/horizontalpodautoscalers",   # NOQA
@@ -565,6 +569,7 @@ def urlpath(
             "ClusterRole": f"apis/rbac.authorization.k8s.io/v1/clusterroles",
             "ClusterRoleBinding": f"apis/rbac.authorization.k8s.io/v1/clusterrolebindings",  # NOQA
             "ConfigMap": f"api/v1/{namespace}/configmaps",
+            "CronJob": f"apis/batch/v1beta1/{namespace}/cronjobs",
             "DaemonSet": f"apis/apps/v1/{namespace}/daemonsets",
             "Deployment": f"apis/apps/v1/{namespace}/deployments",
             "HorizontalPodAutoscaler": f"apis/autoscaling/v1/{namespace}/horizontalpodautoscalers",   # NOQA

@@ -45,6 +45,14 @@ schema_1_9 = {
         "data": None,
         "binaryData": None,
     },
+    "CronJob": {
+        "metadata": {
+            "labels": None,
+            "name": True,
+            "namespace": True,
+        },
+        "spec": True,
+    },
     "DaemonSet": {
         "metadata": {
             "labels": None,
