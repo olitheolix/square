@@ -2,7 +2,7 @@ import unittest.mock as mock
 
 import pytest
 import requests
-import square.square
+import square.main
 
 
 def kind_available():
@@ -82,4 +82,4 @@ class TestMain:
 
         # Merely verify that the program does not break.
         with mock.patch("sys.argv", args):
-            square.square.main()
+            square.main.main()
