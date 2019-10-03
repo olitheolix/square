@@ -15,7 +15,7 @@ You can install *Square* in any Python 3.7 environment with:
 ```console
 foo@bar:~$ pip install kubernetes-square
 foo@bar:~$ square version
-v0.13.1
+v0.14.0
 ```
 
 You may also [build your own binary](Building-A-Binary), if you prefer.
