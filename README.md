@@ -16,7 +16,7 @@ You can install *Square* in any Python 3.7 environment with:
 ```console
 foo@bar:~$ pip install kubernetes-square
 foo@bar:~$ square version
-v0.14.0
+0.14.0
 ```
 
 You may also [build your own binary](Building-A-Binary), if you prefer.
@@ -37,50 +37,74 @@ Download all _Namespace_- and _Deployment_ manifests from the cluster and save
 them to `./manifests`:
 
 ```console
+foo@bar:~$ kubectl apply -f integration-test-cluster/test-resources.yaml
+...
 foo@bar:~$ square get ns deployment --groupby ns kind --folder manifests/
 foo@bar:~$ tree manifests
-manifests
-├── clusterrolebinding.yaml
-├── clusterrole.yaml
+manifests/
 ├── default
 │   └── namespace.yaml
+├── _global_
+│   └── clusterrole.yaml
 ├── kube-public
 │   └── namespace.yaml
 ├── kube-system
 │   ├── deployment.yaml
 │   └── namespace.yaml
-└── tests
+└── square-tests
     ├── deployment.yaml
     └── namespace.yaml
 ```
 
-These are the Yaml files for an (almost) vanilla Minikube cluster. The layout
-should be self explanatory, and you can change it with the `--groupby` argument.
+These are the Yaml files from the [integration test
+cluster](integration-test-cluster) (a Minikube). The `--groupby` argument
+determine the layout. In this case, each namespace becomes a folder and the
+manifests are grouped by resource type. The only folder that does not
+corresponds to a Kubernetes namespace is `_global_`, and it harbours all the
+non-namespaced resources like `ClusterRole` or `ClusterRoleBinding`.
 
-The file names are arbitrary. Feel free to rename them as you please. The same
-applies to their content: slice it as you see fit because. This works because
-*Square* always flattens and concatenates all manifest files internally. The
-`square get ...` command is also smart enough to sync changes back to the
-correct file, or use `_other.yaml` for new resources.
+The file names, as well as the manifest order inside those files are irrelevant
+to Square because it will always compile them into a flat list internally. As
+such, you are free to rename the files, or distribute their content across
+multiple files. You can still use `square get ...` afterwards on the new files
+and *Square* will update the resources in the right file. If it finds a
+resource on the server that is not yet defined in any of the files it will
+create the corresponding file.
 
 ### Group By Label
-*Square* can also organise the manifests by _one_ label. For instance, if your
-Kubernetes resources have an `app` label, then you organise your manifests like
-in the next example:
+*Square* can also use _one_ resource label and make it part of the manifests
+folders hierarchy. For instance, for the [integration test
+cluster](integration-test-cluster) this produces the following output:
 
 ```console
-foo@bar:~$ square get ns deployment --groupby ns label=app kind --folder manifests/
+foo@bar:~$ kubectl apply -f integration-test-cluster/test-resources.yaml
+...
+foo@bar:~$ square get all --groupby ns label=app kind --folder manifests/
 foo@bar:~$ tree manifests
-manifests
+manifests/
+├── default
+│   └── _other
+│       ├── namespace.yaml
+│       ├── secret.yaml
+│       ├── serviceaccount.yaml
+│       └── service.yaml
+├── _global_
+│   ├── demoapp
+│   │   ├── clusterrolebinding.yaml
+│   │   └── clusterrole.yaml
+│   └── _other
+│       ├── clusterrolebinding.yaml
+│       └── clusterrole.yaml
+├── kube-public
+│   └── _other
+│       ├── configmap.yaml
+│       ├── namespace.yaml
+│       ├── rolebinding.yaml
+│       ├── role.yaml
+│       └── serviceaccount.yaml
 ├── kube-system
-│   ├── cluster-autoscaler
-│   │   ├── rolebinding.yaml
-│   │   └── role.yaml
-│   ├── helm
-│   │   ├── deployment.yaml
-│   │   └── service.yaml
-│   ├── metrics-server
-│   │   └── rolebinding.yaml
+│   ├── kube-proxy
+│   │   └── configmap.yaml
 │   └── _other
 │       ├── configmap.yaml
 │       ├── daemonset.yaml
@@ -91,24 +115,35 @@ manifests
 │       ├── secret.yaml
 │       ├── serviceaccount.yaml
 │       └── service.yaml
-├── nginx-ingress
-│   ├── clusterrolebinding.yaml
-│   └── clusterrole.yaml
-├── _other
-│   ├── clusterrolebinding.yaml
-│   └── clusterrole.yaml
-└── prometheus
-   ├── clusterrolebinding.yaml
-   └── clusterrole.yaml
+└── square-tests
+    ├── demoapp
+    │   ├── configmap.yaml
+    │   ├── cronjob.yaml
+    │   ├── daemonset.yaml
+    │   ├── deployment.yaml
+    │   ├── horizontalpodautoscaler.yaml
+    │   ├── ingress.yaml
+    │   ├── namespace.yaml
+    │   ├── persistentvolumeclaim.yaml
+    │   ├── rolebinding.yaml
+    │   ├── role.yaml
+    │   ├── secret.yaml
+    │   ├── serviceaccount.yaml
+    │   ├── service.yaml
+    │   └── statefulset.yaml
+    └── _other
+        ├── secret.yaml
+        └── serviceaccount.yaml
 ```
 
-All resources that live in the same namespace *and* have the same value for
-their `app` label are now co-located in one folder. Resources without an `app`
-label end up in the catch-all folder `_other`.
+In this case, *Square* co-located all those resources that exist inside the
+same namespace *and* have the same value for their `app` label. It put resources
+without an `app` label end up into the catch-all folder `_other`, and resources
+that exist outside namespaces into the `_global_` folder.
 
 ## Diff Cluster State
 Following on with the example, the local files and the cluster state
-should now be in sync, which means an empty plan:
+are now in sync:
 
 ```console
 foo@bar:~$ square plan ns
@@ -117,7 +152,7 @@ Plan: 0 to add, 0 to change, 0 to destroy.
 ```
 
 To make this more interesting, add a label to the _Namespace_ manifest in
-`_default.yaml` to make it look like this:
+`square-tests/demoapp/namespace.yaml` to make it look like this:
 ```yaml
 apiVersion: v1
 kind: Namespace
