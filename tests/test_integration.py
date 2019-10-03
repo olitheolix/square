@@ -19,10 +19,12 @@ def kind_available():
 class TestMain:
     def test_main_get(self, tmp_path):
         """GET all cluster resources."""
-        # Command line arguments.
+        # Command line arguments: get all manifests and group them by namespace,
+        # "app" label and resource kind.
         args = (
             "square.py", "get", "all",
             "--folder", str(tmp_path),
+            "--groupby", "ns", "label=app", "kind",
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
         )
 
@@ -30,8 +32,44 @@ class TestMain:
         # resources, it must contain some files.
         assert len(list(tmp_path.rglob("*.yaml"))) == 0
         with mock.patch("sys.argv", args):
-            square.square.main()
-        assert len(list(tmp_path.rglob("*.yaml"))) > 0
+            square.main.main()
+
+        # The integration test cluster has these namespaces, which means Square
+        # must have created equivalent folders.
+        for ns in ["default", "kube-system", "square-tests"]:
+            assert (tmp_path / ns).exists()
+            assert (tmp_path / ns).is_dir()
+
+        # All our integration test resources have the `app=demoapp` label and
+        # must thus exist in the folder "square-tests/demoapp".
+        assert (tmp_path / "square-tests" / "demoapp").exists()
+        assert (tmp_path / "square-tests" / "demoapp").is_dir()
+
+        # The "square-tests" namespace must have these manifests.
+        kinds = [
+            "configmap",
+            "cronjob",
+            "daemonset",
+            "deployment",
+            "horizontalpodautoscaler",
+            "ingress",
+            "namespace",
+            "persistentvolumeclaim",
+            "role",
+            "rolebinding",
+            "secret",
+            "service",
+            "serviceaccount",
+            "statefulset",
+        ]
+        for kind in kinds:
+            assert (tmp_path / "square-tests" / "demoapp" / f"{kind}.yaml").exists()
+            assert not (tmp_path / "square-tests" / "demoapp" / f"{kind}.yaml").is_dir()
+
+        # Un-namespaced resources must be in special "_global_" folder.
+        for kind in ["clusterrole", "clusterrolebinding"]:
+            assert (tmp_path / "demoapp" / f"{kind}.yaml").exists()
+            assert not (tmp_path / "demoapp" / f"{kind}.yaml").is_dir()
 
     def test_main_plan(self, tmp_path):
         """PLAN all cluster resources."""
