@@ -1213,13 +1213,13 @@ class TestSync:
             groupby = ManifestHierarchy(order=[], label="")
             assert fun(meta, man, groupby) == ("_other.yaml", False)
 
-            # Group by NAMESPACE and kind: must ignore the folder.
+            # Group by NAMESPACE and kind: must use "_global_" as folder name.
             groupby = ManifestHierarchy(order=["ns", "kind"], label="")
-            assert fun(meta, man, groupby) == (f"{kind.lower()}.yaml", False)
+            assert fun(meta, man, groupby) == (f"_global_/{kind.lower()}.yaml", False)
 
             # Group by KIND and NAMESPACE (inverse of previous test).
             groupby = ManifestHierarchy(order=["kind", "ns"], label="")
-            assert fun(meta, man, groupby) == (f"{kind.lower()}.yaml", False)
+            assert fun(meta, man, groupby) == (f"{kind.lower()}/_global_.yaml", False)
 
             # Group by the existing LABEL "app".
             groupby = ManifestHierarchy(order=["label"], label="app")
