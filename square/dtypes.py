@@ -77,7 +77,7 @@ class Selectors(NamedTuple):
     labels: Optional[Set[Tuple[str, str]]]
 
 
-class ManifestGrouping(NamedTuple):
+class ManifestHierarchy(NamedTuple):
     """Define how to name manifest files on the files system."""
     label: str
     order: Iterable[str]
@@ -92,4 +92,4 @@ class Configuration(NamedTuple):
     kubeconfig: str
     kube_ctx: Optional[str]
     selectors: Selectors
-    groupby: ManifestGrouping
+    groupby: ManifestHierarchy

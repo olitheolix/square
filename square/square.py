@@ -18,7 +18,7 @@ from square import __version__
 from square.dtypes import (
     RESOURCE_ALIASES, SUPPORTED_KINDS, Config, Configuration, DeltaCreate,
     DeltaDelete, DeltaPatch, DeploymentPlan, Filepath, JsonPatch,
-    ManifestGrouping, MetaManifest, Selectors, ServerManifests,
+    ManifestHierarchy, MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -636,7 +636,7 @@ def main_get(
         client,
         folder: Filepath,
         selectors: Selectors,
-        groupby: ManifestGrouping,
+        groupby: ManifestHierarchy,
 ) -> Tuple[None, bool]:
 
     """Download all K8s manifests and merge them into local files.
@@ -648,7 +648,7 @@ def main_get(
             Path to local manifests eg "./foo"
         selectors: Selectors
             Only operate on resources that match the selectors.
-        groupby: ManifestGrouping
+        groupby: ManifestHierarchy
             Specify relationship between new manifests and file names.
 
     Returns:
@@ -759,7 +759,7 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
     # ------------------------------------------------------------------------
     # Unpack the folder hierarchy. For example:
     # From: `--groupby ns kind label=app` ->
-    # To  : ManifestGrouping(order=["ns", "kind", "label"], label="app")
+    # To  : ManifestHierarchy(order=["ns", "kind", "label"], label="app")
     # ------------------------------------------------------------------------
     # Unpack the ordering and replace all `label=*` with `label`.
     order = getattr(p, "groupby", None) or []
@@ -784,7 +784,7 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
         except (ValueError, AssertionError):
             logit.error(f"Invalid label specification <{labels[0]}>")
             return None, True
-    groupby = ManifestGrouping(order=clean_order, label=label_name)
+    groupby = ManifestHierarchy(order=clean_order, label=label_name)
     del order, clean_order, label_name
 
     # -------------------------------------------------------------------------
