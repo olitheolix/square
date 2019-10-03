@@ -475,17 +475,16 @@ def setup_logging(log_level: int) -> None:
     logger.setLevel(level)
 
     # Configure stdout handler.
-    ch = logging.StreamHandler()
-    ch.setLevel(level)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - "
-        f"%(filename)s:%(funcName)s:%(lineno)d - "
-        f"%(message)s"
+    handler = logging.StreamHandler()
+    handler.setLevel(level)
+    handler.setFormatter(
+        logging.Formatter(
+            "%(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s"
+        )
     )
-    ch.setFormatter(formatter)
 
     # Attach stdout handlers to the `square` logger.
-    logger.addHandler(ch)
+    logger.addHandler(handler)
     logit.info(f"Set log level to {level}")
 
 
@@ -770,13 +769,13 @@ def main() -> int:
         print(f"v{__version__}")
         return 0
 
+    # Initialise logging.
+    setup_logging(param.verbosity)
+
     # Create Square configuration from command line arguments.
     cfg, err = compile_config(param)
     if cfg is None or err:
         return 1
-
-    # Initialise logging.
-    setup_logging(cfg.verbosity)
 
     # Create properly configured Requests session to talk to K8s API.
     (config, client), err = cluster_config(cfg.kubeconfig, cfg.kube_ctx)
