@@ -468,9 +468,9 @@ def filename_for_manifest(
     path_constituents = [lut[_] for _ in order]
     path = str.join("/", path_constituents)
 
-    # Default to the catch-all `_all.yaml` resource if the order did not
+    # Default to the catch-all `_other.yaml` resource if the order did not
     # produce a file name. This typically happens when `grouping.order = []`.
-    path = "_all.yaml" if path == "" else f"{path}.yaml"
+    path = "_other.yaml" if path == "" else f"{path}.yaml"
     return path, False
 
 

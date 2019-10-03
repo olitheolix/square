@@ -614,12 +614,12 @@ class TestYamlManifestIO:
 
         # Expected output after we merged back the changes (reminder: `dply[1]`
         # is different, `dply[{3,5}]` were deleted and `dply[{6,7}]` are new).
-        # The new manifests must all end up in "_all.yaml" file because they
+        # The new manifests must all end up in "_other.yaml" file because they
         # specify resources in the `nsfoo` namespace.
         expected = {
             "m0.yaml": [dply[0], server_manifests[meta[1]], dply[2]],
             "m1.yaml": [dply[4]],
-            "_all.yaml": [dply[6], dply[7]],
+            "_other.yaml": [dply[6], dply[7]],
         }
         expected = self.yamlfy(expected)
         assert fdata_raw_new == expected
@@ -1154,9 +1154,9 @@ class TestSync:
         man = make_manifest("Deployment", "ns", "name", {"app": "app"})
         meta = manio.make_meta(man)
 
-        # No grouping - all manifests must end up in `_all.yaml`.
+        # No grouping - all manifests must end up in `_other.yaml`.
         groupby = G(order=[], label="")
-        assert fun(meta, man, groupby) == ("_all.yaml", False)
+        assert fun(meta, man, groupby) == ("_other.yaml", False)
 
         # Group by NAMESPACE and kind.
         groupby = G(order=["ns", "kind"], label="")
@@ -1183,9 +1183,9 @@ class TestSync:
         man = make_manifest("Namespace", None, "nsname", {"app": "app"})
         meta = manio.make_meta(man)
 
-        # No grouping - all namespaces must end up in `_all.yaml`.
+        # No grouping - all namespaces must end up in `_other.yaml`.
         groupby = G(order=[], label="")
-        assert fun(meta, man, groupby) == ("_all.yaml", False)
+        assert fun(meta, man, groupby) == ("_other.yaml", False)
 
         # Group by NAMESPACE and kind.
         groupby = G(order=["ns", "kind"], label="")
@@ -1209,9 +1209,9 @@ class TestSync:
             man = make_manifest(kind, None, "name", {"app": "app"})
             meta = manio.make_meta(man)
 
-            # No grouping - all resources must end up in `_all.yaml`.
+            # No hierarchy - all resources must end up in `_other.yaml`.
             groupby = G(order=[], label="")
-            assert fun(meta, man, groupby) == ("_all.yaml", False)
+            assert fun(meta, man, groupby) == ("_other.yaml", False)
 
             # Group by NAMESPACE and kind: must ignore the folder.
             groupby = G(order=["ns", "kind"], label="")
@@ -1234,16 +1234,16 @@ class TestSync:
         man = make_manifest("Deployment", "ns", "name", {})
         meta = manio.make_meta(man)
 
-        # Dump everything into "_all.yaml" if LABEL "app" does not exist.
+        # Dump everything into "_other.yaml" if LABEL "app" does not exist.
         groupby = G(order=["label"], label="app")
-        assert fun(meta, man, groupby) == ("_all.yaml", False)
+        assert fun(meta, man, groupby) == ("_other.yaml", False)
 
         # Use `_all` as the name if LABEL "app" does not exist.
         groupby = G(order=["ns", "label"], label="app")
-        assert fun(meta, man, groupby) == ("ns/_all.yaml", False)
+        assert fun(meta, man, groupby) == ("ns/_other.yaml", False)
 
         groupby = G(order=["label", "ns"], label="app")
-        assert fun(meta, man, groupby) == ("_all/ns.yaml", False)
+        assert fun(meta, man, groupby) == ("_other/ns.yaml", False)
 
     def test_filename_for_manifest_err(self):
         """Verify a few invalid file name conventions."""
@@ -1535,7 +1535,7 @@ class TestSync:
             "_ns2.yaml": [
                 (meta_2[6], {0: "modified"}),
             ],
-            "_all.yaml": [
+            "_other.yaml": [
                 (meta_1[0], {0: "0"}),
                 (meta_2[0], {0: "0"}),
                 (meta_2[9], {0: "9"}),
