@@ -78,9 +78,9 @@ class Selectors(NamedTuple):
 
 
 class ManifestHierarchy(NamedTuple):
-    """Define how to name manifest files on the files system."""
-    label: str
-    order: Iterable[str]
+    """Define how to organise downloaded manifest on the files system."""
+    label: str                  # "app"
+    order: Iterable[str]        # ["ns", "label=app", kind"]
 
 
 class Configuration(NamedTuple):
