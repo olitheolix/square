@@ -44,7 +44,7 @@ set +e
 # accept the manifests straight away.
 while true; do
     # Deploy the manifests.
-    kubectl --kubeconfig $KUBECONFIG --context kind apply -f minikube-1-integration-tests.yaml
+    kubectl --kubeconfig $KUBECONFIG --context kind apply -f test-resources.yaml
 
     # Exit this loop if deployment succeeded. If not, then KIND is not yet ready
     # and we will try again shortly.

@@ -340,9 +340,8 @@ integration tests suite.
 This will automatically run the integration tests as well if you have started
 the [KIND](https://github.com/bsycorp/kind) cluster:
 
-    cd deployment
-    ./start_minikube.sh
-    cd ..
+    cd integration-test-cluster
+    ./start_cluster.sh
 
 NOTE: currently, CI runs the unit tests only.
 
