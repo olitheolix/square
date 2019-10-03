@@ -68,8 +68,8 @@ class TestMain:
 
         # Un-namespaced resources must be in special "_global_" folder.
         for kind in ["clusterrole", "clusterrolebinding"]:
-            assert (tmp_path / "demoapp" / f"{kind}.yaml").exists()
-            assert not (tmp_path / "demoapp" / f"{kind}.yaml").is_dir()
+            assert (tmp_path / "_global_" / "demoapp" / f"{kind}.yaml").exists()
+            assert not (tmp_path / "_global_" / "demoapp" / f"{kind}.yaml").is_dir()
 
     def test_main_plan(self, tmp_path):
         """PLAN all cluster resources."""

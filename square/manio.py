@@ -445,22 +445,18 @@ def filename_for_manifest(
             logit.error("Must specify a non-empty label when grouping by it")
             return "", True
 
-    # --- Special case: non-namespaced resources ---.
-    # Ignore "namespace" grouping for non-namespaced resources like `ClusterRole`.
-    order = list(grouping.order)
-    if meta.kind in ("ClusterRole", "ClusterRoleBinding") and "ns" in order:
-        order = [_ for _ in order if _ != "ns"]
-
     # Convenience: reliably extract a label dictionary even when the original
     # manifest has none.
     labels = manifest.get("metadata", {}).get("labels", {})
 
-    # Helper LookUpTable to match the user specified file hierarchy with the
-    # corresponding attribute from the manifest. For instance, if user
-    # specified `--groupby ns kind` on the command line, then we will use the
-    # `meta.namespace` and `meta.kind` attributes for that.
+    # Helper LookUpTable that contains the values for all those groups the
+    # "--groupby" command line option accepts. We will use this LUT below to
+    # assemble the full manifest path.
     lut = {
-        "ns": meta.namespace,
+        # Get the namespace. Use "_global_" if the resource's namespace is
+        # None, which it will be for global resources like ClusterRole and
+        # ClusterRoleBinding.
+        "ns": meta.namespace or "_global_",
         "kind": meta.kind.lower(),
         # Try to find the user specified label. If the current resource lacks
         # that label then put it into the catchall file.
@@ -468,8 +464,9 @@ def filename_for_manifest(
     }
 
     # Concatenate the components according to `grouping.order` to produce the
-    # full file name.
-    path_constituents = [lut[_] for _ in order]
+    # full file name. This order is what the user can specify via the
+    # "--groupby" option on the command line.
+    path_constituents = [lut[_] for _ in grouping.order]
     path = str.join("/", path_constituents)
 
     # Default to the catch-all `_other.yaml` resource if the order did not
