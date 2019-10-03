@@ -455,12 +455,16 @@ def filename_for_manifest(
     # manifest has none.
     labels = manifest.get("metadata", {}).get("labels", {})
 
-    # Helper LookUpTable to match the user specified group name with the actual
-    # name from of that resource from the manifest... yeah, that makes sense.
+    # Helper LookUpTable to match the user specified file hierarchy with the
+    # corresponding attribute from the manifest. For instance, if user
+    # specified `--groupby ns kind` on the command line, then we will use the
+    # `meta.namespace` and `meta.kind` attributes for that.
     lut = {
         "ns": meta.namespace,
         "kind": meta.kind.lower(),
-        "label": labels.get(grouping.label, "_all"),
+        # Try to find the user specified label. If the current resource lacks
+        # that label then put it into the catchall file.
+        "label": labels.get(grouping.label, "_other"),
     }
 
     # Concatenate the components according to `grouping.order` to produce the
