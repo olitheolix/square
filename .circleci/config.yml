@@ -47,7 +47,7 @@ jobs:
           command: |
             # Run the pytest suite as an unprivileged user.
             export KUBECONFIG=/does/not/exist/but/necessary/for/tests
-            sudo -E -u square pipenv run pytest --cov=./
+            sudo -E -u square pipenv run pytest --cov=square
             codecov
             pipenv run mypy --ignore-missing-imports square/*.py
 
