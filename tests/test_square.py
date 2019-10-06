@@ -598,7 +598,7 @@ class TestMainOptions:
             ],
         )
 
-        # Valid deployment plan.
+        # Valid non-empty deployment plan.
         plan = DeploymentPlan(
             create=[DeltaCreate(meta, "create_url", "create_man")],
             patch=[DeltaPatch(meta, "diff", patch)],
@@ -646,9 +646,24 @@ class TestMainOptions:
         m_apply.assert_called_once_with("client", patch.url, patch.ops)
         m_delete.assert_called_once_with("client", "delete_url", "delete_man")
 
+        # Repeat the test and ensure the function does not even ask for
+        # confirmation if the plan is empty.
+        reset_mocks()
+        m_plan.return_value = (DeploymentPlan(create=[], patch=[], delete=[]), False)
+
+        assert square.main_apply(*args) == (None, False)
+        m_load.assert_called_once_with("folder", selectors)
+        m_down.assert_called_once_with(config, "client", selectors)
+        m_plan.assert_called_once_with(config, "local", "server")
+        assert not m_post.called
+        assert not m_apply.called
+        assert not m_delete.called
+
         # -----------------------------------------------------------------
         #                   Simulate Error Scenarios
         # -----------------------------------------------------------------
+        reset_mocks()
+
         # Same arguments, but disable security question.
         args = config, "client", "folder", selectors, None
 
