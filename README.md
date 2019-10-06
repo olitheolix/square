@@ -1,6 +1,6 @@
 [![](https://img.shields.io/badge/license-Apache%202-blue.svg)]()
 [![](https://img.shields.io/badge/python-3.7-blue.svg)]()
-[![](https://img.shields.io/badge/latest-v0.15.0-blue.svg)]()
+[![](https://img.shields.io/badge/latest-v0.15.1-blue.svg)]()
 [![](https://img.shields.io/circleci/project/github/olitheolix/square/master.svg?style=flat)]()
 [![](https://img.shields.io/codecov/c/github/olitheolix/square.svg?style=flat)]()
 [![](https://img.shields.io/badge/status-dev-orange.svg)]()
@@ -16,7 +16,7 @@ You can install *Square* in any Python 3.7 environment with:
 ```console
 foo@bar:~$ pip install kubernetes-square
 foo@bar:~$ square version
-0.15.0
+0.15.1
 ```
 
 You may also [build your own binary](Building-A-Binary), if you prefer.
