@@ -442,10 +442,10 @@ def main_apply(
             assert not err
 
         # Patch the server resources.
-        patches = [_.patch for _ in plan.patch if len(_.patch.ops) > 0]
-        print(f"Compiled {len(patches)} patches.")
-        for patch in patches:
-            pprint(patch)
+        patches = [(_.meta, _.patch) for _ in plan.patch if len(_.patch.ops) > 0]
+        for meta, patch in patches:
+            print(f"Patching {meta.kind.upper()} "
+                  f"{meta.namespace}/{meta.name}")
             _, err = k8s.patch(client, patch.url, patch.ops)
             assert not err
 
