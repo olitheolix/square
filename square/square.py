@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-from pprint import pprint
 from typing import Any, Iterable, Optional, Set, Tuple
 
 import colorama
@@ -429,10 +428,18 @@ def main_apply(
         # Present the plan to the user.
         print_deltas(plan)
 
+        # Exit prematurely if there are no changes to apply.
+        num_patch_ops = sum([len(_.patch.ops) for _ in plan.patch])
+        if len(plan.create) == len(plan.delete) == num_patch_ops == 0:
+            print("Nothing to change")
+            return (None, False)
+        del num_patch_ops
+
         # Ask for user confirmation. Abort if the user does not give it.
         if not user_confirmed(confirm_string):
             print("User abort - no changes were made.")
             return (None, True)
+        print()
 
         # Create the missing resources.
         for data in plan.create:
