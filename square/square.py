@@ -329,6 +329,16 @@ def setup_logging(log_level: int) -> None:
         None
 
     """
+    class ColouredLog(logging.StreamHandler):
+        def format(self, record):
+            if record.levelname == "DEBUG":
+                colour = colorama.Fore.WHITE
+            elif record.levelname == "INFO":
+                colour = colorama.Fore.GREEN
+            else:
+                colour = colorama.Fore.RED
+            return f"{colour}{super().format(record)}{colorama.Fore.RESET}"
+
     # Pick the correct log level.
     if log_level == 0:
         level = "ERROR"
@@ -344,7 +354,7 @@ def setup_logging(log_level: int) -> None:
     logger.setLevel(level)
 
     # Configure stdout handler.
-    handler = logging.StreamHandler()
+    handler = ColouredLog()
     handler.setLevel(level)
     handler.setFormatter(
         logging.Formatter(
