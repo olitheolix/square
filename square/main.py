@@ -217,9 +217,14 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
     # Assemble the full configuration and return it.
     # -------------------------------------------------------------------------
     cfg = Configuration(
-        p.parser, p.verbosity, folder,
-        p.kinds, p.kubeconfig, p.ctx,
-        selectors, groupby,
+        command=p.parser,
+        verbosity=p.verbosity,
+        folder=folder,
+        kinds=p.kinds,
+        kubeconfig=p.kubeconfig,
+        kube_ctx=p.ctx,
+        selectors=selectors,
+        groupby=groupby,
     )
     return cfg, False
 
