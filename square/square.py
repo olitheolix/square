@@ -9,9 +9,9 @@ import square.k8s as k8s
 import square.manio as manio
 import yaml
 from square.dtypes import (
-    Config, Configuration, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, Filepath, JsonPatch, ManifestHierarchy, MetaManifest,
-    Selectors, ServerManifests,
+    Configuration, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+    Filepath, JsonPatch, K8sConfig, ManifestHierarchy, MetaManifest, Selectors,
+    ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -19,7 +19,7 @@ logit = logging.getLogger("square")
 
 
 def make_patch(
-        config: Config,
+        config: K8sConfig,
         local: ServerManifests,
         server: ServerManifests) -> Tuple[Optional[JsonPatch], bool]:
     """Return JSON patch to transition `server` to `local`.
@@ -128,7 +128,7 @@ def partition_manifests(
 
 
 def compile_plan(
-        config: Config,
+        config: K8sConfig,
         local: ServerManifests,
         server: ServerManifests) -> Tuple[Optional[DeploymentPlan], bool]:
     """Return the `DeploymentPlan` to transition K8s to state of `local`.
@@ -138,7 +138,7 @@ def compile_plan(
     specified in `local`.
 
     Inputs:
-        config: Config
+        config: K8sConfig
         local: ServerManifests
             Should be output from `load_manifest` or `load`.
         server: ServerManifests
@@ -387,7 +387,7 @@ def user_confirmed(answer: Optional[str] = "yes") -> bool:
 
 
 def main_apply(
-        config: Config,
+        config: K8sConfig,
         client,
         folder: Filepath,
         selectors: Selectors,
@@ -399,7 +399,7 @@ def main_apply(
     `server_manifests` to the desired `local_manifests`.
 
     Inputs:
-        config: Config
+        config: K8sConfig
         client: `requests` session with correct K8s certificates.
         folder: Filepath
             Path to local manifests eg "./foo"
@@ -460,7 +460,7 @@ def main_apply(
 
 
 def main_plan(
-        config: Config,
+        config: K8sConfig,
         client,
         folder: Filepath,
         selectors: Selectors,
@@ -471,7 +471,7 @@ def main_plan(
     to match the setup defined in `local_manifests`.
 
     Inputs:
-        config: k8s.Config
+        config: K8sConfig
         client: `requests` session with correct K8s certificates.
         folder: Path
             Path to local manifests eg "./foo"
@@ -503,7 +503,7 @@ def main_plan(
 
 
 def main_get(
-        config: Config,
+        config: K8sConfig,
         client,
         folder: Filepath,
         selectors: Selectors,
@@ -513,7 +513,7 @@ def main_get(
     """Download all K8s manifests and merge them into local files.
 
     Inputs:
-        config: k8s.Config
+        config: K8sConfig
         client: `requests` session with correct K8s certificates.
         folder: Path
             Path to local manifests eg "./foo"

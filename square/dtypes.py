@@ -56,7 +56,7 @@ assert set(SUPPORTED_KINDS) == set(RESOURCE_ALIASES.keys())
 
 SUPPORTED_VERSIONS = ("1.9", "1.10", "1.11", "1.13", "1.14")
 
-Config = namedtuple('Config', 'url token ca_cert client_cert version name')
+K8sConfig = namedtuple('Config', 'url token ca_cert client_cert version name')
 DeltaCreate = namedtuple("DeltaCreate", "meta url manifest")
 DeltaDelete = namedtuple("DeltaDelete", "meta url manifest")
 DeltaPatch = namedtuple("Delta", "meta diff patch")
@@ -94,5 +94,5 @@ class Configuration(NamedTuple):
     kube_ctx: Optional[str]
     selectors: Selectors
     groupby: ManifestHierarchy
-    k8s_config: Config
+    k8s_config: K8sConfig
     k8s_client: Any

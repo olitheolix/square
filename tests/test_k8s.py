@@ -8,7 +8,7 @@ import pytest
 import requests_mock
 import square.k8s as k8s
 import yaml
-from square.dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config
+from square.dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, K8sConfig
 
 
 @pytest.fixture
@@ -21,18 +21,18 @@ class TestK8sDeleteGetPatchPost:
     def test_session(self):
         """Verify the `requests.Session` object is correctly setup."""
         # Basic.
-        config = Config("", None, "ca_cert", client_cert=None, version=None, name="")
+        config = K8sConfig("", None, "ca", client_cert=None, version=None, name="")
         sess = k8s.session(config)
         assert "authorization" not in sess.headers
 
         # With access token.
-        config = Config("", "token", "ca_cert", client_cert=None, version=None, name="")
+        config = K8sConfig("", "token", "ca", client_cert=None, version=None, name="")
         sess = k8s.session(config)
         assert sess.headers["authorization"] == f"Bearer token"
 
         # With access token and client certificate.
         ccert = k8s.ClientCert(crt="foo", key="bar")
-        config = Config("", "token", "ca_cert", client_cert=ccert, version=None, name="")
+        config = K8sConfig("", "token", "ca", client_cert=ccert, version=None, name="")
         sess = k8s.session(config)
         assert sess.headers["authorization"] == f"Bearer token"
         assert sess.cert == ("foo", "bar")
@@ -212,13 +212,13 @@ class TestK8sVersion:
 
         # Create vanilla `Config` instance.
         m_client = mock.MagicMock()
-        config = Config("url", "token", "ca_cert", "client_cert", None, "")
+        config = K8sConfig("url", "token", "ca_cert", "client_cert", None, "")
 
         # Test function must contact the K8s API and return a `Config` tuple
         # with the correct version number.
         config2, err = k8s.version(config, client=m_client)
         assert err is False
-        assert isinstance(config2, k8s.Config)
+        assert isinstance(config2, K8sConfig)
         assert config2.version == "1.10"
 
         # Test function must have called out to `get` to retrieve the
@@ -244,7 +244,7 @@ class TestK8sVersion:
 
         # Create vanilla `Config` instance.
         m_client = mock.MagicMock()
-        config = Config("url", "token", "ca_cert", "client_cert", None, "")
+        config = K8sConfig("url", "token", "ca_cert", "client_cert", None, "")
 
         # Simulate an error in `get`.
         m_get.return_value = (None, True)
@@ -271,7 +271,7 @@ class TestUrlPathBuilder:
     def test_urlpath_ok(self):
         """Must work for all supported K8s versions and resources."""
         for version in SUPPORTED_VERSIONS:
-            cfg = Config("url", "token", "ca_cert", "client_cert", version, "")
+            cfg = K8sConfig("url", "token", "ca_cert", "client_cert", version, "")
             for kind in SUPPORTED_KINDS:
                 for ns in (None, "foo-namespace"):
                     path, err = k8s.urlpath(cfg, kind, ns)
@@ -284,7 +284,7 @@ class TestUrlPathBuilder:
         """Test various error scenarios."""
         # Valid version but invalid resource kind or invalid namespace spelling.
         for version in SUPPORTED_VERSIONS:
-            cfg = Config("url", "token", "ca_cert", "client_cert", version, "")
+            cfg = K8sConfig("url", "token", "ca_cert", "client_cert", version, "")
 
             # Invalid resource kind.
             assert k8s.urlpath(cfg, "fooresource", "ns") == (None, True)
@@ -293,7 +293,7 @@ class TestUrlPathBuilder:
             assert k8s.urlpath(cfg, "Deployment", "namEspACe") == (None, True)
 
         # Invalid version.
-        cfg = Config("url", "token", "ca_cert", "client_cert", "invalid", "")
+        cfg = K8sConfig("url", "token", "ca_cert", "client_cert", "invalid", "")
         assert k8s.urlpath(cfg, "Deployment", "valid-ns") == (None, True)
 
 
@@ -317,7 +317,7 @@ class TestK8sKubeconfig:
 
         # Now that the files exist we must get the proper Config structure.
         ret = k8s.load_incluster_config(fname_token, fname_cert)
-        assert ret == Config(
+        assert ret == K8sConfig(
             url=f'https://1.2.3.4',
             token="token",
             ca_cert=str(fname_cert),
@@ -370,7 +370,7 @@ class TestK8sKubeconfig:
         ret = k8s.load_minikube_config(fname, "minikube")
 
         # Verify the expected output.
-        assert ret == Config(
+        assert ret == K8sConfig(
             url="https://192.168.0.177:8443",
             token=None,
             ca_cert="ca.crt",
@@ -395,7 +395,7 @@ class TestK8sKubeconfig:
         ret = k8s.load_kind_config(fname, "kind")
 
         # Verify the expected output.
-        assert ret == Config(
+        assert ret == K8sConfig(
             url="https://localhost:8443",
             token=None,
             ca_cert=pathlib.Path("/tmp/kind.ca"),
@@ -444,7 +444,7 @@ class TestK8sKubeconfig:
         # Load the K8s configuration for "gke" context.
         fname = "tests/support/kubeconf.yaml"
         ret = k8s.load_gke_config(fname, "gke")
-        assert isinstance(ret, Config)
+        assert isinstance(ret, K8sConfig)
 
         # The certificate will be in a temporary folder because the `requests`
         # library insists on reading it from a file. Here we load that file and
@@ -454,7 +454,7 @@ class TestK8sKubeconfig:
         ret = ret._replace(ca_cert=ca_cert)
 
         # Verify the expected output.
-        assert ret == Config(
+        assert ret == K8sConfig(
             url="https://1.2.3.4",
             token="google token",
             ca_cert="ca.cert",
@@ -480,7 +480,7 @@ class TestK8sKubeconfig:
         # Load the K8s configuration for "eks" context.
         fname = "tests/support/kubeconf.yaml"
         ret = k8s.load_eks_config(fname, "eks")
-        assert isinstance(ret, Config)
+        assert isinstance(ret, K8sConfig)
 
         # The certificate will be in a temporary folder because the `Requests`
         # library insists on reading it from a file. Here we load that file and
@@ -490,7 +490,7 @@ class TestK8sKubeconfig:
         ret = ret._replace(ca_cert=ca_cert)
 
         # Verify the expected output.
-        assert ret == Config(
+        assert ret == K8sConfig(
             url="https://5.6.7.8",
             token="EKS token",
             ca_cert="ca.cert",

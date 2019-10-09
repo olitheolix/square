@@ -14,7 +14,9 @@ import google.auth
 import google.auth.transport.requests
 import requests
 import yaml
-from square.dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, Config, Filepath
+from square.dtypes import (
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Filepath, K8sConfig,
+)
 
 ClientCert = namedtuple('ClientCert', 'crt key')
 
@@ -91,7 +93,7 @@ def load_kubeconfig(
 
 def load_incluster_config(
         fname_token: Filepath = FNAME_TOKEN,
-        fname_cert: Filepath = FNAME_CERT) -> Optional[Config]:
+        fname_cert: Filepath = FNAME_CERT) -> Optional[K8sConfig]:
     """Return K8s access config from Pod service account.
 
     Returns None if we are not running in a Pod.
@@ -121,7 +123,7 @@ def load_incluster_config(
 
     # Return the compiled K8s access configuration.
     logit.info("Use incluster (service account) credentials.")
-    return Config(
+    return K8sConfig(
         url=f'https://{server_ip}',
         token=fname_token.read_text(),
         ca_cert=str(fname_cert),
@@ -134,7 +136,7 @@ def load_incluster_config(
 def load_gke_config(
         fname: Filepath,
         context: Optional[str],
-        disable_warnings: bool = False) -> Optional[Config]:
+        disable_warnings: bool = False) -> Optional[K8sConfig]:
     """Return K8s access config for GKE cluster described in `kubeconfig`.
 
     Returns None if `kubeconfig` does not exist or could not be parsed.
@@ -182,7 +184,7 @@ def load_gke_config(
 
     # Return the config data.
     logit.info(f"Assuming GKE cluster.")
-    return Config(
+    return K8sConfig(
         url=cluster["server"],
         token=token,
         ca_cert=ssl_ca_cert,
@@ -195,7 +197,7 @@ def load_gke_config(
 def load_eks_config(
         fname: Filepath,
         context: Optional[str],
-        disable_warnings: bool = False) -> Optional[Config]:
+        disable_warnings: bool = False) -> Optional[K8sConfig]:
     """Return K8s access config for EKS cluster described in `kubeconfig`.
 
     Returns None if `kubeconfig` does not exist or could not be parsed.
@@ -262,7 +264,7 @@ def load_eks_config(
 
     # Return the config data.
     logit.info(f"Assuming EKS cluster.")
-    return Config(
+    return K8sConfig(
         url=cluster["server"],
         token=token,
         ca_cert=ssl_ca_cert,
@@ -275,7 +277,7 @@ def load_eks_config(
 def load_minikube_config(
         fname: Filepath,
         context: Optional[str],
-) -> Optional[Config]:
+) -> Optional[K8sConfig]:
     """Load minikube configuration from `fname`.
 
     Return None on error.
@@ -305,7 +307,7 @@ def load_minikube_config(
 
         # Return the config data.
         logit.info(f"Assuming Minikube cluster.")
-        return Config(
+        return K8sConfig(
             url=cluster["server"],
             token=None,
             ca_cert=cluster["certificate-authority"],
@@ -321,7 +323,7 @@ def load_minikube_config(
 def load_kind_config(
         fname: Filepath,
         context: Optional[str],
-) -> Optional[Config]:
+) -> Optional[K8sConfig]:
     """Load Kind configuration from `fname`.
 
     https://github.com/bsycorp/kind
@@ -364,7 +366,7 @@ def load_kind_config(
 
         # Return the config data.
         logit.debug(f"Assuming Minikube/Kind cluster.")
-        return Config(
+        return K8sConfig(
             url=cluster["server"],
             token=None,
             ca_cert=p_ca,
@@ -380,7 +382,7 @@ def load_kind_config(
 def load_auto_config(
         fname: Filepath,
         context: Optional[str],
-        disable_warnings: bool = False) -> Optional[Config]:
+        disable_warnings: bool = False) -> Optional[K8sConfig]:
     """Automagically find and load the correct K8s configuration.
 
     This function will load several possible configuration options and returns
@@ -430,7 +432,7 @@ def load_auto_config(
     return None
 
 
-def session(config: Config):
+def session(config: K8sConfig):
     """Return configured `requests` session."""
     # Plain session.
     sess = requests.Session()
@@ -451,7 +453,7 @@ def session(config: Config):
 
 
 def urlpath(
-        config: Config,
+        config: K8sConfig,
         kind: str,
         namespace: Optional[str]) -> Tuple[Optional[str], bool]:
     """Return complete URL to K8s resource.
@@ -682,7 +684,7 @@ def post(client, url: str, payload: dict) -> Tuple[Optional[dict], bool]:
     return (resp, err)
 
 
-def version(config: Config, client) -> Tuple[Optional[Config], bool]:
+def version(config: K8sConfig, client) -> Tuple[Optional[K8sConfig], bool]:
     """Return new `config` with version number of K8s API.
 
     Contact the K8s API, query its version via `client` and return `config`

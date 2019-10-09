@@ -4,11 +4,10 @@ import types
 import unittest.mock as mock
 
 import pytest
-import square.k8s as k8s
 import square.main as main
 import square.square as square
 from square.dtypes import (
-    SUPPORTED_KINDS, Config, Configuration, ManifestHierarchy, Selectors,
+    SUPPORTED_KINDS, Configuration, K8sConfig, ManifestHierarchy, Selectors,
 )
 
 
@@ -49,7 +48,7 @@ class TestMain:
             ),
             groupby=ManifestHierarchy(label='', order=[]),
             # Must not populate Kubernetes data.
-            k8s_config=Config(
+            k8s_config=K8sConfig(
                 url=None, token=None, ca_cert=None,
                 client_cert=None, version=None, name=None),
             k8s_client=None,
@@ -135,7 +134,7 @@ class TestMain:
 
         """
         # Dummy configuration.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
+        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Default grouping because we will not specify custom ones in this test.
         groupby = ManifestHierarchy(order=[], label="")
@@ -202,7 +201,7 @@ class TestMain:
 
         """
         # Dummy configuration.
-        config = k8s.Config("url", "token", "ca_cert", "client_cert", "1.10", "")
+        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
 
         # Mock all calls to the K8s API.
         m_k8s.load_auto_config.return_value = config

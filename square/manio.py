@@ -11,7 +11,7 @@ import square.schemas
 import yaml
 import yaml.scanner
 from square.dtypes import (
-    SUPPORTED_KINDS, Config, Filepath, LocalManifestLists, LocalManifests,
+    SUPPORTED_KINDS, Filepath, K8sConfig, LocalManifestLists, LocalManifests,
     ManifestHierarchy, MetaManifest, Selectors, ServerManifests,
 )
 
@@ -476,7 +476,7 @@ def filename_for_manifest(
 
 
 def diff(
-        config: Config,
+        config: K8sConfig,
         local: LocalManifests,
         server: ServerManifests) -> Tuple[Optional[str], bool]:
     """Return the human readable diff between the `local` and `server`.
@@ -485,7 +485,7 @@ def diff(
     into the state of the `local` manifest.
 
     Inputs:
-        config: Config
+        config: K8sConfig
         local: dict
             Local manifest.
         server: dict
@@ -515,7 +515,7 @@ def diff(
     return (str.join("\n", diff_lines), False)
 
 
-def strip(config: Config, manifest: dict) -> Tuple[Optional[DotDict], bool]:
+def strip(config: K8sConfig, manifest: dict) -> Tuple[Optional[DotDict], bool]:
     """Return stripped version of `manifest` with only the essential keys.
 
     The "essential" keys for each supported resource type are defined in the
@@ -524,7 +524,7 @@ def strip(config: Config, manifest: dict) -> Tuple[Optional[DotDict], bool]:
     information like "metadata.creationTimestamp" or "status".
 
     Inputs:
-        config: Config
+        config: K8sConfig
         manifest: dict
 
     Returns:
@@ -794,7 +794,7 @@ def save(folder: Filepath, manifests: LocalManifestLists) -> Tuple[None, bool]:
 
 
 def download(
-        config: Config,
+        config: K8sConfig,
         client,
         selectors: Selectors,
 ) -> Tuple[Optional[ServerManifests], bool]:
@@ -806,7 +806,7 @@ def download(
     Either returns all the data or an error; never returns partial results.
 
     Inputs:
-        config: Config
+        config: K8sConfig
         client: `requests` session with correct K8s certificates.
         selectors: Selectors
 

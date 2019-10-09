@@ -11,7 +11,7 @@ import square
 import square.square
 from square import __version__
 from square.dtypes import (
-    RESOURCE_ALIASES, SUPPORTED_KINDS, Config, Configuration,
+    RESOURCE_ALIASES, SUPPORTED_KINDS, Configuration, K8sConfig,
     ManifestHierarchy, Selectors,
 )
 
@@ -222,8 +222,8 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
         p.kubeconfig, p.ctx,
         selectors, groupby,
         # We cannot populate the Kubernetes config/client fields here.
-        Config(url=None, token=None, ca_cert=None,
-               client_cert=None, version=None, name=None),
+        K8sConfig(url=None, token=None, ca_cert=None,
+                  client_cert=None, version=None, name=None),
         None,
     )
     return cfg, False
