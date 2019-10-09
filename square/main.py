@@ -11,8 +11,8 @@ import square
 import square.square
 from square import __version__
 from square.dtypes import (
-    RESOURCE_ALIASES, SUPPORTED_KINDS, Configuration, K8sConfig,
-    ManifestHierarchy, Selectors,
+    RESOURCE_ALIASES, SUPPORTED_KINDS, Configuration, ManifestHierarchy,
+    Selectors,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -218,8 +218,7 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
     # -------------------------------------------------------------------------
     cfg = Configuration(
         p.parser, p.verbosity, folder,
-        p.kinds, p.namespaces,
-        p.kubeconfig, p.ctx,
+        p.kinds, p.kubeconfig, p.ctx,
         selectors, groupby,
     )
     return cfg, False

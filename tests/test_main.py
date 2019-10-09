@@ -39,7 +39,6 @@ class TestMain:
         assert cfg == Configuration(
             command='get', verbosity=9, folder=pathlib.Path('/tmp'),
             kinds=['Deployment'],
-            namespaces=['default'],
             kubeconfig='kubeconfig', kube_ctx=None,
             selectors=Selectors(
                 kinds=['Deployment'],
@@ -231,7 +230,6 @@ class TestMain:
         cfg = Configuration(
             command='get', verbosity=9, folder=pathlib.Path('/tmp'),
             kinds=['Deployment'],
-            namespaces=['default'],
             kubeconfig='kubeconfig', kube_ctx=None,
             selectors=Selectors(
                 kinds=['Deployment'],

@@ -89,7 +89,6 @@ class Configuration(NamedTuple):
     verbosity: int
     folder: Filepath
     kinds: Iterable[str]
-    namespaces: Iterable[str]
     kubeconfig: str
     kube_ctx: Optional[str]
     selectors: Selectors
