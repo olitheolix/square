@@ -474,7 +474,7 @@ def main_plan(
         client,
         folder: Filepath,
         selectors: Selectors,
-) -> Tuple[None, bool]:
+) -> Tuple[Optional[DeploymentPlan], bool]:
     """Print the diff between `local_manifests` and `server_manifests`.
 
     The diff shows what would have to change on the K8s server in order for it
@@ -489,7 +489,7 @@ def main_plan(
             Only operate on resources that match the selectors.
 
     Returns:
-        None
+        Deployment plan.
 
     """
     try:
@@ -509,7 +509,7 @@ def main_plan(
 
     # Print the plan and return.
     print_deltas(plan)
-    return (None, False)
+    return (plan, False)
 
 
 def main_get(

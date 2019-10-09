@@ -715,7 +715,8 @@ class TestMainOptions:
         args = "config", "client", "folder", selectors
 
         # A successfull DIFF only computes and prints the plan.
-        assert square.main_plan(*args) == (None, False)
+        plan, err = square.main_plan(*args)
+        assert not err and isinstance(plan, DeploymentPlan)
         m_load.assert_called_once_with("folder", selectors)
         m_down.assert_called_once_with("config", "client", selectors)
         m_plan.assert_called_once_with("config", "local", "server")
