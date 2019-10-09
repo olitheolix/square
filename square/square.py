@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Any, Iterable, Optional, Set, Tuple
+from typing import Iterable, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
@@ -9,8 +9,9 @@ import square.k8s as k8s
 import square.manio as manio
 import yaml
 from square.dtypes import (
-    Config, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, Filepath,
-    JsonPatch, ManifestHierarchy, MetaManifest, Selectors, ServerManifests,
+    Config, Configuration, DeltaCreate, DeltaDelete, DeltaPatch,
+    DeploymentPlan, Filepath, JsonPatch, ManifestHierarchy, MetaManifest,
+    Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -415,7 +416,7 @@ def main_apply(
     try:
         # Obtain the plan.
         plan, err = main_plan(config, client, folder, selectors)
-        assert not err
+        assert not err and plan
 
         # Exit prematurely if there are no changes to apply.
         num_patch_ops = sum([len(_.patch.ops) for _ in plan.patch])
@@ -549,9 +550,7 @@ def main_get(
     return (None, False)
 
 
-def cluster_config(
-        kubeconfig: str,
-        context: Optional[str]) -> Tuple[Tuple[Optional[Config], Any], bool]:
+def cluster_config(config: Configuration) -> Tuple[Optional[Configuration], bool]:
     """Return web session to K8s API.
 
     This will read the Kubernetes credentials, contact Kubernetes to
@@ -564,29 +563,31 @@ def cluster_config(
             Kubernetes context to use (can be `None` to use default).
 
     Returns:
-        Config, client
+        Configuration
 
     """
     # Read Kubeconfig file and use it to create a `requests` client session.
     # That session will have the proper security certificates and headers so
     # that subsequent calls to K8s need not deal with it anymore.
-    kubeconfig = os.path.expanduser(kubeconfig)
+    kubeconfig = os.path.expanduser(config.kubeconfig)
     try:
         # Parse Kubeconfig file.
-        config = k8s.load_auto_config(kubeconfig, context, disable_warnings=True)
-        assert config
+        k8s_config = k8s.load_auto_config(
+            kubeconfig, config.kube_ctx, disable_warnings=True)
+        assert k8s_config
 
         # Configure web session.
-        client = k8s.session(config)
-        assert client
+        k8s_client = k8s.session(k8s_config)
+        assert k8s_client
 
         # Contact the K8s API to update version field in `config`.
-        config, err = k8s.version(config, client)
-        assert not err and config
+        k8s_config, err = k8s.version(k8s_config, k8s_client)
+        assert not err and k8s_config
     except AssertionError:
-        return ((None, None), True)
+        return (None, True)
 
     # Log the K8s API address and version.
-    logit.info(f"Kubernetes server at {config.url}")
-    logit.info(f"Kubernetes version is {config.version}")
-    return (config, client), False
+    logit.info(f"Kubernetes server at {k8s_config.url}")
+    logit.info(f"Kubernetes version is {k8s_config.version}")
+    config = config._replace(k8s_config=k8s_config, k8s_client=k8s_client)
+    return config, False

@@ -11,8 +11,8 @@ import square
 import square.square
 from square import __version__
 from square.dtypes import (
-    RESOURCE_ALIASES, SUPPORTED_KINDS, Configuration, ManifestHierarchy,
-    Selectors,
+    RESOURCE_ALIASES, SUPPORTED_KINDS, Config, Configuration,
+    ManifestHierarchy, Selectors,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -220,7 +220,11 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
         p.parser, p.verbosity, folder,
         p.kinds, p.namespaces,
         p.kubeconfig, p.ctx,
-        selectors, groupby
+        selectors, groupby,
+        # We cannot populate the Kubernetes config/client fields here.
+        Config(url=None, token=None, ca_cert=None,
+               client_cert=None, version=None, name=None),
+        None,
     )
     return cfg, False
 
@@ -240,18 +244,18 @@ def main() -> int:
         return 1
 
     # Create properly configured Requests session to talk to K8s API.
-    (config, client), err = square.square.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
-    if err or config is None or client is None:
+    cfg, err = square.square.cluster_config(cfg)
+    if err or cfg is None:
         return 1
 
     # Do what user asked us to do.
-    common_args = config, client, cfg.folder, cfg.selectors
+    common_args = cfg.k8s_config, cfg.k8s_client, cfg.folder, cfg.selectors
     if cfg.command == "get":
         _, err = square.square.main_get(*common_args, cfg.groupby)
     elif cfg.command == "plan":
         _, err = square.square.main_plan(*common_args)
     elif cfg.command == "apply":
-        _, err = square.square.main_apply(*common_args, config.name)
+        _, err = square.square.main_apply(*common_args, cfg.k8s_config.name)
     else:
         logit.error(f"Unknown command <{cfg.command}>")
         return 1

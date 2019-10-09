@@ -8,7 +8,7 @@ import square.k8s as k8s
 import square.main as main
 import square.square as square
 from square.dtypes import (
-    SUPPORTED_KINDS, Configuration, ManifestHierarchy, Selectors,
+    SUPPORTED_KINDS, Config, Configuration, ManifestHierarchy, Selectors,
 )
 
 
@@ -47,7 +47,12 @@ class TestMain:
                 namespaces=['default'],
                 labels={("app", "morty"), ("foo", "bar")}
             ),
-            groupby=ManifestHierarchy(label='', order=[])
+            groupby=ManifestHierarchy(label='', order=[]),
+            # Must not populate Kubernetes data.
+            k8s_config=Config(
+                url=None, token=None, ca_cert=None,
+                client_cert=None, version=None, name=None),
+            k8s_client=None,
         )
 
     def test_compile_config_kinds(self):
@@ -223,19 +228,33 @@ class TestMain:
         harmless gaps in the unit test coverage.
 
         """
-        # Pretend the call to get K8s credentials succeeded.
-        m_cluster.return_value = (("foo", "bar"), False)
+        # A valid Square configuration.
+        cfg = Configuration(
+            command='get', verbosity=9, folder=pathlib.Path('/tmp'),
+            kinds=['Deployment'],
+            namespaces=['default'],
+            kubeconfig='kubeconfig', kube_ctx=None,
+            selectors=Selectors(
+                kinds=['Deployment'],
+                namespaces=['default'],
+                labels={("app", "morty"), ("foo", "bar")}
+            ),
+            groupby=ManifestHierarchy(label='', order=[]),
+            # Must not populate Kubernetes data.
+            k8s_config=None, k8s_client=None,
+        )
+        m_cluster.return_value = (cfg, False)
 
-        # Force a configuration error due to the absence of K8s credentials.
-        cfg = dummy_command_param()
-        cfg.kubeconfig = None
-        m_cmd.return_value = cfg
+        # Force a configuration error in `compile_config` due to the missing
+        # K8s credentials.
+        cmd_args = dummy_command_param()
+        cmd_args.kubeconfig = None
+        m_cmd.return_value = cmd_args
         assert main.main() == 1
 
         # Simulate an invalid Square command.
-        cfg = dummy_command_param()
-        cfg.parser = "invalid"
-        m_cmd.return_value = cfg
+        m_cmd.return_value = dummy_command_param()
+        m_cluster.return_value = (cfg._replace(command="invalid"), False)
         assert main.main() == 1
 
     @mock.patch.object(square, "k8s")

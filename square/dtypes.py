@@ -1,7 +1,7 @@
 import pathlib
 from collections import namedtuple
 from typing import (
-    Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Union,
+    Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Union,
 )
 
 # We support these resource types. The order matters because it determines the
@@ -94,3 +94,5 @@ class Configuration(NamedTuple):
     kube_ctx: Optional[str]
     selectors: Selectors
     groupby: ManifestHierarchy
+    k8s_config: Config
+    k8s_client: Any
