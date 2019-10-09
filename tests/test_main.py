@@ -38,7 +38,6 @@ class TestMain:
         assert not err
         assert cfg == Configuration(
             command='get', verbosity=9, folder=pathlib.Path('/tmp'),
-            kinds=['Deployment'],
             kubeconfig='kubeconfig', kube_ctx=None,
             selectors=Selectors(
                 kinds=['Deployment'],
@@ -60,19 +59,19 @@ class TestMain:
         param.kinds = ["Service", "Deploy", "Service"]
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.kinds == ["Service", "Deploy"]
+        assert cfg.selectors.kinds == ["Service", "Deploy"]
 
         # The "all" resource must expand to all supported kinds.
         param.kinds = ["all"]
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.kinds == list(SUPPORTED_KINDS)
+        assert cfg.selectors.kinds == list(SUPPORTED_KINDS)
 
         # Must remove duplicate resources.
         param.kinds = ["all", "svc", "all"]
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.kinds == list(SUPPORTED_KINDS)
+        assert cfg.selectors.kinds == list(SUPPORTED_KINDS)
 
     def test_compile_config_k8s_credentials(self):
         """Parse K8s credentials."""
@@ -229,7 +228,6 @@ class TestMain:
         # A valid Square configuration.
         cfg = Configuration(
             command='get', verbosity=9, folder=pathlib.Path('/tmp'),
-            kinds=['Deployment'],
             kubeconfig='kubeconfig', kube_ctx=None,
             selectors=Selectors(
                 kinds=['Deployment'],

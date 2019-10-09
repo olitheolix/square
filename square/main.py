@@ -220,7 +220,6 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
         command=p.parser,
         verbosity=p.verbosity,
         folder=folder,
-        kinds=p.kinds,
         kubeconfig=p.kubeconfig,
         kube_ctx=p.ctx,
         selectors=selectors,

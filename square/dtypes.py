@@ -87,7 +87,6 @@ class ManifestHierarchy(NamedTuple):
 class Configuration(NamedTuple):
     command: str
     folder: Filepath
-    kinds: Iterable[str]
     selectors: Selectors
     groupby: ManifestHierarchy
     kubeconfig: str
