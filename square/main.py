@@ -255,7 +255,7 @@ def main() -> int:
     elif cfg.command == "plan":
         _, err = square.square.main_plan(*common_args)
     elif cfg.command == "apply":
-        _, err = square.square.main_apply(*common_args, cfg.k8s_config.name)
+        _, err = square.square.main_apply(*common_args, None, cfg.k8s_config.name)
     else:
         logit.error(f"Unknown command <{cfg.command}>")
         return 1

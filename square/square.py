@@ -391,7 +391,8 @@ def main_apply(
         client,
         folder: Filepath,
         selectors: Selectors,
-        confirm_string: Optional[str]
+        plan: Optional[DeploymentPlan],
+        confirm_string: Optional[str],
 ) -> Tuple[None, bool]:
     """Update K8s to match the specifications in `local_manifests`.
 
@@ -405,6 +406,8 @@ def main_apply(
             Path to local manifests eg "./foo"
         selectors: Selectors
             Only operate on resources that match the selectors.
+        plan: DeploymentPlan
+            Run a plan if `None`, or use the supplied `plan`.
         confirm_string:
             Only apply the plan if user answers with this string in the
         confirmation dialog (set to `None` to disable confirmation).
@@ -415,8 +418,9 @@ def main_apply(
     """
     try:
         # Obtain the plan.
-        plan, err = main_plan(config, client, folder, selectors)
-        assert not err and plan
+        if not plan:
+            plan, err = main_plan(config, client, folder, selectors)
+            assert not err and plan
 
         # Exit prematurely if there are no changes to apply.
         num_patch_ops = sum([len(_.patch.ops) for _ in plan.patch])

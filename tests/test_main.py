@@ -161,7 +161,7 @@ class TestMain:
         args = config, "client", pathlib.Path("myfolder"), selectors
         m_get.assert_called_once_with(*args, groupby)
         m_plan.assert_called_once_with(*args)
-        m_apply.assert_called_once_with(*args, config.name)
+        m_apply.assert_called_once_with(*args, None, config.name)
 
     def test_main_version(self):
         """Simulate "version" command."""

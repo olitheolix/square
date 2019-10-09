@@ -3,6 +3,7 @@ import os
 import types
 import unittest.mock as mock
 
+import pytest
 import square.k8s as k8s
 import square.manio as manio
 import square.square as square
@@ -569,11 +570,12 @@ class TestPlan:
 
 
 class TestMainOptions:
+    @pytest.mark.parametrize("preplanned", [False, True])
     @mock.patch.object(square, "main_plan")
     @mock.patch.object(k8s, "post")
     @mock.patch.object(k8s, "patch")
     @mock.patch.object(k8s, "delete")
-    def test_main_apply(self, m_delete, m_apply, m_post, m_plan):
+    def test_main_apply(self, m_delete, m_apply, m_post, m_plan, preplanned):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -617,31 +619,48 @@ class TestMainOptions:
 
         # The arguments to the test function will always be the same in this test.
         selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
-        args = config, "client", "folder", selectors, "correct answer"
+        args_plan = config, "client", "folder", selectors
+        if preplanned:
+            args_apply = *args_plan, plan, "correct answer"
+        else:
+            args_apply = *args_plan, None, "correct answer"
 
         # Square must never create/patch/delete anything if the user did not
         # answer "yes".
         reset_mocks()
         with mock.patch.object(square, 'input', lambda _: "wrong answer"):
-            assert square.main_apply(*args) == (None, True)
+            assert square.main_apply(*args_apply) == (None, True)
 
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
         reset_mocks()
         with mock.patch.object(square, 'input', lambda _: "correct answer"):
-            assert square.main_apply(*args) == (None, False)
-        m_plan.assert_called_once_with(*args[:-1])
+            assert square.main_apply(*args_apply) == (None, False)
+        if preplanned:
+            assert not m_plan.called
+        else:
+            m_plan.assert_called_once_with(*args_plan)
         m_post.assert_called_once_with("client", "create_url", "create_man")
         m_apply.assert_called_once_with("client", patch.url, patch.ops)
         m_delete.assert_called_once_with("client", "delete_url", "delete_man")
 
+        # -----------------------------------------------------------------
+        #                   Simulate An Empty Plan
+        # -----------------------------------------------------------------
         # Repeat the test and ensure the function does not even ask for
         # confirmation if the plan is empty.
         reset_mocks()
-        m_plan.return_value = (DeploymentPlan(create=[], patch=[], delete=[]), False)
+        empty_plan = DeploymentPlan(create=[], patch=[], delete=[])
 
-        assert square.main_apply(*args) == (None, False)
-        m_plan.assert_called_once_with(*args[:-1])
+        if preplanned:
+            args_apply_empty = (*args_plan, empty_plan, "correct answer")
+        else:
+            args_apply_empty = (*args_plan, None, "correct answer")
+            m_plan.return_value = (empty_plan, False)
+
+        # Call test function and verify that it did not try to apply
+        # the empty plan.
+        assert square.main_apply(*args_apply_empty) == (None, False)
         assert not m_post.called
         assert not m_apply.called
         assert not m_delete.called
@@ -652,23 +671,24 @@ class TestMainOptions:
         reset_mocks()
 
         # Same arguments, but disable security question.
-        args = config, "client", "folder", selectors, None
+        args_apply = config, "client", "folder", selectors, None, None
 
         # Make `delete` fail.
         m_delete.return_value = (None, True)
-        assert square.main_apply(*args) == (None, True)
+        assert square.main_apply(*args_apply) == (None, True)
 
         # Make `patch` fail.
         m_apply.return_value = (None, True)
-        assert square.main_apply(*args) == (None, True)
+        assert square.main_apply(*args_apply) == (None, True)
 
         # Make `post` fail.
         m_post.return_value = (None, True)
-        assert square.main_apply(*args) == (None, True)
+        assert square.main_apply(*args_apply) == (None, True)
 
         # Make `main_plan` fail.
-        m_plan.return_value = (None, True)
-        assert square.main_apply(*args) == (None, True)
+        if not preplanned:
+            m_plan.return_value = (None, True)
+            assert square.main_apply(*args_apply) == (None, True)
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
