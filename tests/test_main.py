@@ -239,8 +239,6 @@ class TestMain:
                 labels={("app", "morty"), ("foo", "bar")}
             ),
             groupby=ManifestHierarchy(label='', order=[]),
-            # Must not populate Kubernetes data.
-            k8s_config=None, k8s_client=None,
         )
         m_cluster.return_value = (cfg, False)
 

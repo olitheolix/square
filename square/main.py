@@ -221,10 +221,6 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
         p.kinds, p.namespaces,
         p.kubeconfig, p.ctx,
         selectors, groupby,
-        # We cannot populate the Kubernetes config/client fields here.
-        K8sConfig(url=None, token=None, ca_cert=None,
-                  client_cert=None, version=None, name=None),
-        None,
     )
     return cfg, False
 

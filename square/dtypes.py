@@ -94,5 +94,11 @@ class Configuration(NamedTuple):
     kube_ctx: Optional[str]
     selectors: Selectors
     groupby: ManifestHierarchy
-    k8s_config: K8sConfig
-    k8s_client: Any
+    k8s_config: K8sConfig = K8sConfig(
+        url=None, token=None,
+        ca_cert=None,
+        client_cert=None,
+        version=None,
+        name=None
+    )
+    k8s_client: Any = None
