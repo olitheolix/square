@@ -86,13 +86,13 @@ class ManifestHierarchy(NamedTuple):
 
 class Configuration(NamedTuple):
     command: str
-    verbosity: int
     folder: Filepath
     kinds: Iterable[str]
-    kubeconfig: str
-    kube_ctx: Optional[str]
     selectors: Selectors
     groupby: ManifestHierarchy
+    kubeconfig: str
+    kube_ctx: Optional[str] = None
+    verbosity: int = 0
     k8s_config: K8sConfig = K8sConfig(
         url=None, token=None,
         ca_cert=None,
