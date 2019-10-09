@@ -413,20 +413,9 @@ def main_apply(
 
     """
     try:
-        # Load manifests from local files.
-        local_meta, _, err = manio.load(folder, selectors)
-        assert not err and local_meta is not None
-
-        # Download manifests from K8s.
-        server, err = manio.download(config, client, selectors)
-        assert not err and server is not None
-
-        # Create the deployment plan.
-        plan, err = compile_plan(config, local_meta, server)
-        assert not err and plan is not None
-
-        # Present the plan to the user.
-        print_deltas(plan)
+        # Obtain the plan.
+        plan, err = main_plan(config, client, folder, selectors)
+        assert not err
 
         # Exit prematurely if there are no changes to apply.
         num_patch_ops = sum([len(_.patch.ops) for _ in plan.patch])

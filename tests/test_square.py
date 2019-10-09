@@ -569,13 +569,11 @@ class TestPlan:
 
 
 class TestMainOptions:
-    @mock.patch.object(manio, "load")
-    @mock.patch.object(manio, "download")
-    @mock.patch.object(square, "compile_plan")
+    @mock.patch.object(square, "main_plan")
     @mock.patch.object(k8s, "post")
     @mock.patch.object(k8s, "patch")
     @mock.patch.object(k8s, "delete")
-    def test_main_apply(self, m_delete, m_apply, m_post, m_plan, m_down, m_load):
+    def test_main_apply(self, m_delete, m_apply, m_post, m_plan):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -606,16 +604,12 @@ class TestMainOptions:
         )
 
         def reset_mocks():
-            m_down.reset_mock()
-            m_load.reset_mock()
             m_plan.reset_mock()
             m_post.reset_mock()
             m_apply.reset_mock()
             m_delete.reset_mock()
 
             # Pretend that all K8s requests succeed.
-            m_down.return_value = ("server", False)
-            m_load.return_value = ("local", None, False)
             m_plan.return_value = (plan, False)
             m_post.return_value = (None, False)
             m_apply.return_value = (None, False)
@@ -630,18 +624,13 @@ class TestMainOptions:
         reset_mocks()
         with mock.patch.object(square, 'input', lambda _: "wrong answer"):
             assert square.main_apply(*args) == (None, True)
-        assert not m_load.post.called
-        assert not m_load.patch.called
-        assert not m_load.delete.called
 
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
         reset_mocks()
         with mock.patch.object(square, 'input', lambda _: "correct answer"):
             assert square.main_apply(*args) == (None, False)
-        m_load.assert_called_once_with("folder", selectors)
-        m_down.assert_called_once_with(config, "client", selectors)
-        m_plan.assert_called_once_with(config, "local", "server")
+        m_plan.assert_called_once_with(*args[:-1])
         m_post.assert_called_once_with("client", "create_url", "create_man")
         m_apply.assert_called_once_with("client", patch.url, patch.ops)
         m_delete.assert_called_once_with("client", "delete_url", "delete_man")
@@ -652,9 +641,7 @@ class TestMainOptions:
         m_plan.return_value = (DeploymentPlan(create=[], patch=[], delete=[]), False)
 
         assert square.main_apply(*args) == (None, False)
-        m_load.assert_called_once_with("folder", selectors)
-        m_down.assert_called_once_with(config, "client", selectors)
-        m_plan.assert_called_once_with(config, "local", "server")
+        m_plan.assert_called_once_with(*args[:-1])
         assert not m_post.called
         assert not m_apply.called
         assert not m_delete.called
@@ -679,16 +666,8 @@ class TestMainOptions:
         m_post.return_value = (None, True)
         assert square.main_apply(*args) == (None, True)
 
-        # Make `compile_plan` fail.
+        # Make `main_plan` fail.
         m_plan.return_value = (None, True)
-        assert square.main_apply(*args) == (None, True)
-
-        # Make `download_manifests` fail.
-        m_down.return_value = (None, True)
-        assert square.main_apply(*args) == (None, True)
-
-        # Make `load` fail.
-        m_load.return_value = (None, None, True)
         assert square.main_apply(*args) == (None, True)
 
     @mock.patch.object(manio, "load")
