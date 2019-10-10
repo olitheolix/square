@@ -206,7 +206,7 @@ def compile_plan(
     return (DeploymentPlan(create, patches, delete), False)
 
 
-def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
+def print_deltas(plan: Optional[DeploymentPlan]) -> Tuple[None, bool]:
     """Print human readable version of `plan` to terminal.
 
     Inputs:
@@ -216,6 +216,11 @@ def print_deltas(plan: DeploymentPlan) -> Tuple[None, bool]:
         None
 
     """
+    # Do nothing if the plan is `None`. This special case makes it easier to
+    # deal with cases where `square.main_plan` returns an error.
+    if not plan:
+        return (None, False)
+
     # Terminal colours for convenience.
     cAdd = colorama.Fore.GREEN
     cDel = colorama.Fore.RED
@@ -512,7 +517,6 @@ def main_plan(
         return (None, True)
 
     # Print the plan and return.
-    print_deltas(plan)
     return (plan, False)
 
 
