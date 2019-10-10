@@ -366,6 +366,10 @@ official [Docker image](https://hub.docker.com/r/olitheolix/square).
 This can be useful for automation tasks. For instance, you may want to
 track configuration drift of your cluster over time.
 
+# Use It As A Library
+See [here](examples/as_library.py) for an example of how to use Square as a
+library in your own Python programs.
+
 # Tests
 *Square* ships with a comprehensive unit test suit and a still nascent
 integration tests suite.

@@ -1,3 +1,7 @@
+# Deploy Square
+This example is only useful if you want to run Square inside your cluster. You
+do not need to deploy anything to use it from your own terminal.
+
 These examples were tested with Minikube v1.10.0.
 
 The [manifest](square-single-namespace.yaml) deploys `square` into a new
