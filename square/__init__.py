@@ -1,6 +1,6 @@
 from . import square
 
-__version__ = '0.15.1'
+__version__ = '0.16.0'
 
 # Expose the main functions directly for convenience.
 get = square.main_get
