@@ -242,21 +242,14 @@ def main() -> int:
     if cfg is None or err:
         return 1
 
-    # Create properly configured Requests session to talk to K8s API.
-    (k8s_config, k8s_client), err = square.square.cluster_config(
-        cfg.kubeconfig, cfg.kube_ctx)
-    if err or k8s_config is None or k8s_client is None:
-        return 1
-    cfg = cfg._replace(k8s_config=k8s_config, k8s_client=k8s_client)
-
     # Do what user asked us to do.
-    common_args = cfg.k8s_config, cfg.k8s_client, cfg.folder, cfg.selectors
+    common_args = cfg.kubeconfig, cfg.kube_ctx, cfg.folder, cfg.selectors
     if cfg.command == "get":
         _, err = square.square.main_get(*common_args, cfg.groupby)
     elif cfg.command == "plan":
         _, err = square.square.main_plan(*common_args)
     elif cfg.command == "apply":
-        _, err = square.square.main_apply(*common_args, None, cfg.k8s_config.name)
+        _, err = square.square.main_apply(*common_args, None, "yes")
     else:
         logit.error(f"Unknown command <{cfg.command}>")
         return 1

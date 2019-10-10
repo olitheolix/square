@@ -120,27 +120,18 @@ class TestMain:
         param.groupby = ("ns", "unknown")
         assert main.compile_config(param) == (None, True)
 
-    @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "main_get")
     @mock.patch.object(square, "main_plan")
     @mock.patch.object(square, "main_apply")
-    def test_main_valid_options(self, m_apply, m_plan, m_get, m_k8s):
+    def test_main_valid_options(self, m_apply, m_plan, m_get):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
         `main_*` function will be called with the correct parameters.
 
         """
-        # Dummy configuration.
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
-
         # Default grouping because we will not specify custom ones in this test.
         groupby = ManifestHierarchy(order=[], label="")
-
-        # Mock all calls to the K8s API.
-        m_k8s.load_auto_config.return_value = config
-        m_k8s.session.return_value = "client"
-        m_k8s.version.return_value = (config, False)
 
         # Pretend all main functions return success.
         m_get.return_value = (None, False)
@@ -149,17 +140,21 @@ class TestMain:
 
         # Simulate all input options.
         for option in ["get", "plan", "apply"]:
-            args = ("square.py", option, "deployment", "service", "--folder", "myfolder")
+            args = (
+                "square.py", option,
+                "deployment", "service", "--folder", "myfolder",
+                "--kubeconfig", "/foo"
+            )
             with mock.patch("sys.argv", args):
                 main.main()
             del args
 
         # Every main function must have been called exactly once.
         selectors = Selectors(["Deployment", "Service"], None, set())
-        args = config, "client", pathlib.Path("myfolder"), selectors
+        args = "/foo", None, pathlib.Path("myfolder"), selectors
         m_get.assert_called_once_with(*args, groupby)
         m_plan.assert_called_once_with(*args)
-        m_apply.assert_called_once_with(*args, None, config.name)
+        m_apply.assert_called_once_with(*args, None, "yes")
 
     def test_main_version(self):
         """Simulate "version" command."""

@@ -386,8 +386,8 @@ def user_confirmed(answer: Optional[str] = "yes") -> bool:
 
 
 def main_apply(
-        config: K8sConfig,
-        client,
+        kubeconfig: Filepath,
+        kube_ctx: Optional[str],
         folder: Filepath,
         selectors: Selectors,
         plan: Optional[DeploymentPlan],
@@ -399,8 +399,8 @@ def main_apply(
     `server_manifests` to the desired `local_manifests`.
 
     Inputs:
-        config: K8sConfig
-        client: `requests` session with correct K8s certificates.
+        kubeconfig: Filepath,
+        kube_ctx: Optional[str],
         folder: Filepath
             Path to local manifests eg "./foo"
         selectors: Selectors
@@ -416,9 +416,13 @@ def main_apply(
 
     """
     try:
+        # Create properly configured Requests session to talk to K8s API.
+        (k8s_config, k8s_client), err = cluster_config(kubeconfig, kube_ctx)
+        assert not err and k8s_config and k8s_client
+
         # Obtain the plan.
         if not plan:
-            plan, err = main_plan(config, client, folder, selectors)
+            plan, err = main_plan(kubeconfig, kube_ctx, folder, selectors)
             assert not err and plan
 
         # Exit prematurely if there are no changes to apply.
@@ -438,7 +442,7 @@ def main_apply(
         for data in plan.create:
             print(f"Creating {data.meta.kind.upper()} "
                   f"{data.meta.namespace}/{data.meta.name}")
-            _, err = k8s.post(client, data.url, data.manifest)
+            _, err = k8s.post(k8s_client, data.url, data.manifest)
             assert not err
 
         # Patch the server resources.
@@ -446,14 +450,14 @@ def main_apply(
         for meta, patch in patches:
             print(f"Patching {meta.kind.upper()} "
                   f"{meta.namespace}/{meta.name}")
-            _, err = k8s.patch(client, patch.url, patch.ops)
+            _, err = k8s.patch(k8s_client, patch.url, patch.ops)
             assert not err
 
         # Delete the excess resources.
         for data in plan.delete:
             print(f"Deleting {data.meta.kind.upper()} "
                   f"{data.meta.namespace}/{data.meta.name}")
-            _, err = k8s.delete(client, data.url, data.manifest)
+            _, err = k8s.delete(k8s_client, data.url, data.manifest)
             assert not err
     except AssertionError:
         return (None, True)
@@ -463,8 +467,8 @@ def main_apply(
 
 
 def main_plan(
-        config: K8sConfig,
-        client,
+        kubeconfig: Filepath,
+        kube_ctx: Optional[str],
         folder: Filepath,
         selectors: Selectors,
 ) -> Tuple[Optional[DeploymentPlan], bool]:
@@ -474,7 +478,10 @@ def main_plan(
     to match the setup defined in `local_manifests`.
 
     Inputs:
-        config: K8sConfig
+        kubeconfig: Filepath
+            Path to Kubernetes credentials.
+        kubectx: str
+            Kubernetes context (use `None` to use the default).
         client: `requests` session with correct K8s certificates.
         folder: Path
             Path to local manifests eg "./foo"
@@ -486,16 +493,20 @@ def main_plan(
 
     """
     try:
+        # Create properly configured Requests session to talk to K8s API.
+        (k8s_config, k8s_client), err = cluster_config(kubeconfig, kube_ctx)
+        assert not err and k8s_config and k8s_client
+
         # Load manifests from local files.
         local_meta, _, err = manio.load(folder, selectors)
         assert not err and local_meta is not None
 
         # Download manifests from K8s.
-        server, err = manio.download(config, client, selectors)
+        server, err = manio.download(k8s_config, k8s_client, selectors)
         assert not err and server is not None
 
         # Create deployment plan.
-        plan, err = compile_plan(config, local_meta, server)
+        plan, err = compile_plan(k8s_config, local_meta, server)
         assert not err and plan
     except AssertionError:
         return (None, True)
@@ -506,8 +517,8 @@ def main_plan(
 
 
 def main_get(
-        config: K8sConfig,
-        client,
+        kubeconfig: Filepath,
+        kube_ctx: Optional[str],
         folder: Filepath,
         selectors: Selectors,
         groupby: ManifestHierarchy,
@@ -516,8 +527,10 @@ def main_get(
     """Download all K8s manifests and merge them into local files.
 
     Inputs:
-        config: K8sConfig
-        client: `requests` session with correct K8s certificates.
+        kubeconfig: Filepath
+            Path to Kubernetes credentials.
+        kubectx: str
+            Kubernetes context (use `None` to use the default).
         folder: Path
             Path to local manifests eg "./foo"
         selectors: Selectors
@@ -530,12 +543,16 @@ def main_get(
 
     """
     try:
+        # Create properly configured Requests session to talk to K8s API.
+        (k8s_config, k8s_client), err = cluster_config(kubeconfig, kube_ctx)
+        assert not err and k8s_config and k8s_client
+
         # Load manifests from local files.
         _, local_files, err = manio.load(folder, selectors)
         assert not err and local_files is not None
 
         # Download manifests from K8s.
-        server, err = manio.download(config, client, selectors)
+        server, err = manio.download(k8s_config, k8s_client, selectors)
         assert not err and server is not None
 
         # Sync the server manifests into the local manifests. All this happens in
@@ -554,7 +571,7 @@ def main_get(
 
 
 def cluster_config(
-        kubeconfig: str,
+        kubeconfig: Filepath,
         context: Optional[str]) -> Tuple[Tuple[Optional[K8sConfig], Any], bool]:
     """Return web session to K8s API.
 

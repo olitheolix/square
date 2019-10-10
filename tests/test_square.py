@@ -575,7 +575,7 @@ class TestMainOptions:
     @mock.patch.object(k8s, "post")
     @mock.patch.object(k8s, "patch")
     @mock.patch.object(k8s, "delete")
-    def test_main_apply(self, m_delete, m_apply, m_post, m_plan, preplanned):
+    def test_main_apply(self, m_delete, m_apply, m_post, m_plan, preplanned, kube_creds):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -640,9 +640,9 @@ class TestMainOptions:
             assert not m_plan.called
         else:
             m_plan.assert_called_once_with(*args_plan)
-        m_post.assert_called_once_with("client", "create_url", "create_man")
-        m_apply.assert_called_once_with("client", patch.url, patch.ops)
-        m_delete.assert_called_once_with("client", "delete_url", "delete_man")
+        m_post.assert_called_once_with("k8s_client", "create_url", "create_man")
+        m_apply.assert_called_once_with("k8s_client", patch.url, patch.ops)
+        m_delete.assert_called_once_with("k8s_client", "delete_url", "delete_man")
 
         # -----------------------------------------------------------------
         #                   Simulate An Empty Plan
@@ -693,7 +693,7 @@ class TestMainOptions:
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
     @mock.patch.object(square, "compile_plan")
-    def test_main_plan(self, m_plan, m_down, m_load):
+    def test_main_plan(self, m_plan, m_down, m_load, kube_creds):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -711,14 +711,14 @@ class TestMainOptions:
 
         # The arguments to the test function will always be the same in this test.
         selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
-        args = "config", "client", "folder", selectors
+        args = "kubeconf", "kubectx", "folder", selectors
 
         # A successfull DIFF only computes and prints the plan.
         plan, err = square.main_plan(*args)
         assert not err and isinstance(plan, DeploymentPlan)
         m_load.assert_called_once_with("folder", selectors)
-        m_down.assert_called_once_with("config", "client", selectors)
-        m_plan.assert_called_once_with("config", "local", "server")
+        m_down.assert_called_once_with("k8s_config", "k8s_client", selectors)
+        m_plan.assert_called_once_with("k8s_config", "local", "server")
 
         # Make `compile_plan` fail.
         m_plan.return_value = (None, True)
@@ -736,7 +736,7 @@ class TestMainOptions:
     @mock.patch.object(manio, "download")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
-    def test_main_get(self, m_save, m_sync, m_down, m_load):
+    def test_main_get(self, m_save, m_sync, m_down, m_load, kube_creds):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -758,12 +758,12 @@ class TestMainOptions:
 
         # The arguments to the test function will always be the same in this test.
         selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
-        args = "config", "client", "folder", selectors, groupby
+        args = "kubeconf", "kubectx", "folder", selectors, groupby
 
         # Call test function and verify it passed the correct arguments.
         assert square.main_get(*args) == (None, False)
         m_load.assert_called_once_with("folder", selectors)
-        m_down.assert_called_once_with("config", "client", selectors)
+        m_down.assert_called_once_with("k8s_config", "k8s_client", selectors)
         m_sync.assert_called_once_with({}, "server", selectors, groupby)
         m_save.assert_called_once_with("folder", "synced")
 
