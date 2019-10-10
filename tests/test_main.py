@@ -225,29 +225,19 @@ class TestMain:
         harmless gaps in the unit test coverage.
 
         """
-        # A valid Square configuration.
-        cfg = Configuration(
-            command='get', verbosity=9, folder=pathlib.Path('/tmp'),
-            kubeconfig='kubeconfig', kube_ctx=None,
-            selectors=Selectors(
-                kinds=['Deployment'],
-                namespaces=['default'],
-                labels={("app", "morty"), ("foo", "bar")}
-            ),
-            groupby=ManifestHierarchy(label='', order=[]),
-        )
-        m_cluster.return_value = (cfg, False)
+        # Pretend the call to get K8s credentials succeeded.
+        m_cluster.return_value = (("foo", "bar"), False)
 
-        # Force a configuration error in `compile_config` due to the missing
-        # K8s credentials.
+        # Force a configuration error due to the absence of K8s credentials.
         cmd_args = dummy_command_param()
         cmd_args.kubeconfig = None
         m_cmd.return_value = cmd_args
         assert main.main() == 1
 
         # Simulate an invalid Square command.
-        m_cmd.return_value = dummy_command_param()
-        m_cluster.return_value = (cfg._replace(command="invalid"), False)
+        cmd_args = dummy_command_param()
+        cmd_args.parser = "invalid"
+        m_cmd.return_value = cmd_args
         assert main.main() == 1
 
     @mock.patch.object(square, "k8s")

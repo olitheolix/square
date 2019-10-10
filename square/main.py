@@ -243,9 +243,11 @@ def main() -> int:
         return 1
 
     # Create properly configured Requests session to talk to K8s API.
-    cfg, err = square.square.cluster_config(cfg)
-    if err or cfg is None:
+    (k8s_config, k8s_client), err = square.square.cluster_config(
+        cfg.kubeconfig, cfg.kube_ctx)
+    if err or k8s_config is None or k8s_client is None:
         return 1
+    cfg = cfg._replace(k8s_config=k8s_config, k8s_client=k8s_client)
 
     # Do what user asked us to do.
     common_args = cfg.k8s_config, cfg.k8s_client, cfg.folder, cfg.selectors
