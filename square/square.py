@@ -183,7 +183,7 @@ def compile_plan(
         # DELETE requests must specify the resource name in the path.
         url = f"{url}/{meta.name}"
 
-        # Assemble the meta and add it to the list.
+        # Compile the Delta and add it to the list.
         delete.append(DeltaDelete(meta, url, del_opts.copy()))
 
     # Iterate over each manifest that needs patching and determine the
