@@ -16,3 +16,6 @@ square.spec
 # Personal folders.
 manifests/
 personal/
+
+# Other.
+delme*
