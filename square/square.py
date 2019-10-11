@@ -437,7 +437,9 @@ def main_apply(
             return (None, False)
         del num_patch_ops
 
-        # Ask for user confirmation. Abort if the user does not give it.
+        # Print the plan and ask for user confirmation. Abort if the user does
+        # not give it.
+        print_deltas(plan)
         if not user_confirmed(confirm_string):
             print("User abort - no changes were made.")
             return (None, True)
