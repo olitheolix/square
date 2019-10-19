@@ -8,8 +8,8 @@ import square.k8s as k8s
 import square.manio as manio
 import square.square as square
 from square.dtypes import (
-    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, JsonPatch, K8sConfig,
-    ManifestHierarchy, MetaManifest, Selectors,
+    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+    JsonPatch, K8sConfig, ManifestHierarchy, MetaManifest, Selectors,
 )
 from square.k8s import urlpath
 
@@ -761,8 +761,9 @@ class TestMainOptions:
         args = "kubeconf", "kubectx", "folder", selectors, groupby
 
         # Call test function and verify it passed the correct arguments.
+        load_selectors = Selectors(kinds=SUPPORTED_KINDS, labels=None, namespaces=None)
         assert square.main_get(*args) == (None, False)
-        m_load.assert_called_once_with("folder", selectors)
+        m_load.assert_called_once_with("folder", load_selectors)
         m_down.assert_called_once_with("k8s_config", "k8s_client", selectors)
         m_sync.assert_called_once_with({}, "server", selectors, groupby)
         m_save.assert_called_once_with("folder", "synced")

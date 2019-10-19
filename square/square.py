@@ -9,8 +9,9 @@ import square.k8s as k8s
 import square.manio as manio
 import yaml
 from square.dtypes import (
-    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, Filepath, JsonPatch,
-    K8sConfig, ManifestHierarchy, MetaManifest, Selectors, ServerManifests,
+    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+    Filepath, JsonPatch, K8sConfig, ManifestHierarchy, MetaManifest, Selectors,
+    ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -548,13 +549,21 @@ def main_get(
         None
 
     """
+    # Use a wildcard Selector to ensure `manio.load` will read _all_ local
+    # manifests. This will allow `manio.sync` to modify the ones specified by
+    # the `selector` argument only, delete all the local manifests, and then
+    # write the new ones. This logic will ensure we never have stale manifests
+    # (see `manio.save_files` for details and how `manio.save`, which we call
+    # at the end of this function, uses it).
+    load_selectors = Selectors(kinds=SUPPORTED_KINDS, labels=None, namespaces=None)
+
     try:
         # Create properly configured Requests session to talk to K8s API.
         (k8s_config, k8s_client), err = cluster_config(kubeconfig, kube_ctx)
         assert not err and k8s_config and k8s_client
 
         # Load manifests from local files.
-        _, local_files, err = manio.load(folder, selectors)
+        _, local_files, err = manio.load(folder, load_selectors)
         assert not err and local_files is not None
 
         # Download manifests from K8s.
