@@ -22,6 +22,7 @@ pytest-cov = "*"
 "pytest-flake8" = "*"
 mypy = "*"
 bumpversion = "*"
+sh = "*"
 
 [requires]
 python_version = "3.7"

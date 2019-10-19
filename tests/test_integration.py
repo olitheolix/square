@@ -1,7 +1,9 @@
+import pathlib
 import unittest.mock as mock
 
 import pytest
 import requests
+import sh
 import square.main
 
 
@@ -17,6 +19,16 @@ def kind_available():
 
 @pytest.mark.skipif(not kind_available(), reason="No Minikube")
 class TestMain:
+    def setup_method(self):
+        cur_path = pathlib.Path(__file__).parent.parent
+        integration_test_manifest_path = cur_path / "integration-test-cluster"
+        assert integration_test_manifest_path.exists()
+        assert integration_test_manifest_path.is_dir()
+        sh.kubectl(
+            "--kubeconfig", "/tmp/kubeconfig-kind.yaml", "apply",
+            "-f", str(integration_test_manifest_path)
+        )
+
     def test_main_get(self, tmp_path):
         """GET all cluster resources."""
         # Command line arguments: get all manifests and group them by namespace,
