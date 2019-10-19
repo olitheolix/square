@@ -353,17 +353,10 @@ def sync(
     # Avoid side effects.
     server_manifests = copy.deepcopy(server_manifests)
 
-    # If the user did not specify any namespaces then we will operate on all
-    # the namespaces that are currently in K8s.
-    if selectors.namespaces is None:
-        namespaces = {meta.namespace for meta in server_manifests}
-    else:
-        namespaces = set(selectors.namespaces)
-
     # Only retain server manifests with correct `kinds` and `namespaces`.
     server_manifests = {
-        meta: v for meta, v in server_manifests.items()
-        if meta.kind in selectors.kinds and meta.namespace in namespaces
+        meta: manifest for meta, manifest in server_manifests.items()
+        if select(manifest, selectors)
     }
 
     # Add all local manifests outside the specified `kinds` and `namespaces`
@@ -373,7 +366,7 @@ def sync(
     # that local and server manifests are already in sync.
     for fname, manifests in local_manifests.items():
         for meta, manifest in manifests:
-            if meta.kind in selectors.kinds and meta.namespace in namespaces:
+            if select(manifest, selectors):
                 continue
             server_manifests[meta] = manifest
 
