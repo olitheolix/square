@@ -1577,7 +1577,7 @@ class TestSync:
         # locally. This will ensure that `sync` will try to create a new file
         # for it, which is what we want to test.
         loc_man = {}
-        srv_man = {manio.make_meta(mk_deploy(f"d_1", "ns1")): "1"}
+        srv_man = {manio.make_meta(mk_deploy(f"d_1", "ns1")): mk_deploy(f"d_1", "ns1")}
 
         # Define an invalid grouping specification. As a consequence,
         # `filename_for_manifest` will return an error and we can verify if
