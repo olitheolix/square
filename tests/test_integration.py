@@ -83,6 +83,56 @@ class TestMain:
             assert (tmp_path / "_global_" / "demoapp" / f"{kind}.yaml").exists()
             assert not (tmp_path / "_global_" / "demoapp" / f"{kind}.yaml").is_dir()
 
+    def test_main_get_import(self, tmp_path):
+        """Sync individual resources before and after deleting it from Cluster."""
+        # Convenience.
+        man_path = tmp_path / "square-tests" / "demoapp"
+
+        # Common command line arguments for GET command used in this test.
+        common_args = (
+            "--folder", str(tmp_path),
+            "--groupby", "ns", "label=app", "kind",
+            "-n", "square-tests",
+            "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
+        )
+
+        # Sync Deployments: must create "deployment.yaml".
+        args = ("square.py", "get", "deploy", *common_args)
+        with mock.patch("sys.argv", args):
+            square.main.main()
+        assert len(list(tmp_path.rglob("*.yaml"))) == 1
+        assert (man_path / "deployment.yaml").exists()
+
+        # Sync Ingresses: must add "ingress.yaml".
+        args = ("square.py", "get", "ingress", *common_args)
+        with mock.patch("sys.argv", args):
+            square.main.main()
+        assert len(list(tmp_path.rglob("*.yaml"))) == 2
+        assert (man_path / "deployment.yaml").exists()
+        assert (man_path / "ingress.yaml").exists()
+        man_dpl = (man_path / "deployment.yaml").read_bytes()
+        man_ing = (man_path / "ingress.yaml").read_bytes()
+
+        # Delete the Deployment but sync only Ingresses: no change in files.
+        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "delete",
+                   "deploy", "demoapp", "-n", "square-tests")
+        args = ("square.py", "get", "ingress", *common_args)
+        with mock.patch("sys.argv", args):
+            square.main.main()
+        assert len(list(tmp_path.rglob("*.yaml"))) == 2
+        assert (man_path / "deployment.yaml").exists()
+        assert (man_path / "ingress.yaml").exists()
+        assert man_dpl == (man_path / "deployment.yaml").read_bytes()
+        assert man_ing == (man_path / "ingress.yaml").read_bytes()
+
+        # Sync Deployment: must remove the original "deployment.yaml"
+        # because we have no deployments anymore.
+        args = ("square.py", "get", "deploy", *common_args)
+        with mock.patch("sys.argv", args):
+            square.main.main()
+        assert len(list(tmp_path.rglob("*.yaml"))) == 1
+        assert (man_path / "ingress.yaml").exists()
+
     def test_main_plan(self, tmp_path):
         """PLAN all cluster resources."""
         # Command line arguments.
