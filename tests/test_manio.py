@@ -1271,37 +1271,53 @@ class TestSync:
         server ones do not.
 
         """
+        def modify(manifest):
+            # Return modified version of `manifest` that Square must identify
+            # as different from the original.
+            out = copy.deepcopy(manifest)
+            out["spec"]["finalizers"].append("foo")
+            return out
+
         # Convenience shorthand.
         fun = manio.sync
         groupby = ManifestHierarchy(order=[], label="")
 
         # Various MetaManifests to use in the tests.
-        ns0 = manio.make_meta(make_manifest("Namespace", None, "ns0"))
-        ns1 = manio.make_meta(make_manifest("Namespace", None, "ns1"))
-        dpl_ns0 = manio.make_meta(make_manifest("Deployment", "ns0", "d-ns0"))
-        dpl_ns1 = manio.make_meta(make_manifest("Deployment", "ns1", "d-ns1"))
-        svc_ns0 = manio.make_meta(make_manifest("Service", "ns0", "s-ns0"))
-        svc_ns1 = manio.make_meta(make_manifest("Service", "ns1", "s-ns0"))
+        ns0_man = make_manifest("Namespace", None, "ns0")
+        ns1_man = make_manifest("Namespace", None, "ns1")
+        ns0 = manio.make_meta(ns0_man)
+        ns1 = manio.make_meta(ns1_man)
+        dpl_ns0_man = make_manifest("Deployment", "ns0", "d-ns0")
+        dpl_ns0 = manio.make_meta(dpl_ns0_man)
+
+        dpl_ns1_man = make_manifest("Deployment", "ns1", "d-ns1")
+        dpl_ns1 = manio.make_meta(dpl_ns1_man)
+
+        svc_ns0_man = make_manifest("Service", "ns0", "s-ns0")
+        svc_ns0 = manio.make_meta(svc_ns0_man)
+
+        svc_ns1_man = make_manifest("Service", "ns1", "s-ns0")
+        svc_ns1 = manio.make_meta(svc_ns1_man)
 
         # The local and server manifests will remain fixed for all tests. We
         # will only vary the namespaces and resource kinds (arguments to `sync`).
         loc_man = {
             "m0.yaml": [
-                (ns0, "ns0"),
-                (dpl_ns0, "d-ns0"),
-                (svc_ns0, "s-ns0"),
-                (ns1, "ns1"),
-                (dpl_ns1, "d-ns1"),
-                (svc_ns1, "s-ns1"),
+                (ns0, ns0_man),
+                (dpl_ns0, dpl_ns0_man),
+                (svc_ns0, svc_ns0_man),
+                (ns1, ns1_man),
+                (dpl_ns1, dpl_ns1_man),
+                (svc_ns1, svc_ns1_man),
             ],
         }
         srv_man = {
-            ns0: "ns0-mod",
-            dpl_ns0: "d-ns0-mod",
-            svc_ns0: "s-ns0-mod",
-            ns1: "ns1-mod",
-            dpl_ns1: "d-ns1-mod",
-            svc_ns1: "s-ns1-mod",
+            ns0: modify(ns0_man),
+            dpl_ns0: modify(dpl_ns0_man),
+            svc_ns0: modify(svc_ns0_man),
+            ns1: modify(ns1_man),
+            dpl_ns1: modify(dpl_ns1_man),
+            svc_ns1: modify(svc_ns1_man),
         }
 
         # ----------------------------------------------------------------------
@@ -1332,12 +1348,12 @@ class TestSync:
         # ----------------------------------------------------------------------
         expected = {
             "m0.yaml": [
-                (ns0, "ns0-mod"),
-                (dpl_ns0, "d-ns0-mod"),
-                (svc_ns0, "s-ns0-mod"),
-                (ns1, "ns1-mod"),
-                (dpl_ns1, "d-ns1-mod"),
-                (svc_ns1, "s-ns1-mod"),
+                (ns0, modify(ns0_man)),
+                (dpl_ns0, modify(dpl_ns0_man)),
+                (svc_ns0, modify(svc_ns0_man)),
+                (ns1, modify(ns1_man)),
+                (dpl_ns1, modify(dpl_ns1_man)),
+                (svc_ns1, modify(svc_ns1_man)),
             ],
         }
 
@@ -1357,12 +1373,12 @@ class TestSync:
         # ----------------------------------------------------------------------
         expected = {
             "m0.yaml": [
-                (ns0, "ns0"),
-                (dpl_ns0, "d-ns0-mod"),
-                (svc_ns0, "s-ns0-mod"),
-                (ns1, "ns1"),
-                (dpl_ns1, "d-ns1"),
-                (svc_ns1, "s-ns1"),
+                (ns0, ns0_man),
+                (dpl_ns0, modify(dpl_ns0_man)),
+                (svc_ns0, modify(svc_ns0_man)),
+                (ns1, ns1_man),
+                (dpl_ns1, dpl_ns1_man),
+                (svc_ns1, svc_ns1_man),
             ],
         }
         for kinds in itertools.permutations(["Deployment", "Service"]):
@@ -1374,12 +1390,12 @@ class TestSync:
         # ----------------------------------------------------------------------
         expected = {
             "m0.yaml": [
-                (ns0, "ns0"),
-                (dpl_ns0, "d-ns0-mod"),
-                (svc_ns0, "s-ns0"),
-                (ns1, "ns1"),
-                (dpl_ns1, "d-ns1-mod"),
-                (svc_ns1, "s-ns1"),
+                (ns0, ns0_man),
+                (dpl_ns0, modify(dpl_ns0_man)),
+                (svc_ns0, svc_ns0_man),
+                (ns1, ns1_man),
+                (dpl_ns1, modify(dpl_ns1_man)),
+                (svc_ns1, svc_ns1_man),
             ],
         }
         selectors = Selectors(["Deployment"], namespaces=None, labels=None)
@@ -1390,12 +1406,12 @@ class TestSync:
         # ----------------------------------------------------------------------
         expected = {
             "m0.yaml": [
-                (ns0, "ns0"),
-                (dpl_ns0, "d-ns0-mod"),
-                (svc_ns0, "s-ns0"),
-                (ns1, "ns1"),
-                (dpl_ns1, "d-ns1"),
-                (svc_ns1, "s-ns1"),
+                (ns0, ns0_man),
+                (dpl_ns0, modify(dpl_ns0_man)),
+                (svc_ns0, svc_ns0_man),
+                (ns1, ns1_man),
+                (dpl_ns1, dpl_ns1_man),
+                (svc_ns1, svc_ns1_man),
             ],
         }
         selectors = Selectors(["Deployment"], namespaces=["ns0"], labels=None)
@@ -1406,12 +1422,12 @@ class TestSync:
         # ----------------------------------------------------------------------
         expected = {
             "m0.yaml": [
-                (ns0, "ns0"),
-                (dpl_ns0, "d-ns0"),
-                (svc_ns0, "s-ns0"),
-                (ns1, "ns1"),
-                (dpl_ns1, "d-ns1"),
-                (svc_ns1, "s-ns1-mod"),
+                (ns0, ns0_man),
+                (dpl_ns0, dpl_ns0_man),
+                (svc_ns0, svc_ns0_man),
+                (ns1, ns1_man),
+                (dpl_ns1, dpl_ns1_man),
+                (svc_ns1, modify(svc_ns1_man)),
             ],
         }
         selectors = Selectors(["Service"], namespaces=["ns1"], labels=None)
