@@ -1443,6 +1443,13 @@ class TestSync:
         server ones do not.
 
         """
+        def modify(manifest):
+            # Return modified version of `manifest` that Square must identify
+            # as different from the original.
+            out = copy.deepcopy(manifest)
+            out["spec"]["finalizers"].append("foo")
+            return out
+
         groupby = ManifestHierarchy(order=[], label="")
         m_fname.return_value = ("catchall.yaml", False)
 
@@ -1451,36 +1458,40 @@ class TestSync:
         kinds, namespaces = ["Deployment"], None
 
         # First, create the local manifests as `load_files` would return it.
-        meta_1 = [manio.make_meta(mk_deploy(f"d_{_}", "ns1")) for _ in range(10)]
-        meta_2 = [manio.make_meta(mk_deploy(f"d_{_}", "ns2")) for _ in range(10)]
+        man_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(10)]
+        man_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(10)]
+        meta_1 = [manio.make_meta(_) for _ in man_1]
+        meta_2 = [manio.make_meta(_) for _ in man_2]
         loc_man = {
-            "m0.yaml": [(meta_1[0], "0"), (meta_1[1], "1"), (meta_2[2], "2")],
-            "m1.yaml": [(meta_2[3], "3"), (meta_1[4], "4")],
-            "m2.yaml": [(meta_1[5], "5")],
+            "m0.yaml": [(meta_1[0], man_1[0]), (meta_1[1], man_1[1]),
+                        (meta_2[2], man_2[2])],
+            "m1.yaml": [(meta_2[3], man_2[3]), (meta_1[4], man_1[4])],
+            "m2.yaml": [(meta_1[5], man_1[5])],
         }
 
         # Create server manifests as `download_manifests` would return it. Only
         # the MetaManifests (ie dict keys) are relevant whereas the dict values
         # are not but serve to improve code readability here.
         srv_man = {
-            meta_1[0]: "0",         # same
-            meta_1[1]: "modified",  # modified
-            meta_2[2]: "2",         # same
-                                    # delete [3]
-            meta_1[4]: "4",         # same
-                                    # delete [5]
-            meta_1[6]: "new",       # new
-            meta_2[7]: "new",       # new
-            meta_1[8]: "new",       # new
+            meta_1[0]: man_1[0],            # same
+            meta_1[1]: modify(man_1[1]),    # modified
+            meta_2[2]: man_2[2],            # same
+            meta_1[4]: man_1[4],            # same
+                                            # delete [5]
+            meta_1[6]: man_1[6],            # new
+            meta_2[7]: man_2[7],            # new
+            meta_1[8]: man_1[8],            # new
         }
 
         # The expected outcome is that the local manifests were updated,
         # overwritten (modified), deleted or put into a default manifest.
         expected = {
-            "m0.yaml": [(meta_1[0], "0"), (meta_1[1], "modified"), (meta_2[2], "2")],
-            "m1.yaml": [(meta_1[4], "4")],
+            "m0.yaml": [(meta_1[0], man_1[0]), (meta_1[1], modify(man_1[1])),
+                        (meta_2[2], man_2[2])],
+            "m1.yaml": [(meta_1[4], man_1[4])],
             "m2.yaml": [],
-            "catchall.yaml": [(meta_1[6], "new"), (meta_2[7], "new"), (meta_1[8], "new")],
+            "catchall.yaml": [(meta_1[6], man_1[6]), (meta_2[7], man_2[7]),
+                              (meta_1[8], man_1[8])],
         }
         selectors = Selectors(kinds, namespaces, labels=None)
         assert manio.sync(loc_man, srv_man, selectors, groupby) == (expected, False)
