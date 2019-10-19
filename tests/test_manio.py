@@ -1503,6 +1503,13 @@ class TestSync:
         files behave like their "normal" user created counterparts.
 
         """
+        def modify(manifest):
+            # Return modified version of `manifest` that Square must identify
+            # as different from the original.
+            out = copy.deepcopy(manifest)
+            out["spec"]["finalizers"].append("foo")
+            return out
+
         # Args for `sync`. In this test, we only have Deployments and want to
         # sync them across all namespaces.
         kinds, namespaces = ["Deployment"], None
@@ -1512,18 +1519,20 @@ class TestSync:
         # The `{0: "blah"}` like dicts are necessary because the
         # `filename_for_manifest` function requires a dict to operate on. The
         # "0" part of the dict is otherwise meaningless.
-        meta_1 = [manio.make_meta(mk_deploy(f"d_{_}", "ns1")) for _ in range(10)]
-        meta_2 = [manio.make_meta(mk_deploy(f"d_{_}", "ns2")) for _ in range(10)]
+        man_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(10)]
+        man_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(10)]
+        meta_1 = [manio.make_meta(_) for _ in man_1]
+        meta_2 = [manio.make_meta(_) for _ in man_2]
         loc_man = {
             "_ns1.yaml": [
-                (meta_1[1], {0: "1"}),
-                (meta_1[2], {0: "2"}),
-                (meta_1[3], {0: "3"}),
-                (meta_1[5], {0: "5"}),
+                (meta_1[1], man_1[1]),
+                (meta_1[2], man_1[2]),
+                (meta_1[3], man_1[3]),
+                (meta_1[5], man_1[5]),
             ],
             "_ns2.yaml": [
-                (meta_2[2], {0: "2"}),
-                (meta_2[6], {0: "6"}),
+                (meta_2[2], man_2[2]),
+                (meta_2[6], man_2[6]),
             ]
         }
 
@@ -1532,21 +1541,21 @@ class TestSync:
         # are not but serve to improve code readability here.
         srv_man = {
             # --- _ns1.yaml ---
-            meta_1[0]: {0: "0"},         # new
-            meta_1[1]: {0: "modified"},  # modified
-            meta_1[2]: {0: "2"},         # same
-                                         # delete [3]
-                                         # [4] never existed
-                                         # delete [5]
+            meta_1[0]: man_1[0],          # new
+            meta_1[1]: modify(man_1[1]),  # modified
+            meta_1[2]: man_1[2],          # same
+                                          # delete [3]
+                                          # [4] never existed
+                                          # delete [5]
 
             # --- _ns2.yaml ---
-            meta_2[0]: {0: "0"},         # new
-            meta_2[9]: {0: "9"},         # new
-            meta_2[7]: {0: "7"},         # new
-            meta_2[6]: {0: "modified"},  # modified
-                                         # delete [2]
-            meta_2[5]: {0: "5"},         # new
-            meta_2[3]: {0: "3"},         # new
+            meta_2[0]: man_2[0],          # new
+            meta_2[9]: man_2[9],          # new
+            meta_2[7]: man_2[7],          # new
+            meta_2[6]: modify(man_2[6]),  # modified
+                                          # delete [2]
+            meta_2[5]: man_2[5],          # new
+            meta_2[3]: man_2[3],          # new
         }
 
         # The expected outcome is that the local manifests were updated,
@@ -1556,19 +1565,19 @@ class TestSync:
         # keys in insertion order, which is guaranteed for Python 3.7.
         expected = {
             "_ns1.yaml": [
-                (meta_1[1], {0: "modified"}),
-                (meta_1[2], {0: "2"}),
+                (meta_1[1], modify(man_1[1])),
+                (meta_1[2], man_1[2]),
             ],
             "_ns2.yaml": [
-                (meta_2[6], {0: "modified"}),
+                (meta_2[6], modify(man_2[6])),
             ],
             "_other.yaml": [
-                (meta_1[0], {0: "0"}),
-                (meta_2[0], {0: "0"}),
-                (meta_2[9], {0: "9"}),
-                (meta_2[7], {0: "7"}),
-                (meta_2[5], {0: "5"}),
-                (meta_2[3], {0: "3"}),
+                (meta_1[0], man_1[0]),
+                (meta_2[0], man_2[0]),
+                (meta_2[9], man_2[9]),
+                (meta_2[7], man_2[7]),
+                (meta_2[5], man_2[5]),
+                (meta_2[3], man_2[3]),
             ],
         }
         selectors = Selectors(kinds, namespaces, labels=None)
