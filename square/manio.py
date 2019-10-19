@@ -412,7 +412,7 @@ def sync(
 
     # Iterate over all manifests in all files and drop the resources that do
     # not exist on the server. This will, in effect, delete those resources in
-    # the local files if the caller chooses to save them.
+    # the local files if the caller chose to save them.
     out_add_mod_del = {}
     for fname, manifests in out_add_mod.items():
         pruned = [(meta, man) for (meta, man) in manifests if meta in server_manifests]
