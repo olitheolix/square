@@ -1,0 +1,267 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: square-tests-1
+  labels:
+    app: demoapp-1
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: demo-secret-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+data:
+  mysecret: blah
+
+---
+
+apiVersion: v1
+data:
+  version: v1
+kind: ConfigMap
+metadata:
+  name: demo-configmap-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demoapp-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demoapp-1
+  template:
+    metadata:
+      labels:
+        app: demoapp-1
+        tag: v1
+    spec:
+      containers:
+        - name: demoapp
+          image: alpine:latest
+          command: ["sleep", "100d"]
+
+---
+
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: hello-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hello
+            image: busybox
+            args:
+            - /bin/sh
+            - -c
+            - date; echo "Hello, World!"
+          restartPolicy: OnFailure
+---
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: demoapp-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+spec:
+  selector:
+    matchLabels:
+      app: demoapp-1
+  template:
+    metadata:
+      labels:
+        app: demoapp-1
+        tag: v1
+    spec:
+      containers:
+        - name: demoapp
+          image: alpine:latest
+          command: ["sleep", "100d"]
+
+---
+
+# The service account for `square`.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: square-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: square-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+rules:
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["get", "list", "update", "patch"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: square-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: square-1
+subjects:
+- kind: ServiceAccount
+  name: square-1
+  namespace: square
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: demoapp-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: demoapp-1
+  type: ClusterIP
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: demoapp-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+spec:
+  rules:
+  - host: example.com
+    http:
+      paths:
+      - backend:
+          serviceName: demoapp
+          servicePort: 80
+        path: /
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demoapp-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysecret-1
+  namespace: square-tests-1
+type: Opaque
+data:
+  username: YWRtaW4=
+  password: MWYyZDFlMmU2N2Rm
+
+---
+
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: demoapp-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+spec:
+  maxReplicas: 1
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: demoapp-1
+  targetCPUUtilizationPercentage: 80
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: demoapp-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demoapp-1
+  serviceName: "demoapp"
+  template:
+    metadata:
+      labels:
+        app: demoapp-1
+        tag: v1
+    spec:
+      containers:
+        - name: demoapp
+          image: alpine:latest
+          command: ["sleep", "100d"]
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: demoapp-1
+  namespace: square-tests-1
+  labels:
+    app: demoapp-1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Block
+  resources:
+    requests:
+      storage: 10Mi
