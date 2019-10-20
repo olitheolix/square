@@ -5,6 +5,8 @@ import pytest
 import requests
 import sh
 import square.main
+import square.manio as manio
+import yaml
 
 
 def kind_available():
@@ -18,7 +20,7 @@ def kind_available():
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Minikube")
-class TestMain:
+class TestMainGet:
     def setup_method(self):
         cur_path = pathlib.Path(__file__).parent.parent
         integration_test_manifest_path = cur_path / "integration-test-cluster"
@@ -138,6 +140,100 @@ class TestMain:
         assert len(list(tmp_path.rglob("*.yaml"))) == 1
         assert (man_path / "ingress.yaml").exists()
 
+    def test_main_get_both_namespaces(self, tmp_path):
+        """Sync individual resources across two namespaces.
+
+        This test will use `kubectl` to delete some resources.
+
+        """
+        def load_manifests(path):
+            manifests = yaml.safe_load_all(open(path / "_other.yaml"))
+            manifests = {manio.make_meta(_) for _ in manifests}
+            manifests = {(_.kind, _.namespace, _.name) for _ in manifests}
+            return manifests
+
+        # Convenience.
+        man_path = tmp_path
+
+        # Common command line arguments for GET command used in this test.
+        # Unlike in the previous test, we will store all manifests in a single
+        # file (ie we omit the "--groupby" option).
+        common_args = (
+            "--folder", str(tmp_path),
+            "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
+        )
+
+        # Sync Deployments & Ingresses: must create catchall file "_other.yaml".
+        args = ("square.py", "get", "deploy", "ingress",
+                "-n", "square-tests-1", "square-tests-2",
+                *common_args)
+
+        with mock.patch("sys.argv", args):
+            square.main.main()
+        assert len(list(tmp_path.rglob("*.yaml"))) == 1
+        assert (man_path / "_other.yaml").exists()
+
+        # Ensure we got 4 manifests: one ingress and one deployment for each namespace.
+        assert load_manifests(man_path) == {
+            ('Deployment', 'square-tests-1', 'demoapp-1'),
+            ('Deployment', 'square-tests-2', 'demoapp-1'),
+            ('Ingress', 'square-tests-1', 'demoapp-1'),
+            ('Ingress', 'square-tests-2', 'demoapp-1'),
+        }
+
+        # Delete the "demoapp-1" Ingress in one namespace then sync only those
+        # from the other namespace: must not change the local manifests.
+        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "delete",
+                   "ingress", "demoapp-1", "-n", "square-tests-1")
+        args = ("square.py", "get", "ingress", "-n", "square-tests-2", *common_args)
+        with mock.patch("sys.argv", args):
+            square.main.main()
+        assert load_manifests(man_path) == {
+            ('Deployment', 'square-tests-1', 'demoapp-1'),
+            ('Deployment', 'square-tests-2', 'demoapp-1'),
+            ('Ingress', 'square-tests-1', 'demoapp-1'),
+            ('Ingress', 'square-tests-2', 'demoapp-1'),
+        }
+
+        # Now delete the Deployments in both Namespaces and sync Ingresses,
+        # also from both Namespaces: must only remove the ingress we deleted in
+        # the previous step.
+        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "delete",
+                   "deploy", "demoapp-1", "-n", "square-tests-1")
+        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "delete",
+                   "deploy", "demoapp-1", "-n", "square-tests-2")
+        args = ("square.py", "get", "ingress",
+                "-n", "square-tests-1", "square-tests-2", *common_args)
+        with mock.patch("sys.argv", args):
+            square.main.main()
+        assert load_manifests(man_path) == {
+            ('Deployment', 'square-tests-1', 'demoapp-1'),
+            ('Deployment', 'square-tests-2', 'demoapp-1'),
+            ('Ingress', 'square-tests-2', 'demoapp-1'),
+        }
+
+        # Sync Deployments from both namespaces: must not leave any Deployments
+        # because we deleted them in a previous step.
+        args = ("square.py", "get", "deploy",
+                "-n", "square-tests-1", "square-tests-2", *common_args)
+        with mock.patch("sys.argv", args):
+            square.main.main()
+        assert load_manifests(man_path) == {
+            ('Ingress', 'square-tests-2', 'demoapp-1'),
+        }
+
+        # Delete the last ingress and sync again: must delete "_other.yaml"
+        # altogether because now we have no resources left anymore.
+        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "delete",
+                   "ingress", "demoapp-1", "-n", "square-tests-2")
+        args = ("square.py", "get", "ingress",
+                "-n", "square-tests-1", "square-tests-2", *common_args)
+        with mock.patch("sys.argv", args):
+            square.main.main()
+        assert len(list(tmp_path.rglob("*.yaml"))) == 0
+
+
+class TestMainPlan:
     def test_main_plan(self, tmp_path):
         """PLAN all cluster resources."""
         # Command line arguments.
