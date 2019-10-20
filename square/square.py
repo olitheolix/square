@@ -8,6 +8,7 @@ import jsonpatch
 import square.k8s as k8s
 import square.manio as manio
 import yaml
+from colorlog import ColoredFormatter
 from square.dtypes import (
     SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
     Filepath, JsonPatch, K8sConfig, ManifestHierarchy, MetaManifest, Selectors,
@@ -334,16 +335,6 @@ def setup_logging(log_level: int) -> None:
         None
 
     """
-    class ColouredLog(logging.StreamHandler):
-        def format(self, record):
-            if record.levelname == "DEBUG":
-                colour = colorama.Fore.WHITE
-            elif record.levelname == "INFO":
-                colour = colorama.Fore.GREEN
-            else:
-                colour = colorama.Fore.RED
-            return f"{colour}{super().format(record)}{colorama.Fore.RESET}"
-
     # Pick the correct log level.
     if log_level == 0:
         level = "ERROR"
@@ -359,11 +350,12 @@ def setup_logging(log_level: int) -> None:
     logger.setLevel(level)
 
     # Configure stdout handler.
-    handler = ColouredLog()
+    handler = logging.StreamHandler()
     handler.setLevel(level)
     handler.setFormatter(
-        logging.Formatter(
-            "%(levelname)s - %(filename)s:%(funcName)s:%(lineno)d - %(message)s"
+        ColoredFormatter(
+            "%(log_color)s%(levelname)s%(reset)s - "
+            "%(filename)s:%(funcName)s:%(lineno)d - %(message)s"
         )
     )
 

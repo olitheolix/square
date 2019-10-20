@@ -10,6 +10,7 @@ google-api-python-client = "*"
 jsonpatch = "*"
 pyyaml = "*"
 requests = "*"
+colorlog = "*"
 
 [dev-packages]
 flake8 = "*"
