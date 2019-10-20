@@ -69,18 +69,17 @@ def parse_commandline_args():
     )
     parent.add_argument(
         "-v", "--verbosity", action="count", default=0,
-        help="Specify multiple times to increase log level."
-             " -v: WARNING -vv: INFO -vvv: DEBUG"
+        help="Log level (-v: WARNING -vv: INFO -vvv: DEBUG)"
     )
     parent.add_argument(
-        "-n", type=str, nargs="*",
+        "-n", "--namespace", type=str, nargs="*",
         metavar="ns", dest="namespaces",
         help="List of namespaces (omit to consider all)",
     )
     parent.add_argument(
-        "-l", type=_validate_label, nargs="*",
+        "-l", "--labels", type=_validate_label, nargs="*",
         metavar="labels", dest="labels", default=tuple(),
-        help="List of K8s resources to consider or just 'all'",
+        help="Only select resources with these labels (eg 'app=foo')",
     )
     parent.add_argument(
         "--kubeconfig", type=str, metavar="path",
@@ -90,11 +89,11 @@ def parse_commandline_args():
     parent.add_argument(
         "--folder", type=str, metavar="path",
         default=os.environ.get("SQUARE_FOLDER", "./"),
-        help="Manifest folder (defaults to env SQUARE_FOLDER)",
+        help="Manifest folder (defaults to env SQUARE_FOLDER first then ./)",
     )
     parent.add_argument(
         "--context", type=str, metavar="ctx", dest="ctx", default=None,
-        help="Kubernetes context (use default one if unspecified)",
+        help="Kubernetes context (defaults to default context)",
     )
 
     # The primary parser for the top level options (eg GET, PATCH, ...).
@@ -122,7 +121,7 @@ def parse_commandline_args():
     parser_get.add_argument(
         "--groupby", type=str, nargs="*",
         metavar="", dest="groupby",
-        help="Folder hierarchy (eg '--groupby ns kind label')",
+        help="Folder hierarchy (eg '--groupby ns label=app kind')",
     )
 
     # Sub-command DIFF.
