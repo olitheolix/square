@@ -1,19 +1,19 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: square-tests
+  name: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 
 ---
 
 apiVersion: v1
 kind: Secret
 metadata:
-  name: demo-secret
-  namespace: square-tests
+  name: demo-secret-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 data:
   mysecret: blah
 
@@ -24,29 +24,29 @@ data:
   version: v1
 kind: ConfigMap
 metadata:
-  name: demo-configmap
-  namespace: square-tests
+  name: demo-configmap-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 
 ---
 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: demoapp
-  namespace: square-tests
+  name: demoapp-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: demoapp
+      app: demoapp-1
   template:
     metadata:
       labels:
-        app: demoapp
+        app: demoapp-1
         tag: v1
     spec:
       containers:
@@ -59,10 +59,10 @@ spec:
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: hello
-  namespace: square-tests
+  name: hello-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 spec:
   schedule: "*/1 * * * *"
   jobTemplate:
@@ -82,18 +82,18 @@ spec:
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: demoapp
-  namespace: square-tests
+  name: demoapp-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 spec:
   selector:
     matchLabels:
-      app: demoapp
+      app: demoapp-1
   template:
     metadata:
       labels:
-        app: demoapp
+        app: demoapp-1
         tag: v1
     spec:
       containers:
@@ -107,19 +107,19 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: square
-  namespace: square-tests
+  name: square-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 
 ---
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: square
+  name: square-1
   labels:
-    app: demoapp
+    app: demoapp-1
 rules:
 - apiGroups: [""]
   resources:
@@ -131,16 +131,16 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: square
+  name: square-1
   labels:
-    app: demoapp
+    app: demoapp-1
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: square
+  name: square-1
 subjects:
 - kind: ServiceAccount
-  name: square
+  name: square-1
   namespace: square
 
 ---
@@ -148,10 +148,10 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: square
-  namespace: square-tests
+  name: square-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 rules:
 - apiGroups: [""]
   resources:
@@ -163,17 +163,17 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: square
-  namespace: square-tests
+  name: square-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: square
+  name: square-1
 subjects:
 - kind: ServiceAccount
-  name: square
+  name: square-1
   namespace: square
 
 ---
@@ -181,10 +181,10 @@ subjects:
 apiVersion: v1
 kind: Service
 metadata:
-  name: demoapp
-  namespace: square-tests
+  name: demoapp-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 spec:
   ports:
   - name: http
@@ -192,7 +192,7 @@ spec:
     protocol: TCP
     targetPort: 8080
   selector:
-    app: demoapp
+    app: demoapp-1
   type: ClusterIP
 
 ---
@@ -200,10 +200,10 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: demoapp
-  namespace: square-tests
+  name: demoapp-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 spec:
   rules:
   - host: example.com
@@ -219,17 +219,17 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: demoapp
-  namespace: square-tests
+  name: demoapp-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 
 ---
 
 apiVersion: v1
 kind: Secret
 metadata:
-  name: mysecret
+  name: mysecret-1
 type: Opaque
 data:
   username: YWRtaW4=
@@ -240,17 +240,17 @@ data:
 apiVersion: autoscaling/v1
 kind: HorizontalPodAutoscaler
 metadata:
-  name: demoapp
-  namespace: square-tests
+  name: demoapp-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 spec:
   maxReplicas: 1
   minReplicas: 1
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: demoapp
+    name: demoapp-1
   targetCPUUtilizationPercentage: 80
 
 ---
@@ -258,20 +258,20 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: demoapp
-  namespace: square-tests
+  name: demoapp-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: demoapp
+      app: demoapp-1
   serviceName: "demoapp"
   template:
     metadata:
       labels:
-        app: demoapp
+        app: demoapp-1
         tag: v1
     spec:
       containers:
@@ -284,10 +284,10 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: demoapp
-  namespace: square-tests
+  name: demoapp-1
+  namespace: square-tests-1
   labels:
-    app: demoapp
+    app: demoapp-1
 spec:
   accessModes:
     - ReadWriteOnce
