@@ -151,12 +151,13 @@ class TestMainGet:
 
         """
         def load_manifests(path):
+            # Load all manifests and return just the metadata.
             manifests = yaml.safe_load_all(open(path / "_other.yaml"))
             manifests = {manio.make_meta(_) for _ in manifests}
             manifests = {(_.kind, _.namespace, _.name) for _ in manifests}
             return manifests
 
-        # Convenience.
+        # Convenience: manifest path.
         man_path = tmp_path
 
         # Common command line arguments for GET command used in this test.
@@ -167,7 +168,9 @@ class TestMainGet:
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
         )
 
+        # ---------------------------------------------------------------------
         # Sync Deployments & Ingresses: must create catchall file "_other.yaml".
+        # ---------------------------------------------------------------------
         args = ("square.py", "get", "deploy", "ingress",
                 "-n", "square-tests-1", "square-tests-2",
                 *common_args)
@@ -185,8 +188,10 @@ class TestMainGet:
             ('Ingress', 'square-tests-2', 'demoapp-1'),
         }
 
+        # ---------------------------------------------------------------------
         # Delete the "demoapp-1" Ingress in one namespace then sync only those
         # from the other namespace: must not change the local manifests.
+        # ---------------------------------------------------------------------
         kubectl("delete", "ingress", "demoapp-1", "-n", "square-tests-1")
         args = ("square.py", "get", "ingress", "-n", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
@@ -198,9 +203,11 @@ class TestMainGet:
             ('Ingress', 'square-tests-2', 'demoapp-1'),
         }
 
+        # ---------------------------------------------------------------------
         # Now delete the Deployments in both Namespaces and sync Ingresses,
         # also from both Namespaces: must only remove the ingress we deleted in
         # the previous step.
+        # ---------------------------------------------------------------------
         kubectl("delete", "deploy", "demoapp-1", "-n", "square-tests-1")
         kubectl("delete", "deploy", "demoapp-1", "-n", "square-tests-2")
         args = ("square.py", "get", "ingress",
@@ -213,8 +220,10 @@ class TestMainGet:
             ('Ingress', 'square-tests-2', 'demoapp-1'),
         }
 
+        # ---------------------------------------------------------------------
         # Sync Deployments from both namespaces: must not leave any Deployments
         # because we deleted them in a previous step.
+        # ---------------------------------------------------------------------
         args = ("square.py", "get", "deploy",
                 "-n", "square-tests-1", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
@@ -223,8 +232,10 @@ class TestMainGet:
             ('Ingress', 'square-tests-2', 'demoapp-1'),
         }
 
+        # ---------------------------------------------------------------------
         # Delete the last ingress and sync again: must delete "_other.yaml"
         # altogether because now we have no resources left anymore.
+        # ---------------------------------------------------------------------
         kubectl("delete", "ingress", "demoapp-1", "-n", "square-tests-2")
         args = ("square.py", "get", "ingress",
                 "-n", "square-tests-1", "square-tests-2", *common_args)
