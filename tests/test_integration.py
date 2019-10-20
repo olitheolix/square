@@ -84,8 +84,12 @@ class TestMain:
             assert (tmp_path / "_global_" / "demoapp-1" / f"{kind}.yaml").exists()
             assert not (tmp_path / "_global_" / "demoapp-1" / f"{kind}.yaml").is_dir()
 
-    def test_main_get_import(self, tmp_path):
-        """Sync individual resources before and after deleting it from Cluster."""
+    def test_main_get_single_namespace(self, tmp_path):
+        """Sync individual resources in single namespace.
+
+        This test will use `kubectl` to delete some resources.
+
+        """
         # Convenience.
         man_path = tmp_path / "square-tests-1" / "demoapp-1"
 
