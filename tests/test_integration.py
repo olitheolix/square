@@ -8,6 +8,14 @@ import square.main
 import square.manio as manio
 import yaml
 
+# Bake a `kubectl` command that uses the kubeconfig file for the KIND cluster.
+# We need to wrap this into a try/except block because CircleCI does not have
+# `kubectl` installed and cannot run the integration tests anyway.
+try:
+    kubectl = sh.kubectl.bake("--kubeconfig", "/tmp/kubeconfig-kind.yaml")
+except sh.CommandNotFound:
+    kubectl = None
+
 
 def kind_available():
     """Return True if KIND cluster is available."""
@@ -26,10 +34,7 @@ class TestMainGet:
         integration_test_manifest_path = cur_path / "integration-test-cluster"
         assert integration_test_manifest_path.exists()
         assert integration_test_manifest_path.is_dir()
-        sh.kubectl(
-            "--kubeconfig", "/tmp/kubeconfig-kind.yaml", "apply",
-            "-f", str(integration_test_manifest_path)
-        )
+        kubectl("apply", "-f", str(integration_test_manifest_path))
 
     def test_main_get(self, tmp_path):
         """GET all cluster resources."""
@@ -121,8 +126,7 @@ class TestMainGet:
         man_ing = (man_path / "ingress.yaml").read_bytes()
 
         # Delete the Deployment but sync only Ingresses: no change in files.
-        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "delete",
-                   "deploy", "demoapp-1", "-n", "square-tests-1")
+        kubectl("delete", "deploy", "demoapp-1", "-n", "square-tests-1")
         args = ("square.py", "get", "ingress", *common_args)
         with mock.patch("sys.argv", args):
             square.main.main()
@@ -183,8 +187,7 @@ class TestMainGet:
 
         # Delete the "demoapp-1" Ingress in one namespace then sync only those
         # from the other namespace: must not change the local manifests.
-        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "delete",
-                   "ingress", "demoapp-1", "-n", "square-tests-1")
+        kubectl("delete", "ingress", "demoapp-1", "-n", "square-tests-1")
         args = ("square.py", "get", "ingress", "-n", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
             square.main.main()
@@ -198,10 +201,8 @@ class TestMainGet:
         # Now delete the Deployments in both Namespaces and sync Ingresses,
         # also from both Namespaces: must only remove the ingress we deleted in
         # the previous step.
-        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "delete",
-                   "deploy", "demoapp-1", "-n", "square-tests-1")
-        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "delete",
-                   "deploy", "demoapp-1", "-n", "square-tests-2")
+        kubectl("delete", "deploy", "demoapp-1", "-n", "square-tests-1")
+        kubectl("delete", "deploy", "demoapp-1", "-n", "square-tests-2")
         args = ("square.py", "get", "ingress",
                 "-n", "square-tests-1", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
@@ -224,8 +225,7 @@ class TestMainGet:
 
         # Delete the last ingress and sync again: must delete "_other.yaml"
         # altogether because now we have no resources left anymore.
-        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "delete",
-                   "ingress", "demoapp-1", "-n", "square-tests-2")
+        kubectl("delete", "ingress", "demoapp-1", "-n", "square-tests-2")
         args = ("square.py", "get", "ingress",
                 "-n", "square-tests-1", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
