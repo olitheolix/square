@@ -48,14 +48,15 @@ class TestMain:
 
         # The integration test cluster has these namespaces, which means Square
         # must have created equivalent folders.
-        for ns in ["default", "kube-system", "square-tests"]:
+        for ns in ["default", "kube-system", "square-tests-1"]:
             assert (tmp_path / ns).exists()
             assert (tmp_path / ns).is_dir()
 
-        # All our integration test resources have the `app=demoapp` label and
-        # must thus exist in the folder "square-tests/demoapp".
-        assert (tmp_path / "square-tests" / "demoapp").exists()
-        assert (tmp_path / "square-tests" / "demoapp").is_dir()
+        # All our integration test resources have the `app=demoapp-1` label and
+        # must thus exist in the folder "square-tests-1/demoapp-1".
+        demoapp_1_path = tmp_path / "square-tests-1" / "demoapp-1"
+        assert (demoapp_1_path).exists()
+        assert (demoapp_1_path).is_dir()
 
         # The "square-tests" namespace must have these manifests.
         kinds = [
@@ -75,24 +76,24 @@ class TestMain:
             "statefulset",
         ]
         for kind in kinds:
-            assert (tmp_path / "square-tests" / "demoapp" / f"{kind}.yaml").exists()
-            assert not (tmp_path / "square-tests" / "demoapp" / f"{kind}.yaml").is_dir()
+            assert (demoapp_1_path / f"{kind}.yaml").exists()
+            assert not (demoapp_1_path / f"{kind}.yaml").is_dir()
 
         # Un-namespaced resources must be in special "_global_" folder.
         for kind in ["clusterrole", "clusterrolebinding"]:
-            assert (tmp_path / "_global_" / "demoapp" / f"{kind}.yaml").exists()
-            assert not (tmp_path / "_global_" / "demoapp" / f"{kind}.yaml").is_dir()
+            assert (tmp_path / "_global_" / "demoapp-1" / f"{kind}.yaml").exists()
+            assert not (tmp_path / "_global_" / "demoapp-1" / f"{kind}.yaml").is_dir()
 
     def test_main_get_import(self, tmp_path):
         """Sync individual resources before and after deleting it from Cluster."""
         # Convenience.
-        man_path = tmp_path / "square-tests" / "demoapp"
+        man_path = tmp_path / "square-tests-1" / "demoapp-1"
 
         # Common command line arguments for GET command used in this test.
         common_args = (
             "--folder", str(tmp_path),
             "--groupby", "ns", "label=app", "kind",
-            "-n", "square-tests",
+            "-n", "square-tests-1",
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
         )
 
@@ -115,7 +116,7 @@ class TestMain:
 
         # Delete the Deployment but sync only Ingresses: no change in files.
         sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "delete",
-                   "deploy", "demoapp", "-n", "square-tests")
+                   "deploy", "demoapp-1", "-n", "square-tests-1")
         args = ("square.py", "get", "ingress", *common_args)
         with mock.patch("sys.argv", args):
             square.main.main()
