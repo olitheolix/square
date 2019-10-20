@@ -27,6 +27,7 @@ pytest-cov = "^2.7"
 pytest-dotenv = "^0.4.0"
 pytest-flake8 = "^1.0"
 requests-mock = "^1.7"
+sh = "^1.12"
 
 [tool.poetry.scripts]
 square = 'square.main:main'
