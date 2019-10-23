@@ -559,7 +559,7 @@ class TestMainOptions:
     @mock.patch.object(k8s, "post")
     @mock.patch.object(k8s, "patch")
     @mock.patch.object(k8s, "delete")
-    def test_main_apply(self, m_delete, m_apply, m_post, m_plan, preplanned, kube_creds):
+    def test_apply_plan(self, m_delete, m_apply, m_post, m_plan, preplanned, kube_creds):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -613,13 +613,13 @@ class TestMainOptions:
         # answer "yes".
         reset_mocks()
         with mock.patch.object(square, 'input', lambda _: "wrong answer"):
-            assert square.main_apply(*args_apply) == (None, True)
+            assert square.apply_plan(*args_apply) == (None, True)
 
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
         reset_mocks()
         with mock.patch.object(square, 'input', lambda _: "correct answer"):
-            assert square.main_apply(*args_apply) == (None, False)
+            assert square.apply_plan(*args_apply) == (None, False)
         if preplanned:
             assert not m_plan.called
         else:
@@ -644,7 +644,7 @@ class TestMainOptions:
 
         # Call test function and verify that it did not try to apply
         # the empty plan.
-        assert square.main_apply(*args_apply_empty) == (None, False)
+        assert square.apply_plan(*args_apply_empty) == (None, False)
         assert not m_post.called
         assert not m_apply.called
         assert not m_delete.called
@@ -659,20 +659,20 @@ class TestMainOptions:
 
         # Make `delete` fail.
         m_delete.return_value = (None, True)
-        assert square.main_apply(*args_apply) == (None, True)
+        assert square.apply_plan(*args_apply) == (None, True)
 
         # Make `patch` fail.
         m_apply.return_value = (None, True)
-        assert square.main_apply(*args_apply) == (None, True)
+        assert square.apply_plan(*args_apply) == (None, True)
 
         # Make `post` fail.
         m_post.return_value = (None, True)
-        assert square.main_apply(*args_apply) == (None, True)
+        assert square.apply_plan(*args_apply) == (None, True)
 
         # Make `make_plan` fail.
         if not preplanned:
             m_plan.return_value = (None, True)
-            assert square.main_apply(*args_apply) == (None, True)
+            assert square.apply_plan(*args_apply) == (None, True)
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
