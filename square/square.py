@@ -519,7 +519,7 @@ def make_plan(
     return (plan, False)
 
 
-def main_get(
+def get_resources(
         kubeconfig: Filepath,
         kube_ctx: Optional[str],
         folder: Filepath,

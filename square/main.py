@@ -244,7 +244,7 @@ def main() -> int:
     # Do what user asked us to do.
     common_args = cfg.kubeconfig, cfg.kube_ctx, cfg.folder, cfg.selectors
     if cfg.command == "get":
-        _, err = square.square.main_get(*common_args, cfg.groupby)
+        _, err = square.square.get_resources(*common_args, cfg.groupby)
     elif cfg.command == "plan":
         plan, err = square.square.make_plan(*common_args)
         square.square.print_deltas(plan)

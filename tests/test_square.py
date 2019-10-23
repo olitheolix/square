@@ -720,7 +720,7 @@ class TestMainOptions:
     @mock.patch.object(manio, "download")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
-    def test_main_get(self, m_save, m_sync, m_down, m_load, kube_creds):
+    def test_get_resources(self, m_save, m_sync, m_down, m_load, kube_creds):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -745,25 +745,24 @@ class TestMainOptions:
         args = "kubeconf", "kubectx", "folder", selectors, groupby
 
         # Call test function and verify it passed the correct arguments.
-        load_selectors = Selectors(kinds=SUPPORTED_KINDS, labels=None, namespaces=None)
-        assert square.main_get(*args) == (None, False)
-        m_load.assert_called_once_with("folder", load_selectors)
+        assert square.get_resources(*args) == (None, False)
+        m_load.assert_called_once_with("folder", selectors)
         m_down.assert_called_once_with("k8s_config", "k8s_client", selectors)
         m_sync.assert_called_once_with({}, "server", selectors, groupby)
         m_save.assert_called_once_with("folder", "synced")
 
         # Simulate an error with `manio.save`.
         m_save.return_value = (None, True)
-        assert square.main_get(*args) == (None, True)
+        assert square.get_resources(*args) == (None, True)
 
         # Simulate an error with `manio.sync`.
         m_sync.return_value = (None, True)
-        assert square.main_get(*args) == (None, True)
+        assert square.get_resources(*args) == (None, True)
 
         # Simulate an error in `download_manifests`.
         m_down.return_value = (None, True)
-        assert square.main_get(*args) == (None, True)
+        assert square.get_resources(*args) == (None, True)
 
         # Simulate an error in `load`.
         m_load.return_value = (None, None, True)
-        assert square.main_get(*args) == (None, True)
+        assert square.get_resources(*args) == (None, True)
