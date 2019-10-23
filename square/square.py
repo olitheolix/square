@@ -390,28 +390,14 @@ def user_confirmed(answer: Optional[str] = "yes") -> bool:
 def apply_plan(
         kubeconfig: Filepath,
         kube_ctx: Optional[str],
-        folder: Filepath,
-        selectors: Selectors,
         plan: Optional[DeploymentPlan],
-        confirm_string: Optional[str],
 ) -> Tuple[None, bool]:
-    """Update K8s to match the specifications in `local_manifests`.
-
-    Create a deployment plan that will transition the K8s state
-    `server_manifests` to the desired `local_manifests`.
+    """Update K8s resources according to the `plan`.
 
     Inputs:
         kubeconfig: Filepath,
         kube_ctx: Optional[str],
-        folder: Filepath
-            Path to local manifests eg "./foo"
-        selectors: Selectors
-            Only operate on resources that match the selectors.
         plan: DeploymentPlan
-            Run a plan if `None`, or use the supplied `plan`.
-        confirm_string:
-            Only apply the plan if user answers with this string in the
-        confirmation dialog (set to `None` to disable confirmation).
 
     Returns:
         None
@@ -421,26 +407,6 @@ def apply_plan(
         # Create properly configured Requests session to talk to K8s API.
         (k8s_config, k8s_client), err = cluster_config(kubeconfig, kube_ctx)
         assert not err and k8s_config and k8s_client
-
-        # Obtain the plan.
-        if not plan:
-            plan, err = make_plan(kubeconfig, kube_ctx, folder, selectors)
-            assert not err and plan
-
-        # Exit prematurely if there are no changes to apply.
-        num_patch_ops = sum([len(_.patch.ops) for _ in plan.patch])
-        if len(plan.create) == len(plan.delete) == num_patch_ops == 0:
-            print("Nothing to change")
-            return (None, False)
-        del num_patch_ops
-
-        # Print the plan and ask for user confirmation. Abort if the user does
-        # not give it.
-        print_deltas(plan)
-        if not user_confirmed(confirm_string):
-            print("User abort - no changes were made.")
-            return (None, True)
-        print()
 
         # Create the missing resources.
         for data in plan.create:

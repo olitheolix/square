@@ -3,7 +3,6 @@ import os
 import types
 import unittest.mock as mock
 
-import pytest
 import square.k8s as k8s
 import square.manio as manio
 import square.square as square
@@ -554,12 +553,10 @@ class TestPlan:
 
 
 class TestMainOptions:
-    @pytest.mark.parametrize("preplanned", [False, True])
-    @mock.patch.object(square, "make_plan")
     @mock.patch.object(k8s, "post")
     @mock.patch.object(k8s, "patch")
     @mock.patch.object(k8s, "delete")
-    def test_apply_plan(self, m_delete, m_apply, m_post, m_plan, preplanned, kube_creds):
+    def test_apply_plan(self, m_delete, m_apply, m_post, kube_creds):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -568,9 +565,7 @@ class TestMainOptions:
         The second part of the test simulates errors. This is not a separate
         test because it shares virtually all the boiler plate code.
         """
-        # Valid client config and MetaManifest.
-        cname = "clustername"
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", cname)
+        # Valid MetaManifest.
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
 
         # Valid Patch.
@@ -590,40 +585,19 @@ class TestMainOptions:
         )
 
         def reset_mocks():
-            m_plan.reset_mock()
             m_post.reset_mock()
             m_apply.reset_mock()
             m_delete.reset_mock()
 
             # Pretend that all K8s requests succeed.
-            m_plan.return_value = (plan, False)
             m_post.return_value = (None, False)
             m_apply.return_value = (None, False)
             m_delete.return_value = (None, False)
 
-        # The arguments to the test function will always be the same in this test.
-        selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
-        args_plan = config, "client", "folder", selectors
-        if preplanned:
-            args_apply = *args_plan, plan, "correct answer"
-        else:
-            args_apply = *args_plan, None, "correct answer"
-
-        # Square must never create/patch/delete anything if the user did not
-        # answer "yes".
-        reset_mocks()
-        with mock.patch.object(square, 'input', lambda _: "wrong answer"):
-            assert square.apply_plan(*args_apply) == (None, True)
-
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
         reset_mocks()
-        with mock.patch.object(square, 'input', lambda _: "correct answer"):
-            assert square.apply_plan(*args_apply) == (None, False)
-        if preplanned:
-            assert not m_plan.called
-        else:
-            m_plan.assert_called_once_with(*args_plan)
+        assert square.apply_plan("kubeconfig", "kubectx", plan) == (None, False)
         m_post.assert_called_once_with("k8s_client", "create_url", "create_man")
         m_apply.assert_called_once_with("k8s_client", patch.url, patch.ops)
         m_delete.assert_called_once_with("k8s_client", "delete_url", "delete_man")
@@ -636,15 +610,9 @@ class TestMainOptions:
         reset_mocks()
         empty_plan = DeploymentPlan(create=[], patch=[], delete=[])
 
-        if preplanned:
-            args_apply_empty = (*args_plan, empty_plan, "correct answer")
-        else:
-            args_apply_empty = (*args_plan, None, "correct answer")
-            m_plan.return_value = (empty_plan, False)
-
         # Call test function and verify that it did not try to apply
         # the empty plan.
-        assert square.apply_plan(*args_apply_empty) == (None, False)
+        assert square.apply_plan("kubeconfig", "kubectx", empty_plan) == (None, False)
         assert not m_post.called
         assert not m_apply.called
         assert not m_delete.called
@@ -654,25 +622,17 @@ class TestMainOptions:
         # -----------------------------------------------------------------
         reset_mocks()
 
-        # Same arguments, but disable security question.
-        args_apply = config, "client", "folder", selectors, None, None
-
         # Make `delete` fail.
         m_delete.return_value = (None, True)
-        assert square.apply_plan(*args_apply) == (None, True)
+        assert square.apply_plan("kubeconfig", "kubectx", plan) == (None, True)
 
         # Make `patch` fail.
         m_apply.return_value = (None, True)
-        assert square.apply_plan(*args_apply) == (None, True)
+        assert square.apply_plan("kubeconfig", "kubectx", plan) == (None, True)
 
         # Make `post` fail.
         m_post.return_value = (None, True)
-        assert square.apply_plan(*args_apply) == (None, True)
-
-        # Make `make_plan` fail.
-        if not preplanned:
-            m_plan.return_value = (None, True)
-            assert square.apply_plan(*args_apply) == (None, True)
+        assert square.apply_plan("kubeconfig", "kubectx", plan) == (None, True)
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
