@@ -223,7 +223,7 @@ def print_deltas(plan: Optional[DeploymentPlan]) -> Tuple[None, bool]:
 
     """
     # Do nothing if the plan is `None`. This special case makes it easier to
-    # deal with cases where `square.main_plan` returns an error.
+    # deal with cases where `square.make_plan` returns an error.
     if not plan:
         return (None, False)
 
@@ -424,7 +424,7 @@ def main_apply(
 
         # Obtain the plan.
         if not plan:
-            plan, err = main_plan(kubeconfig, kube_ctx, folder, selectors)
+            plan, err = make_plan(kubeconfig, kube_ctx, folder, selectors)
             assert not err and plan
 
         # Exit prematurely if there are no changes to apply.
@@ -470,7 +470,7 @@ def main_apply(
     return (None, False)
 
 
-def main_plan(
+def make_plan(
         kubeconfig: Filepath,
         kube_ctx: Optional[str],
         folder: Filepath,

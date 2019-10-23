@@ -121,7 +121,7 @@ class TestMain:
         assert main.compile_config(param) == (None, True)
 
     @mock.patch.object(square, "main_get")
-    @mock.patch.object(square, "main_plan")
+    @mock.patch.object(square, "make_plan")
     @mock.patch.object(square, "main_apply")
     def test_main_valid_options(self, m_apply, m_plan, m_get):
         """Simulate sane program invocation.
@@ -182,7 +182,7 @@ class TestMain:
 
     @mock.patch.object(square, "k8s")
     @mock.patch.object(square, "main_get")
-    @mock.patch.object(square, "main_plan")
+    @mock.patch.object(square, "make_plan")
     @mock.patch.object(square, "main_apply")
     def test_main_nonzero_exit_on_error(self, m_apply, m_plan, m_get, m_k8s):
         """Simulate sane program invocation.

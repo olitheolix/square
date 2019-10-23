@@ -246,7 +246,7 @@ def main() -> int:
     if cfg.command == "get":
         _, err = square.square.main_get(*common_args, cfg.groupby)
     elif cfg.command == "plan":
-        plan, err = square.square.main_plan(*common_args)
+        plan, err = square.square.make_plan(*common_args)
         square.square.print_deltas(plan)
     elif cfg.command == "apply":
         _, err = square.square.main_apply(*common_args, None, "yes")
