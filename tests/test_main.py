@@ -122,7 +122,7 @@ class TestMain:
 
     @mock.patch.object(square, "get_resources")
     @mock.patch.object(square, "make_plan")
-    @mock.patch.object(square, "apply_plan")
+    @mock.patch.object(main, "apply_plan")
     def test_main_valid_options(self, m_apply, m_plan, m_get):
         """Simulate sane program invocation.
 
@@ -133,7 +133,7 @@ class TestMain:
         # Default grouping because we will not specify custom ones in this test.
         groupby = ManifestHierarchy(order=[], label="")
 
-        # Pretend all main functions return success.
+        # Pretend all functions return successfully.
         m_get.return_value = (None, False)
         m_plan.return_value = (None, False)
         m_apply.return_value = (None, False)
@@ -153,8 +153,8 @@ class TestMain:
         selectors = Selectors(["Deployment", "Service"], None, set())
         args = "/foo", None, pathlib.Path("myfolder"), selectors
         m_get.assert_called_once_with(*args, groupby)
-        m_plan.assert_called_once_with(*args)
         m_apply.assert_called_once_with(*args, None, "yes")
+        m_plan.assert_called_once_with(*args)
 
     def test_main_version(self):
         """Simulate "version" command."""

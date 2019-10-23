@@ -11,8 +11,8 @@ import square
 import square.square
 from square import __version__
 from square.dtypes import (
-    RESOURCE_ALIASES, SUPPORTED_KINDS, Configuration, ManifestHierarchy,
-    Selectors,
+    RESOURCE_ALIASES, SUPPORTED_KINDS, Configuration, DeploymentPlan, Filepath,
+    ManifestHierarchy, Selectors,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -227,6 +227,66 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
     return cfg, False
 
 
+def apply_plan(
+        kubeconfig: Filepath,
+        kube_ctx: Optional[str],
+        folder: Filepath,
+        selectors: Selectors,
+        plan: Optional[DeploymentPlan],
+        confirm_string: Optional[str],
+) -> Tuple[None, bool]:
+    """Update K8s to match the specifications in `local_manifests`.
+
+    Create a deployment plan that will transition the K8s state
+    `server_manifests` to the desired `local_manifests`.
+
+    Inputs:
+        kubeconfig: Filepath,
+        kube_ctx: Optional[str],
+        folder: Filepath
+            Path to local manifests eg "./foo"
+        selectors: Selectors
+            Only operate on resources that match the selectors.
+        plan: DeploymentPlan
+            Run a plan if `None`, or use the supplied `plan`.
+        confirm_string:
+            Only apply the plan if user answers with this string in the
+            confirmation dialog (set to `None` to disable confirmation).
+
+    Returns:
+        None
+
+    """
+    try:
+        # Obtain the plan.
+        plan, err = square.square.make_plan(kubeconfig, kube_ctx, folder, selectors)
+        assert not err and plan
+
+        # Exit prematurely if there are no changes to apply.
+        num_patch_ops = sum([len(_.patch.ops) for _ in plan.patch])
+        if len(plan.create) == len(plan.delete) == num_patch_ops == 0:
+            print("Nothing to change")
+            return (None, False)
+        del num_patch_ops
+
+        # Print the plan and ask for user confirmation. Abort if the user does
+        # not give it.
+        square.square.print_deltas(plan)
+        if not square.square.user_confirmed(confirm_string):
+            print("User abort - no changes were made.")
+            return (None, True)
+        print()
+
+        # Apply the plan.
+        _, err = square.square.apply_plan(kubeconfig, kube_ctx, plan)
+        assert not err
+    except AssertionError:
+        return (None, True)
+
+    # All good.
+    return (None, False)
+
+
 def main() -> int:
     param = parse_commandline_args()
     if param.parser == "version":
@@ -249,7 +309,7 @@ def main() -> int:
         plan, err = square.square.make_plan(*common_args)
         square.square.print_deltas(plan)
     elif cfg.command == "apply":
-        _, err = square.square.apply_plan(*common_args, None, "yes")
+        _, err = apply_plan(*common_args, None, "yes")
     else:
         logit.error(f"Unknown command <{cfg.command}>")
         return 1
