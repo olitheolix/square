@@ -249,7 +249,7 @@ def main() -> int:
         plan, err = square.square.make_plan(*common_args)
         square.square.print_deltas(plan)
     elif cfg.command == "apply":
-        _, err = square.square.main_apply(*common_args, None, "yes")
+        _, err = square.square.apply_plan(*common_args, None, "yes")
     else:
         logit.error(f"Unknown command <{cfg.command}>")
         return 1

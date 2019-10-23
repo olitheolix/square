@@ -387,7 +387,7 @@ def user_confirmed(answer: Optional[str] = "yes") -> bool:
         return False
 
 
-def main_apply(
+def apply_plan(
         kubeconfig: Filepath,
         kube_ctx: Optional[str],
         folder: Filepath,
