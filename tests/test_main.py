@@ -120,7 +120,7 @@ class TestMain:
         param.groupby = ("ns", "unknown")
         assert main.compile_config(param) == (None, True)
 
-    @mock.patch.object(square, "main_get")
+    @mock.patch.object(square, "get_resources")
     @mock.patch.object(square, "make_plan")
     @mock.patch.object(square, "main_apply")
     def test_main_valid_options(self, m_apply, m_plan, m_get):
@@ -181,7 +181,7 @@ class TestMain:
             assert err.value.code == 2
 
     @mock.patch.object(square, "k8s")
-    @mock.patch.object(square, "main_get")
+    @mock.patch.object(square, "get_resources")
     @mock.patch.object(square, "make_plan")
     @mock.patch.object(square, "main_apply")
     def test_main_nonzero_exit_on_error(self, m_apply, m_plan, m_get, m_k8s):
