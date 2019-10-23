@@ -555,7 +555,7 @@ class TestPlan:
 
 class TestMainOptions:
     @pytest.mark.parametrize("preplanned", [False, True])
-    @mock.patch.object(square, "main_plan")
+    @mock.patch.object(square, "make_plan")
     @mock.patch.object(k8s, "post")
     @mock.patch.object(k8s, "patch")
     @mock.patch.object(k8s, "delete")
@@ -669,7 +669,7 @@ class TestMainOptions:
         m_post.return_value = (None, True)
         assert square.main_apply(*args_apply) == (None, True)
 
-        # Make `main_plan` fail.
+        # Make `make_plan` fail.
         if not preplanned:
             m_plan.return_value = (None, True)
             assert square.main_apply(*args_apply) == (None, True)
@@ -677,7 +677,7 @@ class TestMainOptions:
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
     @mock.patch.object(square, "compile_plan")
-    def test_main_plan(self, m_plan, m_down, m_load, kube_creds):
+    def test_make_plan(self, m_plan, m_down, m_load, kube_creds):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -698,7 +698,7 @@ class TestMainOptions:
         args = "kubeconf", "kubectx", "folder", selectors
 
         # A successfull DIFF only computes and prints the plan.
-        plan, err = square.main_plan(*args)
+        plan, err = square.make_plan(*args)
         assert not err and isinstance(plan, DeploymentPlan)
         m_load.assert_called_once_with("folder", selectors)
         m_down.assert_called_once_with("k8s_config", "k8s_client", selectors)
@@ -706,15 +706,15 @@ class TestMainOptions:
 
         # Make `compile_plan` fail.
         m_plan.return_value = (None, True)
-        assert square.main_plan(*args) == (None, True)
+        assert square.make_plan(*args) == (None, True)
 
         # Make `download_manifests` fail.
         m_down.return_value = (None, True)
-        assert square.main_plan(*args) == (None, True)
+        assert square.make_plan(*args) == (None, True)
 
         # Make `load` fail.
         m_load.return_value = (None, None, True)
-        assert square.main_plan(*args) == (None, True)
+        assert square.make_plan(*args) == (None, True)
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")

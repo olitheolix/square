@@ -4,5 +4,5 @@ __version__ = '0.16.1'
 
 # Expose the main functions directly for convenience.
 get = square.main_get
-plan = square.main_plan
+plan = square.make_plan
 apply = square.main_apply
