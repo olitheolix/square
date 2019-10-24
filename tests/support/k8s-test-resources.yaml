@@ -1,0 +1,90 @@
+# Use these resources to test the whole Square workflow. It deliberately
+# does _not_ contain any Deployments (or DaemonSets, etc) because those
+# are time consuming to terminate and stop the integration tests dead in
+# their tracks for 30s or more.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-workflow
+  labels:
+    app: demoapp
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: demo-secret
+  namespace: test-workflow
+  labels:
+    app: demoapp
+data:
+  mysecret: blah
+
+---
+
+apiVersion: v1
+data:
+  version: v1
+kind: ConfigMap
+metadata:
+  name: demo-configmap
+  namespace: test-workflow
+  labels:
+    app: demoapp
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: square
+  labels:
+    app: demoapp
+rules:
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["get", "list", "update", "patch"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: square
+  labels:
+    app: demoapp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: square
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: square
+  namespace: test-workflow
+  labels:
+    app: demoapp
+rules:
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["get", "list", "update", "patch"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: square
+  namespace: test-workflow
+  labels:
+    app: demoapp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: square

@@ -1,4 +1,5 @@
 import pathlib
+import time
 import unittest.mock as mock
 
 import pytest
@@ -7,6 +8,7 @@ import sh
 import square.main
 import square.manio as manio
 import yaml
+from square.dtypes import SUPPORTED_KINDS, ManifestHierarchy, Selectors
 
 # Bake a `kubectl` command that uses the kubeconfig file for the KIND cluster.
 # We need to wrap this into a try/except block because CircleCI does not have
@@ -244,6 +246,7 @@ class TestMainGet:
         assert len(list(tmp_path.rglob("*.yaml"))) == 0
 
 
+@pytest.mark.skipif(not kind_available(), reason="No Minikube")
 class TestMainPlan:
     def test_main_plan(self, tmp_path):
         """PLAN all cluster resources."""
@@ -257,3 +260,83 @@ class TestMainPlan:
         # Merely verify that the program does not break.
         with mock.patch("sys.argv", args):
             square.main.main()
+
+    def test_workflow(self, tmp_path):
+        """Delete and restore full namespace with Square.
+
+        We will use `kubectl` to create a new namespace and populate it with
+        resource. Then we will use Square to backup it up, delete it and
+        finally restore it again.
+
+        """
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        # Convenience.
+        apply_plan = square.square.apply_plan
+        make_plan = square.square.make_plan
+        get_resources = square.square.get_resources
+
+        # Fixtures.
+        selectors = Selectors(SUPPORTED_KINDS, ["test-workflow"], None)
+        groupby = ManifestHierarchy(label="app", order=[])
+        backup_folder = tmp_path / "backup"
+
+        # ---------------------------------------------------------------------
+        # Deploy a new namespace with only a few resources (no deployments
+        # among them because it takes too long to delete those namespaces).
+        # ---------------------------------------------------------------------
+        kubeconfig = "/tmp/kubeconfig-kind.yaml"
+        sh.kubectl("apply", "--kubeconfig", kubeconfig,
+                   "-f", "tests/support/k8s-test-resources.yaml")
+
+        # ---------------------------------------------------------------------
+        # Create a plan for "square-tests". The plan must delete all resources
+        # because we have not downloaded any manifests yet.
+        # ---------------------------------------------------------------------
+        plan_1, err = square.square.make_plan(kubeconfig, None, tmp_path, selectors)
+        assert not err
+        assert plan_1.create == plan_1.patch == [] and len(plan_1.delete) > 0
+
+        # ---------------------------------------------------------------------
+        # Backup all resources. A plan against that backup must be empty.
+        # ---------------------------------------------------------------------
+        assert not (backup_folder / "_other.yaml").exists()
+        _, err = get_resources(kubeconfig, None, backup_folder, selectors, groupby)
+        assert not err and (backup_folder / "_other.yaml").exists()
+
+        plan_2, err = make_plan(kubeconfig, None, backup_folder, selectors)
+        assert not err
+        assert plan_2.create == plan_2.patch == plan_2.delete == []
+
+        # ---------------------------------------------------------------------
+        # Apply the first plan to delete all resources including the namespace.
+        # ---------------------------------------------------------------------
+        _, err = apply_plan(kubeconfig, None, plan_1)
+        assert not err
+
+        # ---------------------------------------------------------------------
+        # Wait until K8s has deleted the namespace.
+        # ---------------------------------------------------------------------
+        while True:
+            time.sleep(1)
+            try:
+                sh.kubectl("get", "ns", "test-workflow", "--kubeconfig", kubeconfig)
+            except sh.ErrorReturnCode_1:
+                break
+
+        # ---------------------------------------------------------------------
+        # Use backup manifests to restore the namespace.
+        # ---------------------------------------------------------------------
+        plan_3, err = square.square.make_plan(kubeconfig, None, backup_folder, selectors)
+        assert not err
+        assert plan_3.patch == plan_3.delete == [] and len(plan_3.create) > 0
+
+        # Apply the new plan.
+        _, err = apply_plan(kubeconfig, None, plan_3)
+        assert not err
+
+        plan_4, err = square.square.make_plan(kubeconfig, None, backup_folder, selectors)
+        assert not err
+        assert plan_4.create == plan_4.patch == plan_4.delete == []

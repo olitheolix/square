@@ -105,7 +105,7 @@ def parse_commandline_args():
 
     # Configuration for `kinds` positional arguments. Every sub-parser must
     # specify this one individually and here we define the kwargs to reduce
-    # duplicate code.
+    # duplicated code.
     kinds_kwargs = {
         "dest": "kinds",
         "type": _validate_kind,
