@@ -5,10 +5,14 @@ import unittest.mock as mock
 
 import pytest
 import square.main as main
+import square.manio as manio
 import square.square as square
 from square.dtypes import (
-    SUPPORTED_KINDS, Configuration, K8sConfig, ManifestHierarchy, Selectors,
+    SUPPORTED_KINDS, Configuration, DeltaCreate, DeltaDelete, DeltaPatch,
+    DeploymentPlan, JsonPatch, K8sConfig, ManifestHierarchy, Selectors,
 )
+
+from .test_helpers import make_manifest
 
 
 def dummy_command_param():
@@ -153,7 +157,7 @@ class TestMain:
         selectors = Selectors(["Deployment", "Service"], None, set())
         args = "/foo", None, pathlib.Path("myfolder"), selectors
         m_get.assert_called_once_with(*args, groupby)
-        m_apply.assert_called_once_with(*args, None, "yes")
+        m_apply.assert_called_once_with(*args, "yes")
         m_plan.assert_called_once_with(*args)
 
     def test_main_version(self):
@@ -407,3 +411,77 @@ class TestMain:
         with mock.patch.object(square, 'input') as m_input:
             m_input.side_effect = KeyboardInterrupt
             assert square.user_confirmed("yes") is False
+
+
+class TestApplyPlan:
+    @mock.patch.object(square, "make_plan")
+    @mock.patch.object(square, "apply_plan")
+    def test_apply_plan(self, m_apply, m_plan, tmp_path):
+        """Simulate a successful resource update (add, patch delete).
+
+        To this end, create a valid (mocked) deployment plan, mock out all
+        calls, and verify that all the necessary calls are made.
+
+        The second part of the test simulates errors. This is not a separate
+        test because it shares virtually all the boiler plate code.
+
+        """
+        fun = main.apply_plan
+        selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
+
+        # -----------------------------------------------------------------
+        #                   Simulate A Non-Empty Plan
+        # -----------------------------------------------------------------
+        # Valid Patch.
+        patch = JsonPatch(
+            url="patch_url",
+            ops=[
+                {'op': 'remove', 'path': '/metadata/labels/old'},
+                {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'},
+            ],
+        )
+        # Valid non-empty deployment plan.
+        meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
+        plan = DeploymentPlan(
+            create=[DeltaCreate(meta, "create_url", "create_man")],
+            patch=[DeltaPatch(meta, "diff", patch)],
+            delete=[DeltaDelete(meta, "delete_url", "delete_man")],
+        )
+
+        # Simulate a none empty plan and successful application of that plan.
+        m_plan.return_value = (plan, False)
+        m_apply.return_value = (None, False)
+
+        # Function must not apply the plan without the user's confirmation.
+        with mock.patch.object(square, 'input', lambda _: "no"):
+            assert fun("kubeconfig", None, tmp_path, selectors, "yes") == (None, True)
+        assert not m_apply.called
+
+        # Function must apply the plan if the user confirms it.
+        with mock.patch.object(square, 'input', lambda _: "yes"):
+            assert fun("kubeconfig", None, tmp_path, selectors, "yes") == (None, False)
+        m_apply.assert_called_once_with("kubeconfig", None, plan)
+
+        # Repeat with disabled security question.
+        m_apply.reset_mock()
+        assert fun("kubeconfig", None, tmp_path, selectors, None) == (None, False)
+        m_apply.assert_called_once_with("kubeconfig", None, plan)
+
+        # -----------------------------------------------------------------
+        #                   Simulate An Empty Plan
+        # -----------------------------------------------------------------
+        # Function must not even ask for confirmation if the plan is empty.
+        m_apply.reset_mock()
+        m_plan.return_value = (DeploymentPlan(create=[], patch=[], delete=[]), False)
+
+        with mock.patch.object(square, 'input', lambda _: "yes"):
+            assert fun("kubeconfig", None, tmp_path, selectors, "yes") == (None, False)
+        assert not m_apply.called
+
+        # -----------------------------------------------------------------
+        #                   Simulate Error Scenarios
+        # -----------------------------------------------------------------
+        # Make `apply_plan` fail.
+        m_plan.return_value = (plan, False)
+        m_apply.return_value = (None, True)
+        assert fun("kubeconfig", None, tmp_path, selectors, None) == (None, True)
