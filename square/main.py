@@ -11,7 +11,7 @@ import square
 import square.square
 from square import __version__
 from square.dtypes import (
-    RESOURCE_ALIASES, SUPPORTED_KINDS, Configuration, DeploymentPlan, Filepath,
+    RESOURCE_ALIASES, SUPPORTED_KINDS, Configuration, Filepath,
     ManifestHierarchy, Selectors,
 )
 
@@ -232,7 +232,6 @@ def apply_plan(
         kube_ctx: Optional[str],
         folder: Filepath,
         selectors: Selectors,
-        plan: Optional[DeploymentPlan],
         confirm_string: Optional[str],
 ) -> Tuple[None, bool]:
     """Update K8s to match the specifications in `local_manifests`.
@@ -247,8 +246,6 @@ def apply_plan(
             Path to local manifests eg "./foo"
         selectors: Selectors
             Only operate on resources that match the selectors.
-        plan: DeploymentPlan
-            Run a plan if `None`, or use the supplied `plan`.
         confirm_string:
             Only apply the plan if user answers with this string in the
             confirmation dialog (set to `None` to disable confirmation).
@@ -309,7 +306,7 @@ def main() -> int:
         plan, err = square.square.make_plan(*common_args)
         square.square.print_deltas(plan)
     elif cfg.command == "apply":
-        _, err = apply_plan(*common_args, None, "yes")
+        _, err = apply_plan(*common_args, "yes")
     else:
         logit.error(f"Unknown command <{cfg.command}>")
         return 1

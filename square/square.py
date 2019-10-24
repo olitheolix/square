@@ -201,7 +201,7 @@ def compile_plan(
         # Compute the JSON patch that will change the K8s state to match the
         # one in the local files.
         patch, err = make_patch(config, local[meta], server[meta])
-        if err:
+        if err or patch is None:
             return (None, True)
 
         # Append the patch to the list of patches, unless it is empty.
@@ -390,7 +390,7 @@ def user_confirmed(answer: Optional[str] = "yes") -> bool:
 def apply_plan(
         kubeconfig: Filepath,
         kube_ctx: Optional[str],
-        plan: Optional[DeploymentPlan],
+        plan: DeploymentPlan,
 ) -> Tuple[None, bool]:
     """Update K8s resources according to the `plan`.
 
@@ -492,7 +492,6 @@ def get_resources(
         selectors: Selectors,
         groupby: ManifestHierarchy,
 ) -> Tuple[None, bool]:
-
     """Download all K8s manifests and merge them into local files.
 
     Inputs:

@@ -704,9 +704,14 @@ class TestMainOptions:
         selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
         args = "kubeconf", "kubectx", "folder", selectors, groupby
 
+        # `manio.load` must have been called with a wildcard selector to ensure
+        # it loads _all_ resources from the local files, even if we want to
+        # sync only a subset.
+        load_selectors = Selectors(kinds=SUPPORTED_KINDS, labels=None, namespaces=None)
+
         # Call test function and verify it passed the correct arguments.
         assert square.get_resources(*args) == (None, False)
-        m_load.assert_called_once_with("folder", selectors)
+        m_load.assert_called_once_with("folder", load_selectors)
         m_down.assert_called_once_with("k8s_config", "k8s_client", selectors)
         m_sync.assert_called_once_with({}, "server", selectors, groupby)
         m_save.assert_called_once_with("folder", "synced")
