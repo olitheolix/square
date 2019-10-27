@@ -454,7 +454,7 @@ class TestPlan:
         assert square.compile_plan(cfg_invalid, man, man) == (None, True)
 
     def test_compile_plan_patch_no_diff(self):
-        """Test a plan that patches all resources.
+        """Test a plan that patches no resources.
 
         To do this, the local and server resources are identical. As a
         result, the returned plan must nominate all manifests for patching, and
@@ -467,18 +467,11 @@ class TestPlan:
         # Allocate arrays for the MetaManifests.
         meta = [None] * 4
 
-        # Define two Namespace with 1 deployment each.
+        # Define two namespaces with 1 deployment in each.
         meta[0] = MetaManifest('v1', 'Namespace', None, 'ns1')
         meta[1] = MetaManifest('v1', 'Deployment', 'ns1', 'res_0')
         meta[2] = MetaManifest('v1', 'Namespace', None, 'ns2')
         meta[3] = MetaManifest('v1', 'Deployment', 'ns2', 'res_1')
-
-        # Determine the K8s resource URLs for patching. Those URLs must contain
-        # the resource name as the last path element, eg "/api/v1/namespaces/ns1"
-        url = [
-            urlpath(config, _.kind, _.namespace)[0] + f"/{_.name}"
-            for _ in meta
-        ]
 
         # Local and server manifests are identical. The plan must therefore
         # only nominate patches but nothing to create or delete.
@@ -488,16 +481,7 @@ class TestPlan:
             meta[2]: make_manifest("Namespace", None, "ns2"),
             meta[3]: make_manifest("Deployment", "ns2", "res_1"),
         }
-        expected = DeploymentPlan(
-            create=[],
-            patch=[
-                DeltaPatch(meta[0], "", JsonPatch(url[0], [])),
-                DeltaPatch(meta[1], "", JsonPatch(url[1], [])),
-                DeltaPatch(meta[2], "", JsonPatch(url[2], [])),
-                DeltaPatch(meta[3], "", JsonPatch(url[3], [])),
-            ],
-            delete=[]
-        )
+        expected = DeploymentPlan(create=[], patch=[], delete=[])
         assert square.compile_plan(config, loc_man, srv_man) == (expected, False)
 
     def test_compile_plan_patch_with_diff(self):
