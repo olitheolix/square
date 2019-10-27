@@ -198,11 +198,15 @@ def compile_plan(
         if err:
             return (None, True)
 
-        # Compute the JSON patch that will match K8s to the local manifest.
+        # Compute the JSON patch that will change the K8s state to match the
+        # one in the local files.
         patch, err = make_patch(config, local[meta], server[meta])
         if err:
             return (None, True)
-        patches.append(DeltaPatch(meta, diff_str, patch))
+
+        # Append the patch to the list of patches, unless it is empty.
+        if len(patch.ops):
+            patches.append(DeltaPatch(meta, diff_str, patch))
 
     # Assemble and return the deployment plan.
     return (DeploymentPlan(create, patches, delete), False)
