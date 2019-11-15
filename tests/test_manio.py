@@ -119,6 +119,18 @@ class TestHelpers:
         assert select(manifest, Selectors(None, None, set())) is False
 
         # ---------------------------------------------------------------------
+        #                    Default Service Account
+        # ---------------------------------------------------------------------
+        # Must always ignore "default" service account.
+        kind, ns = "ServiceAccount", "ns1"
+        manifest = make_manifest(kind, ns, "default")
+        assert select(manifest, Selectors(kind, ns, set())) is False
+
+        # Must select all other Secret that match the selector.
+        manifest = make_manifest(kind, ns, "some-service-account")
+        assert select(manifest, Selectors(kind, ns, set())) is True
+
+        # ---------------------------------------------------------------------
         #                      Default Token Secret
         # ---------------------------------------------------------------------
         # Must always ignore "default-token-*" Secrets.

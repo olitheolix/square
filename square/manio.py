@@ -65,19 +65,31 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     labels = manifest.get("metadata", {}).get("labels", {})
     name = manifest.get("metadata", {}).get("name", "")
 
-    # Unpack the resource's namespace. We need to pay special attention to
-    # `Namespace` resource because they have no namespace, and the
-    # "default-token" Secrets that K8s creates automatically (we must not mess
-    # with them).
+    # Unpack the resource's namespace.
+    ns = manifest.get("metadata", {}).get("namespace", None)
+
+    # We need to pay special attention to `Namespace` resources since they are
+    # not themselves namespaced.
+    #
+    # Furthermore, we *never* mess with `default-token-*` Secrets or the
+    # `default` service account. K8s automatically creates them in every new
+    # namespace. We can thus never "restore" them with Square because the plan
+    # says to create them yet once Square created the namespace they also
+    # already exist and can only be patched. As a result, Square will abort
+    # unexpectedly because they already exist even though the plan said to
+    # create them.
     if kind == "Namespace":
         ns = manifest.get("metadata", {}).get("name", None)
     elif kind == "Secret":
         if name.startswith("default-token-"):
-            logit.debug("Skipping default token Secret")
+            logit.info("Skipping `default-token` Secret")
             return False
-        ns = manifest.get("metadata", {}).get("namespace", None)
+    elif kind == "ServiceAccount":
+        if name == "default":
+            logit.info("Skipping `default` service account")
+            return False
     else:
-        ns = manifest.get("metadata", {}).get("namespace", None)
+        pass
 
     # Proceed only if the resource kind is among the desired ones.
     if kind not in selectors.kinds:
