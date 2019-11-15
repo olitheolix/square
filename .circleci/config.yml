@@ -48,8 +48,12 @@ jobs:
             # Run the pytest suite as an unprivileged user.
             export KUBECONFIG=/does/not/exist/but/necessary/for/tests
             sudo -E -u square pipenv run pytest --cov=square
-            codecov
+
+            # Static type analysis.
             pipenv run mypy --ignore-missing-imports square/*.py
+
+            # Upload results to CodeCov.
+            codecov
 
 workflows:
   build_and_test:
