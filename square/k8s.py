@@ -7,7 +7,6 @@ import re
 import subprocess
 import tempfile
 import warnings
-from collections import namedtuple
 from typing import Optional, Tuple
 
 import google.auth
@@ -15,13 +14,11 @@ import google.auth.transport.requests
 import requests
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Filepath, K8sConfig,
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, ClientCert, Filepath, K8sConfig,
 )
 
-ClientCert = namedtuple('ClientCert', 'crt key')
-
-FNAME_TOKEN = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-FNAME_CERT = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+FNAME_TOKEN = Filepath("/var/run/secrets/kubernetes.io/serviceaccount/token")
+FNAME_CERT = Filepath("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
 
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -126,9 +123,9 @@ def load_incluster_config(
     return K8sConfig(
         url=f'https://{server_ip}',
         token=fname_token.read_text(),
-        ca_cert=str(fname_cert),
-        client_cert=None,
-        version=None,
+        ca_cert=fname_cert,
+        client_cert=ClientCert(),
+        version="",
         name="",
     )
 
@@ -161,9 +158,7 @@ def load_gke_config(
     # Unpack the self signed certificate (Google does not register the K8s API
     # server certificate with a public CA).
     try:
-        ssl_ca_cert_data = base64.b64decode(
-            cluster["certificate-authority-data"]
-        )
+        ssl_ca_cert_data = base64.b64decode(cluster["certificate-authority-data"])
     except KeyError:
         logit.debug(f"Context {context} in <{fname}> is not a GKE config")
         return None
@@ -171,9 +166,9 @@ def load_gke_config(
     # Save the certificate to a temporary file. This is only necessary because
     # the requests library will need a path to the CA file - unfortunately, we
     # cannot just pass it the content.
-    _, ssl_ca_cert = tempfile.mkstemp(text=False)
-    with open(ssl_ca_cert, "wb") as fd:
-        fd.write(ssl_ca_cert_data)
+    _, tmp = tempfile.mkstemp(text=False)
+    ssl_ca_cert = Filepath(tmp)
+    ssl_ca_cert.write_bytes(ssl_ca_cert_data)
 
     with warnings.catch_warnings(record=disable_warnings):
         cred, project_id = google.auth.default(
@@ -188,8 +183,8 @@ def load_gke_config(
         url=cluster["server"],
         token=token,
         ca_cert=ssl_ca_cert,
-        client_cert=None,
-        version=None,
+        client_cert=ClientCert(),
+        version="",
         name=cluster["name"],
     )
 
@@ -240,9 +235,9 @@ def load_eks_config(
     # Save the certificate to a temporary file. This is only necessary because
     # the requests library will need a path to the CA file - unfortunately, we
     # cannot just pass it the content.
-    _, ssl_ca_cert = tempfile.mkstemp(text=False)
-    with open(ssl_ca_cert, "wb") as fd:
-        fd.write(ssl_ca_cert_data)
+    _, tmp = tempfile.mkstemp(text=False)
+    ssl_ca_cert = Filepath(tmp)
+    ssl_ca_cert.write_bytes(ssl_ca_cert_data)
 
     # Compile the name, arguments and env vars for the command specified in kubeconf.
     cmd_args = [cmd] + args
@@ -268,8 +263,8 @@ def load_eks_config(
         url=cluster["server"],
         token=token,
         ca_cert=ssl_ca_cert,
-        client_cert=None,
-        version=None,
+        client_cert=ClientCert(),
+        version="",
         name=cluster["name"],
     )
 
@@ -309,10 +304,10 @@ def load_minikube_config(
         logit.info(f"Assuming Minikube cluster.")
         return K8sConfig(
             url=cluster["server"],
-            token=None,
+            token="",
             ca_cert=cluster["certificate-authority"],
             client_cert=client_cert,
-            version=None,
+            version="",
             name=cluster["name"],
         )
     except KeyError:
@@ -368,10 +363,10 @@ def load_kind_config(
         logit.debug(f"Assuming Minikube/Kind cluster.")
         return K8sConfig(
             url=cluster["server"],
-            token=None,
+            token="",
             ca_cert=p_ca,
             client_cert=client_cert,
-            version=None,
+            version="",
             name=cluster["name"],
         )
     except KeyError:
@@ -438,11 +433,11 @@ def session(config: K8sConfig):
     sess = requests.Session()
 
     # Load the CA file (necessary for self signed certs to avoid https warning).
-    sess.verify = config.ca_cert
+    sess.verify = str(config.ca_cert)
 
     # Add the client certificate, if the cluster uses those to authenticate users.
     if config.client_cert is not None:
-        sess.cert = (config.client_cert.crt, config.client_cert.key)
+        sess.cert = (str(config.client_cert.crt), str(config.client_cert.key))
 
     # Add the bearer token if this cluster uses them to authenticate users.
     if config.token is not None:

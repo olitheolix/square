@@ -8,7 +8,9 @@ import pytest
 import requests_mock
 import square.k8s as k8s
 import yaml
-from square.dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, K8sConfig
+from square.dtypes import (
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, ClientCert, K8sConfig,
+)
 
 
 @pytest.fixture
@@ -320,9 +322,9 @@ class TestK8sKubeconfig:
         assert ret == K8sConfig(
             url=f'https://1.2.3.4',
             token="token",
-            ca_cert=str(fname_cert),
-            client_cert=None,
-            version=None,
+            ca_cert=fname_cert,
+            client_cert=ClientCert(),
+            version="",
             name="",
         )
 
@@ -372,10 +374,10 @@ class TestK8sKubeconfig:
         # Verify the expected output.
         assert ret == K8sConfig(
             url="https://192.168.0.177:8443",
-            token=None,
+            token="",
             ca_cert="ca.crt",
             client_cert=k8s.ClientCert(crt="client.crt", key="client.key"),
-            version=None,
+            version="",
             name="clustername-minikube",
         )
 
@@ -397,13 +399,13 @@ class TestK8sKubeconfig:
         # Verify the expected output.
         assert ret == K8sConfig(
             url="https://localhost:8443",
-            token=None,
+            token="",
             ca_cert=pathlib.Path("/tmp/kind.ca"),
             client_cert=k8s.ClientCert(
                 crt=pathlib.Path("/tmp/kind-client.crt"),
                 key=pathlib.Path("/tmp/kind-client.key"),
             ),
-            version=None,
+            version="",
             name="kind",
         )
 
@@ -458,8 +460,8 @@ class TestK8sKubeconfig:
             url="https://1.2.3.4",
             token="google token",
             ca_cert="ca.cert",
-            client_cert=None,
-            version=None,
+            client_cert=ClientCert(),
+            version="",
             name="clustername-gke",
         )
 
@@ -494,8 +496,8 @@ class TestK8sKubeconfig:
             url="https://5.6.7.8",
             token="EKS token",
             ca_cert="ca.cert",
-            client_cert=None,
-            version=None,
+            client_cert=ClientCert(),
+            version="",
             name="clustername-eks",
         )
 

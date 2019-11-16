@@ -443,12 +443,12 @@ def filename_for_manifest(
     # --- Sanity checks ---
     if not set(grouping.order).issubset({"ns", "kind", "label"}):
         logit.error(f"Invalid resource ordering: {grouping.order}")
-        return "", True
+        return Filepath(), True
 
     if "label" in grouping.order:
         if len(grouping.label) == 0:
             logit.error("Must specify a non-empty label when grouping by it")
-            return "", True
+            return Filepath(), True
 
     # Convenience: reliably extract a label dictionary even when the original
     # manifest has none.
@@ -477,7 +477,7 @@ def filename_for_manifest(
     # Default to the catch-all `_other.yaml` resource if the order did not
     # produce a file name. This typically happens when `grouping.order = []`.
     path = "_other.yaml" if path == "" else f"{path}.yaml"
-    return path, False
+    return Filepath(path), False
 
 
 def diff(
@@ -536,6 +536,8 @@ def strip(config: K8sConfig, manifest: dict) -> Tuple[Optional[DotDict], bool]:
         dict: subset of `manifest`.
 
     """
+    assert config.version is not None
+
     # Avoid side effects.
     manifest = copy.deepcopy(manifest)
 
@@ -715,7 +717,7 @@ def load_files(
         # Read the file. Abort on error.
         try:
             # The str() is necessary because `fname_rel` may be a `pathlib.Path`.
-            out[str(fname_rel)] = fname_abs.read_text()
+            out[fname_rel] = fname_abs.read_text()
         except FileNotFoundError:
             logit.error(f"Could not find <{fname_abs}>")
             return (None, True)

@@ -9,7 +9,8 @@ import square.manio as manio
 import square.square as square
 from square.dtypes import (
     SUPPORTED_KINDS, Configuration, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, JsonPatch, K8sConfig, ManifestHierarchy, Selectors,
+    DeploymentPlan, Filepath, JsonPatch, K8sConfig, ManifestHierarchy,
+    Selectors,
 )
 
 from .test_helpers import make_manifest
@@ -50,9 +51,7 @@ class TestMain:
             ),
             groupby=ManifestHierarchy(label='', order=[]),
             # Must not populate Kubernetes data.
-            k8s_config=K8sConfig(
-                url=None, token=None, ca_cert=None,
-                client_cert=None, version=None, name=None),
+            k8s_config=K8sConfig(),
             k8s_client=None,
         )
 
@@ -155,7 +154,7 @@ class TestMain:
 
         # Every main function must have been called exactly once.
         selectors = Selectors(["Deployment", "Service"], None, set())
-        args = "/foo", None, pathlib.Path("myfolder"), selectors
+        args = Filepath("/foo"), None, pathlib.Path("myfolder"), selectors
         m_get.assert_called_once_with(*args, groupby)
         m_apply.assert_called_once_with(*args, "yes")
         m_plan.assert_called_once_with(*args)

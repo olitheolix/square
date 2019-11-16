@@ -299,7 +299,7 @@ def main() -> int:
         return 1
 
     # Do what user asked us to do.
-    common_args = cfg.kubeconfig, cfg.kube_ctx, cfg.folder, cfg.selectors
+    common_args = Filepath(cfg.kubeconfig), cfg.kube_ctx, cfg.folder, cfg.selectors
     if cfg.command == "get":
         _, err = square.square.get_resources(*common_args, cfg.groupby)
     elif cfg.command == "plan":
