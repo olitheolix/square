@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from typing import Any, Iterable, Optional, Set, Tuple
 
 import colorama
@@ -11,8 +10,8 @@ import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
     SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    Filepath, JsonPatch, K8sConfig, ManifestHierarchy, MetaManifest, Selectors,
-    ServerManifests,
+    DeploymentPlanMeta, Filepath, JsonPatch, K8sConfig, ManifestHierarchy,
+    MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -88,7 +87,7 @@ def make_patch(
 
 def partition_manifests(
         local: ServerManifests,
-        server: ServerManifests) -> Tuple[Optional[DeploymentPlan], bool]:
+        server: ServerManifests) -> Tuple[DeploymentPlanMeta, bool]:
     """Compile `{local,server}` into CREATE, PATCH and DELETE groups.
 
     The returned deployment plan will contain *every* resource in
@@ -106,16 +105,17 @@ def partition_manifests(
             Usually the dictionary keys returned by `manio.download`.
 
     Returns:
-        DeploymentPlan
+        DeploymentPlanMeta
 
     """
     # Determine what needs adding, removing and patching to steer the K8s setup
     # towards what `local` specifies.
-    loc = set(local.keys())
-    srv = set(server.keys())
-    create = loc - srv
-    patch = loc.intersection(srv)
-    delete = srv - loc
+    meta_loc = set(local.keys())
+    meta_srv = set(server.keys())
+    create = meta_loc - meta_srv
+    patch = meta_loc.intersection(meta_srv)
+    delete = meta_srv - meta_loc
+    del meta_loc, meta_srv
 
     # Convert the sets to list. Preserve the relative element ordering as it
     # was in `{local_server}`.
@@ -124,7 +124,7 @@ def partition_manifests(
     delete_l = [_ for _ in server if _ in delete]
 
     # Return the deployment plan.
-    plan = DeploymentPlan(create_l, patch_l, delete_l)
+    plan = DeploymentPlanMeta(create_l, patch_l, delete_l)
     return (plan, False)
 
 
@@ -163,7 +163,7 @@ def compile_plan(
     create = []
     for delta in plan.create:
         url, err = k8s.urlpath(config, delta.kind, namespace=delta.namespace)
-        if err:
+        if err or not url:
             return (None, True)
         create.append(DeltaCreate(delta, url, local[delta]))
 
@@ -179,7 +179,7 @@ def compile_plan(
     for meta in plan.delete:
         # Resource URL.
         url, err = k8s.urlpath(config, meta.kind, namespace=meta.namespace)
-        if err:
+        if err or not url:
             return (None, True)
 
         # DELETE requests must specify the resource name in the path.
@@ -195,7 +195,7 @@ def compile_plan(
     for meta in plan.patch:
         # Compute textual diff (only useful for the user to study the diff).
         diff_str, err = manio.diff(config, local[meta], server[meta])
-        if err:
+        if err or diff_str is None:
             return (None, True)
 
         # Compute the JSON patch that will change the K8s state to match the
@@ -236,11 +236,11 @@ def print_deltas(plan: Optional[DeploymentPlan]) -> Tuple[None, bool]:
     n_add, n_mod, n_del = 0, 0, 0
 
     # Use Green to list all the resources that we should create.
-    for delta in plan.create:
-        name = f"{delta.meta.kind.upper()} {delta.meta.namespace}/{delta.meta.name}"
+    for delta_c in plan.create:
+        name = f"{delta_c.meta.kind.upper()} {delta_c.meta.namespace}/{delta_c.meta.name}"
 
         # Convert manifest to YAML string and print every line in Green.
-        txt = yaml.dump(delta.manifest, default_flow_style=False)
+        txt = yaml.dump(delta_c.manifest, default_flow_style=False)
         txt = [cAdd + line + cReset for line in txt.splitlines()]
 
         # Add header line.
@@ -253,13 +253,13 @@ def print_deltas(plan: Optional[DeploymentPlan]) -> Tuple[None, bool]:
 
     # Print the diff (already contains terminal colours) for all the resources
     # that we should patch.
-    for delta in plan.patch:
-        if len(delta.diff) == 0:
+    for delta_p in plan.patch:
+        if len(delta_p.diff) == 0:
             continue
 
         # Add some terminal colours to make it look prettier.
         colour_lines = []
-        for line in delta.diff.splitlines():
+        for line in delta_p.diff.splitlines():
             if line.startswith('+'):
                 colour_lines.append(cAdd + line + cReset)
             elif line.startswith('-'):
@@ -269,13 +269,13 @@ def print_deltas(plan: Optional[DeploymentPlan]) -> Tuple[None, bool]:
         colour_lines = [f"    {line}" for line in colour_lines]
         formatted_diff = str.join('\n', colour_lines)
 
-        name = f"{delta.meta.kind.upper()} {delta.meta.namespace}/{delta.meta.name}"
+        name = f"{delta_p.meta.kind.upper()} {delta_p.meta.namespace}/{delta_p.meta.name}"
         print(cMod + f"Patch {name}" + cReset + "\n" + formatted_diff + "\n")
         n_mod += 1
 
     # Use Red to list all the resources that we should delete.
-    for delta in plan.delete:
-        name = f"{delta.meta.kind.upper()} {delta.meta.namespace}/{delta.meta.name}"
+    for delta_d in plan.delete:
+        name = f"{delta_d.meta.kind.upper()} {delta_d.meta.namespace}/{delta_d.meta.name}"
         print(cDel + f"Delete {name}" + cReset)
         n_del += 1
 
@@ -409,10 +409,10 @@ def apply_plan(
         assert not err and k8s_config and k8s_client
 
         # Create the missing resources.
-        for data in plan.create:
-            print(f"Creating {data.meta.kind.upper()} "
-                  f"{data.meta.namespace}/{data.meta.name}")
-            _, err = k8s.post(k8s_client, data.url, data.manifest)
+        for data_c in plan.create:
+            print(f"Creating {data_c.meta.kind.upper()} "
+                  f"{data_c.meta.namespace}/{data_c.meta.name}")
+            _, err = k8s.post(k8s_client, data_c.url, data_c.manifest)
             assert not err
 
         # Patch the server resources.
@@ -424,10 +424,10 @@ def apply_plan(
             assert not err
 
         # Delete the excess resources.
-        for data in plan.delete:
-            print(f"Deleting {data.meta.kind.upper()} "
-                  f"{data.meta.namespace}/{data.meta.name}")
-            _, err = k8s.delete(k8s_client, data.url, data.manifest)
+        for data_d in plan.delete:
+            print(f"Deleting {data_d.meta.kind.upper()} "
+                  f"{data_d.meta.namespace}/{data_d.meta.name}")
+            _, err = k8s.delete(k8s_client, data_d.url, data_d.manifest)
             assert not err
     except AssertionError:
         return (None, True)
@@ -567,7 +567,7 @@ def cluster_config(
     # Read Kubeconfig file and use it to create a `requests` client session.
     # That session will have the proper security certificates and headers so
     # that subsequent calls to K8s need not deal with it anymore.
-    kubeconfig = os.path.expanduser(kubeconfig)
+    kubeconfig = kubeconfig.expanduser()
     try:
         # Parse Kubeconfig file.
         config = k8s.load_auto_config(kubeconfig, context, disable_warnings=True)

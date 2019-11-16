@@ -8,7 +8,9 @@ import sh
 import square.main
 import square.manio as manio
 import yaml
-from square.dtypes import SUPPORTED_KINDS, ManifestHierarchy, Selectors
+from square.dtypes import (
+    SUPPORTED_KINDS, Filepath, ManifestHierarchy, Selectors,
+)
 
 # Bake a `kubectl` command that uses the kubeconfig file for the KIND cluster.
 # We need to wrap this into a try/except block because CircleCI does not have
@@ -287,7 +289,7 @@ class TestMainPlan:
         # Deploy a new namespace with only a few resources (no deployments
         # among them because it takes too long to delete those namespaces).
         # ---------------------------------------------------------------------
-        kubeconfig = "/tmp/kubeconfig-kind.yaml"
+        kubeconfig = Filepath("/tmp/kubeconfig-kind.yaml")
         sh.kubectl("apply", "--kubeconfig", kubeconfig,
                    "-f", "tests/support/k8s-test-resources.yaml")
 

@@ -9,8 +9,8 @@ import square.manio as manio
 import square.schemas as schemas
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, K8sConfig, ManifestHierarchy,
-    MetaManifest, Selectors,
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Filepath, K8sConfig,
+    ManifestHierarchy, MetaManifest, Selectors,
 )
 from square.k8s import urlpath
 
@@ -573,9 +573,9 @@ class TestYamlManifestIO:
         dply = [mk_deploy(f"d_{_}", "nsfoo") for _ in range(10)]
         meta = [manio.make_meta(_) for _ in dply]
         fdata_test_in = {
-            "m0.yaml": [dply[0], dply[1], dply[2]],
-            "m1.yaml": [dply[3], dply[4]],
-            "m2.yaml": [dply[5]],
+            Filepath("m0.yaml"): [dply[0], dply[1], dply[2]],
+            Filepath("m1.yaml"): [dply[3], dply[4]],
+            Filepath("m2.yaml"): [dply[5]],
         }
         fdata_test_in = self.yamlfy(fdata_test_in)
         expected_manifests = {meta[_]: dply[_] for _ in range(6)}
@@ -629,9 +629,9 @@ class TestYamlManifestIO:
         # The new manifests must all end up in "_other.yaml" file because they
         # specify resources in the `nsfoo` namespace.
         expected = {
-            "m0.yaml": [dply[0], server_manifests[meta[1]], dply[2]],
-            "m1.yaml": [dply[4]],
-            "_other.yaml": [dply[6], dply[7]],
+            Filepath("m0.yaml"): [dply[0], server_manifests[meta[1]], dply[2]],
+            Filepath("m1.yaml"): [dply[4]],
+            Filepath("_other.yaml"): [dply[6], dply[7]],
         }
         expected = self.yamlfy(expected)
         assert fdata_raw_new == expected
@@ -1072,8 +1072,8 @@ class TestYamlManifestIOIntegration:
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
         meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
         man_files = {
-            "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
-            "foo/m1.yaml": [(meta[2], dply[2])],
+            Filepath("m0.yaml"): [(meta[0], dply[0]), (meta[1], dply[1])],
+            Filepath("foo/m1.yaml"): [(meta[2], dply[2])],
         }
         expected = (manio.unpack(man_files)[0], man_files)
         del dply, meta
@@ -1101,12 +1101,12 @@ class TestYamlManifestIOIntegration:
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
         meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
         man_files = {
-            "m0.yaml": [(meta[0], dply[0])],
-            "m1.yaml": [(meta[1], dply[1])],
-            "foo/m2.yaml": [(meta[2], dply[2])],
-            "foo/m3.yaml": [(meta[3], dply[3])],
-            "bar/m4.yaml": [(meta[4], dply[4])],
-            "bar/m5.yaml": [(meta[5], dply[5])],
+            Filepath("m0.yaml"): [(meta[0], dply[0])],
+            Filepath("m1.yaml"): [(meta[1], dply[1])],
+            Filepath("foo/m2.yaml"): [(meta[2], dply[2])],
+            Filepath("foo/m3.yaml"): [(meta[3], dply[3])],
+            Filepath("bar/m4.yaml"): [(meta[4], dply[4])],
+            Filepath("bar/m5.yaml"): [(meta[5], dply[5])],
         }
         expected = (manio.unpack(man_files)[0], man_files)
         del dply, meta
@@ -1118,9 +1118,9 @@ class TestYamlManifestIOIntegration:
         # Save a reduced set of files. Compared to `fdata_full`, it is two
         # files short and a third one ("bar/m4.yaml") is empty.
         fdata_reduced = man_files.copy()
-        del fdata_reduced["m0.yaml"]
-        del fdata_reduced["foo/m3.yaml"]
-        fdata_reduced["bar/m4.yaml"] = []
+        del fdata_reduced[Filepath("m0.yaml")]
+        del fdata_reduced[Filepath("foo/m3.yaml")]
+        fdata_reduced[Filepath("bar/m4.yaml")] = []
         expected = (manio.unpack(fdata_reduced)[0], fdata_reduced)
 
         # Verify that the files still exist from the last call to `save`.
@@ -1133,7 +1133,7 @@ class TestYamlManifestIOIntegration:
 
         # Load the data. It must neither contain the files we removed from the
         # dict above, nor "bar/m4.yaml" which contained an empty manifest list.
-        del fdata_reduced["bar/m4.yaml"]
+        del fdata_reduced[Filepath("bar/m4.yaml")]
         assert manio.load(tmp_path, selectors) == (*expected, False)
 
         # Verify that the files physically do not exist anymore.
@@ -1168,19 +1168,19 @@ class TestSync:
 
         # No grouping - all manifests must end up in `_other.yaml`.
         groupby = ManifestHierarchy(order=[], label="")
-        assert fun(meta, man, groupby) == ("_other.yaml", False)
+        assert fun(meta, man, groupby) == (Filepath("_other.yaml"), False)
 
         # Group by NAMESPACE and kind.
         groupby = ManifestHierarchy(order=["ns", "kind"], label="")
-        assert fun(meta, man, groupby) == ("ns/deployment.yaml", False)
+        assert fun(meta, man, groupby) == (Filepath("ns/deployment.yaml"), False)
 
         # Group by KIND and NAMESPACE (inverse of previous test).
         groupby = ManifestHierarchy(order=["kind", "ns"], label="")
-        assert fun(meta, man, groupby) == ("deployment/ns.yaml", False)
+        assert fun(meta, man, groupby) == (Filepath("deployment/ns.yaml"), False)
 
         # Group by the existing LABEL "app".
         groupby = ManifestHierarchy(order=["label"], label="app")
-        assert fun(meta, man, groupby) == ("app.yaml", False)
+        assert fun(meta, man, groupby) == (Filepath("app.yaml"), False)
 
     def test_filename_for_manifest_namespace(self):
         """Namespace related tests.
@@ -1197,23 +1197,24 @@ class TestSync:
 
         # No grouping - all namespaces must end up in `_other.yaml`.
         groupby = ManifestHierarchy(order=[], label="")
-        assert fun(meta, man, groupby) == ("_other.yaml", False)
+        assert fun(meta, man, groupby) == (Filepath("_other.yaml"), False)
 
         # Group by NAMESPACE and kind.
         groupby = ManifestHierarchy(order=["ns", "kind"], label="")
-        assert fun(meta, man, groupby) == ("nsname/namespace.yaml", False)
+        assert fun(meta, man, groupby) == (Filepath("nsname/namespace.yaml"), False)
 
         # Group by KIND and NAMESPACE (inverse of previous test).
         groupby = ManifestHierarchy(order=["kind", "ns"], label="")
-        assert fun(meta, man, groupby) == ("namespace/nsname.yaml", False)
+        assert fun(meta, man, groupby) == (Filepath("namespace/nsname.yaml"), False)
 
         # Group by the existing LABEL "app".
         groupby = ManifestHierarchy(order=["label"], label="app")
-        assert fun(meta, man, groupby) == ("app.yaml", False)
+        assert fun(meta, man, groupby) == (Filepath("app.yaml"), False)
 
     def test_filename_for_manifest_not_namespaced(self):
         """Resources that exist outside namespaces, like ClusterRole."""
         # Convenience.
+        FP = Filepath
         fun = manio.filename_for_manifest
 
         # Valid manifest with an "app" LABEL.
@@ -1223,19 +1224,19 @@ class TestSync:
 
             # No hierarchy - all resources must end up in `_other.yaml`.
             groupby = ManifestHierarchy(order=[], label="")
-            assert fun(meta, man, groupby) == ("_other.yaml", False)
+            assert fun(meta, man, groupby) == (Filepath("_other.yaml"), False)
 
             # Group by NAMESPACE and kind: must use "_global_" as folder name.
             groupby = ManifestHierarchy(order=["ns", "kind"], label="")
-            assert fun(meta, man, groupby) == (f"_global_/{kind.lower()}.yaml", False)
+            assert fun(meta, man, groupby) == (FP(f"_global_/{kind.lower()}.yaml"), False)
 
             # Group by KIND and NAMESPACE (inverse of previous test).
             groupby = ManifestHierarchy(order=["kind", "ns"], label="")
-            assert fun(meta, man, groupby) == (f"{kind.lower()}/_global_.yaml", False)
+            assert fun(meta, man, groupby) == (FP(f"{kind.lower()}/_global_.yaml"), False)
 
             # Group by the existing LABEL "app".
             groupby = ManifestHierarchy(order=["label"], label="app")
-            assert fun(meta, man, groupby) == ("app.yaml", False)
+            assert fun(meta, man, groupby) == (FP("app.yaml"), False)
 
     def test_filename_for_manifest_valid_but_no_label(self):
         """Consider corner cases when sorting by a non-existing label."""
@@ -1248,14 +1249,14 @@ class TestSync:
 
         # Dump everything into "_other.yaml" if LABEL "app" does not exist.
         groupby = ManifestHierarchy(order=["label"], label="app")
-        assert fun(meta, man, groupby) == ("_other.yaml", False)
+        assert fun(meta, man, groupby) == (Filepath("_other.yaml"), False)
 
         # Use `_all` as the name if LABEL "app" does not exist.
         groupby = ManifestHierarchy(order=["ns", "label"], label="app")
-        assert fun(meta, man, groupby) == ("ns/_other.yaml", False)
+        assert fun(meta, man, groupby) == (Filepath("ns/_other.yaml"), False)
 
         groupby = ManifestHierarchy(order=["label", "ns"], label="app")
-        assert fun(meta, man, groupby) == ("_other/ns.yaml", False)
+        assert fun(meta, man, groupby) == (Filepath("_other/ns.yaml"), False)
 
     def test_filename_for_manifest_err(self):
         """Verify a few invalid file name conventions."""
@@ -1268,11 +1269,11 @@ class TestSync:
 
         # The "label" must not be a non-empty string if it is in the group.
         groupby = ManifestHierarchy(order=["label"], label="")
-        assert fun(meta, man, groupby) == ("", True)
+        assert fun(meta, man, groupby) == (Filepath(), True)
 
         # Gracefully abort for unknown types.
         groupby = ManifestHierarchy(order=["ns", "blah"], label="")
-        assert fun(meta, man, groupby) == ("", True)
+        assert fun(meta, man, groupby) == (Filepath(), True)
 
     def test_sync_modify_selective_kind_and_namespace_ok(self):
         """Add, modify and delete a few manifests.
@@ -1536,13 +1537,13 @@ class TestSync:
         meta_1 = [manio.make_meta(_) for _ in man_1]
         meta_2 = [manio.make_meta(_) for _ in man_2]
         loc_man = {
-            "_ns1.yaml": [
+            Filepath("_ns1.yaml"): [
                 (meta_1[1], man_1[1]),
                 (meta_1[2], man_1[2]),
                 (meta_1[3], man_1[3]),
                 (meta_1[5], man_1[5]),
             ],
-            "_ns2.yaml": [
+            Filepath("_ns2.yaml"): [
                 (meta_2[2], man_2[2]),
                 (meta_2[6], man_2[6]),
             ]
@@ -1576,14 +1577,14 @@ class TestSync:
         # NOTE: this test _assumes_ that the `srv_man` dict iterates over its
         # keys in insertion order, which is guaranteed for Python 3.7.
         expected = {
-            "_ns1.yaml": [
+            Filepath("_ns1.yaml"): [
                 (meta_1[1], modify(man_1[1])),
                 (meta_1[2], man_1[2]),
             ],
-            "_ns2.yaml": [
+            Filepath("_ns2.yaml"): [
                 (meta_2[6], modify(man_2[6])),
             ],
-            "_other.yaml": [
+            Filepath("_other.yaml"): [
                 (meta_1[0], man_1[0]),
                 (meta_2[0], man_2[0]),
                 (meta_2[9], man_2[9]),

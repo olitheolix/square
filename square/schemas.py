@@ -18,7 +18,9 @@ if the field is not mandatory but should be included.
 * None: field will be included if the input manifest has it, and ignored otherwise.
 
 """
-schema_1_9 = {
+from typing import Any, Dict
+
+schema_1_9: Dict[str, Dict[Any, Any]] = {
     "ClusterRole": {
         "metadata": {
             "labels": None,
@@ -169,7 +171,7 @@ schema_1_9 = {
 }
 
 
-RESOURCE_SCHEMA = {
+RESOURCE_SCHEMA: Dict[str, Dict[str, Dict[Any, Any]]] = {
     "1.9": schema_1_9,
     "1.10": schema_1_9,
     "1.11": schema_1_9,
