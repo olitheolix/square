@@ -56,7 +56,7 @@ SUPPORTED_VERSIONS = ("1.9", "1.10", "1.11", "1.13", "1.14")
 Filepath = pathlib.Path
 
 
-class ClientCert(NamedTuple):
+class K8sClientCert(NamedTuple):
     crt: Filepath = Filepath()
     key: Filepath = Filepath()
 
@@ -69,7 +69,7 @@ class K8sConfig(NamedTuple):
     # Certificate authority credentials and self signed client certificate.
     # Used to authenticate to eg GKE.
     ca_cert: Filepath = Filepath()
-    client_cert: ClientCert = ClientCert()
+    client_cert: K8sClientCert = K8sClientCert()
 
     # Kubernetes version and name.
     version: str = ""
