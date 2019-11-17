@@ -1,6 +1,12 @@
+# Use Square As A Library
+The Square command is only a thin wrapper around the Square library. You
+can also use Square programmatically from within your own Python projects. See
+[as_library.py](as_library.py) for an example
+
 # Deploy Square
 This example is only useful if you want to run Square inside your cluster. You
-do not need to deploy anything to use it from your own terminal.
+do *not* need to deploy anything into your cluster in order to use Square -
+this is purely if you want to try it out from within a pod.
 
 These examples were tested with Minikube v1.10.0.
 
