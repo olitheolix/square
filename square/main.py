@@ -7,6 +7,7 @@ import sys
 import textwrap
 from typing import Optional, Tuple
 
+import colorama
 import square
 import square.square
 from square import __version__
@@ -147,6 +148,25 @@ def parse_commandline_args():
     return param
 
 
+def user_confirmed(answer: Optional[str] = "yes") -> bool:
+    """Return True iff the user answers with `answer` or `answer` is None."""
+    if answer is None:
+        return True
+
+    assert answer, "BUG: desired answer must be non-empty string or `None`"
+
+    cDel = colorama.Fore.RED
+    cReset = colorama.Fore.RESET
+
+    # Confirm with user.
+    print(f"Type {cDel}{answer}{cReset} to apply the plan.")
+    try:
+        return input("  Your answer: ") == answer
+    except KeyboardInterrupt:
+        print()
+        return False
+
+
 def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
     """Return `Configuration` from `cmdline_param`.
 
@@ -269,7 +289,7 @@ def apply_plan(
         # Print the plan and ask for user confirmation. Abort if the user does
         # not give it.
         square.square.print_deltas(plan)
-        if not square.square.user_confirmed(confirm_string):
+        if not user_confirmed(confirm_string):
             print("User abort - no changes were made.")
             return (None, True)
         print()
