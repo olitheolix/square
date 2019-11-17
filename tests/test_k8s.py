@@ -9,7 +9,7 @@ import requests_mock
 import square.k8s as k8s
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, ClientCert, K8sConfig,
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, K8sClientCert, K8sConfig,
 )
 
 
@@ -33,7 +33,7 @@ class TestK8sDeleteGetPatchPost:
         assert sess.headers["authorization"] == f"Bearer token"
 
         # With access token and client certificate.
-        ccert = k8s.ClientCert(crt="foo", key="bar")
+        ccert = k8s.K8sClientCert(crt="foo", key="bar")
         config = K8sConfig("", "token", "ca", client_cert=ccert, version=None, name="")
         sess = k8s.session(config)
         assert sess.headers["authorization"] == f"Bearer token"
@@ -323,7 +323,7 @@ class TestK8sKubeconfig:
             url=f'https://1.2.3.4',
             token="token",
             ca_cert=fname_cert,
-            client_cert=ClientCert(),
+            client_cert=K8sClientCert(),
             version="",
             name="",
         )
@@ -376,7 +376,7 @@ class TestK8sKubeconfig:
             url="https://192.168.0.177:8443",
             token="",
             ca_cert="ca.crt",
-            client_cert=k8s.ClientCert(crt="client.crt", key="client.key"),
+            client_cert=k8s.K8sClientCert(crt="client.crt", key="client.key"),
             version="",
             name="clustername-minikube",
         )
@@ -401,7 +401,7 @@ class TestK8sKubeconfig:
             url="https://localhost:8443",
             token="",
             ca_cert=pathlib.Path("/tmp/kind.ca"),
-            client_cert=k8s.ClientCert(
+            client_cert=k8s.K8sClientCert(
                 crt=pathlib.Path("/tmp/kind-client.crt"),
                 key=pathlib.Path("/tmp/kind-client.key"),
             ),
@@ -460,7 +460,7 @@ class TestK8sKubeconfig:
             url="https://1.2.3.4",
             token="google token",
             ca_cert="ca.cert",
-            client_cert=ClientCert(),
+            client_cert=K8sClientCert(),
             version="",
             name="clustername-gke",
         )
@@ -496,7 +496,7 @@ class TestK8sKubeconfig:
             url="https://5.6.7.8",
             token="EKS token",
             ca_cert="ca.cert",
-            client_cert=ClientCert(),
+            client_cert=K8sClientCert(),
             version="",
             name="clustername-eks",
         )

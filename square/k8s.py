@@ -14,7 +14,7 @@ import google.auth.transport.requests
 import requests
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, ClientCert, Filepath, K8sConfig,
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Filepath, K8sClientCert, K8sConfig,
 )
 
 FNAME_TOKEN = Filepath("/var/run/secrets/kubernetes.io/serviceaccount/token")
@@ -124,7 +124,7 @@ def load_incluster_config(
         url=f'https://{server_ip}',
         token=fname_token.read_text(),
         ca_cert=fname_cert,
-        client_cert=ClientCert(),
+        client_cert=K8sClientCert(),
         version="",
         name="",
     )
@@ -183,7 +183,7 @@ def load_gke_config(
         url=cluster["server"],
         token=token,
         ca_cert=ssl_ca_cert,
-        client_cert=ClientCert(),
+        client_cert=K8sClientCert(),
         version="",
         name=cluster["name"],
     )
@@ -263,7 +263,7 @@ def load_eks_config(
         url=cluster["server"],
         token=token,
         ca_cert=ssl_ca_cert,
-        client_cert=ClientCert(),
+        client_cert=K8sClientCert(),
         version="",
         name=cluster["name"],
     )
@@ -295,7 +295,7 @@ def load_minikube_config(
     # Minikube uses client certificates to authenticate. We need to pass those
     # to the HTTP client of our choice when we create the session.
     try:
-        client_cert = ClientCert(
+        client_cert = K8sClientCert(
             crt=user["client-certificate"],
             key=user["client-key"],
         )
@@ -357,7 +357,7 @@ def load_kind_config(
         open(p_client_crt, "w").write(client_crt)
         open(p_client_key, "w").write(client_key)
         open(p_ca, "w").write(client_ca)
-        client_cert = ClientCert(crt=p_client_crt, key=p_client_key)
+        client_cert = K8sClientCert(crt=p_client_crt, key=p_client_key)
 
         # Return the config data.
         logit.debug(f"Assuming Minikube/Kind cluster.")
