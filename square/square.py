@@ -212,7 +212,7 @@ def compile_plan(
     return (DeploymentPlan(create, patches, delete), False)
 
 
-def print_deltas(plan: Optional[DeploymentPlan]) -> Tuple[None, bool]:
+def show_plan(plan: Optional[DeploymentPlan]) -> Tuple[None, bool]:
     """Print human readable version of `plan` to terminal.
 
     Inputs:

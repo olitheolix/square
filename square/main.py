@@ -288,7 +288,7 @@ def apply_plan(
 
         # Print the plan and ask for user confirmation. Abort if the user does
         # not give it.
-        square.square.print_deltas(plan)
+        square.square.show_plan(plan)
         if not user_confirmed(confirm_string):
             print("User abort - no changes were made.")
             return (None, True)
@@ -324,7 +324,7 @@ def main() -> int:
         _, err = square.square.get_resources(*common_args, cfg.groupby)
     elif cfg.command == "plan":
         plan, err = square.square.make_plan(*common_args)
-        square.square.print_deltas(plan)
+        square.square.show_plan(plan)
     elif cfg.command == "apply":
         _, err = apply_plan(*common_args, "yes")
     else:
