@@ -11,8 +11,8 @@ import square
 import square.square
 from square import __version__
 from square.dtypes import (
-    RESOURCE_ALIASES, SUPPORTED_KINDS, Configuration, Filepath,
-    ManifestHierarchy, Selectors,
+    RESOURCE_ALIASES, SUPPORTED_KINDS, Configuration, Filepath, GroupBy,
+    Selectors,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -184,7 +184,7 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
     # ------------------------------------------------------------------------
     # Unpack the folder hierarchy. For example:
     # From: `--groupby ns kind label=app` ->
-    # To  : ManifestHierarchy(order=["ns", "kind", "label"], label="app")
+    # To  : GroupBy(order=["ns", "kind", "label"], label="app")
     # ------------------------------------------------------------------------
     # Unpack the ordering and replace all `label=*` with `label`.
     order = getattr(p, "groupby", None) or []
@@ -209,7 +209,7 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
         except (ValueError, AssertionError):
             logit.error(f"Invalid label specification <{labels[0]}>")
             return None, True
-    groupby = ManifestHierarchy(order=clean_order, label=label_name)
+    groupby = GroupBy(order=clean_order, label=label_name)
     del order, clean_order, label_name
 
     # -------------------------------------------------------------------------

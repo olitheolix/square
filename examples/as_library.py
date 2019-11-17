@@ -3,7 +3,7 @@ import os
 import pathlib
 
 import square
-from square.dtypes import ManifestHierarchy, Selectors
+from square.dtypes import GroupBy, Selectors
 
 
 def main():
@@ -16,7 +16,7 @@ def main():
         labels={("app", "demoapp")},
         namespaces=["square-tests"],
     )
-    groupby = ManifestHierarchy(label="app", order=["ns", "label", "kind"])
+    groupby = GroupBy(label="app", order=["ns", "label", "kind"])
 
     # Optional: configures Square's logger.
     square.square.setup_logging(0)

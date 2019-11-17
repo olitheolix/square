@@ -9,8 +9,8 @@ import square.manio as manio
 import square.schemas as schemas
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Filepath, K8sConfig,
-    ManifestHierarchy, MetaManifest, Selectors,
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Filepath, GroupBy, K8sConfig,
+    MetaManifest, Selectors,
 )
 from square.k8s import urlpath
 
@@ -567,7 +567,7 @@ class TestYamlManifestIO:
         """
         # Generic selector that matches all manifests in this test.
         selectors = Selectors(["Deployment"], None, set())
-        groupby = ManifestHierarchy(order=[], label="")
+        groupby = GroupBy(order=[], label="")
 
         # Construct demo manifests in the same way as `load_files` would.
         dply = [mk_deploy(f"d_{_}", "nsfoo") for _ in range(10)]
@@ -1167,19 +1167,19 @@ class TestSync:
         meta = manio.make_meta(man)
 
         # No grouping - all manifests must end up in `_other.yaml`.
-        groupby = ManifestHierarchy(order=[], label="")
+        groupby = GroupBy(order=[], label="")
         assert fun(meta, man, groupby) == (Filepath("_other.yaml"), False)
 
         # Group by NAMESPACE and kind.
-        groupby = ManifestHierarchy(order=["ns", "kind"], label="")
+        groupby = GroupBy(order=["ns", "kind"], label="")
         assert fun(meta, man, groupby) == (Filepath("ns/deployment.yaml"), False)
 
         # Group by KIND and NAMESPACE (inverse of previous test).
-        groupby = ManifestHierarchy(order=["kind", "ns"], label="")
+        groupby = GroupBy(order=["kind", "ns"], label="")
         assert fun(meta, man, groupby) == (Filepath("deployment/ns.yaml"), False)
 
         # Group by the existing LABEL "app".
-        groupby = ManifestHierarchy(order=["label"], label="app")
+        groupby = GroupBy(order=["label"], label="app")
         assert fun(meta, man, groupby) == (Filepath("app.yaml"), False)
 
     def test_filename_for_manifest_namespace(self):
@@ -1196,19 +1196,19 @@ class TestSync:
         meta = manio.make_meta(man)
 
         # No grouping - all namespaces must end up in `_other.yaml`.
-        groupby = ManifestHierarchy(order=[], label="")
+        groupby = GroupBy(order=[], label="")
         assert fun(meta, man, groupby) == (Filepath("_other.yaml"), False)
 
         # Group by NAMESPACE and kind.
-        groupby = ManifestHierarchy(order=["ns", "kind"], label="")
+        groupby = GroupBy(order=["ns", "kind"], label="")
         assert fun(meta, man, groupby) == (Filepath("nsname/namespace.yaml"), False)
 
         # Group by KIND and NAMESPACE (inverse of previous test).
-        groupby = ManifestHierarchy(order=["kind", "ns"], label="")
+        groupby = GroupBy(order=["kind", "ns"], label="")
         assert fun(meta, man, groupby) == (Filepath("namespace/nsname.yaml"), False)
 
         # Group by the existing LABEL "app".
-        groupby = ManifestHierarchy(order=["label"], label="app")
+        groupby = GroupBy(order=["label"], label="app")
         assert fun(meta, man, groupby) == (Filepath("app.yaml"), False)
 
     def test_filename_for_manifest_not_namespaced(self):
@@ -1223,19 +1223,19 @@ class TestSync:
             meta = manio.make_meta(man)
 
             # No hierarchy - all resources must end up in `_other.yaml`.
-            groupby = ManifestHierarchy(order=[], label="")
+            groupby = GroupBy(order=[], label="")
             assert fun(meta, man, groupby) == (Filepath("_other.yaml"), False)
 
             # Group by NAMESPACE and kind: must use "_global_" as folder name.
-            groupby = ManifestHierarchy(order=["ns", "kind"], label="")
+            groupby = GroupBy(order=["ns", "kind"], label="")
             assert fun(meta, man, groupby) == (FP(f"_global_/{kind.lower()}.yaml"), False)
 
             # Group by KIND and NAMESPACE (inverse of previous test).
-            groupby = ManifestHierarchy(order=["kind", "ns"], label="")
+            groupby = GroupBy(order=["kind", "ns"], label="")
             assert fun(meta, man, groupby) == (FP(f"{kind.lower()}/_global_.yaml"), False)
 
             # Group by the existing LABEL "app".
-            groupby = ManifestHierarchy(order=["label"], label="app")
+            groupby = GroupBy(order=["label"], label="app")
             assert fun(meta, man, groupby) == (FP("app.yaml"), False)
 
     def test_filename_for_manifest_valid_but_no_label(self):
@@ -1248,14 +1248,14 @@ class TestSync:
         meta = manio.make_meta(man)
 
         # Dump everything into "_other.yaml" if LABEL "app" does not exist.
-        groupby = ManifestHierarchy(order=["label"], label="app")
+        groupby = GroupBy(order=["label"], label="app")
         assert fun(meta, man, groupby) == (Filepath("_other.yaml"), False)
 
         # Use `_all` as the name if LABEL "app" does not exist.
-        groupby = ManifestHierarchy(order=["ns", "label"], label="app")
+        groupby = GroupBy(order=["ns", "label"], label="app")
         assert fun(meta, man, groupby) == (Filepath("ns/_other.yaml"), False)
 
-        groupby = ManifestHierarchy(order=["label", "ns"], label="app")
+        groupby = GroupBy(order=["label", "ns"], label="app")
         assert fun(meta, man, groupby) == (Filepath("_other/ns.yaml"), False)
 
     def test_filename_for_manifest_err(self):
@@ -1268,11 +1268,11 @@ class TestSync:
         meta = manio.make_meta(man)
 
         # The "label" must not be a non-empty string if it is in the group.
-        groupby = ManifestHierarchy(order=["label"], label="")
+        groupby = GroupBy(order=["label"], label="")
         assert fun(meta, man, groupby) == (Filepath(), True)
 
         # Gracefully abort for unknown types.
-        groupby = ManifestHierarchy(order=["ns", "blah"], label="")
+        groupby = GroupBy(order=["ns", "blah"], label="")
         assert fun(meta, man, groupby) == (Filepath(), True)
 
     def test_sync_modify_selective_kind_and_namespace_ok(self):
@@ -1293,7 +1293,7 @@ class TestSync:
 
         # Convenience shorthand.
         fun = manio.sync
-        groupby = ManifestHierarchy(order=[], label="")
+        groupby = GroupBy(order=[], label="")
 
         # Various MetaManifests to use in the tests.
         ns0_man = make_manifest("Namespace", None, "ns0")
@@ -1463,7 +1463,7 @@ class TestSync:
             out["spec"]["finalizers"].append("foo")
             return out
 
-        groupby = ManifestHierarchy(order=[], label="")
+        groupby = GroupBy(order=[], label="")
         m_fname.return_value = ("catchall.yaml", False)
 
         # Args for `sync`. In this test, we only have Deployments and want to
@@ -1526,7 +1526,7 @@ class TestSync:
         # Args for `sync`. In this test, we only have Deployments and want to
         # sync them across all namespaces.
         kinds, namespaces = ["Deployment"], None
-        groupby = ManifestHierarchy(order=[], label="")
+        groupby = GroupBy(order=[], label="")
 
         # First, create the local manifests as `load_files` would return it.
         # The `{0: "blah"}` like dicts are necessary because the
@@ -1615,7 +1615,7 @@ class TestSync:
         # Define an invalid grouping specification. As a consequence,
         # `filename_for_manifest` will return an error and we can verify if
         # `sync` gracefully handles it and returns an error.
-        groupby = ManifestHierarchy(order=["blah"], label="")
+        groupby = GroupBy(order=["blah"], label="")
         assert manio.sync(loc_man, srv_man, selectors, groupby) == (None, True)
 
 

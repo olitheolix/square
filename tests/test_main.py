@@ -9,8 +9,7 @@ import square.manio as manio
 import square.square as square
 from square.dtypes import (
     SUPPORTED_KINDS, Configuration, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, Filepath, JsonPatch, K8sConfig, ManifestHierarchy,
-    Selectors,
+    DeploymentPlan, Filepath, GroupBy, JsonPatch, K8sConfig, Selectors,
 )
 
 from .test_helpers import make_manifest
@@ -49,7 +48,7 @@ class TestMain:
                 namespaces=['default'],
                 labels={("app", "morty"), ("foo", "bar")}
             ),
-            groupby=ManifestHierarchy(label='', order=[]),
+            groupby=GroupBy(label='', order=[]),
             # Must not populate Kubernetes data.
             k8s_config=K8sConfig(),
             k8s_client=None,
@@ -94,7 +93,7 @@ class TestMain:
             param.parser = cmd
             ret, err = main.compile_config(param)
             assert not err
-            assert ret.groupby == ManifestHierarchy(order=[], label="")
+            assert ret.groupby == GroupBy(order=[], label="")
             del cmd, ret, err
 
         # ----------------------------------------------------------------------
@@ -104,7 +103,7 @@ class TestMain:
         param.groupby = ("ns", "kind", "label=app", "ns")
         ret, err = main.compile_config(param)
         assert not err
-        assert ret.groupby == ManifestHierarchy(
+        assert ret.groupby == GroupBy(
             order=["ns", "kind", "label", "ns"], label="app")
 
         # ----------------------------------------------------------------------
@@ -134,7 +133,7 @@ class TestMain:
 
         """
         # Default grouping because we will not specify custom ones in this test.
-        groupby = ManifestHierarchy(order=[], label="")
+        groupby = GroupBy(order=[], label="")
 
         # Pretend all functions return successfully.
         m_get.return_value = (None, False)
@@ -288,7 +287,7 @@ class TestMain:
 
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.groupby == ManifestHierarchy(label="", order=[])
+        assert cfg.groupby == GroupBy(label="", order=[])
 
         # ----------------------------------------------------------------------
         # User defined file system hierarchy.
@@ -300,7 +299,7 @@ class TestMain:
 
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.groupby == ManifestHierarchy(label="", order=["ns", "kind"])
+        assert cfg.groupby == GroupBy(label="", order=["ns", "kind"])
 
         # ----------------------------------------------------------------------
         # Include a label into the hierarchy and use "ns" twice.
@@ -312,7 +311,7 @@ class TestMain:
 
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.groupby == ManifestHierarchy(label="foo", order=["ns", "label", "ns"])
+        assert cfg.groupby == GroupBy(label="foo", order=["ns", "label", "ns"])
 
         # ----------------------------------------------------------------------
         # The label resource, unlike "ns" or "kind", can only be specified
