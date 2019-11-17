@@ -68,7 +68,7 @@ class TestBasic:
         }
         assert fun(man) == ({MetaManifest('v1', 'Deployment', 'ns2', 'bar')}, True)
 
-    def test_print_deltas(self):
+    def test_show_plan(self):
         """Just verify it runs.
 
         There is nothing really to tests here because the function only prints
@@ -92,7 +92,7 @@ class TestBasic:
             ],
             delete=[DeltaDelete(meta, "url", "manifest")],
         )
-        assert square.print_deltas(plan) == (None, False)
+        assert square.show_plan(plan) == (None, False)
 
 
 class TestPartition:
