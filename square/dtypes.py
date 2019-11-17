@@ -56,6 +56,9 @@ SUPPORTED_VERSIONS = ("1.9", "1.10", "1.11", "1.13", "1.14")
 Filepath = pathlib.Path
 
 
+# -----------------------------------------------------------------------------
+#                                  Kubernetes
+# -----------------------------------------------------------------------------
 class K8sClientCert(NamedTuple):
     crt: Filepath = Filepath()
     key: Filepath = Filepath()
@@ -76,6 +79,17 @@ class K8sConfig(NamedTuple):
     name: str = ""
 
 
+class MetaManifest(NamedTuple):
+    """A succinct summary of a K8s resource manifest."""
+    apiVersion: str
+    kind: str
+    namespace: str
+    name: str
+
+
+# -----------------------------------------------------------------------------
+#                                Deployment Plan
+# -----------------------------------------------------------------------------
 class JsonPatch(NamedTuple):
     """The URL for the patches as well as the patch payloads themselves."""
     # Send the patch to https://1.2.3.4/api/v1/namespace/foo/services
@@ -83,14 +97,6 @@ class JsonPatch(NamedTuple):
 
     # The list of JSON patches.
     ops: List[str]
-
-
-class MetaManifest(NamedTuple):
-    """A succinct summary of a K8s resource manifest."""
-    apiVersion: str
-    kind: str
-    namespace: str
-    name: str
 
 
 class DeltaCreate(NamedTuple):
@@ -109,12 +115,6 @@ class DeltaPatch(NamedTuple):
     meta: MetaManifest
     diff: str
     patch: JsonPatch
-
-
-# Data types.
-LocalManifests = Dict[Filepath, Tuple[MetaManifest, dict]]
-LocalManifestLists = Dict[Filepath, List[Tuple[MetaManifest, dict]]]
-ServerManifests = Dict[MetaManifest, dict]
 
 
 class DeploymentPlan(NamedTuple):
@@ -136,6 +136,9 @@ class DeploymentPlanMeta(NamedTuple):
     delete: List[MetaManifest]
 
 
+# -----------------------------------------------------------------------------
+#                             Square Configuration
+# -----------------------------------------------------------------------------
 class Selectors(NamedTuple):
     """Comprises all the filters to select manifests."""
     kinds: Iterable[str]
@@ -164,3 +167,11 @@ class Configuration(NamedTuple):
     verbosity: int = 0
     k8s_config: K8sConfig = K8sConfig()
     k8s_client: Any = None
+
+
+# -----------------------------------------------------------------------------
+#                                 Miscellaneous
+# -----------------------------------------------------------------------------
+LocalManifests = Dict[Filepath, Tuple[MetaManifest, dict]]
+LocalManifestLists = Dict[Filepath, List[Tuple[MetaManifest, dict]]]
+ServerManifests = Dict[MetaManifest, dict]
