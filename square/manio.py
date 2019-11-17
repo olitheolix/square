@@ -397,7 +397,7 @@ def sync(
     # Also put it into a default dict for convenience.
     out_add_mod: DefaultDict[Filepath, List[Tuple[MetaManifest, dict]]]
     out_add_mod = collections.defaultdict(list)
-    out_add_mod.update(copy.deepcopy(local_manifests))
+    out_add_mod.update(copy.deepcopy(local_manifests))  # type: ignore
     del local_manifests
 
     # If the server's meta manifest exists locally then update the local one,
@@ -418,7 +418,7 @@ def sync(
     # Iterate over all manifests in all files and drop the resources that do
     # not exist on the server. This will, in effect, delete those resources in
     # the local files if the caller chose to save them.
-    out_add_mod_del = {}
+    out_add_mod_del: LocalManifestLists = {}
     for fname, manifests in out_add_mod.items():
         pruned = [(meta, man) for (meta, man) in manifests if meta in server_manifests]
         out_add_mod_del[fname] = pruned
