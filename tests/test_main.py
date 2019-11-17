@@ -393,22 +393,22 @@ class TestMain:
     def test_user_confirmed(self):
         """Verify user confirmation dialog."""
         # Disable dialog and assume a correct answer.
-        assert square.user_confirmed(None) is True
+        assert main.user_confirmed(None) is True
 
         # Answer matches expected answer: must return True.
-        with mock.patch.object(square, 'input', lambda _: "yes"):
-            assert square.user_confirmed("yes") is True
+        with mock.patch.object(main, 'input', lambda _: "yes"):
+            assert main.user_confirmed("yes") is True
 
         # Every other answer must return False.
         answers = ("YES", "", "y", "ye", "yess", "blah")
         for answer in answers:
-            with mock.patch.object(square, 'input', lambda _: answer):
-                assert square.user_confirmed("yes") is False
+            with mock.patch.object(main, 'input', lambda _: answer):
+                assert main.user_confirmed("yes") is False
 
         # Must gracefully handle keyboard interrupts and return False.
-        with mock.patch.object(square, 'input') as m_input:
+        with mock.patch.object(main, 'input') as m_input:
             m_input.side_effect = KeyboardInterrupt
-            assert square.user_confirmed("yes") is False
+            assert main.user_confirmed("yes") is False
 
 
 class TestApplyPlan:
@@ -451,12 +451,12 @@ class TestApplyPlan:
         m_apply.return_value = (None, False)
 
         # Function must not apply the plan without the user's confirmation.
-        with mock.patch.object(square, 'input', lambda _: "no"):
+        with mock.patch.object(main, 'input', lambda _: "no"):
             assert fun("kubeconfig", None, tmp_path, selectors, "yes") == (None, True)
         assert not m_apply.called
 
         # Function must apply the plan if the user confirms it.
-        with mock.patch.object(square, 'input', lambda _: "yes"):
+        with mock.patch.object(main, 'input', lambda _: "yes"):
             assert fun("kubeconfig", None, tmp_path, selectors, "yes") == (None, False)
         m_apply.assert_called_once_with("kubeconfig", None, plan)
 
@@ -472,7 +472,7 @@ class TestApplyPlan:
         m_apply.reset_mock()
         m_plan.return_value = (DeploymentPlan(create=[], patch=[], delete=[]), False)
 
-        with mock.patch.object(square, 'input', lambda _: "yes"):
+        with mock.patch.object(main, 'input', lambda _: "yes"):
             assert fun("kubeconfig", None, tmp_path, selectors, "yes") == (None, False)
         assert not m_apply.called
 

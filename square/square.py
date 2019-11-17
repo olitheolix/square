@@ -368,25 +368,6 @@ def setup_logging(log_level: int) -> None:
     logit.info(f"Set log level to {level}")
 
 
-def user_confirmed(answer: Optional[str] = "yes") -> bool:
-    """Return True iff the user answers with `answer` or `answer` is None."""
-    if answer is None:
-        return True
-
-    assert answer, "BUG: desired answer must be non-empty string or `None`"
-
-    cDel = colorama.Fore.RED
-    cReset = colorama.Fore.RESET
-
-    # Confirm with user.
-    print(f"Type {cDel}{answer}{cReset} to apply the plan.")
-    try:
-        return input("  Your answer: ") == answer
-    except KeyboardInterrupt:
-        print()
-        return False
-
-
 def apply_plan(
         kubeconfig: Filepath,
         kube_ctx: Optional[str],
