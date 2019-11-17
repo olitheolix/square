@@ -1,5 +1,7 @@
 import pathlib
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple
+from typing import (
+    Any, Collection, Dict, Iterable, NamedTuple, Optional, Set, Tuple,
+)
 
 # We support these resource types. The order matters because it determines the
 # order in which the manifests will be grouped in the output files.
@@ -96,7 +98,7 @@ class JsonPatch(NamedTuple):
     url: str
 
     # The list of JSON patches.
-    ops: List[str]
+    ops: Collection[str]
 
 
 class DeltaCreate(NamedTuple):
@@ -124,16 +126,16 @@ class DeploymentPlan(NamedTuple):
     patches that make up a full plan.
 
     """
-    create: List[DeltaCreate]
-    patch: List[DeltaPatch]
-    delete: List[DeltaDelete]
+    create: Collection[DeltaCreate]
+    patch: Collection[DeltaPatch]
+    delete: Collection[DeltaDelete]
 
 
 class DeploymentPlanMeta(NamedTuple):
     """Same as `DeploymentPlan` but contains `MetaManifests` only."""
-    create: List[MetaManifest]
-    patch: List[MetaManifest]
-    delete: List[MetaManifest]
+    create: Collection[MetaManifest]
+    patch: Collection[MetaManifest]
+    delete: Collection[MetaManifest]
 
 
 # -----------------------------------------------------------------------------
@@ -173,5 +175,5 @@ class Configuration(NamedTuple):
 #                                 Miscellaneous
 # -----------------------------------------------------------------------------
 LocalManifests = Dict[Filepath, Tuple[MetaManifest, dict]]
-LocalManifestLists = Dict[Filepath, List[Tuple[MetaManifest, dict]]]
+LocalManifestLists = Dict[Filepath, Collection[Tuple[MetaManifest, dict]]]
 ServerManifests = Dict[MetaManifest, dict]
