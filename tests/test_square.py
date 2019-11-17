@@ -8,7 +8,7 @@ import square.manio as manio
 import square.square as square
 from square.dtypes import (
     SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    JsonPatch, K8sConfig, ManifestHierarchy, MetaManifest, Selectors,
+    GroupBy, JsonPatch, K8sConfig, MetaManifest, Selectors,
 )
 from square.k8s import urlpath
 
@@ -690,7 +690,7 @@ class TestMainOptions:
         """
         # Define a grouping (not relevant for this test but a necessary
         # argument to the test function).
-        groupby = ManifestHierarchy(order=[], label="")
+        groupby = GroupBy(order=[], label="")
 
         # Simulate successful responses from the two auxiliary functions.
         # The `load` function must return empty dicts to ensure the error

@@ -8,9 +8,7 @@ import sh
 import square.main
 import square.manio as manio
 import yaml
-from square.dtypes import (
-    SUPPORTED_KINDS, Filepath, ManifestHierarchy, Selectors,
-)
+from square.dtypes import SUPPORTED_KINDS, Filepath, GroupBy, Selectors
 
 # Bake a `kubectl` command that uses the kubeconfig file for the KIND cluster.
 # We need to wrap this into a try/except block because CircleCI does not have
@@ -282,7 +280,7 @@ class TestMainPlan:
 
         # Fixtures.
         selectors = Selectors(SUPPORTED_KINDS, ["test-workflow"], None)
-        groupby = ManifestHierarchy(label="app", order=[])
+        groupby = GroupBy(label="app", order=[])
         backup_folder = tmp_path / "backup"
 
         # ---------------------------------------------------------------------

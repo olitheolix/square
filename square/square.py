@@ -10,8 +10,8 @@ import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
     SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    DeploymentPlanMeta, Filepath, JsonPatch, K8sConfig, ManifestHierarchy,
-    MetaManifest, Selectors, ServerManifests,
+    DeploymentPlanMeta, Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest,
+    Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -490,7 +490,7 @@ def get_resources(
         kube_ctx: Optional[str],
         folder: Filepath,
         selectors: Selectors,
-        groupby: ManifestHierarchy,
+        groupby: GroupBy,
 ) -> Tuple[None, bool]:
     """Download all K8s manifests and merge them into local files.
 
@@ -503,7 +503,7 @@ def get_resources(
             Path to local manifests eg "./foo"
         selectors: Selectors
             Only operate on resources that match the selectors.
-        groupby: ManifestHierarchy
+        groupby: GroupBy
             Specify relationship between new manifests and file names.
 
     Returns:

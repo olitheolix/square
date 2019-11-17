@@ -148,7 +148,7 @@ class Selectors(NamedTuple):
     labels: Optional[Set[Tuple[str, str]]]
 
 
-class ManifestHierarchy(NamedTuple):
+class GroupBy(NamedTuple):
     """Define how to organise downloaded manifest on the files system."""
     label: str                  # "app"
     order: Iterable[str]        # ["ns", "label=app", kind"]
@@ -163,7 +163,7 @@ class Configuration(NamedTuple):
     command: str
     folder: Filepath
     selectors: Selectors
-    groupby: ManifestHierarchy
+    groupby: GroupBy
     kubeconfig: Filepath
     kube_ctx: Optional[str] = None
     verbosity: int = 0
