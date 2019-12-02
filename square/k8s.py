@@ -124,7 +124,7 @@ def load_incluster_config(
         url=f'https://{server_ip}',
         token=fname_token.read_text(),
         ca_cert=fname_cert,
-        client_cert=K8sClientCert(),
+        client_cert=None,
         version="",
         name="",
     )
@@ -183,7 +183,7 @@ def load_gke_config(
         url=cluster["server"],
         token=token,
         ca_cert=ssl_ca_cert,
-        client_cert=K8sClientCert(),
+        client_cert=None,
         version="",
         name=cluster["name"],
     )
@@ -263,7 +263,7 @@ def load_eks_config(
         url=cluster["server"],
         token=token,
         ca_cert=ssl_ca_cert,
-        client_cert=K8sClientCert(),
+        client_cert=None,
         version="",
         name=cluster["name"],
     )

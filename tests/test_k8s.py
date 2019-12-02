@@ -8,9 +8,7 @@ import pytest
 import requests_mock
 import square.k8s as k8s
 import yaml
-from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, K8sClientCert, K8sConfig,
-)
+from square.dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, K8sConfig
 
 
 @pytest.fixture
@@ -323,7 +321,7 @@ class TestK8sKubeconfig:
             url=f'https://1.2.3.4',
             token="token",
             ca_cert=fname_cert,
-            client_cert=K8sClientCert(),
+            client_cert=None,
             version="",
             name="",
         )
@@ -460,7 +458,7 @@ class TestK8sKubeconfig:
             url="https://1.2.3.4",
             token="google token",
             ca_cert="ca.cert",
-            client_cert=K8sClientCert(),
+            client_cert=None,
             version="",
             name="clustername-gke",
         )
@@ -496,7 +494,7 @@ class TestK8sKubeconfig:
             url="https://5.6.7.8",
             token="EKS token",
             ca_cert="ca.cert",
-            client_cert=K8sClientCert(),
+            client_cert=None,
             version="",
             name="clustername-eks",
         )

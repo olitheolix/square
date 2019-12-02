@@ -74,7 +74,7 @@ class K8sConfig(NamedTuple):
     # Certificate authority credentials and self signed client certificate.
     # Used to authenticate to eg GKE.
     ca_cert: Filepath = Filepath()
-    client_cert: K8sClientCert = K8sClientCert()
+    client_cert: Optional[K8sClientCert] = None
 
     # Kubernetes version and name.
     version: str = ""
