@@ -261,9 +261,10 @@ def unpack(manifests: LocalManifestLists) -> Tuple[Optional[ServerManifests], bo
     for meta, fnames in all_meta.items():
         if len(fnames) > 1:
             unique = False
+            tmp = [str(_) for _ in fnames]
             logit.error(
-                f"Duplicate ({len(fnames)}x) manifest {meta}. "
-                f"Defined in {str.join(', ', fnames)}"
+                f"Duplicate ({len(tmp)}x) manifest {meta}. "
+                f"Defined in {str.join(', ', tmp)}"
             )
     if not unique:
         return (None, True)

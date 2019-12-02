@@ -417,17 +417,18 @@ class TestYamlManifestIO:
 
     def test_unpack_err(self):
         """The MetaManifests must be unique across all source files."""
+        P = Filepath
 
         # Two resources with same meta information in same file.
         src = {
-            "file0.txt": [("meta0", "manifest0"), ("meta0", "manifest0")],
+            P("file0.txt"): [("meta0", "manifest0"), ("meta0", "manifest0")],
         }
         assert manio.unpack(src) == (None, True)
 
         # Two resources with same meta information in different files.
         src = {
-            "file0.txt": [("meta0", "manifest0")],
-            "file1.txt": [("meta0", "manifest0")],
+            P("file0.txt"): [("meta0", "manifest0")],
+            P("file1.txt"): [("meta0", "manifest0")],
         }
         assert manio.unpack(src) == (None, True)
 
