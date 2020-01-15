@@ -157,6 +157,9 @@ schema_1_9: Dict[str, Dict[Any, Any]] = {
             "labels": None,
             "name": True,
             "namespace": True,
+            "annotations": {
+                "eks.amazonaws.com/role-arn": None,
+            }
         },
         "secrets": None,
     },
