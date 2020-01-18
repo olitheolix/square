@@ -13,17 +13,15 @@ requests = "*"
 colorlog = "*"
 
 [dev-packages]
-flake8 = "*"
-flake8-isort = "*"
 ipython = "*"
 isort = "*"
 pytest = "*"
 requests-mock = "*"
-pytest-cov = "*"
-"pytest-flake8" = "*"
 mypy = "*"
 bumpversion = "*"
 sh = "*"
+pytest-pycodestyle = "*"
+pytest-cov = "*"
 
 [requires]
 python_version = "3.7"
