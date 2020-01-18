@@ -1004,6 +1004,7 @@ class TestDiff:
 
 class TestYamlManifestIOIntegration:
     """These integration tests all write files to temporary folders."""
+
     def test_load_save_files(self, tmp_path):
         """Basic file loading/saving tests."""
         # Demo file names and content.
@@ -1618,6 +1619,158 @@ class TestSync:
         # `sync` gracefully handles it and returns an error.
         groupby = GroupBy(order=["blah"], label="")
         assert manio.sync(loc_man, srv_man, selectors, groupby) == (None, True)
+
+    def test_service_account_support_file(self):
+        """Ensure the ServiceAccount support file has the correct setup.
+
+        Some other tests, most notably those for the `align` function, rely on this.
+        """
+        # Fixtures.
+        selectors = Selectors(["ServiceAccount"], namespaces=None, labels=None)
+        name = 'demoapp'
+
+        # Load the test support file and ensure it contains exactly one manifest.
+        local_meta, _, err = manio.load("tests/support/", selectors)
+        assert not err
+        assert len(local_meta) == 1
+
+        # The manifest must be a ServiceAccount with the correct name.
+        meta, manifest = local_meta.copy().popitem()
+        assert meta == MetaManifest(apiVersion='v1',
+                                    kind='ServiceAccount',
+                                    namespace='default',
+                                    name=name)
+
+        # The manifest must contain exactly one secret that starts with "demoapp-token-".
+        assert "secrets" in manifest
+        token = [_ for _ in manifest["secrets"] if _["name"].startswith(f"{name}-token-")]
+        assert len(token) == 1 and token[0] == {"name": "demoapp-token-abcde"}
+
+    def test_align_serviceaccount(self):
+        """Align the ServiceAccount token secrets among local- and cluster
+        manifest.
+
+        This test assumes the support file with the ServiceAccount is properly
+        setup (see `test_service_account_support_file`).
+
+        """
+        # Fixtures.
+        selectors = Selectors(["ServiceAccount"], namespaces=None, labels=None)
+
+        # Load and unpack the ServiceAccount manifest. Make two copies so we
+        # can create local/cluster manifest as inputs for the `align` function.
+        local_meta, _, _ = manio.load("tests/support/", selectors)
+        local_meta = copy.deepcopy(local_meta)
+        server_meta = copy.deepcopy(local_meta)
+        meta, _ = local_meta.copy().popitem()
+
+        # ----------------------------------------------------------------------
+        # Server and local manifests are identical - `align` must do nothing.
+        # ----------------------------------------------------------------------
+        local_meta_out, err = manio.align_serviceaccount(local_meta, server_meta)
+        assert not err
+        assert local_meta_out == local_meta
+
+        # ----------------------------------------------------------------------
+        # The server manifest contains a token but the local one does not. This
+        # is the expected use case. The `align` function must copy the server
+        # token into the local manifest.
+        # ----------------------------------------------------------------------
+        local_meta[meta]["secrets"] = [{"name": "loc-foo"}]
+        server_meta[meta]["secrets"] = [
+            {"name": "srv-foo"}, {"name": "srv-bar"},
+            {"name": "demoapp-token-srvfoo"}
+        ]
+        local_meta_out, err = manio.align_serviceaccount(local_meta, server_meta)
+        assert not err
+        assert local_meta_out[meta]["secrets"] == [
+            {"name": "loc-foo"},
+            {"name": "demoapp-token-srvfoo"}
+        ]
+
+        # ----------------------------------------------------------------------
+        # The server manifest contains a token, the local one contains a
+        # different one. The local token must prevail.
+        # ----------------------------------------------------------------------
+        local_meta[meta]["secrets"] = [
+            {"name": "loc-foo"},
+            {"name": "demoapp-token-locfoo"}
+        ]
+        server_meta[meta]["secrets"] = [
+            {"name": "srv-foo"},
+            {"name": "srv-bar"},
+            {"name": "demoapp-token-srvfoo"}
+        ]
+        local_meta_out, err = manio.align_serviceaccount(local_meta, server_meta)
+        assert not err
+        assert local_meta_out == local_meta
+
+        # ----------------------------------------------------------------------
+        # The server manifest contains a secret token, the local does not have
+        # secrets whatsoever. test is purely to ensure the function does not
+        # break if the service account has no "secrets" key.
+        # ----------------------------------------------------------------------
+        del local_meta[meta]["secrets"]
+        server_meta[meta]["secrets"] = [
+            {"name": "srv-foo"},
+            {"name": "srv-bar"},
+            {"name": "demoapp-token-srvfoo"}
+        ]
+        local_meta_out, err = manio.align_serviceaccount(local_meta, server_meta)
+        assert not err
+        assert local_meta_out[meta]["secrets"] == [
+            {"name": "demoapp-token-srvfoo"}
+        ]
+
+        # ----------------------------------------------------------------------
+        # Neither server nor local manifests contain a "secrets" key. Again,
+        # should be impossible.
+        # ----------------------------------------------------------------------
+        del server_meta[meta]["secrets"]
+        local_meta_out, err = manio.align_serviceaccount(local_meta, server_meta)
+        assert not err
+        assert local_meta_out == local_meta
+
+        # ----------------------------------------------------------------------
+        # The server manifest does *not* contain a token - this should be
+        # impossible. If it occurs, we will not modify the manifest at all.
+        # ----------------------------------------------------------------------
+        local_meta[meta]["secrets"] = [{"name": "loc-foo"}]
+        server_meta[meta]["secrets"] = [
+            {"name": "srv-foo"},
+            {"name": "srv-bar"},
+        ]
+        local_meta_out, err = manio.align_serviceaccount(local_meta, server_meta)
+        assert not err
+        assert local_meta_out == local_meta
+
+        # ----------------------------------------------------------------------
+        # Server manifest has multiple token secrets - `align` must do nothing
+        # because the result would be ambiguous.
+        # ----------------------------------------------------------------------
+        local_meta[meta]["secrets"] = [{"name": "loc-foo"}]
+        server_meta[meta]["secrets"] = [
+            {"name": "demoapp-token-srv1"},
+            {"name": "demoapp-token-srv2"},
+        ]
+        local_meta_out, err = manio.align_serviceaccount(local_meta, server_meta)
+        assert not err
+        assert local_meta_out == local_meta
+
+        # ----------------------------------------------------------------------
+        # Local manifest has multiple token secrets - `align` must do nothing
+        # because the result would be ambiguous.
+        # ----------------------------------------------------------------------
+        local_meta[meta]["secrets"] = [
+            {"name": "demoapp-token-loc1"},
+            {"name": "demoapp-token-loc2"},
+        ]
+        server_meta[meta]["secrets"] = [
+            {"name": "demoapp-token-srv"}
+        ]
+        local_meta_out, err = manio.align_serviceaccount(local_meta, server_meta)
+        assert not err
+        assert local_meta_out == local_meta
 
 
 class TestDownloadManifests:

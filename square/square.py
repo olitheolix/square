@@ -456,6 +456,10 @@ def make_plan(
         server, err = manio.download(k8s_config, k8s_client, selectors)
         assert not err and server is not None
 
+        # Align non-plannable fields, like the ServiceAccount tokens.
+        local_meta, err = manio.align_serviceaccount(local_meta, server)
+        assert not err
+
         # Create deployment plan.
         plan, err = compile_plan(k8s_config, local_meta, server)
         assert not err and plan

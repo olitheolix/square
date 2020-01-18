@@ -3,7 +3,9 @@ import copy
 import difflib
 import logging
 import pathlib
-from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple
+from typing import (
+    DefaultDict, Dict, Iterable, List, Optional, Tuple,
+)
 
 import square.dotdict
 import square.k8s
@@ -622,7 +624,7 @@ def strip(config: K8sConfig, manifest: dict) -> Tuple[Optional[DotDict], bool]:
     except KeyError:
         logit.error(
             f"Unknown K8s version (<{config.version}>) "
-            "or resource kind: <{kind}>"
+            f"or resource kind: <{kind}>"
         )
         return (None, True)
 
@@ -633,6 +635,128 @@ def strip(config: K8sConfig, manifest: dict) -> Tuple[Optional[DotDict], bool]:
         return (None, True)
     else:
         return (square.dotdict.make(stripped), False)
+
+
+def align_serviceaccount(
+        local_manifests: ServerManifests,
+        server_manifests: ServerManifests) -> Tuple[ServerManifests, bool]:
+    """Insert the token secret from `server_manifest` into `local_manifest`.
+
+    Every ServiceAccount (SA) has a "secrets" section that K8s automatically
+    populates when it creates the SA. The name contains a random hash, eg
+    "default-token-somerandomhash" for the default service account in every
+    namespace.
+
+    This makes it difficult to manage service accounts with Square because the
+    token is not known in advance. Once would have to
+
+        square apply; square plan; square get serviceaccount
+
+    to sync this, and even that is not portable because the token will be
+    different on a new cluster.
+
+    To avoid this problem, this function will read the token secret that K8s
+    added (contained in `server_manifest`) and insert it into the
+    `local_manifest`. This will ensure that that Square can create a plan that
+    will not touch the token secret.
+
+    Inputs:
+        local_manifests: manifests from local files that the plan will use.
+        server_manifests: manifests from K8s
+
+    Returns:
+        Copy of `local_manifests` where all ServiceAccount token secrets match
+        those of the server.
+
+    """
+    ReturnType = Tuple[Optional[str], List[Dict[str, str]], bool]
+
+    def _get_token(meta: MetaManifest, manifests: ServerManifests) -> ReturnType:
+        """Return token secret from `manifest` as well as all other other secrets.
+
+        Example input manifest:
+            {
+                'apiVersion': v1,
+                'kind': ServiceAccount,
+                ...
+                'secrets': [
+                    {'name': 'some-secret'},
+                    {'name': 'demoapp-token-abcde'},
+                    {'name': 'other-secret'},
+                ]
+            }
+
+        The output for this would be:
+        (
+            'demoapp-token-abcde',
+            [{'name': 'some-secret'}, {'name': 'other-secret'}],
+            False,
+        )
+
+        """
+        # Do nothing if the ServiceAccount has not "secrets" - should be impossible.
+        try:
+            secrets_dict = manifests[meta]["secrets"]
+        except KeyError:
+            return (None, [], False)
+
+        # Find the ServiceAccount token name.
+        token_prefix = f"{meta.name}-token-"
+        secrets = [_["name"] for _ in secrets_dict]
+        token = [_ for _ in secrets if _.startswith(token_prefix)]
+
+        if len(token) == 0:
+            # No token - return the original secrets.
+            return (None, secrets_dict, False)
+        elif len(token) == 1:
+            # Expected case: return the token as well as the remaining secrets.
+            secrets = [{"name": _} for _ in secrets if _ != token[0]]
+            return (token[0], secrets, False)
+        else:
+            # Unexpected.
+            all_secrets = str.join(", ", list(sorted(token)))
+            logit.warning(
+                f"ServiceAccount <{meta.namespace}/{meta.name}>: "
+                f"found multiple token secrets in: `{all_secrets}`"
+            )
+            return (None, [], True)
+
+    # Avoid side effects.
+    local_manifests = copy.deepcopy(local_manifests)
+
+    # Find all ServiceAccount manifests that exist locally and on the cluster.
+    local_meta = {k for k in local_manifests if k.kind == "ServiceAccount"}
+    server_meta = set(server_manifests.keys()).intersection(local_meta)
+
+    # Iterate over all ServiceAccount manifests and insert the secret token
+    # from the cluster into the local manifest.
+    for meta in server_meta:
+        # Find the service account token in the local/cluster manifest.
+        loc_token, loc_secrets, err1 = _get_token(meta, local_manifests)
+        srv_token, srv_secrets, err2 = _get_token(meta, server_manifests)
+
+        # Ignore the manifest if there was an error. Typically this means the
+        # local or cluster manifest defined multiple service account secrets.
+        # If that happens then something is probably seriously wrong with the
+        # cluster.
+        if err1 or err2:
+            continue
+
+        # Server has no token - something is probably wrong with your cluster.
+        if srv_token is None:
+            logit.warning(
+                f"ServiceAccount {meta.namespace}/{meta.name} has no token secret"
+            )
+            continue
+
+        # This is the expected case: the local manifest does not specify
+        # the token but on the cluster it exists. In that case, add the
+        # token here.
+        if srv_token and not loc_token:
+            loc_secrets.append({"name": srv_token})
+            local_manifests[meta]["secrets"] = loc_secrets
+
+    return (local_manifests, False)
 
 
 def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> Tuple[None, bool]:
