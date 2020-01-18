@@ -636,8 +636,9 @@ class TestMainOptions:
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
+    @mock.patch.object(manio, "align_serviceaccount")
     @mock.patch.object(square, "compile_plan")
-    def test_make_plan(self, m_plan, m_down, m_load, kube_creds):
+    def test_make_plan(self, m_plan, m_align, m_down, m_load, kube_creds):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -652,12 +653,13 @@ class TestMainOptions:
         m_load.return_value = ("local", None, False)
         m_down.return_value = ("server", False)
         m_plan.return_value = (plan, False)
+        m_align.side_effect = lambda loc_man, srv_man: (loc_man, False)
 
         # The arguments to the test function will always be the same in this test.
         selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
         args = "kubeconf", "kubectx", "folder", selectors
 
-        # A successfull DIFF only computes and prints the plan.
+        # A successful DIFF only computes and prints the plan.
         plan, err = square.make_plan(*args)
         assert not err and isinstance(plan, DeploymentPlan)
         m_load.assert_called_once_with("folder", selectors)
