@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "kubernetes-square"
-version = "0.17.3"
+version = "0.18.0"
 description = ""
 authors = ["Oliver Nagy <olitheolix@gmail.com>"]
 packages = [
