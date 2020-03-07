@@ -18,166 +18,97 @@ if the field is not mandatory but should be included.
 * None: field will be included if the input manifest has it, and ignored otherwise.
 
 """
-from typing import Any, Dict
+import logging
+
+from typing import Any, Dict, Union
+
+# Convenience.
+logit = logging.getLogger("square")
+
 
 schema_1_9: Dict[str, Dict[Any, Any]] = {
-    "ClusterRole": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": False,
-        },
-        "rules": None,
-    },
-    "ClusterRoleBinding": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": False,
-        },
-        "roleRef": None,
-        "subjects": None
-    },
-    "ConfigMap": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "data": None,
-        "binaryData": None,
-    },
-    "CronJob": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "spec": True,
-    },
-    "DaemonSet": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "spec": True,
-    },
+    "ClusterRole": {},
+    "ClusterRoleBinding": {},
+    "ConfigMap": {},
+    "CronJob": {},
+    "DaemonSet": {},
     "Deployment": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "creationTimestamp": False,
-        "spec": True,
+        "status": False,
     },
-    "HorizontalPodAutoscaler": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "spec": True,
-    },
-    "Ingress": {
-        "metadata": {
-            "annotations": {
-                "ingress.kubernetes.io/configuration-snippet": None,
-                "kubernetes.io/ingress.class": None,
-            },
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "spec": True,
-    },
-    "Namespace": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": False
-        },
-        "spec": None,
-    },
-    "PersistentVolumeClaim": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "spec": True,
-    },
-    "Role": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "rules": None,
-    },
-    "RoleBinding": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "roleRef": None,
-        "subjects": None
-    },
-    "Secret": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-            "annotations": {
-                "kubernetes.io/service-account.name": None,
-            }
-        },
-        "data": None,
-        "stringData": None,
-        "type": None,
-    },
-    "Service": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "spec": {
-            "ports": None,
-            "selector": None,
-            "type": True,
-        },
-    },
-    "ServiceAccount": {
-        "kind": None,
-        "imagePullSecrets": None,
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-            "annotations": {
-                "eks.amazonaws.com/role-arn": None,
-            }
-        },
-        "secrets": None,
-    },
-    "StatefulSet": {
-        "metadata": {
-            "labels": None,
-            "name": True,
-            "namespace": True,
-        },
-        "spec": True,
-    },
+    "HorizontalPodAutoscaler": {},
+    "Ingress": {},
+    "Namespace": {},
+    "PersistentVolumeClaim": {},
+    "Role": {},
+    "RoleBinding": {},
+    "Secret": {},
+    "Service": {},
+    "ServiceAccount": {},
+    "StatefulSet": {},
 }
 
 
-RESOURCE_SCHEMA: Dict[str, Dict[str, Dict[Any, Any]]] = {
+EXCLUSION_SCHEMA: Dict[str, Dict[str, Dict[Any, Any]]] = {
     "1.9": schema_1_9,
     "1.10": schema_1_9,
     "1.11": schema_1_9,
     "1.13": schema_1_9,
     "1.14": schema_1_9,
 }
+
+
+def _is_exclusion_sane(schema: Dict[str, Union[dict, bool]]) -> bool:
+    """Return `True` iff `schema` is valid."""
+    # Iterate over all fields of all K8s resource type.
+    for k, v in schema.items():
+        assert isinstance(k, str)
+
+        # All schema can only contains dicts and boolean `False` values.
+        if isinstance(v, dict):
+            # Recursively check the dict to ensure it also only contains dicts
+            # and boolean `False` values.
+            if not _is_exclusion_sane(v):
+                logit.error(f"<{v}> is invalid")
+                return False
+        elif v is False:
+            # Boolean `False` is what we expect at the leaf.
+            pass
+        else:
+            logit.error(f"<{k}> is not a boolean `False`")
+            return False
+    return True
+
+
+def populate_schemas(schemas: Dict[str, Dict[str, Dict[Any, Any]]]) -> bool:
+    """Add default values to all exclusion schemas and validate them."""
+    # Iterate over all schemas and insert default values.
+    for version, resource in schemas.items():
+        for data in resource.values():
+            if "metadata" not in data:
+                data["metadata"] = {}
+            if "annotations" not in data["metadata"]:
+                data["metadata"]["annotations"] = {}
+
+            data["metadata"].update({
+                    "creationTimestamp": False,
+                    "resourceVersion": False,
+                    "selfLink": False,
+                    "uid": False,
+            })
+
+            data["metadata"]["annotations"].update(
+                {
+                    "deployment.kubernetes.io/revision": False,
+                    "kubectl.kubernetes.io/last-applied-configuration": False,
+                }
+            )
+
+            # Ensure the exclusion schema is valid.
+            if not _is_exclusion_sane(data):
+                logit.error(f"ERROR - Exclusion schema {version} is invalid - abort")
+                return True
+    return False
+
+
+# Finalise the exclusion schemas and sanity check them.
+assert populate_schemas(EXCLUSION_SCHEMA) is False
