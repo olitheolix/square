@@ -32,9 +32,7 @@ schema_1_9: Dict[str, Dict[Any, Any]] = {
     "ConfigMap": {},
     "CronJob": {},
     "DaemonSet": {},
-    "Deployment": {
-        "status": False,
-    },
+    "Deployment": {},
     "HorizontalPodAutoscaler": {},
     "Ingress": {},
     "Namespace": {},
@@ -42,7 +40,7 @@ schema_1_9: Dict[str, Dict[Any, Any]] = {
     "Role": {},
     "RoleBinding": {},
     "Secret": {},
-    "Service": {},
+    "Service": {"spec": {"clusterIP": False}},
     "ServiceAccount": {},
     "StatefulSet": {},
 }
@@ -85,18 +83,25 @@ def populate_schemas(schemas: Dict[str, Dict[str, Dict[Any, Any]]]) -> bool:
     # Iterate over all schemas and insert default values.
     for version, resource in schemas.items():
         for data in resource.values():
-            if "metadata" not in data:
-                data["metadata"] = {}
-            if "annotations" not in data["metadata"]:
-                data["metadata"]["annotations"] = {}
+            # Ensure that `metadata.annotations` exists.
+            data["metadata"] = data.get("metadata", {})
+            data["metadata"]["annotations"] = data["metadata"].get("annotations", {})
 
+            # We do not want to manage the status of a resource since K8s
+            # updates that whenever necessary with the latest values.
+            data["status"] = False
+
+            # Default resource tags that K8s manages itself. It would be
+            # dangerous to overwrite them.
             data["metadata"].update({
-                    "creationTimestamp": False,
-                    "resourceVersion": False,
-                    "selfLink": False,
-                    "uid": False,
+                "creationTimestamp": False,
+                "generation": False,
+                "resourceVersion": False,
+                "selfLink": False,
+                "uid": False,
             })
 
+            # Never touch the annotation of `kubectl`.
             data["metadata"]["annotations"].update(
                 {
                     "deployment.kubernetes.io/revision": False,
