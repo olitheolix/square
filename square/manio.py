@@ -608,12 +608,9 @@ def strip(
 
     # Verify the exclusion schema for the current resource and K8s version exist.
     try:
-        exclude = square.schemas.EXCLUSION_SCHEMA[config.version][manifest["kind"]]
+        exclude = square.schemas.EXCLUSION_SCHEMA[manifest["kind"]]
     except KeyError:
-        logit.error(
-            f"Unknown K8s version (<{config.version}>) "
-            f"or resource kind: <{kind}>"
-        )
+        logit.error(f"Unknown resource kind: <{kind}>")
         return ret_err
 
     # Sanity check the exclusion schema.
