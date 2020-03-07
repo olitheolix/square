@@ -52,6 +52,7 @@ EXCLUSION_SCHEMA: Dict[str, Dict[str, Dict[Any, Any]]] = {
     "1.9": schema_1_9,
     "1.10": schema_1_9,
     "1.11": schema_1_9,
+    "1.12": schema_1_9,
     "1.13": schema_1_9,
     "1.14": schema_1_9,
 }
