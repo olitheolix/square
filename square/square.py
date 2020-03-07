@@ -36,8 +36,8 @@ def make_patch(
     """
     # Reduce local and server manifests to salient fields (ie apiVersion, kind,
     # metadata and spec). Abort on error.
-    loc, err1 = manio.strip(config, local)
-    srv, err2 = manio.strip(config, server)
+    (loc, _), err1 = manio.strip(config, local)
+    (srv, _), err2 = manio.strip(config, server)
     if err1 or err2 or loc is None or srv is None:
         return (None, True)
 

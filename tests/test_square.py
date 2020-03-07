@@ -262,14 +262,6 @@ class TestPatchK8s:
             assert square.make_patch(config, loc, srv) == ((url, []), False)
 
             # Create two almost identical manifests, except the second one has
-            # the forbidden `metadata.namespace` attribute. This must fail.
-            loc = make_manifest(kind, None, name)
-            srv = copy.deepcopy(loc)
-            loc['metadata']['namespace'] = 'foo'
-            data, err = square.make_patch(config, loc, srv)
-            assert data is None and err is not None
-
-            # Create two almost identical manifests, except the second one has
             # different `metadata.labels`. This must succeed.
             loc = make_manifest(kind, None, name)
             srv = copy.deepcopy(loc)

@@ -506,8 +506,8 @@ def diff(
     """
     # Clean up the input manifests because we do not want to diff, for instance,
     # the `status` fields.
-    srv, err1 = strip(config, server)
-    loc, err2 = strip(config, local)
+    (srv, _), err1 = strip(config, server)
+    (loc, _), err2 = strip(config, local)
     if err1 or err2:
         return (None, True)
 
@@ -523,118 +523,108 @@ def diff(
     return (str.join("\n", diff_lines), False)
 
 
-def strip(config: K8sConfig, manifest: dict) -> Tuple[Optional[DotDict], bool]:
-    """Return stripped version of `manifest` with only the essential keys.
-
-    The "essential" keys for each supported resource type are defined in the
-    `schemas` module. In the context of `square`, essential keys are those that
-    specify a resource (eg "kind" or "metadata.name") but not derivative
-    information like "metadata.creationTimestamp" or "status".
+def strip(
+        config: K8sConfig,
+        manifest: dict
+        ) -> Tuple[Tuple[DotDict, dict], bool]:
+    """Strip `manifest` according to the exclusion filters in `square.schemas`.
 
     Inputs:
         config: K8sConfig
         manifest: dict
 
     Returns:
-        dict: subset of `manifest`.
+        dict: the removed keys.
 
     """
     assert config.version is not None
+
+    # Convenience: default return value if an error occurs.
+    ret_err: Tuple[Tuple[DotDict, dict], bool] = ((square.dotdict.make({}), {}), True)
 
     # Avoid side effects.
     manifest = copy.deepcopy(manifest)
 
     # Every manifest must specify its "apiVersion" and "kind".
     try:
-        kind = manifest["kind"]
-        version = manifest["apiVersion"]
+        kind = manifest["kind"].upper()
     except KeyError as err:
         logit.error(f"Manifest is missing the <{err.args[0]}> key.")
-        return (None, True)
+        return ret_err
 
     # Unpack the name and namespace to produce a convenient log message.
     # NOTE: we assume here that manifests may not have either.
-    name = manifest.get("metadata", {}).get("name", "unknown")
-    namespace = manifest.get("metadata", {}).get("namespace", "unknown")
-    man_id = f"{kind.upper()}: {namespace}/{name}"
-    del name, namespace
+    name = manifest.get("metadata", {}).get("name", None)
+    ns = manifest.get("metadata", {}).get("namespace", None)
 
-    def _update(schema, manifest, out):
-        """Recursively traverse the `schema` dict and add `manifest` keys into `out`.
+    # Abort if manifest lacks `metadata.name`.
+    if name is None:
+        logit.error("<metadata.name> must not be empty")
+        return ret_err
 
-        Incorporate the mandatory and optional keys.
+    # All but cluster level resources must have a `metadata.namespace` field.
+    cluster_level = {"NAMESPACE", "CLUSTERROLE", "CLUSTERROLEBINDING"}
+    if kind in cluster_level:
+        if ns is not None:
+            logit.error(f"<{kind}> must not have a <metadata.namespace> field.")
+            return ret_err
+    else:
+        if ns is None:
+            logit.error(f"<{kind}> must have <metadata.namespace> field.")
+            return ret_err
+    del name, ns
+
+    def _update(exclude: dict, manifest: dict):
+        """Recursively traverse the `manifest` and prune it according to `exclude`.
+
+        Returns dict with the excluded keys.
 
         Raise `KeyError` if an invalid key was found.
 
         """
-        # Iterate over every key/value pair of the schema and copy the
-        # mandatory and optional keys. Raise an error if we find a key in
-        # `manifest` that should not be there according to the schema.
-        for k, v in schema.items():
-            if v is True:
-                # This key must exist in `manifest` and will be included.
-                if k not in manifest:
-                    logit.error(f"{man_id} must have a <{k}> key")
-                    raise KeyError
-                out[k] = manifest[k]
-            elif v is False:
-                # This key must not exist in `manifest` and will be excluded.
-                if k in manifest:
-                    logit.error(f"{man_id} must not have a <{k}> key")
-                    raise KeyError
-            elif v is None:
-                # This key may exist in `manifest` and will be included in the
-                # output if it does.
-                if k in manifest:
-                    out[k] = manifest[k]
-            elif isinstance(v, dict):
-                # The schema does not specify {True, False, None} but contains
-                # another dict, which means we have to recurse into it.
+        # Iterate over the manifest. Prune all keys that match the exclusions
+        # schema and record them in `removed`.
+        removed = {}
+        for k, v in list(manifest.items()):
+            # Keep this manifest key because there is no exclusion filter for it.
+            if k not in exclude:
+                continue
 
-                # Create a new dict level in the output dict. We will populate
-                # it in when we recurse.
-                out[k] = {}
-
-                # Create a dummy dict in the input manifest if it lacks the
-                # key. This is a corner case where the schema specifies a key
-                # that contains only optional sub-keys. Since we do not know
-                # yet if they will all be optional, we create an empty dict so
-                # that the function can recurse.
-                if k not in manifest:
-                    manifest[k] = {}
-
-                # Traverse all dicts down by one level and repeat the process.
-                _update(schema[k], manifest[k], out[k])
-
-                # If all keys in `schema[k]` were optional then it is possible
-                # that `out[k]` will be empty. If so, delete it because we do
-                # not want to keep empty dicts around.
-                if out[k] == {}:
-                    del out[k]
+            if isinstance(exclude[k], dict):
+                # Recurse into the next dictionary and collect the removed keys.
+                removed[k] = _update(exclude[k], manifest[k])
             else:
-                logit.error(f"This is a bug: type(v) = <{type(v)}")
-                raise KeyError
+                # Remove the current key from the manifest.
+                # NOTE: the value of `exclude[k]` is irrelevant. All that
+                # matters is that it is a bool.
+                removed[k] = manifest.pop(k)
 
-    # Create preliminary output manifest.
-    stripped = {"apiVersion": version, "kind": kind}
+            # Remove the key altogether if it has become an empty dict.
+            if manifest.get(k, None) == {}:
+                del manifest[k]
 
-    # Verify the schema for the current resource and K8s version exist.
+        # Remove all empty sub-dictionaries from `removed`.
+        return {k: v for k, v in removed.items() if v != {}}
+
+    # Verify the exclusion schema for the current resource and K8s version exist.
     try:
-        schema = square.schemas.RESOURCE_SCHEMA[config.version][manifest["kind"]]
+        exclude = square.schemas.EXCLUSION_SCHEMA[config.version][manifest["kind"]]
     except KeyError:
         logit.error(
             f"Unknown K8s version (<{config.version}>) "
             f"or resource kind: <{kind}>"
         )
-        return (None, True)
+        return ret_err
+
+    # Sanity check the exclusion schema.
+    if not square.schemas._is_exclusion_sane(exclude):
+        logit.error("Exclusion schema is invalid")
+        return ret_err
 
     # Strip down the manifest to its essential parts and return it.
-    try:
-        _update(schema, manifest, stripped)
-    except KeyError:
-        return (None, True)
-    else:
-        return (square.dotdict.make(stripped), False)
+    manifest = copy.deepcopy(manifest)
+    removed = _update(exclude, manifest)
+    return ((square.dotdict.make(manifest), removed), False)
 
 
 def align_serviceaccount(
@@ -984,7 +974,7 @@ def download(
                 # The "if v[0] is not None" is to satisfy MyPy - we already
                 # know they are not None or otherwise the previous assert would
                 # have failed.
-                manifests = {k: v[0] for k, v in ret.items() if v[0] is not None}
+                manifests = {k: v[0][0] for k, v in ret.items() if v[0][0] is not None}
             except AssertionError:
                 # Return nothing, even if we had downloaded other kinds already.
                 return (None, True)
