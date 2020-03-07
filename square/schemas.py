@@ -26,7 +26,7 @@ from typing import Any, Dict, Union
 logit = logging.getLogger("square")
 
 
-schema_1_9: Dict[str, Dict[Any, Any]] = {
+EXCLUSION_SCHEMA: Dict[str, dict] = {
     "ClusterRole": {},
     "ClusterRoleBinding": {},
     "ConfigMap": {},
@@ -46,23 +46,13 @@ schema_1_9: Dict[str, Dict[Any, Any]] = {
 }
 
 
-EXCLUSION_SCHEMA: Dict[str, Dict[str, Dict[Any, Any]]] = {
-    "1.9": schema_1_9,
-    "1.10": schema_1_9,
-    "1.11": schema_1_9,
-    "1.12": schema_1_9,
-    "1.13": schema_1_9,
-    "1.14": schema_1_9,
-}
-
-
 def _is_exclusion_sane(schema: Dict[str, Union[dict, bool]]) -> bool:
     """Return `True` iff `schema` is valid."""
     # Iterate over all fields of all K8s resource type.
     for k, v in schema.items():
         assert isinstance(k, str)
 
-        # All schema can only contains dicts and boolean `False` values.
+        # All schemas must contain only dicts and boolean `False` values.
         if isinstance(v, dict):
             # Recursively check the dict to ensure it also only contains dicts
             # and boolean `False` values.
@@ -78,41 +68,40 @@ def _is_exclusion_sane(schema: Dict[str, Union[dict, bool]]) -> bool:
     return True
 
 
-def populate_schemas(schemas: Dict[str, Dict[str, Dict[Any, Any]]]) -> bool:
+def populate_schemas(schemas: Dict[str, Dict[Any, Any]]) -> bool:
     """Add default values to all exclusion schemas and validate them."""
     # Iterate over all schemas and insert default values.
-    for version, resource in schemas.items():
-        for data in resource.values():
-            # Ensure that `metadata.annotations` exists.
-            data["metadata"] = data.get("metadata", {})
-            data["metadata"]["annotations"] = data["metadata"].get("annotations", {})
+    for resource_kind, data in schemas.items():
+        # Ensure that `metadata.annotations` exists.
+        data["metadata"] = data.get("metadata", {})
+        data["metadata"]["annotations"] = data["metadata"].get("annotations", {})
 
-            # We do not want to manage the status of a resource since K8s
-            # updates that whenever necessary with the latest values.
-            data["status"] = False
+        # We do not want to manage the status of a resource since K8s
+        # updates that whenever necessary with the latest values.
+        data["status"] = False
 
-            # Default resource tags that K8s manages itself. It would be
-            # dangerous to overwrite them.
-            data["metadata"].update({
-                "creationTimestamp": False,
-                "generation": False,
-                "resourceVersion": False,
-                "selfLink": False,
-                "uid": False,
-            })
+        # Default resource tags that K8s manages itself. It would be
+        # dangerous to overwrite them.
+        data["metadata"].update({
+            "creationTimestamp": False,
+            "generation": False,
+            "resourceVersion": False,
+            "selfLink": False,
+            "uid": False,
+        })
 
-            # Never touch the annotation of `kubectl`.
-            data["metadata"]["annotations"].update(
-                {
-                    "deployment.kubernetes.io/revision": False,
-                    "kubectl.kubernetes.io/last-applied-configuration": False,
-                }
-            )
+        # Never touch the annotation of `kubectl`.
+        data["metadata"]["annotations"].update(
+            {
+                "deployment.kubernetes.io/revision": False,
+                "kubectl.kubernetes.io/last-applied-configuration": False,
+            }
+        )
 
-            # Ensure the exclusion schema is valid.
-            if not _is_exclusion_sane(data):
-                logit.error(f"ERROR - Exclusion schema {version} is invalid - abort")
-                return True
+        # Ensure the exclusion schema is valid.
+        if not _is_exclusion_sane(data):
+            logit.error(f"ERROR - Exclusion schema for <{resource_kind}> is invalid")
+            return True
     return False
 
 

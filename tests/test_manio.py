@@ -6,10 +6,9 @@ import unittest.mock as mock
 import square.dotdict as dotdict
 import square.k8s as k8s
 import square.manio as manio
-import square.schemas as schemas
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Filepath, GroupBy, K8sConfig,
+    SUPPORTED_KINDS, Filepath, GroupBy, K8sConfig,
     MetaManifest, RESOURCE_ALIASES, Selectors,
 )
 from square.k8s import urlpath
@@ -639,39 +638,6 @@ class TestYamlManifestIO:
 
 
 class TestManifestValidation:
-    def test_schemas(self):
-        """There must be schemas for all supported versions and kinds.
-
-        Furthermore, the schema for each K8s version and resource kind must
-        contain only {dict, True, False, None} values.
-
-        """
-        def is_sane(schema: dict):
-            """Return True if all keys/values are valid."""
-            for k, v in schema.items():
-                # Field name (eg "metadata") must be a non-zero string.
-                assert isinstance(k, str)
-                assert len(k) > 0
-
-                # The value must either be a dict or specify whether the key is
-                # mandatory (True), forbidden (False) or optional (None).
-                if isinstance(v, dict):
-                    # Recursively check dicts.
-                    is_sane(v)
-                else:
-                    assert v in {True, False, None}
-
-            # Looks good.
-            return True
-
-        # Check that schemas for all kinds and versions exist and that their
-        # definitions at least look valid.
-        for version in SUPPORTED_VERSIONS:
-            assert version in schemas.EXCLUSION_SCHEMA
-            for kind in SUPPORTED_KINDS:
-                assert kind in schemas.EXCLUSION_SCHEMA[version]
-                assert is_sane(schemas.EXCLUSION_SCHEMA[version][kind])
-
     def test_strip_generic(self):
         """Create a complete fake schema to test all options.
 
@@ -679,10 +645,9 @@ class TestManifestValidation:
         is to validate the algorithm that strips the manifests.
 
         """
-        version = "1.10"
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", version, "")
+        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
 
-        # Define exclusions for test:
+        # Define exclusion schema for this test.
         exclude = {
             "invalid": False,
             "metadata": {
@@ -694,8 +659,7 @@ class TestManifestValidation:
             },
             "status": False,
         }
-        schema = {version: {"TEST": exclude}}
-        with mock.patch("square.schemas.EXCLUSION_SCHEMA", schema):
+        with mock.patch("square.schemas.EXCLUSION_SCHEMA", {"TEST": exclude}):
             # Demo manifest. None of its keys matches the exclusion schema.
             manifest = {
                 "apiVersion": "v1",
