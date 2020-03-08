@@ -19,7 +19,6 @@ if the field is not mandatory but should be included.
 
 """
 import logging
-
 from typing import Any, Dict, Union
 
 # Convenience.

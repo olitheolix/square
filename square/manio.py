@@ -3,9 +3,7 @@ import copy
 import difflib
 import logging
 import pathlib
-from typing import (
-    DefaultDict, Dict, Iterable, List, Optional, Tuple,
-)
+from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple
 
 import square.dotdict
 import square.k8s
