@@ -1,21 +1,9 @@
-"""Define the structure of the stripped manifest schema.
+"""Define which manifest fields to exclude from diffs and patches.
 
-A stripped manifest is a sub-set of a normal manifest. The remaining keys
-capture the salient information about the resource.
-
-For instance, almost all manifest can have a "status" field. Albeit useful for
-diagnostics, it makes no sense to compute diffs of "status" fields and submit
-them in patches.
-
-# Schema Conventions
-Schemas are normal dictionaries without a depth limit.  All keys correspond to
-a K8s manifest key. All value must be either dicts themselves, a bool to
-specify whether the fields must be included in the stripped manifest, or None
-if the field is not mandatory but should be included.
-
-* True: field will be included. It is an error if the input manifest lacks it.
-* False: field will not be included. It is an error if the input manifest has it.
-* None: field will be included if the input manifest has it, and ignored otherwise.
+For instance, almost all manifests can have a "status" field that K8s will
+populate and update as necessary. It does not make sense for Square to compute
+diffs on that field or patch them. Therefore, we add it to the exclusion filter
+defined here.
 
 """
 import logging
