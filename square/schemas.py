@@ -29,11 +29,21 @@ logit = logging.getLogger("square")
 EXCLUSION_SCHEMA: Dict[str, dict] = {
     "ClusterRole": {},
     "ClusterRoleBinding": {},
-    "ConfigMap": {},
+    "ConfigMap": {
+        "metadata": {"annotations": {
+            "control-plane.alpha.kubernetes.io/leader": False,
+        }}
+    },
     "CronJob": {},
     "DaemonSet": {},
     "Deployment": {},
-    "HorizontalPodAutoscaler": {},
+    "HorizontalPodAutoscaler": {
+        "metadata": {"annotations": {
+            "control-plane.alpha.kubernetes.io/leader": False,
+            "autoscaling.alpha.kubernetes.io/conditions": False,
+            "autoscaling.alpha.kubernetes.io/current-metrics": False,
+        }}
+    },
     "Ingress": {},
     "Namespace": {},
     "PersistentVolumeClaim": {},
