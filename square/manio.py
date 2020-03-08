@@ -611,11 +611,6 @@ def strip(
         logit.error(f"Unknown resource kind: <{kind}>")
         return ret_err
 
-    # Sanity check the exclusion schema.
-    if not square.schemas._is_exclusion_sane(exclude):
-        logit.error("Exclusion schema is invalid")
-        return ret_err
-
     # Strip down the manifest to its essential parts and return it.
     manifest = copy.deepcopy(manifest)
     removed = _update(exclude, manifest)
