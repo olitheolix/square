@@ -37,7 +37,7 @@ EXCLUSION_SCHEMA: Dict[str, dict] = {
     "Role": {},
     "RoleBinding": {},
     "Secret": {},
-    "Service": {"spec": {"clusterIP": False}},
+    "Service": {"spec": {"clusterIP": False, "sessionAffinity": False}},
     "ServiceAccount": {},
     "StatefulSet": {},
 }
@@ -92,6 +92,7 @@ def populate_schemas(schemas: Dict[str, Dict[Any, Any]]) -> bool:
             {
                 "deployment.kubernetes.io/revision": False,
                 "kubectl.kubernetes.io/last-applied-configuration": False,
+                "kubernetes.io/change-cause": False,
             }
         )
 
