@@ -21,6 +21,7 @@ class DotDict(dict):
     returns the `items` *method* of the underlying `dict`, not `dd["items"]`.
 
     """
+
     def __getattr__(self, key):
         return self[key]
 

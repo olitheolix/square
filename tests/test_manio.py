@@ -8,8 +8,8 @@ import square.k8s as k8s
 import square.manio as manio
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, Filepath, GroupBy, K8sConfig,
-    MetaManifest, RESOURCE_ALIASES, Selectors,
+    NON_NAMESPACED_KINDS, RESOURCE_ALIASES, SUPPORTED_KINDS, Filepath, GroupBy,
+    K8sConfig, MetaManifest, Selectors,
 )
 from square.k8s import urlpath
 
@@ -796,7 +796,7 @@ class TestManifestValidation:
                 "kind": kind,
                 "metadata": {"name": "mandatory"},
             }
-            if kind in {"Namespace", "ClusterRole", "ClusterRoleBinding"}:
+            if kind in NON_NAMESPACED_KINDS:
                 manifest["metadata"]["namespace"] = "not-allowed"
             assert manio.strip(config, manifest) == (({}, {}), True)
 

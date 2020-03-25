@@ -11,8 +11,9 @@ import square.schemas
 import yaml
 import yaml.scanner
 from square.dtypes import (
-    SUPPORTED_KINDS, Filepath, GroupBy, K8sConfig, LocalManifestLists,
-    LocalManifests, MetaManifest, Selectors, ServerManifests,
+    NON_NAMESPACED_KINDS, SUPPORTED_KINDS, Filepath, GroupBy, K8sConfig,
+    LocalManifestLists, LocalManifests, MetaManifest, Selectors,
+    ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -75,9 +76,8 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     # `default` service account. K8s automatically creates them in every new
     # namespace. We can thus never "restore" them with Square because the plan
     # says to create them yet once Square created the namespace they also
-    # already exist and can only be patched. As a result, Square will abort
-    # unexpectedly because they already exist even though the plan said to
-    # create them.
+    # already exist and can only be patched. As a result, Square would abort
+    # unexpectedly.
     if kind == "Namespace":
         ns = manifest.get("metadata", {}).get("name", None)
     elif kind == "Secret":
@@ -545,7 +545,7 @@ def strip(
 
     # Every manifest must specify its "apiVersion" and "kind".
     try:
-        kind = manifest["kind"].upper()
+        kind = manifest["kind"]
     except KeyError as err:
         logit.error(f"Manifest is missing the <{err.args[0]}> key.")
         return ret_err
@@ -561,8 +561,7 @@ def strip(
         return ret_err
 
     # All but cluster level resources must have a `metadata.namespace` field.
-    cluster_level = {"NAMESPACE", "CLUSTERROLE", "CLUSTERROLEBINDING"}
-    if kind in cluster_level:
+    if kind in NON_NAMESPACED_KINDS:
         if ns is not None:
             logit.error(f"<{kind}> must not have a <metadata.namespace> field.")
             return ret_err

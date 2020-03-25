@@ -9,9 +9,9 @@ import square.manio as manio
 import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
-    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    DeploymentPlanMeta, Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest,
-    Selectors, ServerManifests,
+    NON_NAMESPACED_KINDS, SUPPORTED_KINDS, DeltaCreate, DeltaDelete,
+    DeltaPatch, DeploymentPlan, DeploymentPlanMeta, Filepath, GroupBy,
+    JsonPatch, K8sConfig, MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -55,7 +55,7 @@ def make_patch(
         # ClusterRoles, ClusterRoleBindings. Here we ensure that the namespace
         # in the local and server manifest matches for those resources that
         # have a namespace.
-        if srv.kind in {"Namespace", "ClusterRole", "ClusterRoleBinding"}:
+        if srv.kind.lower() in {_.lower() for _ in NON_NAMESPACED_KINDS}:
             namespace = None
         else:
             assert srv.metadata.namespace == loc.metadata.namespace

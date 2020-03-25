@@ -8,7 +8,9 @@ import pytest
 import requests_mock
 import square.k8s as k8s
 import yaml
-from square.dtypes import SUPPORTED_KINDS, SUPPORTED_VERSIONS, K8sConfig
+from square.dtypes import (
+    NON_NAMESPACED_KINDS, SUPPORTED_KINDS, SUPPORTED_VERSIONS, K8sConfig,
+)
 
 
 @pytest.fixture
@@ -268,6 +270,9 @@ class TestUrlPathBuilder:
             "CronJob", "Deployment", "DaemonSet", "StatefulSet",
             "HorizontalPodAutoscaler", "Ingress",
         )
+
+        # The cluster level resources must be sub-set of all supported resource kinds.
+        assert NON_NAMESPACED_KINDS.issubset(SUPPORTED_KINDS)
 
     def test_urlpath_ok(self):
         """Must work for all supported K8s versions and resources."""
