@@ -7,7 +7,7 @@ import re
 import subprocess
 import tempfile
 import warnings
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import google.auth
 import google.auth.transport.requests
@@ -670,3 +670,46 @@ def version(config: K8sConfig, client) -> Tuple[Optional[K8sConfig], bool]:
     # Return an updated `Config` tuple.
     config = config._replace(version=version)
     return (config, False)
+
+
+def cluster_config(
+        kubeconfig: Filepath,
+        context: Optional[str]) -> Tuple[Tuple[Optional[K8sConfig], Any], bool]:
+    """Return web session to K8s API.
+
+    This will read the Kubernetes credentials, contact Kubernetes to
+    interrogate its version and then return the configuration and web-session.
+
+    Inputs:
+        kubeconfig: str
+            Path to kubeconfig file.
+        kube_context: str
+            Kubernetes context to use (can be `None` to use default).
+
+    Returns:
+        Config, client
+
+    """
+    # Read Kubeconfig file and use it to create a `requests` client session.
+    # That session will have the proper security certificates and headers so
+    # that subsequent calls to K8s need not deal with it anymore.
+    kubeconfig = kubeconfig.expanduser()
+    try:
+        # Parse Kubeconfig file.
+        config = load_auto_config(kubeconfig, context, disable_warnings=True)
+        assert config
+
+        # Configure web session.
+        client = session(config)
+        assert client
+
+        # Contact the K8s API to update version field in `config`.
+        config, err = version(config, client)
+        assert not err and config
+    except AssertionError:
+        return ((None, None), True)
+
+    # Log the K8s API address and version.
+    logit.info(f"Kubernetes server at {config.url}")
+    logit.info(f"Kubernetes version is {config.version}")
+    return (config, client), False

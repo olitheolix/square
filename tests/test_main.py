@@ -4,6 +4,7 @@ import types
 import unittest.mock as mock
 
 import pytest
+import square.k8s as k8s
 import square.main as main
 import square.manio as manio
 import square.square as square
@@ -214,7 +215,7 @@ class TestMain:
                 assert main.main() == 1
 
     @mock.patch.object(main, "parse_commandline_args")
-    @mock.patch.object(square, "cluster_config")
+    @mock.patch.object(k8s, "cluster_config")
     def test_main_invalid_option_in_main(self, m_cluster, m_cmd):
         """Simulate an option that `square` does not know about.
 
@@ -241,7 +242,7 @@ class TestMain:
     def test_main_version_error(self, m_k8s):
         """Program must abort if it cannot get the version from K8s."""
         # Mock all calls to the K8s API.
-        m_k8s.version.return_value = (None, True)
+        m_k8s.cluster_config.return_value = ((None, None), True)
 
         with mock.patch("sys.argv", ["square.py", "get", "deploy"]):
             assert main.main() == 1
