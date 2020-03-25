@@ -10,6 +10,9 @@ SUPPORTED_KINDS = (
     # within them.
     "Namespace",
 
+    # Custom Resources
+    "CustomResourceDefinition",
+
     # Configuration and PVC before Deployments & friends use them.
     "ConfigMap", "Secret", "PersistentVolumeClaim",
 
@@ -36,6 +39,7 @@ RESOURCE_ALIASES = {
     "ClusterRoleBinding": {"clusterrolebinding", "clusterrolebindings"},
     "ConfigMap": {"configmap", "cm"},
     "CronJob": {"cronjob", "cj"},
+    "CustomResourceDefinition": {"crd", "customresourcedefinitions"},
     "DaemonSet": {"daemonset", "daemonsets", "ds"},
     "Deployment": {"deployment", "deployments", "deploy"},
     "HorizontalPodAutoscaler": {"hpa"},

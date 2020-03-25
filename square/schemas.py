@@ -16,6 +16,7 @@ logit = logging.getLogger("square")
 EXCLUSION_SCHEMA: Dict[str, dict] = {
     "ClusterRole": {},
     "ClusterRoleBinding": {},
+    "CustomResourceDefinition": {},
     "ConfigMap": {
         "metadata": {"annotations": {
             "control-plane.alpha.kubernetes.io/leader": False,
