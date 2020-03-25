@@ -460,7 +460,7 @@ def filename_for_manifest(
     # assemble the full manifest path.
     lut = {
         # Get the namespace. Use "_global_" if the resource's namespace is
-        # None, which it will be for global resources like ClusterRole and
+        # `None`, which it will be for global resources like ClusterRole and
         # ClusterRoleBinding.
         "ns": meta.namespace or "_global_",
         "kind": meta.kind.lower(),

@@ -262,10 +262,11 @@ class TestUrlPathBuilder:
         """
         assert SUPPORTED_VERSIONS == ("1.9", "1.10", "1.11", "1.12", "1.13", "1.14")
         assert SUPPORTED_KINDS == (
-            "Namespace", "ConfigMap", "Secret", "PersistentVolumeClaim",
-            "ClusterRole", "ClusterRoleBinding", "Role", "RoleBinding", "ServiceAccount",
-            "Service", "PodDisruptionBudget", "CronJob", "Deployment", "DaemonSet",
-            "StatefulSet", "HorizontalPodAutoscaler", "Ingress",
+            "Namespace", "CustomResourceDefinition", "ConfigMap", "Secret",
+            "PersistentVolumeClaim", "ClusterRole", "ClusterRoleBinding", "Role",
+            "RoleBinding", "ServiceAccount", "Service", "PodDisruptionBudget",
+            "CronJob", "Deployment", "DaemonSet", "StatefulSet",
+            "HorizontalPodAutoscaler", "Ingress",
         )
 
     def test_urlpath_ok(self):
