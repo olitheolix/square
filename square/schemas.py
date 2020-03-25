@@ -34,6 +34,7 @@ EXCLUSION_SCHEMA: Dict[str, dict] = {
     "Ingress": {},
     "Namespace": {},
     "PersistentVolumeClaim": {},
+    "PodDisruptionBudget": {},
     "Role": {},
     "RoleBinding": {},
     "Secret": {},

@@ -264,8 +264,8 @@ class TestUrlPathBuilder:
         assert SUPPORTED_KINDS == (
             "Namespace", "ConfigMap", "Secret", "PersistentVolumeClaim",
             "ClusterRole", "ClusterRoleBinding", "Role", "RoleBinding", "ServiceAccount",
-            "Service", "CronJob", "Deployment", "DaemonSet", "StatefulSet",
-            "HorizontalPodAutoscaler", "Ingress",
+            "Service", "PodDisruptionBudget", "CronJob", "Deployment", "DaemonSet",
+            "StatefulSet", "HorizontalPodAutoscaler", "Ingress",
         )
 
     def test_urlpath_ok(self):
