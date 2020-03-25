@@ -198,7 +198,7 @@ class TestPatchK8s:
         kind, ns, name = 'Deployment', 'ns', 'foo'
 
         # PATCH URLs require the resource name at the end of the request path.
-        url = urlpath(k8sconfig, kind, ns)[0] + f'/{name}'
+        url = urlpath(k8sconfig, kind, ns)[0].url + f'/{name}'
 
         # The patch must be empty for identical manifests.
         loc = srv = make_manifest(kind, ns, name)
@@ -251,7 +251,7 @@ class TestPatchK8s:
 
         for kind in ["Namespace", "ClusterRole"]:
             # Determine the resource path so we can verify it later.
-            url = urlpath(config, kind, None)[0] + f'/{name}'
+            url = urlpath(config, kind, None)[0].url + f'/{name}'
 
             # The patch between two identical manifests must be empty but valid.
             loc = srv = make_manifest(kind, None, name)
@@ -299,7 +299,7 @@ class TestPlan:
 
         # The Patch between two identical manifests must be a No-Op.
         expected = JsonPatch(
-            url=urlpath(k8sconfig, kind, namespace)[0] + f"/{name}",
+            url=urlpath(k8sconfig, kind, namespace)[0].url + f"/{name}",
             ops=[],
         )
         assert square.make_patch(k8sconfig, loc, loc) == (expected, False)
@@ -307,7 +307,7 @@ class TestPlan:
         # The patch between `srv` and `loc` must remove the old label and add
         # the new one.
         expected = JsonPatch(
-            url=urlpath(k8sconfig, kind, namespace)[0] + f"/{name}",
+            url=urlpath(k8sconfig, kind, namespace)[0].url + f"/{name}",
             ops=[
                 {'op': 'remove', 'path': '/metadata/labels/old'},
                 {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'}
@@ -349,6 +349,9 @@ class TestPlan:
         be created, all server resources deleted, and none patched.
 
         """
+        config = k8sconfig
+        del k8sconfig
+
         # Allocate arrays for the MetaManifests and resource URLs.
         meta = [None] * 5
         url = [None] * 5
@@ -364,8 +367,8 @@ class TestPlan:
 
         # Determine the K8s resource urls for those that will be added.
         upb = urlpath
-        url[0] = upb(k8sconfig, meta[0].kind, meta[0].namespace)[0]
-        url[1] = upb(k8sconfig, meta[1].kind, meta[1].namespace)[0]
+        url[0] = upb(config, meta[0].kind, meta[0].namespace)[0].url
+        url[1] = upb(config, meta[1].kind, meta[1].namespace)[0].url
 
         # Determine the K8s resource URLs for those that will be deleted. They
         # are slightly different because DELETE requests expect a URL path that
@@ -373,9 +376,9 @@ class TestPlan:
         # "/api/v1/namespaces/ns2"
         # instead of
         # "/api/v1/namespaces".
-        url[2] = upb(k8sconfig, meta[2].kind, meta[2].namespace)[0] + "/" + meta[2].name
-        url[3] = upb(k8sconfig, meta[3].kind, meta[3].namespace)[0] + "/" + meta[3].name
-        url[4] = upb(k8sconfig, meta[4].kind, meta[4].namespace)[0] + "/" + meta[4].name
+        url[2] = upb(config, meta[2].kind, meta[2].namespace)[0].url + "/" + meta[2].name
+        url[3] = upb(config, meta[3].kind, meta[3].namespace)[0].url + "/" + meta[3].name
+        url[4] = upb(config, meta[4].kind, meta[4].namespace)[0].url + "/" + meta[4].name
 
         # Compile local and server manifests that have no resource overlap.
         # This will ensure that we have to create all the local resources,
@@ -406,7 +409,7 @@ class TestPlan:
                 DeltaDelete(meta[4], url[4], del_opts),
             ],
         )
-        assert square.compile_plan(k8sconfig, loc_man, srv_man) == (expected, False)
+        assert square.compile_plan(config, loc_man, srv_man) == (expected, False)
 
     @mock.patch.object(square, "partition_manifests")
     def test_compile_plan_create_delete_err(self, m_part, k8sconfig):

@@ -30,11 +30,6 @@ SUPPORTED_KINDS = (
 )
 
 
-# These resource exist outside of namespaces.
-NON_NAMESPACED_KINDS = {
-    "Namespace", "ClusterRole", "ClusterRoleBinding", "CustomResourceDefinition"
-}
-
 # Declare aliases for each resource type. Will be used in command line parsing
 # to save the user some typing and match what `kubectl` would accept. We do not
 # need to worry about capitalisation because `square.parse_commandline_args`

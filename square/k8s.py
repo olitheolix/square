@@ -448,7 +448,7 @@ def session(config: K8sConfig):
 def urlpath(
         config: K8sConfig,
         kind: str,
-        namespace: Optional[str]) -> Tuple[str, bool]:
+        namespace: Optional[str]) -> Tuple[K8sResource, bool]:
     """Return complete URL to K8s resource.
 
     Inputs:
@@ -470,7 +470,7 @@ def urlpath(
         match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", namespace)
         if match is None or match.group() != namespace:
             logit.error(f"Invalid namespace name <{namespace}>.")
-            return ("", True)
+            return (K8sResource("", "", "", False, ""), True)
 
         namespace = f"namespaces/{namespace}/"
 
@@ -529,13 +529,19 @@ def urlpath(
         path = resources[config.version][kind]
     except KeyError:
         logit.error(f"Unsupported resource <{kind}>.")
-        return ("", True)
+        return (K8sResource("", "", "", False, ""), True)
 
     path = path.replace("//", "/")
     assert not path.startswith("/"), path
+    path = f"{config.url}/{path}"
 
-    # Return the complete resource URL.
-    return (f"{config.url}/{path}", False)
+    # These resource exist outside of namespaces.
+    NON_NAMESPACED_KINDS = {
+        "Namespace", "ClusterRole", "ClusterRoleBinding", "CustomResourceDefinition"
+    }
+
+    ret = K8sResource("", kind, kind.lower(), kind not in NON_NAMESPACED_KINDS, path)
+    return ret, False
 
 
 def request(

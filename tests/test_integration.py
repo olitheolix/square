@@ -105,6 +105,20 @@ class TestEndpoints:
             url=f"{config.url}/apis/mycrd.com/v1/democrds",
         )
 
+    def test_urlpath(self):
+        """Must work for all supported K8s versions and resources."""
+        square.square.setup_logging(1)
+        kubeconfig = Filepath("/tmp/kubeconfig-kind.yaml")
+
+        (config, client), err = square.k8s.cluster_config(kubeconfig, None)
+        assert not err and config and client
+        import square.k8s as k8s
+
+        for kind in SUPPORTED_KINDS:
+            for ns in (None, "foo-namespace"):
+                resource, err = k8s.urlpath(config, kind, ns)
+                assert err is False and isinstance(resource, K8sResource)
+
 
 @pytest.mark.skipif(not kind_available(), reason="No Minikube")
 class TestMainGet:
