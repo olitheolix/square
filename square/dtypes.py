@@ -17,7 +17,7 @@ SUPPORTED_KINDS = (
     "ClusterRole", "ClusterRoleBinding", "Role", "RoleBinding", "ServiceAccount",
 
     # Define Services before creating Deployments & friends.
-    "Service",
+    "Service", "PodDisruptionBudget",
 
     # Everything that will spawn pods.
     "CronJob", "Deployment", "DaemonSet", "StatefulSet", "HorizontalPodAutoscaler",
@@ -42,6 +42,7 @@ RESOURCE_ALIASES = {
     "Ingress": {"ingress", "ingresses", "ing"},
     "Namespace": {"namespace", "namespaces", "ns"},
     "PersistentVolumeClaim": {"persistentVolumeClaim", "persistentvolumeclaims", "pvc"},
+    "PodDisruptionBudget": {"poddisruptionbudget", "pdb"},
     "Role": {"role", "roles"},
     "RoleBinding": {"rolebinding", "rolebindings"},
     "Secret": {"secret", "secrets"},

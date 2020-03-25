@@ -265,3 +265,16 @@ spec:
   resources:
     requests:
       storage: 10Mi
+
+---
+
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: demoapp-1
+  namespace: square-tests-1
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      name: demoapp-1

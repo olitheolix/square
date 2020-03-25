@@ -501,6 +501,7 @@ def urlpath(
             "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
             "Namespace": f"api/v1/namespaces",
             "PersistentVolumeClaim": f"api/v1/{namespace}/persistentvolumeclaims",
+            "PodDisruptionBudget": f"apis/policy/v1beta1/{namespace}/poddisruptionbudgets",  # NOQA
             "Role": f"apis/rbac.authorization.k8s.io/v1/{namespace}/roles",
             "RoleBinding": f"apis/rbac.authorization.k8s.io/v1/{namespace}/rolebindings",
             "Secret": f"api/v1/{namespace}/secrets",
@@ -519,6 +520,7 @@ def urlpath(
             "Ingress": f"apis/extensions/v1beta1/{namespace}/ingresses",
             "Namespace": f"api/v1/namespaces",
             "PersistentVolumeClaim": f"api/v1/{namespace}/persistentvolumeclaims",
+            "PodDisruptionBudget": f"apis/policy/v1beta1/{namespace}/poddisruptionbudgets",  # NOQA
             "Role": f"apis/rbac.authorization.k8s.io/v1/{namespace}/roles",
             "RoleBinding": f"apis/rbac.authorization.k8s.io/v1/{namespace}/rolebindings",
             "Secret": f"api/v1/{namespace}/secrets",
@@ -538,7 +540,7 @@ def urlpath(
     # slipped in when no namespace was supplied, eg "/api/v1//configmaps").
     path = resources[config.version][kind]
     path = path.replace("//", "/")
-    assert not path.startswith("/")
+    assert not path.startswith("/"), path
 
     # Return the complete resource URL.
     return (f"{config.url}/{path}", False)
