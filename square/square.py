@@ -9,9 +9,9 @@ import square.manio as manio
 import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
-    NON_NAMESPACED_KINDS, SUPPORTED_KINDS, DeltaCreate, DeltaDelete,
-    DeltaPatch, DeploymentPlan, DeploymentPlanMeta, Filepath, GroupBy,
-    JsonPatch, K8sConfig, MetaManifest, Selectors, ServerManifests,
+    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+    DeploymentPlanMeta, Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest,
+    Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -55,11 +55,13 @@ def make_patch(
         # ClusterRoles, ClusterRoleBindings. Here we ensure that the namespace
         # in the local and server manifest matches for those resources that
         # have a namespace.
-        if srv.kind.lower() in {_.lower() for _ in NON_NAMESPACED_KINDS}:
-            namespace = None
-        else:
+        resource, err = k8s.urlpath(config, srv.kind, None)
+        assert not err
+        if resource.namespaced:
             assert srv.metadata.namespace == loc.metadata.namespace
             namespace = srv.metadata.namespace
+        else:
+            namespace = None
     except AssertionError:
         # Log the invalid manifests and return with an error.
         keys = ("apiVersion", "kind", "metadata")
@@ -72,10 +74,10 @@ def make_patch(
         return (None, True)
 
     # Determine the PATCH URL for the resource.
-    url, err = k8s.urlpath(config, srv.kind, namespace)
+    resource, err = k8s.urlpath(config, srv.kind, namespace)
     if err:
         return (None, True)
-    full_url = f'{url}/{srv.metadata.name}'
+    full_url = f'{resource.url}/{srv.metadata.name}'
 
     # Compute JSON patch.
     patch = jsonpatch.make_patch(srv, loc)
@@ -162,10 +164,10 @@ def compile_plan(
     # Compile the Deltas to create the missing resources.
     create = []
     for delta in plan.create:
-        url, err = k8s.urlpath(config, delta.kind, namespace=delta.namespace)
-        if err or not url:
+        resource, err = k8s.urlpath(config, delta.kind, namespace=delta.namespace)
+        if err or not resource:
             return (None, True)
-        create.append(DeltaCreate(delta, url, local[delta]))
+        create.append(DeltaCreate(delta, resource.url, local[delta]))
 
     # Compile the Deltas to delete the excess resources. Every DELETE request
     # will have to pass along a `DeleteOptions` manifest (see below).
@@ -178,12 +180,12 @@ def compile_plan(
     delete = []
     for meta in plan.delete:
         # Resource URL.
-        url, err = k8s.urlpath(config, meta.kind, namespace=meta.namespace)
-        if err or not url:
+        resource, err = k8s.urlpath(config, meta.kind, namespace=meta.namespace)
+        if err or not resource:
             return (None, True)
 
         # DELETE requests must specify the resource name in the path.
-        url = f"{url}/{meta.name}"
+        url = f"{resource.url}/{meta.name}"
 
         # Compile the Delta and add it to the list.
         delete.append(DeltaDelete(meta, url, del_opts.copy()))

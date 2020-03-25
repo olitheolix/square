@@ -11,9 +11,8 @@ import square.schemas
 import yaml
 import yaml.scanner
 from square.dtypes import (
-    NON_NAMESPACED_KINDS, SUPPORTED_KINDS, Filepath, GroupBy, K8sConfig,
-    LocalManifestLists, LocalManifests, MetaManifest, Selectors,
-    ServerManifests,
+    SUPPORTED_KINDS, Filepath, GroupBy, K8sConfig, LocalManifestLists,
+    LocalManifests, MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -541,25 +540,25 @@ def strip(
     # Convenience: default return value if an error occurs.
     ret_err: Tuple[Tuple[DotDict, dict], bool] = ((square.dotdict.make({}), {}), True)
 
-    # Avoid side effects.
-    manifest = copy.deepcopy(manifest)
-
     # Parse the manifest.
     try:
         meta = make_meta(manifest)
-    except KeyError as err:
-        logit.error(f"Manifest is missing the <{err.args[0]}> key.")
+    except KeyError as e:
+        logit.error(f"Manifest is missing the <{e.args[0]}> key.")
         return ret_err
 
     # Sanity check: namespaced resources must have a namespace. None-namespaced
-    # ones must not.
-    if meta.kind in NON_NAMESPACED_KINDS:
-        if meta.namespace is not None:
-            logit.error(f"<{meta.kind}> must not have a <metadata.namespace> field.")
-            return ret_err
-    else:
+    # resources must not.
+    resource, err = square.k8s.urlpath(config, meta.kind, None)
+    if err:
+        return ret_err
+    if resource.namespaced:
         if meta.namespace is None:
             logit.error(f"<{meta.kind}> must have <metadata.namespace> field.")
+            return ret_err
+    else:
+        if meta.namespace is not None:
+            logit.error(f"<{meta.kind}> must not have a <metadata.namespace> field.")
             return ret_err
 
     def _update(exclude: dict, manifest: dict):
@@ -931,11 +930,11 @@ def download(
         for kind in selectors.kinds:
             try:
                 # Get the K8s URL for the current resource kind.
-                url, err = square.k8s.urlpath(config, kind, namespace)
-                assert not err and url is not None
+                resource, err = square.k8s.urlpath(config, kind, namespace)
+                assert not err and resource is not None
 
                 # Download the resource list from K8s.
-                manifest_list, err = square.k8s.get(client, url)
+                manifest_list, err = square.k8s.get(client, resource.url)
                 assert not err and manifest_list is not None
 
                 # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a

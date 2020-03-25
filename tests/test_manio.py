@@ -8,8 +8,8 @@ import square.k8s as k8s
 import square.manio as manio
 import yaml
 from square.dtypes import (
-    NON_NAMESPACED_KINDS, RESOURCE_ALIASES, SUPPORTED_KINDS, Filepath, GroupBy,
-    MetaManifest, Selectors,
+    RESOURCE_ALIASES, SUPPORTED_KINDS, Filepath, GroupBy, MetaManifest,
+    Selectors,
 )
 from square.k8s import urlpath
 
@@ -793,8 +793,7 @@ class TestManifestValidation:
                     "namespace": "maybe",
                 },
             }
-            if kind not in NON_NAMESPACED_KINDS:
-                manifest["metadata"]["namespace"] = "not-allowed"
+            if k8s.urlpath(k8sconfig, kind, None)[0].namespaced:
                 del manifest["metadata"]["namespace"]
             assert manio.strip(k8sconfig, manifest) == (({}, {}), True)
 
@@ -1733,8 +1732,8 @@ class TestDownloadManifests:
         )
         assert ret == (expected, False)
         assert m_get.call_args_list == [
-            mock.call("client", url_ns),
-            mock.call("client", url_deploy),
+            mock.call("client", url_ns.url),
+            mock.call("client", url_deploy.url),
         ]
 
         # ------------------------------------------------------------------------------
@@ -1761,10 +1760,10 @@ class TestDownloadManifests:
             Selectors(["Namespace", "Deployment"], ["ns0", "ns1"], None)
         )
         assert m_get.call_args_list == [
-            mock.call("client", url_ns_0),
-            mock.call("client", url_dply_0),
-            mock.call("client", url_ns_1),
-            mock.call("client", url_dply_1),
+            mock.call("client", url_ns_0.url),
+            mock.call("client", url_dply_0.url),
+            mock.call("client", url_ns_1.url),
+            mock.call("client", url_dply_1.url),
         ]
 
         # ----------------------------------------------------------------------
@@ -1787,8 +1786,8 @@ class TestDownloadManifests:
             Selectors(["Namespace", "Deployment"], ["ns0"], None)
         )
         assert m_get.call_args_list == [
-            mock.call("client", url_ns_0),
-            mock.call("client", url_dply_0),
+            mock.call("client", url_ns_0.url),
+            mock.call("client", url_dply_0.url),
         ]
 
     @mock.patch.object(k8s, 'get')
@@ -1817,6 +1816,6 @@ class TestDownloadManifests:
         )
         assert ret == (None, True)
         assert m_get.call_args_list == [
-            mock.call("client", url_ns),
-            mock.call("client", url_deploy),
+            mock.call("client", url_ns.url),
+            mock.call("client", url_deploy.url),
         ]
