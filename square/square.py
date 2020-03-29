@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Iterable, Optional, Set, Tuple
+from typing import Iterable, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
