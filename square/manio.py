@@ -939,11 +939,11 @@ def download(
     for namespace in all_namespaces:
         for kind in selectors.kinds:
             try:
-                # Get the HTTP URL for the resource request.
+                # Get the K8s URL for the current resource kind.
                 url, err = square.k8s.urlpath(config, kind, namespace)
                 assert not err and url is not None
 
-                # Make HTTP request.
+                # Download the resource list from K8s.
                 manifest_list, err = square.k8s.get(client, url)
                 assert not err and manifest_list is not None
 
