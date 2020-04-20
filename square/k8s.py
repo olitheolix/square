@@ -537,6 +537,7 @@ def urlpath(
     resources["1.12"] = resources["1.11"]
     resources["1.13"] = resources["1.11"]
     resources["1.14"] = resources["1.11"]
+    resources["1.15"] = resources["1.11"]
 
     # Look up the resource path and remove duplicate "/" characters (may have
     # slipped in when no namespace was supplied, eg "/api/v1//configmaps").
