@@ -44,11 +44,12 @@ class TestEndpoints:
         """Ask for all endpoints and perform some sanity checks."""
         square.square.setup_logging(1)
         kubeconfig = Filepath("/tmp/kubeconfig-kind.yaml")
-        apis, err = square.k8s.compile_api_endpoints(kubeconfig, None)
-        assert not err
 
         (config, client), err = square.k8s.cluster_config(kubeconfig, None)
         assert not err and config and client
+
+        # Convenience.
+        apis = config.apis
 
         # Sanity check.
         kinds = {
