@@ -20,21 +20,21 @@ def m_requests(request):
 
 
 class TestK8sDeleteGetPatchPost:
-    def test_session(self):
+    def test_session(self, k8sconfig):
         """Verify the `requests.Session` object is correctly setup."""
         # Basic.
-        config = K8sConfig("", None, "ca", client_cert=None, version=None, name="")
+        config = k8sconfig._replace(token=None)
         sess = k8s.session(config)
         assert "authorization" not in sess.headers
 
         # With access token.
-        config = K8sConfig("", "token", "ca", client_cert=None, version=None, name="")
+        config = k8sconfig._replace(token="token")
         sess = k8s.session(config)
         assert sess.headers["authorization"] == f"Bearer token"
 
         # With access token and client certificate.
         ccert = k8s.K8sClientCert(crt="foo", key="bar")
-        config = K8sConfig("", "token", "ca", client_cert=ccert, version=None, name="")
+        config = k8sconfig._replace(token="token", client_cert=ccert)
         sess = k8s.session(config)
         assert sess.headers["authorization"] == f"Bearer token"
         assert sess.cert == ("foo", "bar")
@@ -197,7 +197,7 @@ class TestK8sDeleteGetPatchPost:
 
 class TestK8sVersion:
     @mock.patch.object(k8s, "get")
-    def test_version_auto_ok(self, m_get):
+    def test_version_auto_ok(self, m_get, k8sconfig):
         """Get K8s version number from API server."""
 
         # This is a genuine K8s response from Minikube.
@@ -214,45 +214,43 @@ class TestK8sVersion:
 
         # Create vanilla `Config` instance.
         m_client = mock.MagicMock()
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", None, "")
 
         # Test function must contact the K8s API and return a `Config` tuple
         # with the correct version number.
-        config2, err = k8s.version(config, client=m_client)
+        config2, err = k8s.version(k8sconfig, client=m_client)
         assert err is False
         assert isinstance(config2, K8sConfig)
         assert config2.version == "1.10"
 
         # Test function must have called out to `get` to retrieve the
         # version. Here we ensure it called the correct URL.
-        m_get.assert_called_once_with(m_client, f"{config.url}/version")
+        m_get.assert_called_once_with(m_client, f"{k8sconfig.url}/version")
         assert not m_client.called
 
         # The return `Config` tuple must be identical to the input except for
         # the version number because "k8s.version" will have overwritten it.
-        assert config._replace(version=None) == config2._replace(version=None)
+        assert k8sconfig._replace(version=None) == config2._replace(version=None)
         del config2, err
 
         # Repeat the test for a Google idiosyncracy which likes to report the
         # minor version as eg "11+".
         response["minor"] = "11+"
         m_get.return_value = (response, None)
-        config, err = k8s.version(config, client=m_client)
+        config, err = k8s.version(k8sconfig, client=m_client)
         assert config.version == "1.11"
 
     @mock.patch.object(k8s, "get")
-    def test_version_auto_err(self, m_get):
+    def test_version_auto_err(self, m_get, k8sconfig):
         """Simulate an error when fetching the K8s version."""
 
         # Create vanilla `Config` instance.
         m_client = mock.MagicMock()
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", None, "")
 
         # Simulate an error in `get`.
         m_get.return_value = (None, True)
 
         # Test function must abort gracefully.
-        assert k8s.version(config, m_client) == (None, True)
+        assert k8s.version(k8sconfig, m_client) == (None, True)
 
 
 class TestUrlPathBuilder:
@@ -275,32 +273,29 @@ class TestUrlPathBuilder:
         # The cluster level resources must be sub-set of all supported resource kinds.
         assert NON_NAMESPACED_KINDS.issubset(SUPPORTED_KINDS)
 
-    def test_urlpath_ok(self):
+    def test_urlpath_ok(self, k8sconfig):
         """Must work for all supported K8s versions and resources."""
         for version in SUPPORTED_VERSIONS:
-            cfg = K8sConfig("url", "token", "ca_cert", "client_cert", version, "")
             for kind in SUPPORTED_KINDS:
                 for ns in (None, "foo-namespace"):
-                    path, err = k8s.urlpath(cfg, kind, ns)
+                    path, err = k8s.urlpath(k8sconfig, kind, ns)
 
                 # Verify.
                 assert err is False
                 assert isinstance(path, str)
 
-    def test_urlpath_err(self):
+    def test_urlpath_err(self, k8sconfig):
         """Test various error scenarios."""
         # Valid version but invalid resource kind or invalid namespace spelling.
         for version in SUPPORTED_VERSIONS:
-            cfg = K8sConfig("url", "token", "ca_cert", "client_cert", version, "")
-
             # Invalid resource kind.
-            assert k8s.urlpath(cfg, "fooresource", "ns") == (None, True)
+            assert k8s.urlpath(k8sconfig, "fooresource", "ns") == (None, True)
 
             # Namespace names must be all lower case (K8s imposes this)...
-            assert k8s.urlpath(cfg, "Deployment", "namEspACe") == (None, True)
+            assert k8s.urlpath(k8sconfig, "Deployment", "namEspACe") == (None, True)
 
         # Invalid version.
-        cfg = K8sConfig("url", "token", "ca_cert", "client_cert", "invalid", "")
+        cfg = k8sconfig._replace(version="invalid")
         assert k8s.urlpath(cfg, "Deployment", "valid-ns") == (None, True)
 
 
