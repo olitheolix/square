@@ -187,7 +187,7 @@ class TestMain:
     @mock.patch.object(square, "get_resources")
     @mock.patch.object(square, "make_plan")
     @mock.patch.object(square, "apply_plan")
-    def test_main_nonzero_exit_on_error(self, m_apply, m_plan, m_get, m_k8s):
+    def test_main_nonzero_exit_on_error(self, m_apply, m_plan, m_get, m_k8s, k8sconfig):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
@@ -196,13 +196,10 @@ class TestMain:
         `main.main` must return with a non-zero exit code.
 
         """
-        # Dummy configuration.
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
-
         # Mock all calls to the K8s API.
-        m_k8s.load_auto_config.return_value = config
+        m_k8s.load_auto_config.return_value = k8sconfig
         m_k8s.session.return_value = "client"
-        m_k8s.version.return_value = (config, False)
+        m_k8s.version.return_value = (k8sconfig, False)
 
         # Pretend all main functions return errors.
         m_get.return_value = (None, True)

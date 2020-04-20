@@ -638,15 +638,13 @@ class TestYamlManifestIO:
 
 
 class TestManifestValidation:
-    def test_strip_generic(self):
+    def test_strip_generic(self, k8sconfig):
         """Create a complete fake schema to test all options.
 
         This test has nothing to do with real world manifests. Its only purpose
         is to validate the algorithm that strips the manifests.
 
         """
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
-
         # Define exclusion schema for this test.
         exclude = {
             "invalid": False,
@@ -667,7 +665,7 @@ class TestManifestValidation:
                 "metadata": {"name": "name", "namespace": "ns"},
                 "spec": "spec",
             }
-            (out, removed), err = manio.strip(config, manifest)
+            (out, removed), err = manio.strip(k8sconfig, manifest)
             assert (out, removed, err) == (manifest, {}, False)
             assert isinstance(out, dotdict.DotDict)
             del manifest
@@ -692,7 +690,7 @@ class TestManifestValidation:
                 },
                 "spec": "spec",
             }
-            (out, removed), err = manio.strip(config, manifest)
+            (out, removed), err = manio.strip(k8sconfig, manifest)
             assert not err
             assert out == expected
             assert removed == {'metadata': {'labels': {'foo': 'remove'}}}
@@ -727,7 +725,7 @@ class TestManifestValidation:
                 },
                 "spec": "keep",
             }
-            (out, removed), err = manio.strip(config, manifest)
+            (out, removed), err = manio.strip(k8sconfig, manifest)
             assert not err
             assert out == expected
             assert removed == {
@@ -735,7 +733,7 @@ class TestManifestValidation:
                 "status": "remove",
             }
 
-    def test_strip_invalid_schema(self):
+    def test_strip_invalid_schema(self, k8sconfig):
         """Create a corrupt exclusion schema and verify we get a proper error message."""
         version = "1.10"
         config = K8sConfig("url", "token", "ca_cert", "client_cert", version, "")
@@ -750,28 +748,25 @@ class TestManifestValidation:
                 "metadata": {"name": "name", "namespace": "ns"},
                 "something": "here",
             }
-            assert manio.strip(config, manifest) == (({}, {}), True)
+            assert manio.strip(k8sconfig, manifest) == (({}, {}), True)
 
-    def test_strip_invalid_version_kind(self):
+    def test_strip_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
         # Minimal valid schema for fake resource kind "TEST".
         exclude = {"1.10": {"TEST": {"metadata": False}}}
 
         with mock.patch("square.schemas.EXCLUSION_SCHEMA", exclude):
             # Valid K8s version with unknown resource type.
-            config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
             manifest = {"apiVersion": "v1", "kind": "Unknown"}
-            assert manio.strip(config, manifest) == (({}, {}), True)
+            assert manio.strip(k8sconfig, manifest) == (({}, {}), True)
 
             # Invalid K8s version but valid resource type.
-            config = K8sConfig("url", "token", "ca_cert", "client_cert", "unknown", "")
+            config = k8sconfig._replace(version="unknown")
             manifest = {"apiVersion": "v1", "kind": "TEST"}
             assert manio.strip(config, manifest) == (({}, {}), True)
 
-    def test_strip_namespace(self):
+    def test_strip_namespace(self, k8sconfig):
         """Filter NAMESPACE manifests."""
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
-
         # A namespace manifest without a `metadata.namespace` field.
         manifest = {
             "apiVersion": "v1",
@@ -783,7 +778,7 @@ class TestManifestValidation:
             "kind": "Namespace",
             "metadata": {"name": "mandatory"},
         }
-        assert manio.strip(config, manifest) == ((expected, {}), False)
+        assert manio.strip(k8sconfig, manifest) == ((expected, {}), False)
         del manifest, expected
 
         # Create invalid manifests: add a `metadata.namespace` field to all
@@ -798,12 +793,10 @@ class TestManifestValidation:
             }
             if kind in NON_NAMESPACED_KINDS:
                 manifest["metadata"]["namespace"] = "not-allowed"
-            assert manio.strip(config, manifest) == (({}, {}), True)
+            assert manio.strip(k8sconfig, manifest) == (({}, {}), True)
 
-    def test_strip_deployment(self):
+    def test_strip_deployment(self, k8sconfig):
         """Filter DEPLOYMENT manifests."""
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
-
         # A valid service manifest with a few optional and irrelevant keys.
         manifest = {
             "apiVersion": "v1",
@@ -844,7 +837,7 @@ class TestManifestValidation:
             },
             "spec": "some spec",
         }
-        (out, removed), err = manio.strip(config, manifest)
+        (out, removed), err = manio.strip(k8sconfig, manifest)
         assert not err
         assert out == expected
         assert removed == {
@@ -867,15 +860,12 @@ class TestManifestValidation:
             "kind": "Deployment",
             "metadata": {"name": "mandatory"},
         }
-        assert manio.strip(config, manifest) == (({}, {}), True)
+        assert manio.strip(k8sconfig, manifest) == (({}, {}), True)
 
 
 class TestDiff:
-    def test_diff_ok(self):
+    def test_diff_ok(self, k8sconfig):
         """Diff two valid manifests and (roughly) verify the output."""
-        # Dummy config for (only "version" is relevant).
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
-
         # Two valid manifests.
         srv = make_manifest("Deployment", "namespace", "name1")
         loc = make_manifest("Deployment", "namespace", "name2")
@@ -885,7 +875,7 @@ class TestDiff:
         loc = dotdict.make(loc)
 
         # Diff the manifests. Must not return an error.
-        diff_str, err = manio.diff(config, loc, srv)
+        diff_str, err = manio.diff(k8sconfig, loc, srv)
         assert err is False
 
         # Since it is difficult to compare the correct diff string due to
@@ -894,11 +884,8 @@ class TestDiff:
         assert "-  name: name1" in diff_str
         assert "+  name: name2" in diff_str
 
-    def test_diff_err(self):
+    def test_diff_err(self, k8sconfig):
         """Diff two valid manifests and verify the output."""
-        # Dummy config for (only "version" is relevant).
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
-
         # Create two valid manifests, then stunt one in such a way that
         # `essential` will reject it.
         valid = make_manifest("Deployment", "namespace", "name1")
@@ -907,9 +894,9 @@ class TestDiff:
 
         # Test function must return with an error, irrespective of which
         # manifest was invalid.
-        assert manio.diff(config, valid, invalid) == (None, True)
-        assert manio.diff(config, invalid, valid) == (None, True)
-        assert manio.diff(config, invalid, invalid) == (None, True)
+        assert manio.diff(k8sconfig, valid, invalid) == (None, True)
+        assert manio.diff(k8sconfig, invalid, valid) == (None, True)
+        assert manio.diff(k8sconfig, invalid, invalid) == (None, True)
 
 
 class TestYamlManifestIOIntegration:
@@ -1685,14 +1672,13 @@ class TestSync:
 
 class TestDownloadManifests:
     @mock.patch.object(k8s, 'get')
-    def test_download_ok(self, m_get):
+    def test_download_ok(self, m_get, k8sconfig):
         """Download two kinds of manifests: Deployments and Namespaces.
 
         The test only mocks the call to the K8s API. All other functions
         actually execute.
 
         """
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
         meta = [
             make_manifest("Namespace", None, "ns0"),
             make_manifest("Namespace", None, "ns1"),
@@ -1701,14 +1687,14 @@ class TestDownloadManifests:
         ]
 
         # Resource URLs (not namespaced).
-        url_ns, err1 = urlpath(config, "Namespace", None)
-        url_deploy, err2 = urlpath(config, "Deployment", None)
+        url_ns, err1 = urlpath(k8sconfig, "Namespace", None)
+        url_deploy, err2 = urlpath(k8sconfig, "Deployment", None)
 
         # Namespaced resource URLs.
-        url_ns_0, err3 = urlpath(config, "Namespace", "ns0")
-        url_ns_1, err4 = urlpath(config, "Namespace", "ns1")
-        url_dply_0, err5 = urlpath(config, "Deployment", "ns0")
-        url_dply_1, err6 = urlpath(config, "Deployment", "ns1")
+        url_ns_0, err3 = urlpath(k8sconfig, "Namespace", "ns0")
+        url_ns_1, err4 = urlpath(k8sconfig, "Namespace", "ns1")
+        url_dply_0, err5 = urlpath(k8sconfig, "Deployment", "ns0")
+        url_dply_1, err6 = urlpath(k8sconfig, "Deployment", "ns1")
         assert not any([err1, err2, err3, err4, err5, err6])
         del err1, err2, err3, err4, err5, err6
 
@@ -1733,13 +1719,13 @@ class TestDownloadManifests:
             (l_dply, False),
         ]
         expected = {
-            manio.make_meta(meta[0]): manio.strip(config, meta[0])[0][0],
-            manio.make_meta(meta[1]): manio.strip(config, meta[1])[0][0],
-            manio.make_meta(meta[2]): manio.strip(config, meta[2])[0][0],
-            manio.make_meta(meta[3]): manio.strip(config, meta[3])[0][0],
+            manio.make_meta(meta[0]): manio.strip(k8sconfig, meta[0])[0][0],
+            manio.make_meta(meta[1]): manio.strip(k8sconfig, meta[1])[0][0],
+            manio.make_meta(meta[2]): manio.strip(k8sconfig, meta[2])[0][0],
+            manio.make_meta(meta[3]): manio.strip(k8sconfig, meta[3])[0][0],
         }
         ret = manio.download(
-            config, "client",
+            k8sconfig, "client",
             Selectors(["Namespace", "Deployment"], None, None)
         )
         assert ret == (expected, False)
@@ -1762,13 +1748,13 @@ class TestDownloadManifests:
             (l_dply_1, False),
         ]
         expected = {
-            manio.make_meta(meta[0]): manio.strip(config, meta[0])[0][0],
-            manio.make_meta(meta[1]): manio.strip(config, meta[1])[0][0],
-            manio.make_meta(meta[2]): manio.strip(config, meta[2])[0][0],
-            manio.make_meta(meta[3]): manio.strip(config, meta[3])[0][0],
+            manio.make_meta(meta[0]): manio.strip(k8sconfig, meta[0])[0][0],
+            manio.make_meta(meta[1]): manio.strip(k8sconfig, meta[1])[0][0],
+            manio.make_meta(meta[2]): manio.strip(k8sconfig, meta[2])[0][0],
+            manio.make_meta(meta[3]): manio.strip(k8sconfig, meta[3])[0][0],
         }
         assert (expected, False) == manio.download(
-            config, "client",
+            k8sconfig, "client",
             Selectors(["Namespace", "Deployment"], ["ns0", "ns1"], None)
         )
         assert m_get.call_args_list == [
@@ -1790,11 +1776,11 @@ class TestDownloadManifests:
             (l_dply_0, False),
         ]
         expected = {
-            manio.make_meta(meta[0]): manio.strip(config, meta[0])[0][0],
-            manio.make_meta(meta[2]): manio.strip(config, meta[2])[0][0],
+            manio.make_meta(meta[0]): manio.strip(k8sconfig, meta[0])[0][0],
+            manio.make_meta(meta[2]): manio.strip(k8sconfig, meta[2])[0][0],
         }
         assert (expected, False) == manio.download(
-            config, "client",
+            k8sconfig, "client",
             Selectors(["Namespace", "Deployment"], ["ns0"], None)
         )
         assert m_get.call_args_list == [
@@ -1803,10 +1789,8 @@ class TestDownloadManifests:
         ]
 
     @mock.patch.object(k8s, 'get')
-    def test_download_err(self, m_get):
+    def test_download_err(self, m_get, k8sconfig):
         """Simulate a download error."""
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", "1.10", "")
-
         # A valid NamespaceList with one element.
         man_list_ns = {
             'apiVersion': 'v1',
@@ -1818,14 +1802,14 @@ class TestDownloadManifests:
         m_get.side_effect = [(man_list_ns, False), (None, True)]
 
         # The request URLs. We will need them to validate the `get` arguments.
-        url_ns, err1 = urlpath(config, "Namespace", None)
-        url_deploy, err2 = urlpath(config, "Deployment", None)
+        url_ns, err1 = urlpath(k8sconfig, "Namespace", None)
+        url_deploy, err2 = urlpath(k8sconfig, "Deployment", None)
         assert not err1 and not err2
 
         # Run test function and verify it returns an error and no data, despite
         # a successful `NamespaceList` download.
         ret = manio.download(
-            config, "client",
+            k8sconfig, "client",
             Selectors(["Namespace", "Deployment"], None, None)
         )
         assert ret == (None, True)

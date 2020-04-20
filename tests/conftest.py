@@ -1,6 +1,7 @@
 import unittest.mock as mock
 
 import pytest
+import square.dtypes
 import square.square
 
 
@@ -15,3 +16,8 @@ def kube_creds(request):
     with mock.patch.object(square.k8s, "cluster_config") as m:
         m.return_value = (("k8s_config", "k8s_client"), False)
         yield m
+
+
+@pytest.fixture
+def k8sconfig():
+    yield square.dtypes.K8sConfig(version="1.10")
