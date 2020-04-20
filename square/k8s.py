@@ -695,6 +695,10 @@ def cluster_config(
         # Contact the K8s API to update version field in `config`.
         config, err = version(config, client)
         assert not err and config
+
+        # Populate the `config.apis` field.
+        err = compile_api_endpoints(config, client)
+        assert not err
     except AssertionError:
         return ((None, None), True)
 
@@ -704,10 +708,10 @@ def cluster_config(
     return (config, client), False
 
 
-def compile_api_endpoints(
-        kubeconfig: Filepath,
-        kube_ctx: Optional[str]) -> Tuple[Dict[Tuple[str, str], K8sResource], bool]:
-    """Replicate the output of `kubectl api-resources`.
+def compile_api_endpoints(config: K8sConfig, client) -> bool:
+    """Populate `config.apis` with all the K8s endpoints`.
+
+    NOTE: This will purge the existing content in `config.apis`.
 
     Returns a dictionary like the following:
     {
@@ -726,19 +730,10 @@ def compile_api_endpoints(
     }
 
     Inputs:
-        kubeconfig: str
-            Path to kubeconfig file.
-        kube_context: str
-            Kubernetes context to use (can be `None` to use default).
-
-    Returns:
-        API endpoints by resource (see example above).
+        config: K8sConfig
+        client: `requests` session with correct K8s certificates.
 
     """
-    # Create properly configured Requests session to talk to K8s API.
-    (config, client), err = cluster_config(kubeconfig, kube_ctx)
-    assert not err and config and client
-
     # Compile the list of all K8s API groups that this K8s instance knows about.
     resp, err = get(client, f"{config.url}/apis")
     groups = resp["groups"]
@@ -753,7 +748,9 @@ def compile_api_endpoints(
     apigroups: Dict[str, set] = {}
     for group in groups:
         group_name = group["name"]
-        assert group_name not in apigroups  # fixme
+        if group_name in apigroups:
+            logit.error(f"API group <{group_name}> already exist")
+            return True
         apigroups[group_name] = set()
         for version in group["versions"]:
             ver = version["groupVersion"]
@@ -784,7 +781,8 @@ def compile_api_endpoints(
     for name, urls in apigroups.items():
         for apiversion, url in urls:
             resp, err = get(client, f"{config.url}/{url}")
-            assert not err
+            if err:
+                return True
 
             group_urls[url] = [
                 K8sResource(apiversion, _["kind"], _["name"], _["namespaced"], url)
@@ -792,11 +790,13 @@ def compile_api_endpoints(
             ]
 
     # This will produce the output described in the function doc string.
-    kinds: Dict[Tuple[str, str], K8sResource] = {}
+    config.apis.clear()
     for url, resources in group_urls.items():
         for res in resources:
             key = (res.kind, res.apiVersion)  # fixme: define namedtuple
-            assert key not in kinds           # fixme
-            kinds[key] = res._replace(url=f"{config.url}/{res.url}/{res.name}")
+            if key in config.apis:
+                logit.error(f"Key <{key}> already exists")
+                return True
+            config.apis[key] = res._replace(url=f"{config.url}/{res.url}/{res.name}")
 
-    return kinds, False
+    return False

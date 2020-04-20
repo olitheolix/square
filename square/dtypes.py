@@ -76,21 +76,6 @@ class K8sClientCert(NamedTuple):
     key: Filepath = Filepath()
 
 
-class K8sConfig(NamedTuple):
-    """Everything we need to know to connect and authenticate with Kubernetes."""
-    url: str = ""               # Kubernetes API
-    token: str = ""             # Optional access token (eg Minikube).
-
-    # Certificate authority credentials and self signed client certificate.
-    # Used to authenticate to eg GKE.
-    ca_cert: Filepath = Filepath()
-    client_cert: Optional[K8sClientCert] = None
-
-    # Kubernetes version and name.
-    version: str = ""
-    name: str = ""
-
-
 class MetaManifest(NamedTuple):
     """Minimum amount of information to uniquely identify a K8s resource.
 
@@ -111,6 +96,24 @@ class K8sResource(NamedTuple):
     name: str         # "deployment" (usually lower case version of above)
     namespaced: bool  # Whether or not the resource is namespaced.
     url: str          # API endpoint, eg "k8s-host.com//api/v1/pods".
+
+
+class K8sConfig(NamedTuple):
+    """Everything we need to know to connect and authenticate with Kubernetes."""
+    url: str = ""               # Kubernetes API
+    token: str = ""             # Optional access token (eg Minikube).
+
+    # Certificate authority credentials and self signed client certificate.
+    # Used to authenticate to eg GKE.
+    ca_cert: Filepath = Filepath()
+    client_cert: Optional[K8sClientCert] = None
+
+    # Kubernetes version and name.
+    version: str = ""
+    name: str = ""
+
+    # Kubernetes API endpoints (see k8s.compile_api_endpoints).
+    apis: Dict[Tuple[str, str], K8sResource] = {}
 
 
 # -----------------------------------------------------------------------------
