@@ -9,7 +9,7 @@ import square.manio as manio
 import yaml
 from square.dtypes import (
     NON_NAMESPACED_KINDS, RESOURCE_ALIASES, SUPPORTED_KINDS, Filepath, GroupBy,
-    K8sConfig, MetaManifest, Selectors,
+    MetaManifest, Selectors,
 )
 from square.k8s import urlpath
 
@@ -657,11 +657,11 @@ class TestManifestValidation:
             },
             "status": False,
         }
-        with mock.patch("square.schemas.EXCLUSION_SCHEMA", {"TEST": exclude}):
+        with mock.patch("square.schemas.EXCLUSION_SCHEMA", {"Service": exclude}):
             # Demo manifest. None of its keys matches the exclusion schema.
             manifest = {
                 "apiVersion": "v1",
-                "kind": "TEST",
+                "kind": "Service",
                 "metadata": {"name": "name", "namespace": "ns"},
                 "spec": "spec",
             }
@@ -673,7 +673,7 @@ class TestManifestValidation:
             # Demo manifest. None of its keys matches the exclusion schema.
             manifest = {
                 "apiVersion": "v1",
-                "kind": "TEST",
+                "kind": "Service",
                 "metadata": {
                     "name": "name",
                     "namespace": "ns",
@@ -683,7 +683,7 @@ class TestManifestValidation:
             }
             expected = {
                 "apiVersion": "v1",
-                "kind": "TEST",
+                "kind": "Service",
                 "metadata": {
                     "name": "name",
                     "namespace": "ns",
@@ -701,7 +701,7 @@ class TestManifestValidation:
             # not).
             manifest = {
                 "apiVersion": "v1",
-                "kind": "TEST",
+                "kind": "Service",
                 "metadata": {
                     "name": "mandatory",
                     "namespace": "ns",
@@ -715,7 +715,7 @@ class TestManifestValidation:
             }
             expected = {
                 "apiVersion": "v1",
-                "kind": "TEST",
+                "kind": "Service",
                 "metadata": {
                     "name": "mandatory",
                     "namespace": "ns",
@@ -735,16 +735,14 @@ class TestManifestValidation:
 
     def test_strip_invalid_schema(self, k8sconfig):
         """Create a corrupt exclusion schema and verify we get a proper error message."""
-        version = "1.10"
-        config = K8sConfig("url", "token", "ca_cert", "client_cert", version, "")
-        exclude = {version: {"TEST": {
+        exclude = {k8sconfig.version: {"Service": {
             "metadata": {"labels": "neither-bool-nor-dict"}
         }}}
 
         with mock.patch("square.schemas.EXCLUSION_SCHEMA", exclude):
             manifest = {
                 "apiVersion": "v1",
-                "kind": "TEST",
+                "kind": "Service",
                 "metadata": {"name": "name", "namespace": "ns"},
                 "something": "here",
             }

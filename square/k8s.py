@@ -13,10 +13,7 @@ import google.auth
 import google.auth.transport.requests
 import requests
 import yaml
-from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Filepath, K8sClientCert, K8sConfig,
-    K8sResource,
-)
+from square.dtypes import Filepath, K8sClientCert, K8sConfig, K8sResource
 
 FNAME_TOKEN = Filepath("/var/run/secrets/kubernetes.io/serviceaccount/token")
 FNAME_CERT = Filepath("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
@@ -477,19 +474,7 @@ def urlpath(
 
         namespace = f"namespaces/{namespace}/"
 
-    # We must support the specified resource kind.
-    if kind not in SUPPORTED_KINDS:
-        logit.error(f"Unsupported resource <{kind}>.")
-        return (None, True)
-
-    # We must support the specified K8s version.
-    if config.version not in SUPPORTED_VERSIONS:
-        logit.error(f"Unsupported K8s version <{config.version}>.")
-        return (None, True)
-
     # The HTTP request path names by K8s version and resource kind.
-    # The keys in this dict must cover all those specified in
-    # `SUPPORTED_VERSIONS` and `SUPPORTED_KINDS`.
     resources = {
         "1.9": {
             "ClusterRole": f"apis/rbac.authorization.k8s.io/v1/clusterroles",
@@ -540,9 +525,12 @@ def urlpath(
     resources["1.14"] = resources["1.11"]
     resources["1.15"] = resources["1.11"]
 
-    # Look up the resource path and remove duplicate "/" characters (may have
-    # slipped in when no namespace was supplied, eg "/api/v1//configmaps").
-    path = resources[config.version][kind]
+    try:
+        path = resources[config.version][kind]
+    except KeyError:
+        logit.error(f"Unsupported resource <{kind}>.")
+        return (None, True)
+
     path = path.replace("//", "/")
     assert not path.startswith("/"), path
 
