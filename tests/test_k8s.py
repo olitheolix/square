@@ -284,14 +284,14 @@ class TestUrlPathBuilder:
         # Valid version but invalid resource kind or invalid namespace spelling.
         for version in SUPPORTED_VERSIONS:
             # Invalid resource kind.
-            assert k8s.urlpath(k8sconfig, "fooresource", "ns") == (None, True)
+            assert k8s.urlpath(k8sconfig, "fooresource", "ns") == ("", True)
 
             # Namespace names must be all lower case (K8s imposes this)...
-            assert k8s.urlpath(k8sconfig, "Deployment", "namEspACe") == (None, True)
+            assert k8s.urlpath(k8sconfig, "Deployment", "namEspACe") == ("", True)
 
         # Invalid version.
         cfg = k8sconfig._replace(version="invalid")
-        assert k8s.urlpath(cfg, "Deployment", "valid-ns") == (None, True)
+        assert k8s.urlpath(cfg, "Deployment", "valid-ns") == ("", True)
 
 
 class TestK8sKubeconfig:

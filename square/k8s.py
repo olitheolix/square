@@ -448,7 +448,7 @@ def session(config: K8sConfig):
 def urlpath(
         config: K8sConfig,
         kind: str,
-        namespace: Optional[str]) -> Tuple[Optional[str], bool]:
+        namespace: Optional[str]) -> Tuple[str, bool]:
     """Return complete URL to K8s resource.
 
     Inputs:
@@ -470,7 +470,7 @@ def urlpath(
         match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", namespace)
         if match is None or match.group() != namespace:
             logit.error(f"Invalid namespace name <{namespace}>.")
-            return (None, True)
+            return ("", True)
 
         namespace = f"namespaces/{namespace}/"
 
@@ -529,7 +529,7 @@ def urlpath(
         path = resources[config.version][kind]
     except KeyError:
         logit.error(f"Unsupported resource <{kind}>.")
-        return (None, True)
+        return ("", True)
 
     path = path.replace("//", "/")
     assert not path.startswith("/"), path
