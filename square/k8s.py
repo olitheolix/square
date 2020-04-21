@@ -549,6 +549,79 @@ def urlpath(config: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
     return ret, False
 
 
+def urlpath2(config: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
+    """Return `K8sResource` object.
+
+    That object will contain the full path to a resource, eg.
+    https://1.2.3.4/api/v1/namespace/foo/services.
+
+    Inputs:
+        config: k8s.Config
+        meta: MetaManifest
+
+    Returns:
+        K8sResource
+
+    """
+    err_resp = (K8sResource("", "", "", False, ""), True)
+
+    # Namespaces are special because they lack the `namespaces/` path prefix.
+    if meta.kind == "Namespace" or meta.namespace is None:
+        namespace = ""
+    else:
+        # Namespace name must conform to K8s standards.
+        match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", meta.namespace)
+        if match is None or match.group() != meta.namespace:
+            logit.error(f"Invalid namespace name <{meta.namespace}>.")
+            return err_resp
+        namespace = f"namespaces/{meta.namespace}"
+
+    # Compile the lookup key for the resource, eg `("Service", "v1")`.
+    if not meta.apiVersion:
+        # Use the most recent version of the API if None was specified.
+        candidates = [(kind, ver) for kind, ver in config.apis if kind == meta.kind]
+        if len(candidates) == 0:
+            return err_resp
+        candidates.sort()
+        key = candidates.pop(0)
+    else:
+        key = (meta.kind, meta.apiVersion)
+
+    # Retrieve the resource.
+    try:
+        resource = config.apis[key]
+    except KeyError:
+        logit.error(f"Unsupported resource <{meta.kind}> ({key}).")
+        return err_resp
+
+    # Sanity check: we cannot search for a namespaced resource by name in all
+    # namespaces. Example: we cannot search for a Service `foo` in all
+    # namespaces. We could only search for Service `foo` in namespace `bar`, or
+    # all services in all namespaces.
+    if resource.namespaced and not meta.namespace and meta.name:
+        return err_resp
+
+    # Sanity check: non-namespaced resources like ClusterRoles or Namespaces
+    # themselves must never specify a `namespace`.
+    if not resource.namespaced and meta.namespace:
+        return err_resp
+
+    # Create the full path to the resource depending on whether we have a
+    # namespace and resource name. Here are all three possibilities:
+    #  - /api/v1/namespaces/services
+    #  - /api/v1/namespaces/my-namespace/services
+    #  - /api/v1/namespaces/my-namespace/services/my-service
+    path = f"{namespace}/{resource.name}" if namespace else resource.name
+    path = f"{path}/{meta.name}" if meta.name else path
+
+    # The concatenation above may have introduced `//`. Here we remove them.
+    path = path.replace("//", "/")
+
+    # Return the K8sResource with the correct URL.
+    resource = resource._replace(url=f"{resource.url}/{path}")
+    return resource, False
+
+
 def request(
         client,
         method: str,
@@ -775,8 +848,8 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
     # of the usual `apis/...` path.
     apigroups["v1"] = {("v1", "api/v1")}
 
-    # Contact K8s to find out which resources each API group supports.
-    # This will produce the following (K = `K8sResource` below): group_urls = {
+    # Contact K8s to find out which resources each API group offers.
+    # This will produce the following group_urls below (K = `K8sResource`): {
     #   'apis/apps/v1': [
     #     K(..., kind='DaemonSet', name='daemonsets', namespaced=True, url='apis/apps/v1'),
     #     K(..., kind='Deployment', name='deployments', namespaced=True, url='apis/apps/v1'),
@@ -808,6 +881,6 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
             if key in config.apis:
                 logit.error(f"Key <{key}> already exists")
                 return True
-            config.apis[key] = res._replace(url=f"{config.url}/{res.url}/{res.name}")
+            config.apis[key] = res._replace(url=f"{config.url}/{res.url}")
 
     return False
