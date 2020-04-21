@@ -565,22 +565,12 @@ def urlpath2(config: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
     """
     err_resp = (K8sResource("", "", "", False, ""), True)
 
-    # Namespaces are special because they lack the `namespaces/` path prefix.
-    if meta.kind == "Namespace" or meta.namespace is None:
-        namespace = ""
-    else:
-        # Namespace name must conform to K8s standards.
-        match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", meta.namespace)
-        if match is None or match.group() != meta.namespace:
-            logit.error(f"Invalid namespace name <{meta.namespace}>.")
-            return err_resp
-        namespace = f"namespaces/{meta.namespace}"
-
     # Compile the lookup key for the resource, eg `("Service", "v1")`.
     if not meta.apiVersion:
         # Use the most recent version of the API if None was specified.
         candidates = [(kind, ver) for kind, ver in config.apis if kind == meta.kind]
         if len(candidates) == 0:
+            logit.error(f"Cannot determine API version for <{meta.kind}>")
             return err_resp
         candidates.sort()
         key = candidates.pop(0)
@@ -594,16 +584,36 @@ def urlpath2(config: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
         logit.error(f"Unsupported resource <{meta.kind}> ({key}).")
         return err_resp
 
+    # Void the "namespace" key for non-namespaced resources.
+    if not resource.namespaced:
+        meta = meta._replace(namespace=None)
+
+    # Namespaces are special because they lack the `namespaces/` path prefix.
+    if meta.kind == "Namespace":
+        # Return the correct URL, depending on whether we want all namespaces
+        # or a particular one.
+        url = f"{resource.url}/namespaces"
+        if meta.name:
+            url += f"/{meta.name}"
+        return resource._replace(url=url), False
+
+    # Determine if the prefix for namespaced resources.
+    if meta.namespace is None:
+        namespace = ""
+    else:
+        # Namespace name must conform to K8s standards.
+        match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", meta.namespace)
+        if match is None or match.group() != meta.namespace:
+            logit.error(f"Invalid namespace name <{meta.namespace}>.")
+            return err_resp
+        namespace = f"namespaces/{meta.namespace}"
+
     # Sanity check: we cannot search for a namespaced resource by name in all
     # namespaces. Example: we cannot search for a Service `foo` in all
     # namespaces. We could only search for Service `foo` in namespace `bar`, or
     # all services in all namespaces.
-    if resource.namespaced and not meta.namespace and meta.name:
-        return err_resp
-
-    # Sanity check: non-namespaced resources like ClusterRoles or Namespaces
-    # themselves must never specify a `namespace`.
-    if not resource.namespaced and meta.namespace:
+    if resource.namespaced and meta.name and not meta.namespace:
+        logit.error(f"Cannot search for {meta.kind} {meta.name} in {meta.namespace}")
         return err_resp
 
     # Create the full path to the resource depending on whether we have a

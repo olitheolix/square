@@ -277,23 +277,123 @@ class TestUrlPathBuilder:
                 res, err = k8s.urlpath(k8sconfig, MetaManifest("", kind, ns, ""))
                 assert err is False and isinstance(res, K8sResource)
 
+    def test_urlpath_statefulset(self, k8sconfig):
+        """Verify with a StatefulSet resource.
+
+        This resource is available under three different API endpoints
+        (v1beta1, v1beta2 and v1).
+
+        NOTE: this test is tailored to Kubernetes v1.15.
+
+        """
+        # Fixtures.
+        config, urlpath = k8sconfig, k8s.urlpath2
+        MM = MetaManifest
+        err_resp = (K8sResource("", "", "", False, ""), True)
+
+        # Tuples of API version that we ask for (if any), and what the final
+        # K8sResource element will contain.
+        api_versions = [
+            # We expect to get the version we asked for.
+            ("apps/v1", "apps/v1"),
+            ("apps/v1beta1", "apps/v1beta1"),
+            ("apps/v1beta2", "apps/v1beta2"),
+
+            # Function must automatically determine the latest version of the resource.
+            ("", "apps/v1"),
+        ]
+
+        for src, expected in api_versions:
+            # A particular StatefulSet in a particular namespace.
+            res, err = urlpath(config, MM(src, "StatefulSet", "ns", "name"))
+            assert not err
+            assert res == K8sResource(
+                apiVersion=expected,
+                kind="StatefulSet",
+                name="statefulsets",
+                namespaced=True,
+                url=f"{config.url}/apis/{expected}/namespaces/ns/statefulsets/name",
+            )
+
+            # All StatefulSets in all namespaces.
+            res, err = urlpath(config, MM(src, "StatefulSet", None, None))
+            assert not err
+            assert res == K8sResource(
+                apiVersion=expected,
+                kind="StatefulSet",
+                name="statefulsets",
+                namespaced=True,
+                url=f"{config.url}/apis/{expected}/statefulsets",
+            )
+
+            # All StatefulSets in a particular namespace.
+            res, err = urlpath(config, MM(src, "StatefulSet", "ns", ""))
+            assert not err
+            assert res == K8sResource(
+                apiVersion=expected,
+                kind="StatefulSet",
+                name="statefulsets",
+                namespaced=True,
+                url=f"{config.url}/apis/{expected}/namespaces/ns/statefulsets",
+            )
+
+            # A particular StatefulSet in all namespaces -> Invalid.
+            assert urlpath(config, MM(src, "StatefulSet", None, "name")) == err_resp
+
+    def test_urlpath_namespace(self, k8sconfig):
+        """Verify with a Namespace resource.
+
+        This one is a special case because it is not namespaced but Square's
+        MetaManifest may specify a `namespace` for them, which refers to their
+        actual name. This is a necessary implementation detail to properly
+        support the selectors.
+
+        """
+        # Fixtures.
+        config, urlpath = k8sconfig, k8s.urlpath2
+        MM = MetaManifest
+
+        for src in ["", "v1"]:
+            # A particular Namespace.
+            res, err = urlpath(config, MM(src, "Namespace", None, "name"))
+            assert not err
+            assert res == K8sResource(
+                apiVersion="v1",
+                kind="Namespace",
+                name="namespaces",
+                namespaced=False,
+                url=f"{config.url}/api/v1/namespaces/name",
+            )
+
+            # A particular Namespace in a particular namespace -> Invalid.
+            assert urlpath(config, MM(src, "Namespace", "ns", "name")) == (res, err)
+
+            # All Namespaces.
+            res, err = urlpath(config, MM(src, "Namespace", None, None))
+            assert not err
+            assert res == K8sResource(
+                apiVersion="v1",
+                kind="Namespace",
+                name="namespaces",
+                namespaced=False,
+                url=f"{config.url}/api/v1/namespaces",
+            )
+
+            # Same as above because the "namespace" argument is ignored for Namespaces.
+            assert urlpath(config, MM(src, "Namespace", "name", "")) == (res, err)
+
     def test_urlpath_err(self, k8sconfig):
         """Test various error scenarios."""
         # Valid version but invalid resource kind or invalid namespace spelling.
         expected = (K8sResource("", "", "", False, ""), True)
         for version in SUPPORTED_VERSIONS:
             # Invalid resource kind.
-            assert k8s.urlpath(
+            assert k8s.urlpath2(
                 k8sconfig, MetaManifest("", "fooresource", "ns", "")) == expected
 
             # Namespace names must be all lower case (K8s imposes this)...
-            assert k8s.urlpath(
+            assert k8s.urlpath2(
                 k8sconfig, MetaManifest("", "Deployment", "namEspACe", "")) == expected
-
-        # Invalid version.
-        k8sconfig = k8sconfig._replace(version="invalid")
-        assert k8s.urlpath(
-            k8sconfig, MetaManifest("", "Deployment", "valid-ns", "")) == expected
 
 
 class TestK8sKubeconfig:

@@ -174,9 +174,8 @@ class TestEndpoints:
             )
 
             # A particular Service in all namespaces -> Invalid.
-            res, err = urlpath(config, MetaManifest(src, "Service", None, "name"))
             assert urlpath(config,
-                           MetaManifest(expected, "Service", None, "name")) == err_resp
+                           MetaManifest(src, "Service", None, "name")) == err_resp
 
     def test_urlpath_clusterrole(self):
         """Verify with a ClusterRole resource.
@@ -218,6 +217,10 @@ class TestEndpoints:
                 url=f"{config.url}/apis/{expected}/clusterroles",
             )
 
+            # All ClusterRoles in a particular namespace -> same as above
+            # because the namespace is ignored for non-namespaced resources.
+            assert urlpath(config, MM(src, "ClusterRole", "ns", None)) == (res, err)
+
             # A particular ClusterRole.
             res, err = urlpath(config, MM(src, "ClusterRole", None, "name"))
             assert not err
@@ -229,13 +232,9 @@ class TestEndpoints:
                 url=f"{config.url}/apis/{expected}/clusterroles/name",
             )
 
-            # All ClusterRoles in a particular namespace -> Invalid, because
-            # ClusterRoles are not namespaced.
-            assert urlpath(config, MM(src, "ClusterRole", "ns", None)) == err_resp
-
-            # A particular ClusterRole in a particular namespace -> Invalid, because
-            # ClusterRoles are not namespaced.
-            assert urlpath(config, MM(src, "ClusterRole", "ns", "name")) == err_resp
+            # A particular ClusterRole in a particular namespace -> Same as above
+            # because the namespace is ignored for non-namespaced resources.
+            assert urlpath(config, MM(src, "ClusterRole", "ns", "name")) == (res, err)
 
     def test_urlpath_statefulset(self):
         """Verify with a StatefulSet resource.
@@ -304,8 +303,7 @@ class TestEndpoints:
             )
 
             # A particular StatefulSet in all namespaces -> Invalid.
-            res, err = urlpath(config, MM(src, "StatefulSet", None, "name"))
-            assert urlpath(config, MM(expected, "StatefulSet", None, "name")) == err_resp
+            assert urlpath(config, MM(src, "StatefulSet", None, "name")) == err_resp
 
     def test_urlpath_err(self):
         """Verify with a StatefulSet resource.

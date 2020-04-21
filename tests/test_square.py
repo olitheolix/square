@@ -1,6 +1,5 @@
 import copy
 import os
-import types
 import unittest.mock as mock
 
 import square.k8s as k8s
@@ -10,7 +9,7 @@ from square.dtypes import (
     SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
     GroupBy, JsonPatch, MetaManifest, Selectors,
 )
-from square.k8s import urlpath
+from square.k8s import urlpath2
 
 from .test_helpers import make_manifest
 
@@ -198,7 +197,7 @@ class TestPatchK8s:
         kind, ns, name = 'Deployment', 'ns', 'foo'
 
         # PATCH URLs require the resource name at the end of the request path.
-        url = urlpath(k8sconfig, MetaManifest("", kind, ns, ""))[0].url + f'/{name}'
+        url = urlpath2(k8sconfig, MetaManifest("apps/v1", kind, ns, name))[0].url
 
         # The patch must be empty for identical manifests.
         loc = srv = make_manifest(kind, ns, name)
@@ -248,8 +247,10 @@ class TestPatchK8s:
         name = "foo"
 
         for kind in ["Namespace", "ClusterRole"]:
+            meta = manio.make_meta(make_manifest(kind, None, name))
+
             # Determine the resource path so we can verify it later.
-            url = urlpath(k8sconfig, MetaManifest("", kind, None, ""))[0].url + f'/{name}'
+            url = urlpath2(k8sconfig, meta)[0].url
 
             # The patch between two identical manifests must be empty but valid.
             loc = srv = make_manifest(kind, None, name)
@@ -264,17 +265,14 @@ class TestPatchK8s:
             data, err = square.make_patch(k8sconfig, loc, srv)
             assert err is False and len(data) > 0
 
-    @mock.patch.object(k8s, "urlpath")
+    @mock.patch.object(k8s, "urlpath2")
     def test_make_patch_error_urlpath(self, m_url, k8sconfig):
         """Coverage gap: simulate `urlpath` error."""
-        # Setup.
-        kind, ns, name = "Deployment", "ns", "foo"
-
         # Simulate `urlpath` error.
         m_url.return_value = (None, True)
 
         # Test function must return with error.
-        loc = srv = make_manifest(kind, ns, name)
+        loc = srv = make_manifest("Deployment", "ns", "foo")
         assert square.make_patch(k8sconfig, loc, srv) == (None, True)
 
 
@@ -296,15 +294,15 @@ class TestPlan:
         loc["metadata"]["labels"] = {"new": "new"}
 
         # The Patch between two identical manifests must be a No-Op.
-        res, err = urlpath(k8sconfig, MetaManifest("", kind, namespace, ""))
+        res, err = urlpath2(k8sconfig, MetaManifest("apps/v1", kind, namespace, name))
         assert not err
-        expected = JsonPatch(url=res.url + f"/{name}", ops=[])
+        expected = JsonPatch(url=res.url, ops=[])
         assert square.make_patch(k8sconfig, loc, loc) == (expected, False)
 
         # The patch between `srv` and `loc` must remove the old label and add
         # the new one.
         expected = JsonPatch(
-            url=res.url + f"/{name}",
+            url=res.url,
             ops=[
                 {'op': 'remove', 'path': '/metadata/labels/old'},
                 {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'}
@@ -314,8 +312,6 @@ class TestPlan:
 
     def test_make_patch_err(self, k8sconfig):
         """Verify error cases with invalid or incompatible manifests."""
-        valid_cfg = k8sconfig
-        invalid_cfg = k8sconfig._replace(version="invalid")
 
         # Create two valid manifests, then stunt one in such a way that
         # `manio.strip` will reject it.
@@ -325,18 +321,20 @@ class TestPlan:
         del invalid["kind"]
 
         # Must handle errors from `manio.strip`.
-        assert square.make_patch(valid_cfg, valid, invalid) == (None, True)
-        assert square.make_patch(valid_cfg, invalid, valid) == (None, True)
-        assert square.make_patch(valid_cfg, invalid, invalid) == (None, True)
+        assert square.make_patch(k8sconfig, valid, invalid) == (None, True)
+        assert square.make_patch(k8sconfig, invalid, valid) == (None, True)
+        assert square.make_patch(k8sconfig, invalid, invalid) == (None, True)
 
         # Must handle `urlpath` errors.
-        assert square.make_patch(invalid_cfg, valid, valid) == (None, True)
+        with mock.patch.object(square.k8s, "urlpath2") as m_url:
+            m_url.return_value = (None, True)
+            assert square.make_patch(k8sconfig, valid, valid) == (None, True)
 
         # Must handle incompatible manifests, ie manifests that do not belong
         # to the same resource.
         valid_a = make_manifest(kind, namespace, "bar")
         valid_b = make_manifest(kind, namespace, "foo")
-        assert square.make_patch(valid_cfg, valid_a, valid_b) == (None, True)
+        assert square.make_patch(k8sconfig, valid_a, valid_b) == (None, True)
 
     def test_compile_plan_create_delete_ok(self, k8sconfig):
         """Test a plan that creates and deletes resource, but not patches any.
@@ -351,41 +349,28 @@ class TestPlan:
 
         # Allocate arrays for the MetaManifests and resource URLs.
         meta = [None] * 5
-        url = [None] * 5
 
-        # Define Namespace "ns1" with 1 deployment.
+        # Local: defines Namespace "ns1" with 1 deployment.
         meta[0] = MetaManifest('v1', 'Namespace', None, 'ns1')
-        meta[1] = MetaManifest('v1', 'Deployment', 'ns1', 'res_0')
+        meta[1] = MetaManifest('apps/v1', 'Deployment', 'ns1', 'res_0')
 
-        # Define Namespace "ns2" with 2 deployments.
+        # Server: has a Namespace "ns2" with 2 deployments.
         meta[2] = MetaManifest('v1', 'Namespace', None, 'ns2')
-        meta[3] = MetaManifest('v1', 'Deployment', 'ns2', 'res_1')
-        meta[4] = MetaManifest('v1', 'Deployment', 'ns2', 'res_2')
+        meta[3] = MetaManifest('apps/v1', 'Deployment', 'ns2', 'res_1')
+        meta[4] = MetaManifest('apps/v1', 'Deployment', 'ns2', 'res_2')
 
-        # Determine the K8s resource urls for those that will be added.
-        upb = urlpath
-        res = [
-            upb(config, MetaManifest("", meta[_].kind, meta[_].namespace, ""))
-            for _ in range(5)
-        ]
+        # Determine the K8sResource for all involved resources.
+        res = [urlpath2(config, _._replace(name="")) for _ in meta]
+
+        # Sanity check: all resources types must have been known.
         assert not any([_[1] for _ in res])
+
+        # Strip off the "err" part of the (res, err) tuples.
         res = [_[0] for _ in res]
-        url[0] = res[0].url
-        url[1] = res[1].url
 
-        # Determine the K8s resource URLs for those that will be deleted. They
-        # are slightly different because DELETE requests expect a URL path that
-        # ends with the resource, eg
-        # "/api/v1/namespaces/ns2"
-        # instead of
-        # "/api/v1/namespaces".
-        url[2] = res[2].url + "/" + meta[2].name
-        url[3] = res[3].url + "/" + meta[3].name
-        url[4] = res[4].url + "/" + meta[4].name
-
-        # Compile local and server manifests that have no resource overlap.
+        # Compile local and server manifests. Their resources have no overlap.
         # This will ensure that we have to create all the local resources,
-        # delete all the server resources and path nothing.
+        # delete all the server resources, and patch nothing.
         loc_man = {meta[0]: "0", meta[1]: "1"}
         srv_man = {meta[2]: "2", meta[3]: "3", meta[4]: "4"}
 
@@ -402,14 +387,14 @@ class TestPlan:
         # be deleted.
         expected = DeploymentPlan(
             create=[
-                DeltaCreate(meta[0], url[0], loc_man[meta[0]]),
-                DeltaCreate(meta[1], url[1], loc_man[meta[1]]),
+                DeltaCreate(meta[0], res[0].url, loc_man[meta[0]]),
+                DeltaCreate(meta[1], res[1].url, loc_man[meta[1]]),
             ],
             patch=[],
             delete=[
-                DeltaDelete(meta[2], url[2], del_opts),
-                DeltaDelete(meta[3], url[3], del_opts),
-                DeltaDelete(meta[4], url[4], del_opts),
+                DeltaDelete(meta[2], res[2].url + "/" + meta[2].name, del_opts),
+                DeltaDelete(meta[3], res[3].url + "/" + meta[3].name, del_opts),
+                DeltaDelete(meta[4], res[4].url + "/" + meta[4].name, del_opts),
             ],
         )
         assert square.compile_plan(config, loc_man, srv_man) == (expected, False)
@@ -417,9 +402,6 @@ class TestPlan:
     @mock.patch.object(square, "partition_manifests")
     def test_compile_plan_create_delete_err(self, m_part, k8sconfig):
         """Simulate `urlpath` errors"""
-        # Invalid configuration. We will use it to trigger an error in `urlpath`.
-        cfg_invalid = k8sconfig._replace(version="invalid")
-
         # Valid ManifestMeta and dummy manifest dict.
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
         man = {meta: None}
@@ -430,7 +412,9 @@ class TestPlan:
             DeploymentPlan(create=[meta], patch=[], delete=[]),
             False,
         )
-        assert square.compile_plan(cfg_invalid, man, man) == (None, True)
+        with mock.patch.object(square.k8s, "urlpath2") as m_url:
+            m_url.return_value = (None, True)
+            assert square.compile_plan(k8sconfig, man, man) == (None, True)
 
         # Pretend we only have to "delete" resources, and then trigger the
         # `urlpath` error in its code path.
@@ -438,7 +422,9 @@ class TestPlan:
             DeploymentPlan(create=[], patch=[], delete=[meta]),
             False,
         )
-        assert square.compile_plan(cfg_invalid, man, man) == (None, True)
+        with mock.patch.object(square.k8s, "urlpath2") as m_url:
+            m_url.return_value = (None, True)
+            assert square.compile_plan(k8sconfig, man, man) == (None, True)
 
     def test_compile_plan_patch_no_diff(self, k8sconfig):
         """Test a plan that patches no resources.
