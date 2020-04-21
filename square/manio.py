@@ -549,7 +549,7 @@ def strip(
 
     # Sanity check: namespaced resources must have a namespace. None-namespaced
     # resources must not.
-    resource, err = square.k8s.urlpath(config, meta.kind, None)
+    resource, err = square.k8s.urlpath(config, MetaManifest("", meta.kind, None, ""))
     if err:
         return ret_err
     if resource.namespaced:
@@ -930,7 +930,8 @@ def download(
         for kind in selectors.kinds:
             try:
                 # Get the K8s URL for the current resource kind.
-                resource, err = square.k8s.urlpath(config, kind, namespace)
+                resource, err = square.k8s.urlpath(config,
+                                                   MetaManifest("", kind, namespace, ""))
                 assert not err and resource is not None
 
                 # Download the resource list from K8s.

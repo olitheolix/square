@@ -13,7 +13,9 @@ import google.auth
 import google.auth.transport.requests
 import requests
 import yaml
-from square.dtypes import Filepath, K8sClientCert, K8sConfig, K8sResource
+from square.dtypes import (
+    Filepath, K8sClientCert, K8sConfig, K8sResource, MetaManifest,
+)
 
 FNAME_TOKEN = Filepath("/var/run/secrets/kubernetes.io/serviceaccount/token")
 FNAME_CERT = Filepath("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
@@ -445,34 +447,32 @@ def session(config: K8sConfig):
     return sess
 
 
-def urlpath(
-        config: K8sConfig,
-        kind: str,
-        namespace: Optional[str]) -> Tuple[K8sResource, bool]:
-    """Return complete URL to K8s resource.
+def urlpath(config: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
+    """Return `K8sResource` object.
+
+    That object will contain the full path to a resource, eg.
+    https://1.2.3.4/api/v1/namespace/foo/services.
 
     Inputs:
         config: k8s.Config
-        kind: str
-            Eg "Deployment", "Namespace", ... (case sensitive).
-        namespace: str
-            Must be None for "Namespace" resources.
+        meta: MetaManifest
 
     Returns:
-        str: Full path K8s resource, eg https://1.2.3.4/api/v1/namespace/foo/services.
+        K8sResource
 
     """
+    err_resp = (K8sResource("", "", "", False, ""), True)
+
     # Namespaces are special because they lack the `namespaces/` path prefix.
-    if kind == "Namespace" or namespace is None:
+    if meta.kind == "Namespace" or meta.namespace is None:
         namespace = ""
     else:
         # Namespace name must conform to K8s standards.
-        match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", namespace)
-        if match is None or match.group() != namespace:
-            logit.error(f"Invalid namespace name <{namespace}>.")
-            return (K8sResource("", "", "", False, ""), True)
-
-        namespace = f"namespaces/{namespace}/"
+        match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", meta.namespace)
+        if match is None or match.group() != meta.namespace:
+            logit.error(f"Invalid namespace name <{meta.namespace}>.")
+            return err_resp
+        namespace = f"namespaces/{meta.namespace}/"
 
     # The HTTP request path names by K8s version and resource kind.
     resources = {
@@ -526,21 +526,26 @@ def urlpath(
     resources["1.15"] = resources["1.11"]
 
     try:
-        path = resources[config.version][kind]
+        path = resources[config.version][meta.kind]
     except KeyError:
-        logit.error(f"Unsupported resource <{kind}>.")
-        return (K8sResource("", "", "", False, ""), True)
+        logit.error(f"Unsupported resource <{meta.kind}>.")
+        return err_resp
 
     path = path.replace("//", "/")
     assert not path.startswith("/"), path
-    path = f"{config.url}/{path}"
 
     # These resource exist outside of namespaces.
     NON_NAMESPACED_KINDS = {
         "Namespace", "ClusterRole", "ClusterRoleBinding", "CustomResourceDefinition"
     }
 
-    ret = K8sResource("", kind, kind.lower(), kind not in NON_NAMESPACED_KINDS, path)
+    ret = K8sResource(
+        apiVersion="",
+        kind=meta.kind,
+        name=meta.kind.lower(),
+        namespaced=(meta.kind not in NON_NAMESPACED_KINDS),
+        url=f"{config.url}/{path}",
+    )
     return ret, False
 
 

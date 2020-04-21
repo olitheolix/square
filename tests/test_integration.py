@@ -5,11 +5,12 @@ import unittest.mock as mock
 import pytest
 import requests
 import sh
+import square.k8s
 import square.main
 import square.manio as manio
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, Filepath, GroupBy, K8sResource, Selectors,
+    SUPPORTED_KINDS, Filepath, GroupBy, K8sResource, MetaManifest, Selectors,
 )
 
 # Bake a `kubectl` command that uses the kubeconfig file for the KIND cluster.
@@ -107,6 +108,7 @@ class TestEndpoints:
 
     def test_urlpath(self):
         """Must work for all supported K8s versions and resources."""
+        # Fixtures.
         square.square.setup_logging(1)
         kubeconfig = Filepath("/tmp/kubeconfig-kind.yaml")
 
@@ -116,7 +118,7 @@ class TestEndpoints:
 
         for kind in SUPPORTED_KINDS:
             for ns in (None, "foo-namespace"):
-                resource, err = k8s.urlpath(config, kind, ns)
+                resource, err = k8s.urlpath(config, MetaManifest("", kind, ns, ""))
                 assert err is False and isinstance(resource, K8sResource)
 
 

@@ -9,7 +9,7 @@ import requests_mock
 import square.k8s as k8s
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, K8sConfig, K8sResource,
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, K8sConfig, K8sResource, MetaManifest,
 )
 
 
@@ -274,7 +274,7 @@ class TestUrlPathBuilder:
         """Must work for all supported K8s resources."""
         for kind in SUPPORTED_KINDS:
             for ns in (None, "foo-namespace"):
-                res, err = k8s.urlpath(k8sconfig, kind, ns)
+                res, err = k8s.urlpath(k8sconfig, MetaManifest("", kind, ns, ""))
                 assert err is False and isinstance(res, K8sResource)
 
     def test_urlpath_err(self, k8sconfig):
@@ -283,14 +283,17 @@ class TestUrlPathBuilder:
         expected = (K8sResource("", "", "", False, ""), True)
         for version in SUPPORTED_VERSIONS:
             # Invalid resource kind.
-            assert k8s.urlpath(k8sconfig, "fooresource", "ns") == expected
+            assert k8s.urlpath(
+                k8sconfig, MetaManifest("", "fooresource", "ns", "")) == expected
 
             # Namespace names must be all lower case (K8s imposes this)...
-            assert k8s.urlpath(k8sconfig, "Deployment", "namEspACe") == expected
+            assert k8s.urlpath(
+                k8sconfig, MetaManifest("", "Deployment", "namEspACe", "")) == expected
 
         # Invalid version.
-        cfg = k8sconfig._replace(version="invalid")
-        assert k8s.urlpath(cfg, "Deployment", "valid-ns") == expected
+        k8sconfig = k8sconfig._replace(version="invalid")
+        assert k8s.urlpath(
+            k8sconfig, MetaManifest("", "Deployment", "valid-ns", "")) == expected
 
 
 class TestK8sKubeconfig:
