@@ -55,7 +55,7 @@ def make_patch(
         # ClusterRoles, ClusterRoleBindings. Here we ensure that the namespace
         # in the local and server manifest matches for those resources that
         # have a namespace.
-        resource, err = k8s.urlpath(config, srv.kind, None)
+        resource, err = k8s.urlpath(config, MetaManifest("", srv.kind, None, ""))
         assert not err
         if resource.namespaced:
             assert srv.metadata.namespace == loc.metadata.namespace
@@ -74,7 +74,7 @@ def make_patch(
         return (None, True)
 
     # Determine the PATCH URL for the resource.
-    resource, err = k8s.urlpath(config, srv.kind, namespace)
+    resource, err = k8s.urlpath(config, MetaManifest("", srv.kind, namespace, ""))
     if err:
         return (None, True)
     full_url = f'{resource.url}/{srv.metadata.name}'
@@ -164,7 +164,8 @@ def compile_plan(
     # Compile the Deltas to create the missing resources.
     create = []
     for delta in plan.create:
-        resource, err = k8s.urlpath(config, delta.kind, namespace=delta.namespace)
+        resource, err = k8s.urlpath(config,
+                                    MetaManifest("", delta.kind, delta.namespace, ""))
         if err or not resource:
             return (None, True)
         create.append(DeltaCreate(delta, resource.url, local[delta]))
@@ -180,7 +181,8 @@ def compile_plan(
     delete = []
     for meta in plan.delete:
         # Resource URL.
-        resource, err = k8s.urlpath(config, meta.kind, namespace=meta.namespace)
+        resource, err = k8s.urlpath(config,
+                                    MetaManifest("", meta.kind, meta.namespace, ""))
         if err or not resource:
             return (None, True)
 
