@@ -7,7 +7,7 @@ import re
 import subprocess
 import tempfile
 import warnings
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import google.auth
 import google.auth.transport.requests
@@ -15,6 +15,7 @@ import requests
 import yaml
 from square.dtypes import (
     SUPPORTED_KINDS, SUPPORTED_VERSIONS, Filepath, K8sClientCert, K8sConfig,
+    K8sResource,
 )
 
 FNAME_TOKEN = Filepath("/var/run/secrets/kubernetes.io/serviceaccount/token")
@@ -713,3 +714,101 @@ def cluster_config(
     logit.info(f"Kubernetes server at {config.url}")
     logit.info(f"Kubernetes version is {config.version}")
     return (config, client), False
+
+
+def compile_api_endpoints(
+        kubeconfig: Filepath,
+        kube_ctx: Optional[str]) -> Tuple[Dict[Tuple[str, str], K8sResource], bool]:
+    """Replicate the output of `kubectl api-resources`.
+
+    Returns a dictionary like the following:
+    {
+      ('ConfigMap', 'v1'): K8sResource(
+        apiVersion=v1, kind='ConfigMap', name='configmaps', namespaced=True,
+        url='https://localhost:8443/api/v1/configmaps'),
+      ('CronJob', 'batch/v1beta1): K8sResource(
+        apiVersion='batch/v1beta1', kind='CronJob', name='cronjobs', namespaced=True,
+        url='https://localhost:8443/apis/batch/v1beta1/cronjobs'),
+      ('DaemonSet', 'apps/v1'): K8sResource(
+        apiVersion='apps/v1', kind='DaemonSet', name='daemonsets', namespaced=True,
+        url='https://localhost:8443/apis/apps/v1/daemonsets',
+      ('DaemonSet', apps/v1beta1): K8sResource(
+        apiVersion='apps/v1beta1', kind='DaemonSet', name='daemonsets', namespaced=True,
+        url='https://localhost:8443/apis/extensions/v1beta1/daemonsets'),
+    }
+
+    Inputs:
+        kubeconfig: str
+            Path to kubeconfig file.
+        kube_context: str
+            Kubernetes context to use (can be `None` to use default).
+
+    Returns:
+        API endpoints by resource (see example above).
+
+    """
+    # Create properly configured Requests session to talk to K8s API.
+    (config, client), err = cluster_config(kubeconfig, kube_ctx)
+    assert not err and config and client
+
+    # Compile the list of all K8s API groups that this K8s instance knows about.
+    resp, err = get(client, f"{config.url}/apis")
+    groups = resp["groups"]
+
+    # Compile the list of all API groups and their endpoints. Example
+    # apigroups = {
+    #     'extensions': {'apis/extensions/v1beta1'},
+    #     'apps': {'apis/apps/v1beta1', 'apis/apps/v1beta2', 'apis/apps/v1'},
+    #     'batch': {'apis/batch/v1beta1', 'apis/batch/v1'},
+    #     ...
+    # }
+    apigroups: Dict[str, set] = {}
+    for group in groups:
+        group_name = group["name"]
+        assert group_name not in apigroups  # fixme
+        apigroups[group_name] = set()
+        for version in group["versions"]:
+            ver = version["groupVersion"]
+            apigroups[group_name].add((ver, f"apis/{ver}"))
+            del version, ver
+        del group_name, group
+    del groups, resp, err
+
+    # The "v1" group comprises the traditional core components like Service and
+    # Pod. This group is a special case and exposed under "api/v1" instead
+    # of the usual `apis/...` path.
+    apigroups["v1"] = {("v1", "api/v1")}
+
+    # Contact K8s to find out which resources each API group supports.
+    # This will produce the following (K = `K8sResource` below): group_urls = {
+    #   'apis/apps/v1': [
+    #     K(..., kind='DaemonSet', name='daemonsets', namespaced=True, url='apis/apps/v1'),
+    #     K(..., kind='Deployment', name='deployments', namespaced=True, url='apis/apps/v1'),
+    #     K(..., kind='ReplicaSet', name='replicasets', namespaced=True, url='apis/apps/v1'),
+    #     K(..., kind='StatefulSet', name='statefulsets', namespaced=True, url='apis/apps/v1')
+    #   ],
+    #   'apis/apps/v1beta1': [
+    #     K(..., kind='Deployment', name='deployments', namespaced=True, url=...),
+    #     K(..., kind='StatefulSet', name='statefulsets', namespaced=True, url=...)
+    #   ],
+    # }
+    group_urls = {}
+    for name, urls in apigroups.items():
+        for apiversion, url in urls:
+            resp, err = get(client, f"{config.url}/{url}")
+            assert not err
+
+            group_urls[url] = [
+                K8sResource(apiversion, _["kind"], _["name"], _["namespaced"], url)
+                for _ in resp["resources"] if "/" not in _["name"]
+            ]
+
+    # This will produce the output described in the function doc string.
+    kinds: Dict[Tuple[str, str], K8sResource] = {}
+    for url, resources in group_urls.items():
+        for res in resources:
+            key = (res.kind, res.apiVersion)  # fixme: define namedtuple
+            assert key not in kinds           # fixme
+            kinds[key] = res._replace(url=f"{config.url}/{res.url}/{res.name}")
+
+    return kinds, False

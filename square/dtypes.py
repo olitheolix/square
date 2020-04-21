@@ -92,11 +92,25 @@ class K8sConfig(NamedTuple):
 
 
 class MetaManifest(NamedTuple):
-    """A succinct summary of a K8s resource manifest."""
+    """Minimum amount of information to uniquely identify a K8s resource.
+
+    The primary purpose of this tuple is as to provide an immutable UUID that
+    we can use as keys in dictionaries or entries in a set.
+
+    """
     apiVersion: str
     kind: str
     namespace: str
     name: str
+
+
+class K8sResource(NamedTuple):
+    """Describe a specific K8s resource kind."""
+    apiVersion: str   # "batch/v1beta1" or "extensions/v1beta1".
+    kind: str         # "Deployment" (as specified in manifest)
+    name: str         # "deployment" (usually lower case version of above)
+    namespaced: bool  # Whether or not the resource is namespaced.
+    url: str          # API endpoint, eg "k8s-host.com//api/v1/pods".
 
 
 # -----------------------------------------------------------------------------

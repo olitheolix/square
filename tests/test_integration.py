@@ -8,7 +8,9 @@ import sh
 import square.main
 import square.manio as manio
 import yaml
-from square.dtypes import SUPPORTED_KINDS, Filepath, GroupBy, Selectors
+from square.dtypes import (
+    SUPPORTED_KINDS, Filepath, GroupBy, K8sResource, Selectors,
+)
 
 # Bake a `kubectl` command that uses the kubeconfig file for the KIND cluster.
 # We need to wrap this into a try/except block because CircleCI does not have
@@ -27,6 +29,80 @@ def kind_available():
         return False
     else:
         return resp.status_code == 200
+
+
+@pytest.mark.skipif(not kind_available(), reason="No Minikube")
+class TestEndpoints:
+    def setup_method(self):
+        cur_path = pathlib.Path(__file__).parent.parent
+        integration_test_manifest_path = cur_path / "integration-test-cluster"
+        assert integration_test_manifest_path.exists()
+        assert integration_test_manifest_path.is_dir()
+        kubectl("apply", "-f", str(integration_test_manifest_path))
+
+    def test_compile_api_endpoints(self):
+        """Ask for all endpoints and perform some sanity checks."""
+        square.square.setup_logging(1)
+        kubeconfig = Filepath("/tmp/kubeconfig-kind.yaml")
+        apis, err = square.k8s.compile_api_endpoints(kubeconfig, None)
+        assert not err
+
+        (config, client), err = square.k8s.cluster_config(kubeconfig, None)
+        assert not err and config and client
+
+        # Sanity check.
+        kinds = {
+            # Standard resources that a v1.13 Kubernetes cluster always has.
+            ('ClusterRole', 'rbac.authorization.k8s.io/v1'),
+            ('ClusterRole', 'rbac.authorization.k8s.io/v1beta1'),
+            ('ConfigMap', 'v1'),
+            ('DaemonSet', 'apps/v1'),
+            ('DaemonSet', 'apps/v1beta2'),
+            ('DaemonSet', 'extensions/v1beta1'),
+            ('Deployment', 'apps/v1'),
+            ('Deployment', 'apps/v1beta1'),
+            ('Deployment', 'apps/v1beta2'),
+            ('Deployment', 'extensions/v1beta1'),
+            ('Pod', 'v1'),
+            ('Service', 'v1'),
+            ('ServiceAccount', 'v1'),
+
+            # Our CustomCRD.
+            ("DemoCRD", "mycrd.com/v1"),
+        }
+        assert kinds.issubset(set(apis.keys()))
+
+        # Verify some standard resource types.
+        assert apis[("Namespace", "v1")] == K8sResource(
+            apiVersion="v1",
+            kind="Namespace",
+            name="namespaces",
+            namespaced=False,
+            url=f"{config.url}/api/v1/namespaces",
+        )
+        assert apis[("Pod", "v1")] == K8sResource(
+            apiVersion="v1",
+            kind="Pod",
+            name="pods",
+            namespaced=True,
+            url=f"{config.url}/api/v1/pods",
+        )
+        assert apis[("Deployment", "apps/v1")] == K8sResource(
+            apiVersion="apps/v1",
+            kind="Deployment",
+            name="deployments",
+            namespaced=True,
+            url=f"{config.url}/apis/apps/v1/deployments",
+        )
+
+        # Verify our CRD.
+        assert apis[("DemoCRD", "mycrd.com/v1")] == K8sResource(
+            apiVersion="mycrd.com/v1",
+            kind="DemoCRD",
+            name="democrds",
+            namespaced=True,
+            url=f"{config.url}/apis/mycrd.com/v1/democrds",
+        )
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Minikube")
