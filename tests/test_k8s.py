@@ -269,13 +269,10 @@ class TestUrlPathBuilder:
         )
 
     def test_urlpath_ok(self, k8sconfig):
-        """Must work for all supported K8s versions and resources."""
-        for version in SUPPORTED_VERSIONS:
-            for kind in SUPPORTED_KINDS:
-                for ns in (None, "foo-namespace"):
-                    path, err = k8s.urlpath(k8sconfig, kind, ns)
-
-                # Verify.
+        """Must work for all supported K8s resources."""
+        for kind in SUPPORTED_KINDS:
+            for ns in (None, "foo-namespace"):
+                path, err = k8s.urlpath(k8sconfig, kind, ns)
                 assert err is False
                 assert isinstance(path, str)
 
