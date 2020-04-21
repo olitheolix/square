@@ -554,7 +554,7 @@ def request(
         method: str,
         url: str,
         payload: Optional[dict],
-        headers: Optional[dict]) -> Tuple[Optional[dict], bool]:
+        headers: Optional[dict]) -> Tuple[dict, bool]:
     """Return response of web request made with `client`.
 
     Inputs:
@@ -577,7 +577,7 @@ def request(
         method = err.request.method
         url = err.request.url
         logit.error(f"Connection error: {method} {url}")
-        return (None, True)
+        return ({}, True)
 
     try:
         response = ret.json()
@@ -587,7 +587,7 @@ def request(
             "-" * 80 + "\n" + err.doc + "\n" + "-" * 80,
         )
         logit.error(str.join("\n", msg))
-        return (None, True)
+        return ({}, True)
 
     # Log the entire request in debug mode.
     logit.debug(
@@ -599,7 +599,7 @@ def request(
     return (response, ret.status_code)
 
 
-def delete(client, url: str, payload: dict) -> Tuple[Optional[dict], bool]:
+def delete(client, url: str, payload: dict) -> Tuple[dict, bool]:
     """Make DELETE requests to K8s (see `k8s_request`)."""
     resp, code = request(client, 'DELETE', url, payload, headers=None)
     err = (code not in (200, 202))
@@ -608,7 +608,7 @@ def delete(client, url: str, payload: dict) -> Tuple[Optional[dict], bool]:
     return (resp, err)
 
 
-def get(client, url: str) -> Tuple[Optional[dict], bool]:
+def get(client, url: str) -> Tuple[dict, bool]:
     """Make GET requests to K8s (see `request`)."""
     resp, code = request(client, 'GET', url, payload=None, headers=None)
     err = (code != 200)
@@ -617,7 +617,7 @@ def get(client, url: str) -> Tuple[Optional[dict], bool]:
     return (resp, err)
 
 
-def patch(client, url: str, payload: dict) -> Tuple[Optional[dict], bool]:
+def patch(client, url: str, payload: dict) -> Tuple[dict, bool]:
     """Make PATCH requests to K8s (see `request`)."""
     headers = {'Content-Type': 'application/json-patch+json'}
     resp, code = request(client, 'PATCH', url, payload, headers)
@@ -627,7 +627,7 @@ def patch(client, url: str, payload: dict) -> Tuple[Optional[dict], bool]:
     return (resp, err)
 
 
-def post(client, url: str, payload: dict) -> Tuple[Optional[dict], bool]:
+def post(client, url: str, payload: dict) -> Tuple[dict, bool]:
     """Make POST requests to K8s (see `request`)."""
     resp, code = request(client, 'POST', url, payload, headers=None)
     err = (code != 201)

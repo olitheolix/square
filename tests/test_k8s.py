@@ -91,7 +91,7 @@ class TestK8sDeleteGetPatchPost:
 
         # Test function must not return a response but indicate an error.
         ret = k8s.request(client, method, url, None, None)
-        assert ret == (None, True)
+        assert ret == ({}, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     def test_request_connection_err(self, method, m_requests):
@@ -109,7 +109,7 @@ class TestK8sDeleteGetPatchPost:
         # Simulate a connection error during the request to K8s.
         m_requests.request(method, url, exc=exc)
         ret = k8s.request(client, method, url, None, None)
-        assert ret == (None, True)
+        assert ret == ({}, True)
 
     @mock.patch.object(k8s, "request")
     def test_delete_get_patch_post_ok(self, m_req):
