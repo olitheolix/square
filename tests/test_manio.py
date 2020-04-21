@@ -162,7 +162,7 @@ class TestUnpackParse:
 
         # The actual DeploymentList returned from K8s.
         manifest_list = {
-            'apiVersion': 'v1',
+            'apiVersion': 'apps/v1',
             'kind': 'DeploymentList',
             'items': manifests_nokind,
         }
@@ -179,10 +179,11 @@ class TestUnpackParse:
         assert all(["kind" in v for k, v in data.items()])
 
         # Verify the Python dict.
+        MM = MetaManifest
         assert data == {
-            MetaManifest('v1', 'Deployment', 'ns_0', 'name_0'): manifests_withkind[0],
-            MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests_withkind[1],
-            MetaManifest('v1', 'Deployment', 'ns_2', 'name_2'): manifests_withkind[2],
+            MM('apps/v1', 'Deployment', 'ns_0', 'name_0'): manifests_withkind[0],
+            MM('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests_withkind[1],
+            MM('apps/v1', 'Deployment', 'ns_2', 'name_2'): manifests_withkind[2],
         }
 
         # Function must return deep copies of the manifests to avoid difficult
@@ -202,7 +203,7 @@ class TestUnpackParse:
 
         # The actual DeploymentList returned from K8s.
         manifest_list = {
-            'apiVersion': 'v1',
+            'apiVersion': 'apps/v1',
             'kind': 'DeploymentList',
             'items': manifests,
         }
@@ -212,9 +213,9 @@ class TestUnpackParse:
             selectors = Selectors(["Deployment"], ns, set())
             data, err = manio.unpack_list(manifest_list, selectors)
             assert err is False and data == {
-                MetaManifest('v1', 'Deployment', 'ns_0', 'name_0'): manifests[0],
-                MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
-                MetaManifest('v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
+                MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_0'): manifests[0],
+                MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
+                MetaManifest('apps/v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
             }
 
         # Must select nothing because no resource is in the "foo" namespace.
@@ -231,22 +232,22 @@ class TestUnpackParse:
         selectors = Selectors(["Deployment"], ["ns_1"], set())
         data, err = manio.unpack_list(manifest_list, selectors)
         assert err is False and data == {
-            MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
+            MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
         }
 
         # Must select the Deployment in the "ns_1" & "ns_2" namespace.
         selectors = Selectors(["Deployment"], ["ns_1", "ns_2"], set())
         data, err = manio.unpack_list(manifest_list, selectors)
         assert err is False and data == {
-            MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
-            MetaManifest('v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
+            MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
+            MetaManifest('apps/v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
         }
 
         # Must select the second Deployment due to label selector.
         selectors = Selectors(["Deployment"], None, {("app", "d_1")})
         data, err = manio.unpack_list(manifest_list, selectors)
         assert err is False and data == {
-            MetaManifest('v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
+            MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
         }
 
     def test_unpack_list_invalid_list_manifest(self):
@@ -1702,14 +1703,14 @@ class TestDownloadManifests:
 
         # NamespaceList and DeploymentList (all namespaces).
         l_ns = {'apiVersion': 'v1', 'kind': 'NamespaceList', "items": [meta[0], meta[1]]}
-        l_dply = {'apiVersion': 'v1', 'kind': 'DeploymentList',
+        l_dply = {'apiVersion': 'apps/v1', 'kind': 'DeploymentList',
                   "items": [meta[2], meta[3]]}
 
         # Namespaced NamespaceList and DeploymentList.
         l_ns_0 = {'apiVersion': 'v1', 'kind': 'NamespaceList', "items": [meta[0]]}
         l_ns_1 = {'apiVersion': 'v1', 'kind': 'NamespaceList', "items": [meta[1]]}
-        l_dply_0 = {'apiVersion': 'v1', 'kind': 'DeploymentList', "items": [meta[2]]}
-        l_dply_1 = {'apiVersion': 'v1', 'kind': 'DeploymentList', "items": [meta[3]]}
+        l_dply_0 = {'apiVersion': 'apps/v1', 'kind': 'DeploymentList', "items": [meta[2]]}
+        l_dply_1 = {'apiVersion': 'apps/v1', 'kind': 'DeploymentList', "items": [meta[3]]}
 
         # ----------------------------------------------------------------------
         # Request resources from all namespaces implicitly via namespaces=None
