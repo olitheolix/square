@@ -47,21 +47,10 @@ def make_patch(
 
     # Sanity checks: abort if the manifests do not specify the same resource.
     try:
-        assert srv.apiVersion == loc.apiVersion
-        assert srv.kind == loc.kind
-        assert srv.metadata.name == loc.metadata.name
-
-        # Not all resources live in a namespace, for instance Namespaces,
-        # ClusterRoles, ClusterRoleBindings. Here we ensure that the namespace
-        # in the local and server manifest matches for those resources that
-        # have a namespace.
-        resource, err = k8s.urlpath(config, MetaManifest("", srv.kind, None, ""))
-        assert not err
-        if resource.namespaced:
-            assert srv.metadata.namespace == loc.metadata.namespace
-            namespace = srv.metadata.namespace
-        else:
-            namespace = None
+        res_srv, err_srv = k8s.urlpath2(config, manio.make_meta(srv))
+        res_loc, err_loc = k8s.urlpath2(config, manio.make_meta(loc))
+        assert err_srv is err_loc is False
+        assert res_srv == res_loc
     except AssertionError:
         # Log the invalid manifests and return with an error.
         keys = ("apiVersion", "kind", "metadata")
@@ -73,18 +62,12 @@ def make_patch(
         )
         return (None, True)
 
-    # Determine the PATCH URL for the resource.
-    resource, err = k8s.urlpath(config, MetaManifest("", srv.kind, namespace, ""))
-    if err:
-        return (None, True)
-    full_url = f'{resource.url}/{srv.metadata.name}'
-
     # Compute JSON patch.
     patch = jsonpatch.make_patch(srv, loc)
     patch = json.loads(patch.to_string())
 
     # Return the patch.
-    return (JsonPatch(full_url, patch), False)
+    return (JsonPatch(res_srv.url, patch), False)
 
 
 def partition_manifests(
@@ -164,8 +147,9 @@ def compile_plan(
     # Compile the Deltas to create the missing resources.
     create = []
     for delta in plan.create:
-        resource, err = k8s.urlpath(config,
-                                    MetaManifest("", delta.kind, delta.namespace, ""))
+        # We only need the resource and namespace, not its name, because that
+        # is how the POST request to create a resource works in K8s.
+        resource, err = k8s.urlpath2(config, delta._replace(name=""))
         if err or not resource:
             return (None, True)
         create.append(DeltaCreate(delta, resource.url, local[delta]))
@@ -181,16 +165,12 @@ def compile_plan(
     delete = []
     for meta in plan.delete:
         # Resource URL.
-        resource, err = k8s.urlpath(config,
-                                    MetaManifest("", meta.kind, meta.namespace, ""))
+        resource, err = k8s.urlpath2(config, meta)
         if err or not resource:
             return (None, True)
 
-        # DELETE requests must specify the resource name in the path.
-        url = f"{resource.url}/{meta.name}"
-
         # Compile the Delta and add it to the list.
-        delete.append(DeltaDelete(meta, url, del_opts.copy()))
+        delete.append(DeltaDelete(meta, resource.url, del_opts.copy()))
 
     # Iterate over each manifest that needs patching and determine the
     # necessary JSON Patch to transition K8s into the state specified in the

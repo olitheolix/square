@@ -11,7 +11,7 @@ from square.dtypes import (
     RESOURCE_ALIASES, SUPPORTED_KINDS, Filepath, GroupBy, MetaManifest,
     Selectors,
 )
-from square.k8s import urlpath
+from square.k8s import urlpath2 as urlpath
 
 from .test_helpers import make_manifest, mk_deploy
 
@@ -794,7 +794,7 @@ class TestManifestValidation:
                     "namespace": "maybe",
                 },
             }
-            if k8s.urlpath(k8sconfig, MetaManifest("", kind, None, ""))[0].namespaced:
+            if urlpath(k8sconfig, MetaManifest("", kind, None, ""))[0].namespaced:
                 del manifest["metadata"]["namespace"]
             assert manio.strip(k8sconfig, manifest) == (({}, {}), True)
 
@@ -802,7 +802,7 @@ class TestManifestValidation:
         """Filter DEPLOYMENT manifests."""
         # A valid service manifest with a few optional and irrelevant keys.
         manifest = {
-            "apiVersion": "v1",
+            "apiVersion": "apps/v1",
             "kind": "Deployment",
             "metadata": {
                 "annotations": {
@@ -825,7 +825,7 @@ class TestManifestValidation:
             "status": "remove",
         }
         expected = {
-            "apiVersion": "v1",
+            "apiVersion": "apps/v1",
             "kind": "Deployment",
             "metadata": {
                 "annotations": {
@@ -859,7 +859,7 @@ class TestManifestValidation:
 
         # Deployments must have a "metadata.namespace" attribute.
         manifest = {
-            "apiVersion": "v1",
+            "apiVersion": "apps/v1",
             "kind": "Deployment",
             "metadata": {"name": "mandatory"},
         }
