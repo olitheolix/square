@@ -85,7 +85,7 @@ class MetaManifest(NamedTuple):
     """
     apiVersion: str
     kind: str
-    namespace: str
+    namespace: Optional[str]
     name: str
 
 
