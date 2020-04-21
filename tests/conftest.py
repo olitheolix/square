@@ -4,6 +4,8 @@ import pytest
 import square.dtypes
 import square.square
 
+from .test_helpers import k8s_apis
+
 
 def pytest_configure(*args, **kwargs):
     """Pytest calls this hook on startup."""
@@ -20,4 +22,13 @@ def kube_creds(request):
 
 @pytest.fixture
 def k8sconfig():
-    yield square.dtypes.K8sConfig(version="1.10")
+    # Return a valid K8sConfig with a subsection of API endpoints available in
+    # K8s v1.15.
+    cfg = square.dtypes.K8sConfig(version="1.15")
+
+    # Update the API endpoints.
+    cfg.apis.clear()
+    cfg.apis.update(k8s_apis(cfg))
+
+    # Pass the fixture to the test.
+    yield cfg

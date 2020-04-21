@@ -237,7 +237,7 @@ class TestPatchK8s:
         loc['metadata']['namespace'] = 'mismatch'
         assert square.make_patch(k8sconfig, loc, srv) == (None, True)
 
-    def test_make_patch_special(self):
+    def test_make_patch_special(self, k8sconfig):
         """Namespace, ClusterRole(Bindings) etc are special.
 
         What makes them special is that they exist outside namespaces.
@@ -245,17 +245,15 @@ class TestPatchK8s:
         and require special treatment in `make_patch`.
 
         """
-        # Generic fixtures; values are irrelevant.
-        config = types.SimpleNamespace(url='http://examples.com/', version="1.10")
         name = "foo"
 
         for kind in ["Namespace", "ClusterRole"]:
             # Determine the resource path so we can verify it later.
-            url = urlpath(config, MetaManifest("", kind, None, ""))[0].url + f'/{name}'
+            url = urlpath(k8sconfig, MetaManifest("", kind, None, ""))[0].url + f'/{name}'
 
             # The patch between two identical manifests must be empty but valid.
             loc = srv = make_manifest(kind, None, name)
-            assert square.make_patch(config, loc, srv) == ((url, []), False)
+            assert square.make_patch(k8sconfig, loc, srv) == ((url, []), False)
 
             # Create two almost identical manifests, except the second one has
             # different `metadata.labels`. This must succeed.
@@ -263,7 +261,7 @@ class TestPatchK8s:
             srv = copy.deepcopy(loc)
             loc['metadata']['labels'] = {"key": "value"}
 
-            data, err = square.make_patch(config, loc, srv)
+            data, err = square.make_patch(k8sconfig, loc, srv)
             assert err is False and len(data) > 0
 
     @mock.patch.object(k8s, "urlpath")
