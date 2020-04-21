@@ -779,18 +779,23 @@ class TestManifestValidation:
         assert manio.strip(k8sconfig, manifest) == ((expected, {}), False)
         del manifest, expected
 
-        # Create invalid manifests: add a `metadata.namespace` field to all
-        # cluster level resources and skip it for all others. In any case, the
-        # manifest is invalid and the `strip` function must be smart enough to
-        # figure that out.
+        # Create invalid manifests that either have specify a namespace for a
+        # non-namespaced resource or vice versa. In any case, the `strip`
+        # function must be smart enough to identify them.
         for kind in RESOURCE_ALIASES:
+            if kind == "Namespace":
+                continue
             manifest = {
                 "apiVersion": "v1",
                 "kind": kind,
-                "metadata": {"name": "mandatory"},
+                "metadata": {
+                    "name": "mandatory",
+                    "namespace": "maybe",
+                },
             }
-            if kind in NON_NAMESPACED_KINDS:
+            if kind not in NON_NAMESPACED_KINDS:
                 manifest["metadata"]["namespace"] = "not-allowed"
+                del manifest["metadata"]["namespace"]
             assert manio.strip(k8sconfig, manifest) == (({}, {}), True)
 
     def test_strip_deployment(self, k8sconfig):

@@ -544,33 +544,23 @@ def strip(
     # Avoid side effects.
     manifest = copy.deepcopy(manifest)
 
-    # Every manifest must specify its "apiVersion" and "kind".
+    # Parse the manifest.
     try:
-        kind = manifest["kind"]
+        meta = make_meta(manifest)
     except KeyError as err:
         logit.error(f"Manifest is missing the <{err.args[0]}> key.")
         return ret_err
 
-    # Unpack the name and namespace to produce a convenient log message.
-    # NOTE: we assume here that manifests may not have either.
-    name = manifest.get("metadata", {}).get("name", None)
-    ns = manifest.get("metadata", {}).get("namespace", None)
-
-    # Abort if manifest lacks `metadata.name`.
-    if name is None:
-        logit.error("<metadata.name> must not be empty")
-        return ret_err
-
-    # All but cluster level resources must have a `metadata.namespace` field.
-    if kind in NON_NAMESPACED_KINDS:
-        if ns is not None:
-            logit.error(f"<{kind}> must not have a <metadata.namespace> field.")
+    # Sanity check: namespaced resources must have a namespace. None-namespaced
+    # ones must not.
+    if meta.kind in NON_NAMESPACED_KINDS:
+        if meta.namespace is not None:
+            logit.error(f"<{meta.kind}> must not have a <metadata.namespace> field.")
             return ret_err
     else:
-        if ns is None:
-            logit.error(f"<{kind}> must have <metadata.namespace> field.")
+        if meta.namespace is None:
+            logit.error(f"<{meta.kind}> must have <metadata.namespace> field.")
             return ret_err
-    del name, ns
 
     def _update(exclude: dict, manifest: dict):
         """Recursively traverse the `manifest` and prune it according to `exclude`.
@@ -608,7 +598,7 @@ def strip(
     try:
         exclude = square.schemas.EXCLUSION_SCHEMA[manifest["kind"]]
     except KeyError:
-        logit.error(f"Unknown resource kind: <{kind}>")
+        logit.error(f"Unknown resource kind: <{meta.kind}>")
         return ret_err
 
     # Strip down the manifest to its essential parts and return it.
