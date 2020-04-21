@@ -30,7 +30,7 @@ def make_meta(manifest: dict) -> MetaManifest:
     """
     # Unpack the namespace. For Namespace resources, this will be the "name".
     if manifest["kind"] == "Namespace":
-        ns = manifest['metadata']['name']
+        ns = None
     else:
         # For non-Namespace manifests, the namespace may genuinely be None if
         # the resource applies globally, eg ClusterRole.
@@ -459,10 +459,11 @@ def filename_for_manifest(
     # "--groupby" command line option accepts. We will use this LUT below to
     # assemble the full manifest path.
     lut = {
-        # Get the namespace. Use "_global_" if the resource's namespace is
-        # `None`, which it will be for global resources like ClusterRole and
-        # ClusterRoleBinding.
-        "ns": meta.namespace or "_global_",
+        # Get the namespace. Use "_global_" for non-namespaced resources.
+        # The only exception are `Namespaces` themselves because it is neater
+        # to save their manifest in the relevant namespace folder, together
+        # with all the other resources that are in that namespace.
+        "ns": (meta.name if meta.kind == "Namespace" else None) or meta.namespace or "_global_",  # noqa
         "kind": meta.kind.lower(),
         # Try to find the user specified label. If the current resource lacks
         # that label then put it into the catchall file.

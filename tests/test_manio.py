@@ -43,7 +43,7 @@ class TestHelpers:
         expected = MetaManifest(
             apiVersion=manifest["apiVersion"],
             kind=manifest["kind"],
-            namespace="name",
+            namespace=None,
             name=manifest["metadata"]["name"]
         )
         assert manio.make_meta(manifest) == expected
