@@ -8,7 +8,9 @@ import square.k8s
 import square.main
 import square.manio as manio
 import yaml
-from square.dtypes import SUPPORTED_KINDS, Filepath, GroupBy, Selectors
+from square.dtypes import (
+    SUPPORTED_KINDS, Filepath, GroupBy, K8sConfig, Selectors,
+)
 
 from .test_helpers import kind_available
 
@@ -19,6 +21,28 @@ try:
     kubectl = sh.kubectl.bake("--kubeconfig", "/tmp/kubeconfig-kind.yaml")
 except sh.CommandNotFound:
     kubectl = None
+
+
+@pytest.mark.skipif(not kind_available(), reason="No Minikube")
+class TestBasic:
+    def test_cluster_config(self):
+        """Basic success/failure test for K8s configuration."""
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        # Fixtures.
+        fun = square.k8s.cluster_config
+        fname = Filepath("/tmp/kubeconfig-kind.yaml")
+
+        # Must produce a valid K8s configuration.
+        (cfg, sess), err = fun(fname, None)
+        assert not err and isinstance(cfg, K8sConfig)
+
+        # Gracefully handle connection errors to K8s.
+        with mock.patch.object(square.k8s, "session") as m_sess:
+            m_sess.return_value = None
+            assert fun(fname, None) == ((None, None), True)
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Minikube")
