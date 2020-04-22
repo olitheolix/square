@@ -11,7 +11,7 @@ from square.dtypes import (
     RESOURCE_ALIASES, SUPPORTED_KINDS, Filepath, GroupBy, MetaManifest,
     Selectors,
 )
-from square.k8s import urlpath2 as urlpath
+from square.k8s import urlpath
 
 from .test_helpers import make_manifest, mk_deploy
 

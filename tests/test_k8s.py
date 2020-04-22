@@ -280,7 +280,7 @@ class TestUrlPathBuilder:
 
         """
         # Fixtures.
-        config, urlpath = k8sconfig, k8s.urlpath2
+        config, urlpath = k8sconfig, k8s.urlpath
         MM = MetaManifest
         err_resp = (K8sResource("", "", "", False, ""), True)
 
@@ -343,7 +343,7 @@ class TestUrlPathBuilder:
 
         """
         # Fixtures.
-        config, urlpath = k8sconfig, k8s.urlpath2
+        config, urlpath = k8sconfig, k8s.urlpath
         MM = MetaManifest
 
         for src in ["", "v1"]:
@@ -381,11 +381,11 @@ class TestUrlPathBuilder:
         expected = (K8sResource("", "", "", False, ""), True)
         for version in SUPPORTED_VERSIONS:
             # Invalid resource kind.
-            assert k8s.urlpath2(
+            assert k8s.urlpath(
                 k8sconfig, MetaManifest("", "fooresource", "ns", "")) == expected
 
             # Namespace names must be all lower case (K8s imposes this)...
-            assert k8s.urlpath2(
+            assert k8s.urlpath(
                 k8sconfig, MetaManifest("", "Deployment", "namEspACe", "")) == expected
 
 

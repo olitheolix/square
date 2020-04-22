@@ -113,7 +113,7 @@ class TestEndpoints:
 
         """
         # Fixtures.
-        urlpath = square.k8s.urlpath2
+        urlpath = square.k8s.urlpath
         err_resp = (K8sResource("", "", "", False, ""), True)
         square.square.setup_logging(1)
         kubeconfig = Filepath("/tmp/kubeconfig-kind.yaml")
@@ -168,7 +168,7 @@ class TestEndpoints:
 
         """
         # Fixtures.
-        urlpath = square.k8s.urlpath2
+        urlpath = square.k8s.urlpath
         MM = MetaManifest
         err_resp = (K8sResource("", "", "", False, ""), True)
         square.square.setup_logging(1)
@@ -230,7 +230,7 @@ class TestEndpoints:
 
         """
         # Fixtures.
-        urlpath = square.k8s.urlpath2
+        urlpath = square.k8s.urlpath
         MM = MetaManifest
         err_resp = (K8sResource("", "", "", False, ""), True)
         square.square.setup_logging(1)
@@ -299,7 +299,7 @@ class TestEndpoints:
 
         """
         # Fixtures.
-        urlpath = square.k8s.urlpath2
+        urlpath = square.k8s.urlpath
         MM = MetaManifest
         err_resp = (K8sResource("", "", "", False, ""), True)
         square.square.setup_logging(1)
