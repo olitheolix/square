@@ -728,6 +728,9 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
     """
     # Compile the list of all K8s API groups that this K8s instance knows about.
     resp, err = get(client, f"{config.url}/apis")
+    if err:
+        logit.error(f"Could not interrogate the {config.url}/apis")
+        return True
 
     # Compile the list of all API groups and their endpoints. Example
     # apigroups = {
@@ -774,6 +777,7 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
         for apiversion, url in group:
             resp, err = get(client, f"{config.url}/{url}")
             if err:
+                logit.error(f"Could not interrogate the {config.url}/{url}")
                 return True
 
             group_urls[url] = [
