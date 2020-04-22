@@ -532,7 +532,7 @@ class TestUrlPathBuilder:
 
         # Sanity check.
         kinds = {
-            # Standard resources that a v1.13 Kubernetes cluster always has.
+            # Standard resources that a v1.15 Kubernetes cluster always has.
             ('ClusterRole', 'rbac.authorization.k8s.io/v1'),
             ('ClusterRole', 'rbac.authorization.k8s.io/v1beta1'),
             ('ConfigMap', 'v1'),

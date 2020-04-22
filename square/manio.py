@@ -921,7 +921,7 @@ def download(
             try:
                 # Get the K8s URL for the current resource kind.
                 resource, err = square.k8s.urlpath(config,
-                                                    MetaManifest("", kind, namespace, ""))
+                                                   MetaManifest("", kind, namespace, ""))
                 assert not err
 
                 # Download the resource list from K8s.

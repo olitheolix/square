@@ -8,7 +8,7 @@ This example is only useful if you want to run Square inside your cluster. You
 do *not* need to deploy anything into your cluster in order to use Square -
 this is purely if you want to try it out from within a pod.
 
-These examples were tested with Minikube v1.10.0.
+These examples were tested with Kind v1.15
 
 The [manifest](square-single-namespace.yaml) deploys `square` into a new
 namespace (also called `square`). Use `kubectl` or `square` to deploy it.
