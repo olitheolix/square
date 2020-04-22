@@ -184,12 +184,40 @@ def k8s_apis(config: K8sConfig):
             namespaced=True,
             url=f"{config.url}/api/v1",
         ),
+        ("Pod", "v1"): K8sResource(
+            apiVersion="v1",
+            kind="Pod",
+            name="pods",
+            namespaced=True,
+            url=f"{config.url}/api/v1"
+        ),
         ("PodDisruptionBudget", "policy/v1beta1"): K8sResource(
             apiVersion="policy/v1beta1",
             kind="PodDisruptionBudget",
             name="poddisruptionbudgets",
             namespaced=True,
             url=f"{config.url}/apis/policy/v1beta1",
+        ),
+        ("Role", ""): K8sResource(
+            apiVersion="rbac.authorization.k8s.io/v1",
+            kind="Role",
+            name="roles",
+            namespaced=True,
+            url=f"{config.url}/apis/rbac.authorization.k8s.io/v1"
+        ),
+        ("Role", "rbac.authorization.k8s.io/v1"): K8sResource(
+            apiVersion="rbac.authorization.k8s.io/v1",
+            kind="Role",
+            name="roles",
+            namespaced=True,
+            url=f"{config.url}/apis/rbac.authorization.k8s.io/v1"
+        ),
+        ("Role", "rbac.authorization.k8s.io/v1beta1"): K8sResource(
+            apiVersion="rbac.authorization.k8s.io/v1beta1",
+            kind="Role",
+            name="roles",
+            namespaced=True,
+            url=f"{config.url}/apis/rbac.authorization.k8s.io/v1beta1"
         ),
         ("RoleBinding", "rbac.authorization.k8s.io/v1"): K8sResource(
             apiVersion="rbac.authorization.k8s.io/v1",
