@@ -524,6 +524,96 @@ class TestUrlPathBuilder:
         assert k8s.urlpath(config, MM("v1", "Bogus", "ns", "name")) == err_resp
         assert k8s.urlpath(config, MM("", "Bogus", "ns", "name")) == err_resp
 
+    @pytest.mark.parametrize("integrationtest", [False, True])
+    def test_compile_api_endpoints(self, integrationtest, k8sconfig):
+        """Ask for all endpoints and perform some sanity checks."""
+        square.square.setup_logging(1)
+        config = self.k8sconfig(integrationtest, k8sconfig)
+
+        # Sanity check.
+        kinds = {
+            # Standard resources that a v1.13 Kubernetes cluster always has.
+            ('ClusterRole', 'rbac.authorization.k8s.io/v1'),
+            ('ClusterRole', 'rbac.authorization.k8s.io/v1beta1'),
+            ('ConfigMap', 'v1'),
+            ('DaemonSet', 'apps/v1'),
+            ('DaemonSet', 'apps/v1beta2'),
+            ('DaemonSet', 'extensions/v1beta1'),
+            ('Deployment', 'apps/v1'),
+            ('Deployment', 'apps/v1beta1'),
+            ('Deployment', 'apps/v1beta2'),
+            ('Deployment', 'extensions/v1beta1'),
+            ('Pod', 'v1'),
+            ('Service', 'v1'),
+            ('ServiceAccount', 'v1'),
+
+            # Our CustomCRD.
+            ("DemoCRD", "mycrd.com/v1"),
+        }
+        assert kinds.issubset(set(config.apis.keys()))
+
+        # Verify some standard resource types.
+        assert config.apis[("Namespace", "v1")] == K8sResource(
+            apiVersion="v1",
+            kind="Namespace",
+            name="namespaces",
+            namespaced=False,
+            url=f"{config.url}/api/v1",
+        )
+        assert config.apis[("Pod", "v1")] == K8sResource(
+            apiVersion="v1",
+            kind="Pod",
+            name="pods",
+            namespaced=True,
+            url=f"{config.url}/api/v1",
+        )
+        assert config.apis[("Deployment", "apps/v1")] == K8sResource(
+            apiVersion="apps/v1",
+            kind="Deployment",
+            name="deployments",
+            namespaced=True,
+            url=f"{config.url}/apis/apps/v1",
+        )
+        assert config.apis[("Deployment", "apps/v1beta1")] == K8sResource(
+            apiVersion="apps/v1beta1",
+            kind="Deployment",
+            name="deployments",
+            namespaced=True,
+            url=f"{config.url}/apis/apps/v1beta1",
+        )
+        assert config.apis[("Ingress", "extensions/v1beta1")] == K8sResource(
+            apiVersion="extensions/v1beta1",
+            kind="Ingress",
+            name="ingresses",
+            namespaced=True,
+            url=f"{config.url}/apis/extensions/v1beta1",
+        )
+        assert config.apis[("Ingress", "networking.k8s.io/v1beta1")] == K8sResource(
+            apiVersion="networking.k8s.io/v1beta1",
+            kind="Ingress",
+            name="ingresses",
+            namespaced=True,
+            url=f"{config.url}/apis/networking.k8s.io/v1beta1",
+        )
+
+        # Verify our CRD.
+        assert config.apis[("DemoCRD", "mycrd.com/v1")] == K8sResource(
+            apiVersion="mycrd.com/v1",
+            kind="DemoCRD",
+            name="democrds",
+            namespaced=True,
+            url=f"{config.url}/apis/mycrd.com/v1",
+        )
+
+        # Verify default resource versions for a Deployment.. This is specific
+        # to Kubernetes 1.15.
+        assert config.apis[("Deployment", "")].apiVersion == "apps/v1"
+
+        # Ingress are still in beta in v1.15. However, they exist as both
+        # `networking.k8s.io/v1beta1` and `extensions/v1beta1`. In that case,
+        # the function would just return the last one in alphabetical order.
+        assert config.apis[("Ingress", "")].apiVersion == "networking.k8s.io/v1beta1"
+
 
 class TestK8sKubeconfig:
     @mock.patch.object(k8s.os, "getenv")
