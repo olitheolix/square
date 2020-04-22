@@ -7,10 +7,14 @@ import unittest.mock as mock
 import pytest
 import requests_mock
 import square.k8s as k8s
+import square.square
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, K8sConfig, K8sResource, MetaManifest,
+    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Filepath, K8sConfig, K8sResource,
+    MetaManifest,
 )
+
+from .test_helpers import kind_available
 
 
 @pytest.fixture
@@ -270,7 +274,80 @@ class TestUrlPathBuilder:
             "HorizontalPodAutoscaler", "Ingress",
         )
 
-    def test_urlpath_statefulset(self, k8sconfig):
+    def k8sconfig(self, integrationtest, config):
+        """Return a valid K8sConfig for a dummy or the real integration test cluster.
+
+        The `config` is a reference K8s config. Return it if `integrationtest
+        is False`, otherwise go to the real cluster. Skip the integration test
+        if there is no real cluster available right now.
+
+        """
+        # Use a fake or genuine K8s cluster.
+        if not integrationtest:
+            return config
+
+        if not kind_available():
+            pytest.skip()
+        square.square.setup_logging(1)
+        kubeconfig = Filepath("/tmp/kubeconfig-kind.yaml")
+
+        # Create a genuine K8s config from our integration test cluster.
+        (config, client), err = k8s.cluster_config(kubeconfig, None)
+        assert not err and config and client
+        return config
+
+    @pytest.mark.parametrize("integrationtest", [False, True])
+    def test_urlpath_service(self, integrationtest, k8sconfig):
+        """Verify with a Service resource.
+
+        NOTE: this test is tailored to Kubernetes v1.15.
+
+        """
+        # Fixtures.
+        config = self.k8sconfig(integrationtest, k8sconfig)
+        err_resp = (K8sResource("", "", "", False, ""), True)
+
+        # Tuples of API version that we ask for (if any), and what the final
+        # K8sResource element will contain.
+        api_versions = [
+            # We expect to get the version we asked for.
+            ("v1", "v1"),
+
+            # Function must automatically determine the latest version of the resource.
+            ("", "v1"),
+        ]
+
+        for src, expected in api_versions:
+            # A particular Service in a particular namespace.
+            res, err = k8s.urlpath(config, MetaManifest(src, "Service", "ns", "name"))
+            assert not err
+            assert res == K8sResource(
+                apiVersion=expected, kind="Service", name="services", namespaced=True,
+                url=f"{config.url}/api/v1/namespaces/ns/services/name",
+            )
+
+            # All Services in all namespaces.
+            res, err = k8s.urlpath(config, MetaManifest(src, "Service", None, None))
+            assert not err
+            assert res == K8sResource(
+                apiVersion=expected, kind="Service", name="services", namespaced=True,
+                url=f"{config.url}/api/v1/services",
+            )
+
+            # All Services in a particular namespace.
+            res, err = k8s.urlpath(config, MetaManifest(src, "Service", "ns", ""))
+            assert not err
+            assert res == K8sResource(
+                apiVersion=expected, kind="Service", name="services", namespaced=True,
+                url=f"{config.url}/api/v1/namespaces/ns/services",
+            )
+
+            # A particular Service in all namespaces -> Invalid.
+            assert k8s.urlpath(config,
+                               MetaManifest(src, "Service", None, "name")) == err_resp
+
+    @pytest.mark.parametrize("integrationtest", [False, True])
+    def test_urlpath_statefulset(self, integrationtest, k8sconfig):
         """Verify with a StatefulSet resource.
 
         This resource is available under three different API endpoints
@@ -279,8 +356,7 @@ class TestUrlPathBuilder:
         NOTE: this test is tailored to Kubernetes v1.15.
 
         """
-        # Fixtures.
-        config, urlpath = k8sconfig, k8s.urlpath
+        config = self.k8sconfig(integrationtest, k8sconfig)
         MM = MetaManifest
         err_resp = (K8sResource("", "", "", False, ""), True)
 
@@ -298,7 +374,7 @@ class TestUrlPathBuilder:
 
         for src, expected in api_versions:
             # A particular StatefulSet in a particular namespace.
-            res, err = urlpath(config, MM(src, "StatefulSet", "ns", "name"))
+            res, err = k8s.urlpath(config, MM(src, "StatefulSet", "ns", "name"))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected,
@@ -309,7 +385,7 @@ class TestUrlPathBuilder:
             )
 
             # All StatefulSets in all namespaces.
-            res, err = urlpath(config, MM(src, "StatefulSet", None, None))
+            res, err = k8s.urlpath(config, MM(src, "StatefulSet", None, None))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected,
@@ -320,7 +396,7 @@ class TestUrlPathBuilder:
             )
 
             # All StatefulSets in a particular namespace.
-            res, err = urlpath(config, MM(src, "StatefulSet", "ns", ""))
+            res, err = k8s.urlpath(config, MM(src, "StatefulSet", "ns", ""))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected,
@@ -331,9 +407,10 @@ class TestUrlPathBuilder:
             )
 
             # A particular StatefulSet in all namespaces -> Invalid.
-            assert urlpath(config, MM(src, "StatefulSet", None, "name")) == err_resp
+            assert k8s.urlpath(config, MM(src, "StatefulSet", None, "name")) == err_resp
 
-    def test_urlpath_namespace(self, k8sconfig):
+    @pytest.mark.parametrize("integrationtest", [False, True])
+    def test_urlpath_namespace(self, integrationtest, k8sconfig):
         """Verify with a Namespace resource.
 
         This one is a special case because it is not namespaced but Square's
@@ -343,12 +420,12 @@ class TestUrlPathBuilder:
 
         """
         # Fixtures.
-        config, urlpath = k8sconfig, k8s.urlpath
+        config = self.k8sconfig(integrationtest, k8sconfig)
         MM = MetaManifest
 
         for src in ["", "v1"]:
             # A particular Namespace.
-            res, err = urlpath(config, MM(src, "Namespace", None, "name"))
+            res, err = k8s.urlpath(config, MM(src, "Namespace", None, "name"))
             assert not err
             assert res == K8sResource(
                 apiVersion="v1",
@@ -359,10 +436,10 @@ class TestUrlPathBuilder:
             )
 
             # A particular Namespace in a particular namespace -> Invalid.
-            assert urlpath(config, MM(src, "Namespace", "ns", "name")) == (res, err)
+            assert k8s.urlpath(config, MM(src, "Namespace", "ns", "name")) == (res, err)
 
             # All Namespaces.
-            res, err = urlpath(config, MM(src, "Namespace", None, None))
+            res, err = k8s.urlpath(config, MM(src, "Namespace", None, None))
             assert not err
             assert res == K8sResource(
                 apiVersion="v1",
@@ -373,20 +450,79 @@ class TestUrlPathBuilder:
             )
 
             # Same as above because the "namespace" argument is ignored for Namespaces.
-            assert urlpath(config, MM(src, "Namespace", "name", "")) == (res, err)
+            assert k8s.urlpath(config, MM(src, "Namespace", "name", "")) == (res, err)
 
-    def test_urlpath_err(self, k8sconfig):
+    @pytest.mark.parametrize("integrationtest", [False, True])
+    def test_urlpath_clusterrole(self, integrationtest, k8sconfig):
+        """Verify with a ClusterRole resource.
+
+        NOTE: this test is tailored to Kubernetes v1.15.
+
+        """
+        # Fixtures.
+        config = self.k8sconfig(integrationtest, k8sconfig)
+        MM = MetaManifest
+
+        # Tuples of API version that we ask for (if any), and what the final
+        # K8sResource element will contain.
+        api_versions = [
+            # We expect to get the version we asked for.
+            ("rbac.authorization.k8s.io/v1", "rbac.authorization.k8s.io/v1"),
+
+            # Function must automatically determine the latest version of the resource.
+            ("", "rbac.authorization.k8s.io/v1"),
+        ]
+
+        # Ask for K8s resources.
+        for src, expected in api_versions:
+            # All ClusterRoles.
+            res, err = k8s.urlpath(config, MM(src, "ClusterRole", None, None))
+            assert not err
+            assert res == K8sResource(
+                apiVersion=expected,
+                kind="ClusterRole",
+                name="clusterroles",
+                namespaced=False,
+                url=f"{config.url}/apis/{expected}/clusterroles",
+            )
+
+            # All ClusterRoles in a particular namespace -> same as above
+            # because the namespace is ignored for non-namespaced resources.
+            assert k8s.urlpath(config, MM(src, "ClusterRole", "ns", None)) == (res, err)
+
+            # A particular ClusterRole.
+            res, err = k8s.urlpath(config, MM(src, "ClusterRole", None, "name"))
+            assert not err
+            assert res == K8sResource(
+                apiVersion=expected,
+                kind="ClusterRole",
+                name="clusterroles",
+                namespaced=False,
+                url=f"{config.url}/apis/{expected}/clusterroles/name",
+            )
+
+            # A particular ClusterRole in a particular namespace -> Same as above
+            # because the namespace is ignored for non-namespaced resources.
+            assert k8s.urlpath(config, MM(src, "ClusterRole", "ns", "name")) == (res, err)
+
+    @pytest.mark.parametrize("integrationtest", [False, True])
+    def test_urlpath_err(self, integrationtest, k8sconfig):
         """Test various error scenarios."""
-        # Valid version but invalid resource kind or invalid namespace spelling.
-        expected = (K8sResource("", "", "", False, ""), True)
-        for version in SUPPORTED_VERSIONS:
-            # Invalid resource kind.
-            assert k8s.urlpath(
-                k8sconfig, MetaManifest("", "fooresource", "ns", "")) == expected
+        # Fixtures.
+        config = self.k8sconfig(integrationtest, k8sconfig)
+        err_resp = (K8sResource("", "", "", False, ""), True)
+        MM = MetaManifest
 
-            # Namespace names must be all lower case (K8s imposes this)...
-            assert k8s.urlpath(
-                k8sconfig, MetaManifest("", "Deployment", "namEspACe", "")) == expected
+        # Sanity check: ask for a valid StatefulSet.
+        _, err = k8s.urlpath(config, MM("apps/v1", "StatefulSet", "ns", "name"))
+        assert not err
+
+        # Ask for a StatefulSet on a bogus API endpoint.
+        assert k8s.urlpath(config, MM("bogus", "StatefulSet", "ns", "name")) == err_resp
+
+        # Ask for a bogus K8s kind.
+        assert k8s.urlpath(config, MM("v1", "Bogus", "ns", "name")) == err_resp
+        assert k8s.urlpath(config, MM("", "Bogus", "ns", "name")) == err_resp
 
 
 class TestK8sKubeconfig:
