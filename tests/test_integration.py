@@ -3,7 +3,6 @@ import time
 import unittest.mock as mock
 
 import pytest
-import requests
 import sh
 import square.k8s
 import square.main
@@ -13,6 +12,8 @@ from square.dtypes import (
     SUPPORTED_KINDS, Filepath, GroupBy, K8sResource, MetaManifest, Selectors,
 )
 
+from .test_helpers import kind_available
+
 # Bake a `kubectl` command that uses the kubeconfig file for the KIND cluster.
 # We need to wrap this into a try/except block because CircleCI does not have
 # `kubectl` installed and cannot run the integration tests anyway.
@@ -20,16 +21,6 @@ try:
     kubectl = sh.kubectl.bake("--kubeconfig", "/tmp/kubeconfig-kind.yaml")
 except sh.CommandNotFound:
     kubectl = None
-
-
-def kind_available():
-    """Return True if KIND cluster is available."""
-    try:
-        resp = requests.get("http://localhost:10080/kubernetes-ready")
-    except requests.ConnectionError:
-        return False
-    else:
-        return resp.status_code == 200
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Minikube")

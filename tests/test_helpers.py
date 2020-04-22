@@ -1,6 +1,17 @@
 from typing import Any, Dict
 
+import requests
 from square.dtypes import K8sConfig, K8sResource
+
+
+def kind_available():
+    """Return True if KIND cluster is available."""
+    try:
+        resp = requests.get("http://localhost:10080/kubernetes-ready")
+    except requests.ConnectionError:
+        return False
+    else:
+        return resp.status_code == 200
 
 
 def k8s_apis(config: K8sConfig):
