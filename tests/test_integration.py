@@ -9,7 +9,7 @@ import square.main
 import square.manio as manio
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, Filepath, GroupBy, K8sResource, MetaManifest, Selectors,
+    SUPPORTED_KINDS, Filepath, GroupBy, K8sResource, Selectors,
 )
 
 from .test_helpers import kind_available
@@ -87,6 +87,27 @@ class TestEndpoints:
             namespaced=True,
             url=f"{config.url}/apis/apps/v1",
         )
+        assert apis[("Deployment", "apps/v1beta1")] == K8sResource(
+            apiVersion="apps/v1beta1",
+            kind="Deployment",
+            name="deployments",
+            namespaced=True,
+            url=f"{config.url}/apis/apps/v1beta1",
+        )
+        assert apis[("Ingress", "extensions/v1beta1")] == K8sResource(
+            apiVersion="extensions/v1beta1",
+            kind="Ingress",
+            name="ingresses",
+            namespaced=True,
+            url=f"{config.url}/apis/extensions/v1beta1",
+        )
+        assert apis[("Ingress", "networking.k8s.io/v1beta1")] == K8sResource(
+            apiVersion="networking.k8s.io/v1beta1",
+            kind="Ingress",
+            name="ingresses",
+            namespaced=True,
+            url=f"{config.url}/apis/networking.k8s.io/v1beta1",
+        )
 
         # Verify our CRD.
         assert apis[("DemoCRD", "mycrd.com/v1")] == K8sResource(
@@ -96,6 +117,15 @@ class TestEndpoints:
             namespaced=True,
             url=f"{config.url}/apis/mycrd.com/v1",
         )
+
+        # Verify default resource versions for a Deployment.. This is specific
+        # to Kubernetes 1.15.
+        assert apis[("Deployment", "")].apiVersion == "apps/v1"
+
+        # Ingress are still in beta in v1.15. However, they exist as both
+        # `networking.k8s.io/v1beta1` and `extensions/v1beta1`. In that case,
+        # the function would just return the last one in alphabetical order.
+        assert apis[("Ingress", "")].apiVersion == "networking.k8s.io/v1beta1"
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Minikube")

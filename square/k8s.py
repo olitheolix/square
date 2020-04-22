@@ -7,7 +7,7 @@ import re
 import subprocess
 import tempfile
 import warnings
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import google.auth
 import google.auth.transport.requests
@@ -728,28 +728,28 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
     """
     # Compile the list of all K8s API groups that this K8s instance knows about.
     resp, err = get(client, f"{config.url}/apis")
-    groups = resp["groups"]
 
     # Compile the list of all API groups and their endpoints. Example
     # apigroups = {
-    #     'extensions': {'apis/extensions/v1beta1'},
-    #     'apps': {'apis/apps/v1beta1', 'apis/apps/v1beta2', 'apis/apps/v1'},
-    #     'batch': {'apis/batch/v1beta1', 'apis/batch/v1'},
+    #     'extensions': {('extensions/v1beta1', 'apis/extensions/v1beta1')},
+    #     'apps': {('apps/v1', 'apis/apps/v1'),
+    #              ('apps/v1beta1', 'apis/apps/v1beta1'),
+    #              ('apps/v1beta2', 'apis/apps/v1beta2')},
+    #     'batch': {('batch/v1', 'apis/batch/v1'),
+    #               ('batch/v1beta1', 'apis/batch/v1beta1')},
     #     ...
     # }
-    apigroups: Dict[str, set] = {}
-    for group in groups:
-        group_name = group["name"]
-        if group_name in apigroups:
-            logit.error(f"API group <{group_name}> already exist")
-            return True
-        apigroups[group_name] = set()
+    apigroups: Dict[str, Set[Tuple[str, str]]] = {}
+    for group in resp["groups"]:
+        name = group["name"]
+
+        # Store the preferred version, eg ("", "apis/v1").
+        apigroups[name] = set()
+
+        # Compile all alternative versions into the same set.
         for version in group["versions"]:
             ver = version["groupVersion"]
-            apigroups[group_name].add((ver, f"apis/{ver}"))
-            del version, ver
-        del group_name, group
-    del groups, resp, err
+            apigroups[name].add((ver, f"apis/{ver}"))
 
     # The "v1" group comprises the traditional core components like Service and
     # Pod. This group is a special case and exposed under "api/v1" instead
@@ -769,9 +769,9 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
     #     K(..., kind='StatefulSet', name='statefulsets', namespaced=True, url=...)
     #   ],
     # }
-    group_urls = {}
-    for name, urls in apigroups.items():
-        for apiversion, url in urls:
+    group_urls: Dict[str, List[K8sResource]] = {}
+    for _, group in apigroups.items():
+        for apiversion, url in group:
             resp, err = get(client, f"{config.url}/{url}")
             if err:
                 return True
@@ -781,14 +781,30 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
                 for _ in resp["resources"] if "/" not in _["name"]
             ]
 
-    # This will produce the output described in the function doc string.
+    # This will produce the output described in the doc string.
     config.apis.clear()
     for url, resources in group_urls.items():
         for res in resources:
             key = (res.kind, res.apiVersion)  # fixme: define namedtuple
-            if key in config.apis:
-                logit.error(f"Key <{key}> already exists")
-                return True
             config.apis[key] = res._replace(url=f"{config.url}/{res.url}")
 
+    # Determine latest version of each resource. This will be useful when we
+    # have to pick a version based on the resource name only. For instance,
+    # "Deployment" should default to `apps/v1` unless specified otherwise.
+    kinds = {_[0] for _ in config.apis}
+    for kind in kinds:
+        # Compile all versions for current K8s resource `kind`.
+        all_candidates = {_[1] for _ in config.apis if _[0] == kind}
+
+        # Remove all alpha/beta resources.
+        prod_candidates = [_ for _ in all_candidates if not ("alpha" in _ or "beta" in _)]
+
+        # Include the alpha/beta resources iff we have no production ones to
+        # choose from.
+        candidates = prod_candidates if len(prod_candidates) > 0 else list(all_candidates)
+
+        # Pick the the highest version number.
+        candidates.sort()
+        version = candidates.pop()
+        config.apis[(kind, "")] = config.apis[(kind, version)]
     return False
