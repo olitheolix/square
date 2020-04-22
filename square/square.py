@@ -222,6 +222,7 @@ def show_plan(plan: Optional[DeploymentPlan]) -> Tuple[None, bool]:
     # Use Green to list all the resources that we should create.
     for delta_c in plan.create:
         name = f"{delta_c.meta.kind.upper()} {delta_c.meta.namespace}/{delta_c.meta.name}"
+        name += f" ({delta_c.meta.apiVersion})"
 
         # Convert manifest to YAML string and print every line in Green.
         txt = yaml.dump(delta_c.manifest, default_flow_style=False)
@@ -254,12 +255,14 @@ def show_plan(plan: Optional[DeploymentPlan]) -> Tuple[None, bool]:
         formatted_diff = str.join('\n', colour_lines)
 
         name = f"{delta_p.meta.kind.upper()} {delta_p.meta.namespace}/{delta_p.meta.name}"
+        name += f" ({delta_p.meta.apiVersion})"
         print(cMod + f"Patch {name}" + cReset + "\n" + formatted_diff + "\n")
         n_mod += 1
 
     # Use Red to list all the resources that we should delete.
     for delta_d in plan.delete:
         name = f"{delta_d.meta.kind.upper()} {delta_d.meta.namespace}/{delta_d.meta.name}"
+        name += f" ({delta_d.meta.apiVersion})"
         print(cDel + f"Delete {name}" + cReset)
         n_del += 1
 
