@@ -270,13 +270,6 @@ class TestUrlPathBuilder:
             "HorizontalPodAutoscaler", "Ingress",
         )
 
-    def test_urlpath_ok(self, k8sconfig):
-        """Must work for all supported K8s resources."""
-        for kind in SUPPORTED_KINDS:
-            for ns in (None, "foo-namespace"):
-                res, err = k8s.urlpath(k8sconfig, MetaManifest("", kind, ns, ""))
-                assert err is False and isinstance(res, K8sResource)
-
     def test_urlpath_statefulset(self, k8sconfig):
         """Verify with a StatefulSet resource.
 
