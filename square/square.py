@@ -436,15 +436,15 @@ def make_plan(
         assert not err and k8s_config and k8s_client
 
         # Load manifests from local files.
-        local_meta, _, err = manio.load(folder, selectors)
-        assert not err and local_meta is not None
+        local, _, err = manio.load(folder, selectors)
+        assert not err and local is not None
 
         # Download manifests from K8s.
         server, err = manio.download(k8s_config, k8s_client, selectors)
         assert not err and server is not None
 
         # Align non-plannable fields, like the ServiceAccount tokens.
-        local_meta, err = manio.align_serviceaccount(local_meta, server)
+        local_meta, err = manio.align_serviceaccount(local, server)
         assert not err
 
         # Create deployment plan.
