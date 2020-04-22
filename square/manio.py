@@ -551,17 +551,6 @@ def strip(
     except AssertionError:
         return ret_err
 
-    # Sanity check: namespaced resources must have a namespace, whereas
-    # non-namespaced ones must not.
-    if resource.namespaced:
-        if meta.namespace is None:
-            logit.error(f"<{meta.kind}> must have <metadata.namespace> field.")
-            return ret_err
-    else:
-        if meta.namespace is not None:
-            logit.error(f"<{meta.kind}> must not have a <metadata.namespace> field.")
-            return ret_err
-
     def _update(exclude: dict, manifest: dict):
         """Recursively traverse the `manifest` and prune it according to `exclude`.
 
