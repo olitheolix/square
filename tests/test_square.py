@@ -9,7 +9,7 @@ from square.dtypes import (
     SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
     GroupBy, JsonPatch, MetaManifest, Selectors,
 )
-from square.k8s import urlpath2
+from square.k8s import urlpath
 
 from .test_helpers import make_manifest
 
@@ -197,7 +197,7 @@ class TestPatchK8s:
         kind, ns, name = 'Deployment', 'ns', 'foo'
 
         # PATCH URLs require the resource name at the end of the request path.
-        url = urlpath2(k8sconfig, MetaManifest("apps/v1", kind, ns, name))[0].url
+        url = urlpath(k8sconfig, MetaManifest("apps/v1", kind, ns, name))[0].url
 
         # The patch must be empty for identical manifests.
         loc = srv = make_manifest(kind, ns, name)
@@ -250,7 +250,7 @@ class TestPatchK8s:
             meta = manio.make_meta(make_manifest(kind, None, name))
 
             # Determine the resource path so we can verify it later.
-            url = urlpath2(k8sconfig, meta)[0].url
+            url = urlpath(k8sconfig, meta)[0].url
 
             # The patch between two identical manifests must be empty but valid.
             loc = srv = make_manifest(kind, None, name)
@@ -265,7 +265,7 @@ class TestPatchK8s:
             data, err = square.make_patch(k8sconfig, loc, srv)
             assert err is False and len(data) > 0
 
-    @mock.patch.object(k8s, "urlpath2")
+    @mock.patch.object(k8s, "urlpath")
     def test_make_patch_error_urlpath(self, m_url, k8sconfig):
         """Coverage gap: simulate `urlpath` error."""
         # Simulate `urlpath` error.
@@ -294,7 +294,7 @@ class TestPlan:
         loc["metadata"]["labels"] = {"new": "new"}
 
         # The Patch between two identical manifests must be a No-Op.
-        res, err = urlpath2(k8sconfig, MetaManifest("apps/v1", kind, namespace, name))
+        res, err = urlpath(k8sconfig, MetaManifest("apps/v1", kind, namespace, name))
         assert not err
         expected = JsonPatch(url=res.url, ops=[])
         assert square.make_patch(k8sconfig, loc, loc) == (expected, False)
@@ -326,7 +326,7 @@ class TestPlan:
         assert square.make_patch(k8sconfig, invalid, invalid) == (None, True)
 
         # Must handle `urlpath` errors.
-        with mock.patch.object(square.k8s, "urlpath2") as m_url:
+        with mock.patch.object(square.k8s, "urlpath") as m_url:
             m_url.return_value = (None, True)
             assert square.make_patch(k8sconfig, valid, valid) == (None, True)
 
@@ -360,7 +360,7 @@ class TestPlan:
         meta[4] = MetaManifest('apps/v1', 'Deployment', 'ns2', 'res_2')
 
         # Determine the K8sResource for all involved resources.
-        res = [urlpath2(config, _._replace(name="")) for _ in meta]
+        res = [urlpath(config, _._replace(name="")) for _ in meta]
 
         # Sanity check: all resources types must have been known.
         assert not any([_[1] for _ in res])
@@ -412,7 +412,7 @@ class TestPlan:
             DeploymentPlan(create=[meta], patch=[], delete=[]),
             False,
         )
-        with mock.patch.object(square.k8s, "urlpath2") as m_url:
+        with mock.patch.object(square.k8s, "urlpath") as m_url:
             m_url.return_value = (None, True)
             assert square.compile_plan(k8sconfig, man, man) == (None, True)
 
@@ -422,7 +422,7 @@ class TestPlan:
             DeploymentPlan(create=[], patch=[], delete=[meta]),
             False,
         )
-        with mock.patch.object(square.k8s, "urlpath2") as m_url:
+        with mock.patch.object(square.k8s, "urlpath") as m_url:
             m_url.return_value = (None, True)
             assert square.compile_plan(k8sconfig, man, man) == (None, True)
 

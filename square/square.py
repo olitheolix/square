@@ -47,8 +47,8 @@ def make_patch(
 
     # Sanity checks: abort if the manifests do not specify the same resource.
     try:
-        res_srv, err_srv = k8s.urlpath2(config, manio.make_meta(srv))
-        res_loc, err_loc = k8s.urlpath2(config, manio.make_meta(loc))
+        res_srv, err_srv = k8s.urlpath(config, manio.make_meta(srv))
+        res_loc, err_loc = k8s.urlpath(config, manio.make_meta(loc))
         assert err_srv is err_loc is False
         assert res_srv == res_loc
     except AssertionError:
@@ -149,7 +149,7 @@ def compile_plan(
     for delta in plan.create:
         # We only need the resource and namespace, not its name, because that
         # is how the POST request to create a resource works in K8s.
-        resource, err = k8s.urlpath2(config, delta._replace(name=""))
+        resource, err = k8s.urlpath(config, delta._replace(name=""))
         if err or not resource:
             return (None, True)
         create.append(DeltaCreate(delta, resource.url, local[delta]))
@@ -165,7 +165,7 @@ def compile_plan(
     delete = []
     for meta in plan.delete:
         # Resource URL.
-        resource, err = k8s.urlpath2(config, meta)
+        resource, err = k8s.urlpath(config, meta)
         if err or not resource:
             return (None, True)
 

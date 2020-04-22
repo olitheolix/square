@@ -543,7 +543,7 @@ def strip(
     # Parse the manifest.
     try:
         meta = make_meta(manifest)
-        resource, err = square.k8s.urlpath2(config, meta)
+        resource, err = square.k8s.urlpath(config, meta)
         assert not err
     except KeyError as e:
         logit.error(f"Manifest is missing the <{e.args[0]}> key.")
@@ -931,7 +931,7 @@ def download(
         for kind in selectors.kinds:
             try:
                 # Get the K8s URL for the current resource kind.
-                resource, err = square.k8s.urlpath2(config,
+                resource, err = square.k8s.urlpath(config,
                                                     MetaManifest("", kind, namespace, ""))
                 assert not err
 
