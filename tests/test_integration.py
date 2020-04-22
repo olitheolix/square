@@ -8,9 +8,7 @@ import square.k8s
 import square.main
 import square.manio as manio
 import yaml
-from square.dtypes import (
-    SUPPORTED_KINDS, Filepath, GroupBy, K8sResource, Selectors,
-)
+from square.dtypes import SUPPORTED_KINDS, Filepath, GroupBy, Selectors
 
 from .test_helpers import kind_available
 
@@ -21,16 +19,6 @@ try:
     kubectl = sh.kubectl.bake("--kubeconfig", "/tmp/kubeconfig-kind.yaml")
 except sh.CommandNotFound:
     kubectl = None
-
-
-@pytest.mark.skipif(not kind_available(), reason="No Minikube")
-class TestEndpoints:
-    def setup_method(self):
-        cur_path = pathlib.Path(__file__).parent.parent
-        integration_test_manifest_path = cur_path / "integration-test-cluster"
-        assert integration_test_manifest_path.exists()
-        assert integration_test_manifest_path.is_dir()
-        kubectl("apply", "-f", str(integration_test_manifest_path))
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Minikube")
