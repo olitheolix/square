@@ -479,7 +479,7 @@ def urlpath(config: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
     try:
         resource = config.apis[key]
     except KeyError:
-        logit.error(f"Unsupported resource <{meta.kind}> ({key}).")
+        logit.error(f"Unsupported resource <{meta.kind}> {key}.")
         return err_resp
 
     # Void the "namespace" key for non-namespaced resources.
