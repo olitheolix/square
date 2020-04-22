@@ -614,6 +614,32 @@ class TestUrlPathBuilder:
         # the function would just return the last one in alphabetical order.
         assert config.apis[("Ingress", "")].apiVersion == "networking.k8s.io/v1beta1"
 
+    @mock.patch.object(k8s, "get")
+    def test_compile_api_endpoints_err(self, m_get, k8sconfig):
+        """Simulate network errors while compiling API endpoints."""
+        # All web requests fail. Function must thus abort with an error.
+        m_get.return_value = ({}, True)
+        assert k8s.compile_api_endpoints(k8sconfig, "client") is True
+
+        # Sample return value for `https://k8s.com/apis`
+        ret = {
+            "apiVersion": "v1",
+            "groups": [{
+                "name": "apps",
+                "preferredVersion": {"groupVersion": "apps/v1", "version": "v1"},
+                "versions": [
+                    {"groupVersion": "apps/v1", "version": "v1"},
+                    {"groupVersion": "apps/v1beta2", "version": "v1beta2"},
+                    {"groupVersion": "apps/v1beta1", "version": "v1beta1"},
+                ],
+            }],
+        }
+
+        # Pretend that we could get all the API groups, but could not
+        # interrogate the group endpoint to get the resources it offers.
+        m_get.side_effect = [(ret, False), ({}, True)]
+        assert k8s.compile_api_endpoints(k8sconfig, "client") is True
+
 
 class TestK8sKubeconfig:
     @mock.patch.object(k8s.os, "getenv")
