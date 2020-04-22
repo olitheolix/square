@@ -244,21 +244,19 @@ class TestPatchK8s:
         and require special treatment in `make_patch`.
 
         """
-        name = "foo"
-
         for kind in ["Namespace", "ClusterRole"]:
-            meta = manio.make_meta(make_manifest(kind, None, name))
+            meta = manio.make_meta(make_manifest(kind, None, "name"))
 
             # Determine the resource path so we can verify it later.
             url = urlpath(k8sconfig, meta)[0].url
 
             # The patch between two identical manifests must be empty but valid.
-            loc = srv = make_manifest(kind, None, name)
+            loc = srv = make_manifest(kind, None, "name")
             assert square.make_patch(k8sconfig, loc, srv) == ((url, []), False)
 
             # Create two almost identical manifests, except the second one has
             # different `metadata.labels`. This must succeed.
-            loc = make_manifest(kind, None, name)
+            loc = make_manifest(kind, None, "name")
             srv = copy.deepcopy(loc)
             loc['metadata']['labels'] = {"key": "value"}
 
