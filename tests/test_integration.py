@@ -106,22 +106,6 @@ class TestEndpoints:
             url=f"{config.url}/apis/mycrd.com/v1",
         )
 
-    def test_urlpath(self):
-        """Must work for all supported K8s versions and resources."""
-        # Fixtures.
-        square.square.setup_logging(1)
-        kubeconfig = Filepath("/tmp/kubeconfig-kind.yaml")
-
-        # Create a genuine K8s config from our integration test cluster.
-        (config, client), err = square.k8s.cluster_config(kubeconfig, None)
-        assert not err and config and client
-        import square.k8s as k8s
-
-        for kind in SUPPORTED_KINDS:
-            for ns in (None, "foo-namespace"):
-                resource, err = k8s.urlpath(config, MetaManifest("", kind, ns, ""))
-                assert err is False and isinstance(resource, K8sResource)
-
     def test_urlpath_service(self):
         """Verify with a Service resource.
 
