@@ -1,5 +1,6 @@
 import os
 import pathlib
+import tempfile
 import types
 import unittest.mock as mock
 
@@ -22,6 +23,11 @@ def dummy_command_param():
     This is mostly useful for `compile_config` related tests.
 
     """
+    # Create an empty Kubeconfig file. We only need it to exist.
+    path = Filepath(tempfile.mkdtemp())
+    fname = path / "kubeconfig.demo"
+    fname.write_text("")
+
     return types.SimpleNamespace(
         parser="get",
         verbosity=9,
@@ -29,7 +35,7 @@ def dummy_command_param():
         kinds=["Deployment"],
         labels=[("app", "morty"), ("foo", "bar")],
         namespaces=["default"],
-        kubeconfig="kubeconfig",
+        kubeconfig=fname,
         ctx=None,
         groupby=None,
     )
@@ -42,8 +48,11 @@ class TestMain:
         cfg, err = main.compile_config(param)
         assert not err
         assert cfg == Configuration(
-            command='get', verbosity=9, folder=pathlib.Path('/tmp'),
-            kubeconfig='kubeconfig', kube_ctx=None,
+            command='get',
+            verbosity=9,
+            folder=pathlib.Path('/tmp'),
+            kubeconfig=param.kubeconfig,
+            kube_ctx=None,
             selectors=Selectors(
                 kinds=['Deployment'],
                 namespaces=['default'],
@@ -80,7 +89,7 @@ class TestMain:
         """Parse K8s credentials."""
         # Must return error without K8s credentials.
         param = dummy_command_param()
-        param.kubeconfig = None
+        param.kubeconfig /= "does-not-exist"
         assert main.compile_config(param) == (
             Configuration(
                 command="",
@@ -145,13 +154,17 @@ class TestMain:
     @mock.patch.object(square, "get_resources")
     @mock.patch.object(square, "make_plan")
     @mock.patch.object(main, "apply_plan")
-    def test_main_valid_options(self, m_apply, m_plan, m_get):
+    def test_main_valid_options(self, m_apply, m_plan, m_get, tmp_path):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
         `main_*` function will be called with the correct parameters.
 
         """
+        # Kubeconfig file must exist (can be empty for this test).
+        fname_kubeconfig = tmp_path / "kubeconfig"
+        fname_kubeconfig.write_text("")
+
         # Default grouping because we will not specify custom ones in this test.
         groupby = GroupBy(order=[], label="")
 
@@ -165,7 +178,7 @@ class TestMain:
             args = (
                 "square.py", option,
                 "deployment", "service", "--folder", "myfolder",
-                "--kubeconfig", "/foo"
+                "--kubeconfig", str(fname_kubeconfig)
             )
             with mock.patch("sys.argv", args):
                 main.main()
@@ -173,7 +186,7 @@ class TestMain:
 
         # Every main function must have been called exactly once.
         selectors = Selectors(["Deployment", "Service"], None, set())
-        args = Filepath("/foo"), None, pathlib.Path("myfolder"), selectors
+        args = fname_kubeconfig, None, pathlib.Path("myfolder"), selectors
         m_get.assert_called_once_with(*args, groupby)
         m_apply.assert_called_once_with(*args, "yes")
         m_plan.assert_called_once_with(*args)
@@ -244,7 +257,7 @@ class TestMain:
 
         # Force a configuration error due to the absence of K8s credentials.
         cmd_args = dummy_command_param()
-        cmd_args.kubeconfig = None
+        cmd_args.kubeconfig = "does-not-exist"
         m_cmd.return_value = cmd_args
         assert main.main() == 1
 
