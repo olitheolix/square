@@ -47,8 +47,8 @@ def make_patch(
 
     # Sanity checks: abort if the manifests do not specify the same resource.
     try:
-        res_srv, err_srv = k8s.urlpath(config, manio.make_meta(srv))
-        res_loc, err_loc = k8s.urlpath(config, manio.make_meta(loc))
+        res_srv, err_srv = k8s.resource(config, manio.make_meta(srv))
+        res_loc, err_loc = k8s.resource(config, manio.make_meta(loc))
         assert err_srv is err_loc is False
         assert res_srv == res_loc
     except AssertionError:
@@ -138,11 +138,11 @@ def preferred_api(config: K8sConfig,
     for meta, manifest in local.items():
         # The current `meta` can be outdated but must still be a valid resource
         # in the current cluster.
-        if k8s.urlpath(config, meta)[1]:
+        if k8s.resource(config, meta)[1]:
             return {}, True
 
         # Get the canonical resource description.
-        res, err = k8s.urlpath(config, meta._replace(apiVersion=""))
+        res, err = k8s.resource(config, meta._replace(apiVersion=""))
         if err:
             logit.critical(f"BUG: resource <{meta}> should have been valid")
             return {}, True
@@ -205,7 +205,7 @@ def compile_plan(
     for delta in plan.create:
         # We only need the resource and namespace, not its name, because that
         # is how the POST request to create a resource works in K8s.
-        resource, err = k8s.urlpath(config, delta._replace(name=""))
+        resource, err = k8s.resource(config, delta._replace(name=""))
         if err or not resource:
             return err_resp
         create.append(DeltaCreate(delta, resource.url, local[delta]))
@@ -221,7 +221,7 @@ def compile_plan(
     delete = []
     for meta in plan.delete:
         # Resource URL.
-        resource, err = k8s.urlpath(config, meta)
+        resource, err = k8s.resource(config, meta)
         if err or not resource:
             return err_resp
 
