@@ -343,8 +343,8 @@ class TestUrlPathBuilder:
             )
 
             # A particular Service in all namespaces -> Invalid.
-            assert k8s.resource(config,
-                               MetaManifest(src, "Service", None, "name")) == err_resp
+            MM = MetaManifest
+            assert k8s.resource(config, MM(src, "Service", None, "name")) == err_resp
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     def test_resource_statefulset(self, integrationtest, k8sconfig):
@@ -503,7 +503,7 @@ class TestUrlPathBuilder:
 
             # A particular ClusterRole in a particular namespace -> Same as above
             # because the namespace is ignored for non-namespaced resources.
-            assert k8s.resource(config, MM(src, "ClusterRole", "ns", "name")) == (res, err)
+            assert k8s.resource(config, MM(src, "ClusterRole", "ns", "name")) == (res, err)  # noqa
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     def test_resource_err(self, integrationtest, k8sconfig):

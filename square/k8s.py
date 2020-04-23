@@ -761,16 +761,16 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
 
     # Contact K8s to find out which resources each API group offers.
     # This will produce the following group_urls below (K = `K8sResource`): {
-    #   'apis/apps/v1': [
-    #     K(..., kind='DaemonSet', name='daemonsets', namespaced=True, url='apis/apps/v1'),
-    #     K(..., kind='Deployment', name='deployments', namespaced=True, url='apis/apps/v1'),
-    #     K(..., kind='ReplicaSet', name='replicasets', namespaced=True, url='apis/apps/v1'),
-    #     K(..., kind='StatefulSet', name='statefulsets', namespaced=True, url='apis/apps/v1')
-    #   ],
-    #   'apis/apps/v1beta1': [
-    #     K(..., kind='Deployment', name='deployments', namespaced=True, url=...),
-    #     K(..., kind='StatefulSet', name='statefulsets', namespaced=True, url=...)
-    #   ],
+    #  'apis/apps/v1': [
+    #   K(*, kind='DaemonSet', name='daemonsets', namespaced=True, url='apis/apps/v1'),
+    #   K(*, kind='Deployment', name='deployments', namespaced=True, url='apis/apps/v1'),
+    #   K(*, kind='ReplicaSet', name='replicasets', namespaced=True, url='apis/apps/v1'),
+    #   K(*, kind='StatefulSet', name='statefulsets', namespaced=True, url='apis/apps/v1')
+    #  ],
+    #  'apis/apps/v1beta1': [
+    #    K(..., kind='Deployment', name='deployments', namespaced=True, url=...),
+    #    K(..., kind='StatefulSet', name='statefulsets', namespaced=True, url=...)
+    #  ],
     # }
     group_urls: Dict[str, List[K8sResource]] = {}
     for _, group in apigroups.items():
