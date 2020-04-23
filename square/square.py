@@ -113,6 +113,55 @@ def partition_manifests(
     return (plan, False)
 
 
+def preferred_api(config: K8sConfig,
+                  local: ServerManifests) -> Tuple[ServerManifests, bool]:
+    """Return a new version of `local` where all APIs point to the preferred group.
+
+    Example:
+      in = {
+        MetaManifest(apiVersion='extensions/v1beta1', kind='Ingress', ...): {
+          'apiVersion': 'networking.k8s.io/v1beta1',
+          ...
+        }
+      }
+      out = {
+        MetaManifest(apiVersion='networking.k8s.io/v1beta1', kind='Ingress', ...): {
+          'apiVersion': 'networking.k8s.io/v1beta1',
+          ...
+        }
+      }
+
+    """
+    # Check the API version in each MetaManifest and update it to the preferred
+    # version in both the MetaManifest and the associated K8s YAML manifest.
+    out = {}
+    for meta, manifest in local.items():
+        # The current `meta` can be outdated but must still be a valid resource
+        # in the current cluster.
+        if k8s.urlpath(config, meta)[1]:
+            return {}, True
+
+        # Get the canonical resource description.
+        res, err = k8s.urlpath(config, meta._replace(apiVersion=""))
+        if err:
+            logit.critical(f"BUG: resource <{meta}> should have been valid")
+            return {}, True
+
+        # Log a warning if the manifests uses an outdated API group.
+        if meta.apiVersion != res.apiVersion:
+            logit.warning(
+                f"Switching <{res.kind} {meta.namespace}/{meta.name}>"
+                f" from <{meta.apiVersion}> to <{res.apiVersion}>"
+                " - Please update your manifests."
+            )
+
+            # Update the API version for the resource to whatever K8s prefers.
+            meta = meta._replace(apiVersion=res.apiVersion)
+            manifest["apiVersion"] = meta.apiVersion
+        out[meta] = manifest
+    return out, False
+
+
 def compile_plan(
         config: K8sConfig,
         local: ServerManifests,
@@ -134,6 +183,11 @@ def compile_plan(
         DeploymentPlan
 
     """
+    # Replace the API group of the local resource with the one K8s prefers.
+    local, err = preferred_api(config, local)
+    if err:
+        return (None, True)
+
     # Partition the set of meta manifests into create/delete/patch groups.
     plan, err = partition_manifests(local, server)
     if err or not plan:
