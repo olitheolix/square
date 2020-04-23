@@ -1,6 +1,6 @@
 import pathlib
 from typing import (
-    Any, Collection, Dict, Iterable, NamedTuple, Optional, Set, Tuple,
+    Any, Collection, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple,
 )
 
 # We support these resource types. The order matters because it determines the
@@ -28,35 +28,6 @@ SUPPORTED_KINDS = (
     # Ingresses should be after Deployments & friends.
     "Ingress",
 )
-
-
-# Declare aliases for each resource type. Will be used in command line parsing
-# to save the user some typing and match what `kubectl` would accept. We do not
-# need to worry about capitalisation because `square.parse_commandline_args`
-# will always convert everything to lower case letters first.
-RESOURCE_ALIASES = {
-    "ClusterRole": {"clusterrole", "clusterroles"},
-    "ClusterRoleBinding": {"clusterrolebinding", "clusterrolebindings"},
-    "ConfigMap": {"configmap", "cm"},
-    "CronJob": {"cronjob", "cj"},
-    "CustomResourceDefinition": {"crd", "customresourcedefinitions"},
-    "DaemonSet": {"daemonset", "daemonsets", "ds"},
-    "Deployment": {"deployment", "deployments", "deploy"},
-    "HorizontalPodAutoscaler": {"hpa"},
-    "Ingress": {"ingress", "ingresses", "ing"},
-    "Namespace": {"namespace", "namespaces", "ns"},
-    "PersistentVolumeClaim": {"persistentVolumeClaim", "persistentvolumeclaims", "pvc"},
-    "PodDisruptionBudget": {"poddisruptionbudget", "pdb"},
-    "Role": {"role", "roles"},
-    "RoleBinding": {"rolebinding", "rolebindings"},
-    "Secret": {"secret", "secrets"},
-    "Service": {"service", "services", "svc"},
-    "ServiceAccount": {"serviceaccount", "serviceaccounts", "sa"},
-    "StatefulSet": {"statefulset", "statefulsets"},
-}
-
-# Sanity check: we must have aliases for every supported resource kind.
-assert set(SUPPORTED_KINDS) == set(RESOURCE_ALIASES.keys())
 
 Filepath = pathlib.Path
 
@@ -167,7 +138,7 @@ class DeploymentPlanMeta(NamedTuple):
 # -----------------------------------------------------------------------------
 class Selectors(NamedTuple):
     """Comprises all the filters to select manifests."""
-    kinds: Iterable[str]
+    kinds: List[str]
     namespaces: Optional[Iterable[str]]
     labels: Optional[Set[Tuple[str, str]]]
 

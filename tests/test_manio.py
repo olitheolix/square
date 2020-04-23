@@ -8,8 +8,7 @@ import square.k8s as k8s
 import square.manio as manio
 import yaml
 from square.dtypes import (
-    RESOURCE_ALIASES, SUPPORTED_KINDS, Filepath, GroupBy, MetaManifest,
-    Selectors,
+    SUPPORTED_KINDS, Filepath, GroupBy, MetaManifest, Selectors,
 )
 from square.k8s import resource
 
@@ -766,26 +765,19 @@ class TestManifestValidation:
 
     def test_strip_namespace(self, k8sconfig):
         """Filter NAMESPACE manifests."""
-        # A namespace manifest without a `metadata.namespace` field.
+        # Valid: a namespace manifest without a `metadata.namespace` field.
         manifest = {
             "apiVersion": "v1",
             "kind": "Namespace",
             "metadata": {"name": "mandatory"},
         }
-        expected = {
-            "apiVersion": "v1",
-            "kind": "Namespace",
-            "metadata": {"name": "mandatory"},
-        }
-        assert manio.strip(k8sconfig, manifest) == ((expected, {}), False)
-        del manifest, expected
+        assert manio.strip(k8sconfig, manifest) == ((manifest, {}), False)
+        del manifest
 
-        # Create invalid manifests that either have specify a namespace for a
+        # Create invalid manifests that either specify a namespace for a
         # non-namespaced resource or vice versa. In any case, the `strip`
         # function must be smart enough to identify them.
-        for kind in RESOURCE_ALIASES:
-            if kind == "Namespace":
-                continue
+        for kind in ("Deployment", "Service"):
             manifest = {
                 "apiVersion": "v1",
                 "kind": kind,

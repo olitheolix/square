@@ -547,12 +547,6 @@ class TestUrlPathBuilder:
         k8sconfig.short2kind["services"] == "Service"
         k8sconfig.short2kind["svc"] == "Service"
 
-        # Sanity check: the auto-generated list must have found all the aliases
-        # we defined by hand.
-        for kind, aliases in square.dtypes.RESOURCE_ALIASES.items():
-            for alias in aliases:
-                assert k8sconfig.short2kind[alias.lower()] == kind
-
     @mock.patch.object(k8s, "get")
     def test_compile_api_endpoints_err(self, m_get, k8sconfig):
         """Simulate network errors while compiling API endpoints."""

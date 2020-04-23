@@ -29,6 +29,10 @@ def k8sconfig():
     # Update the API endpoints.
     cfg.apis.clear()
     cfg.apis.update(k8s_apis(cfg))
+    cfg.short2kind["deployment"] = "Deployment"
+    cfg.short2kind["service"] = "Service"
+    cfg.short2kind["svc"] = "Service"
+    cfg.short2kind["secret"] = "Secret"
 
     # Pass the fixture to the test.
     yield cfg
