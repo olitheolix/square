@@ -7,6 +7,7 @@ import re
 import subprocess
 import tempfile
 import warnings
+from collections import defaultdict
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import google.auth
@@ -743,6 +744,7 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
     #     ...
     # }
     apigroups: Dict[str, Set[Tuple[str, str]]] = {}
+    preferred_group: Dict[str, str] = {}
     for group in resp["groups"]:
         name = group["name"]
 
@@ -753,62 +755,86 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
         for version in group["versions"]:
             ver = version["groupVersion"]
             apigroups[name].add((ver, f"apis/{ver}"))
+            preferred_group[ver] = group["preferredVersion"]["groupVersion"]
+        del group
 
     # The "v1" group comprises the traditional core components like Service and
     # Pod. This group is a special case and exposed under "api/v1" instead
     # of the usual `apis/...` path.
     apigroups["v1"] = {("v1", "api/v1")}
+    preferred_group["v1"] = "v1"
 
     # Contact K8s to find out which resources each API group offers.
     # This will produce the following group_urls below (K = `K8sResource`): {
-    #  'apis/apps/v1': [
+    #  ('apps', 'apps/v1', 'apis/apps/v1'): [
     #   K(*, kind='DaemonSet', name='daemonsets', namespaced=True, url='apis/apps/v1'),
     #   K(*, kind='Deployment', name='deployments', namespaced=True, url='apis/apps/v1'),
     #   K(*, kind='ReplicaSet', name='replicasets', namespaced=True, url='apis/apps/v1'),
     #   K(*, kind='StatefulSet', name='statefulsets', namespaced=True, url='apis/apps/v1')
     #  ],
-    #  'apis/apps/v1beta1': [
+    #  ('apps', 'apps/v1beta1', 'apis/apps/v1beta1')': [
     #    K(..., kind='Deployment', name='deployments', namespaced=True, url=...),
     #    K(..., kind='StatefulSet', name='statefulsets', namespaced=True, url=...)
     #  ],
     # }
-    group_urls: Dict[str, List[K8sResource]] = {}
-    for _, group in apigroups.items():
-        for apiversion, url in group:
+    group_urls: Dict[Tuple[str, str, str], List[K8sResource]] = {}
+    for group_name, ver_url in apigroups.items():
+        for api_version, url in ver_url:
             resp, err = get(client, f"{config.url}/{url}")
             if err:
                 logit.error(f"Could not interrogate the {config.url}/{url}")
                 return True
 
-            group_urls[url] = [
-                K8sResource(apiversion, _["kind"], _["name"], _["namespaced"], url)
+            group_urls[(group_name, api_version, url)] = [
+                K8sResource(api_version, _["kind"], _["name"], _["namespaced"], url)
                 for _ in resp["resources"] if "/" not in _["name"]
             ]
 
-    # This will produce the output described in the doc string.
+            # Compile LUT to translate short names into their proper resource
+            # kind, for instance short = {"service":, "Service", "svc": "Service"}
+            for res in resp["resources"]:
+                kind = res["kind"]
+                config.short2kind[kind.lower()] = kind
+                config.short2kind[res["name"]] = kind
+                for short_name in res.get("shortNames", []):
+                    config.short2kind[short_name] = kind
+
+    # Produce the entries for `K8sConfig.apis` as described in the doc string.
     config.apis.clear()
-    for url, resources in group_urls.items():
+    default: Dict[str, Set[K8sResource]] = defaultdict(set)
+    for (group_name, api_version, url), resources in group_urls.items():
         for res in resources:
             key = (res.kind, res.apiVersion)  # fixme: define namedtuple
             config.apis[key] = res._replace(url=f"{config.url}/{res.url}")
 
-    # Determine latest version of each resource. This will be useful when we
-    # have to pick a version based on the resource name only. For instance,
-    # "Deployment" should default to `apps/v1` unless specified otherwise.
-    kinds = {_[0] for _ in config.apis}
-    for kind in kinds:
-        # Compile all versions for current K8s resource `kind`.
-        all_candidates = {_[1] for _ in config.apis if _[0] == kind}
+            if preferred_group[api_version] == api_version:
+                default[res.kind].add(config.apis[key])
+                config.apis[(res.kind, "")] = config.apis[key]
+
+    # Determine the default API endpoint Square should query for each resource.
+    for kind, res in default.items():
+        # Happy case: the resource is only available from a single API group.
+        if len(res) == 1:
+            config.apis[(kind, "")] = res.pop()
+            continue
+
+        # If we get here then it means a resource is available from different
+        # API groups. Here we use heuristics to pick one. The heuristic is
+        # simply to look for one that is neither alpha nor beta. In Kubernetes
+        # v1.15 this resolves almost all disputes.
+        all_apis = list(sorted([_.apiVersion for _ in res]))
+        logit.info(f"Ambiguous <{kind}> endpoints: {all_apis}")
 
         # Remove all alpha/beta resources.
-        prod_candidates = [_ for _ in all_candidates if not ("alpha" in _ or "beta" in _)]
+        prod_apis = [_ for _ in all_apis if not ("alpha" in _ or "beta" in _)]
 
-        # Include the alpha/beta resources iff we have no production ones to
-        # choose from.
-        candidates = prod_candidates if len(prod_candidates) > 0 else list(all_candidates)
+        # Re-add the alpha/beta resources to the candidate set if we have no
+        # production ones to choose from.
+        apis = prod_apis if len(prod_apis) > 0 else list(all_apis)
 
-        # Pick the the highest version number.
-        candidates.sort()
-        version = candidates.pop()
-        config.apis[(kind, "")] = config.apis[(kind, version)]
+        # Pick the one with probably the highest version number.
+        apis.sort()
+        version = apis.pop()
+        res = [_ for _ in res if _.apiVersion == version]
+        config.apis[(kind, "")] = res[0]
     return False
