@@ -108,6 +108,10 @@ class K8sConfig(NamedTuple):
     # Kubernetes API endpoints (see k8s.compile_api_endpoints).
     apis: Dict[Tuple[str, str], K8sResource] = {}
 
+    # LUT to translate short names into their proper resource kind,
+    # for instance short = {"service":, "Service", "svc": "Service"}
+    short2kind: Dict[str, str] = {}
+
 
 # -----------------------------------------------------------------------------
 #                                Deployment Plan

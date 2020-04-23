@@ -1,3 +1,4 @@
+import json
 import os
 import pathlib
 import random
@@ -285,7 +286,6 @@ class TestUrlPathBuilder:
 
         if not kind_available():
             pytest.skip()
-        square.square.setup_logging(1)
         kubeconfig = Filepath("/tmp/kubeconfig-kind.yaml")
 
         # Create a genuine K8s config from our integration test cluster.
@@ -521,10 +521,77 @@ class TestUrlPathBuilder:
         assert k8s.resource(config, MM("v1", "Bogus", "ns", "name")) == err_resp
         assert k8s.resource(config, MM("", "Bogus", "ns", "name")) == err_resp
 
+    @mock.patch.object(k8s, "get")
+    def test_compile_api_endpoints(self, m_get, k8sconfig):
+        """Compile all endpoints from a pre-recorded set of API responses."""
+        # All web requests fail. Function must thus abort with an error.
+        m_get.return_value = ({}, True)
+        assert k8s.compile_api_endpoints(k8sconfig, "client") is True
+
+        # Sample return value for `https://k8s.com/apis`
+        fake_api = json.loads(open("support/apis-v1-15.json").read())
+
+        # Pretend to be the K8s API and return the requested data from our
+        # recorded set of responses.
+        def supply_fake_api(_, url):
+            path = url.partition("/")[2]
+            return fake_api[path], False
+        m_get.side_effect = supply_fake_api
+
+        k8sconfig.apis.clear()
+        assert k8s.compile_api_endpoints(k8sconfig, "client") is False
+        assert isinstance(k8sconfig.apis, dict) and len(k8sconfig.apis) > 0
+
+        # # Services have a short name, whereas Secrets do not.
+        k8sconfig.short2kind["service"] == "Service"
+        k8sconfig.short2kind["services"] == "Service"
+        k8sconfig.short2kind["svc"] == "Service"
+
+        # Sanity check: the auto-generated list must have found all the aliases
+        # we defined by hand.
+        for kind, aliases in square.dtypes.RESOURCE_ALIASES.items():
+            for alias in aliases:
+                assert k8sconfig.short2kind[alias.lower()] == kind
+
+    @mock.patch.object(k8s, "get")
+    def test_compile_api_endpoints_err(self, m_get, k8sconfig):
+        """Simulate network errors while compiling API endpoints."""
+        # All web requests fail. Function must thus abort with an error.
+        m_get.return_value = ({}, True)
+        assert k8s.compile_api_endpoints(k8sconfig, "client") is True
+
+        # Sample return value for `https://k8s.com/apis`
+        ret = {
+            "apiVersion": "v1",
+            "groups": [{
+                "name": "apps",
+                "preferredVersion": {"groupVersion": "apps/v1", "version": "v1"},
+                "versions": [
+                    {"groupVersion": "apps/v1", "version": "v1"},
+                    {"groupVersion": "apps/v1beta2", "version": "v1beta2"},
+                    {"groupVersion": "apps/v1beta1", "version": "v1beta1"},
+                ],
+            }],
+        }
+
+        # Pretend that we could get all the API groups, but could not
+        # interrogate the group endpoint to get the resources it offers.
+        m_get.side_effect = [(ret, False), ({}, True)]
+        assert k8s.compile_api_endpoints(k8sconfig, "client") is True
+
     @pytest.mark.parametrize("integrationtest", [False, True])
-    def test_compile_api_endpoints(self, integrationtest, k8sconfig):
-        """Ask for all endpoints and perform some sanity checks."""
-        square.square.setup_logging(1)
+    def test_compile_api_endpoints_integrated(self, integrationtest, k8sconfig):
+        """Ask for all endpoints and perform some sanity checks.
+
+        This test is about `compile_api_endpoints` but we only inspect the
+        K8sConfig structure which must have been populated by
+        `compile_api_endpoints` under the hood.
+
+        """
+        square.square.setup_logging(2)
+
+        # This will call `compile_api_endpoints` internally to populate fields
+        # in `k8sconfig`.
         config = self.k8sconfig(integrationtest, k8sconfig)
 
         # Sanity check.
@@ -609,33 +676,7 @@ class TestUrlPathBuilder:
         # Ingress are still in beta in v1.15. However, they exist as both
         # `networking.k8s.io/v1beta1` and `extensions/v1beta1`. In that case,
         # the function would just return the last one in alphabetical order.
-        assert config.apis[("Ingress", "")].apiVersion == "networking.k8s.io/v1beta1"
-
-    @mock.patch.object(k8s, "get")
-    def test_compile_api_endpoints_err(self, m_get, k8sconfig):
-        """Simulate network errors while compiling API endpoints."""
-        # All web requests fail. Function must thus abort with an error.
-        m_get.return_value = ({}, True)
-        assert k8s.compile_api_endpoints(k8sconfig, "client") is True
-
-        # Sample return value for `https://k8s.com/apis`
-        ret = {
-            "apiVersion": "v1",
-            "groups": [{
-                "name": "apps",
-                "preferredVersion": {"groupVersion": "apps/v1", "version": "v1"},
-                "versions": [
-                    {"groupVersion": "apps/v1", "version": "v1"},
-                    {"groupVersion": "apps/v1beta2", "version": "v1beta2"},
-                    {"groupVersion": "apps/v1beta1", "version": "v1beta1"},
-                ],
-            }],
-        }
-
-        # Pretend that we could get all the API groups, but could not
-        # interrogate the group endpoint to get the resources it offers.
-        m_get.side_effect = [(ret, False), ({}, True)]
-        assert k8s.compile_api_endpoints(k8sconfig, "client") is True
+        assert config.apis[("Ingress", "")].apiVersion == "extensions/v1beta1"
 
 
 class TestK8sKubeconfig:

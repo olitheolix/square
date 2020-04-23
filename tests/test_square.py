@@ -281,8 +281,8 @@ class TestPlan:
         # Define a namespaces with an Ingress. The Ingress uses the legacy API group.
         meta = [
             MetaManifest("v1", "Namespace", None, "ns1"),
-            MetaManifest("extensions/v1beta1", "Ingress", "ns", "name"),
             MetaManifest("networking.k8s.io/v1beta1", "Ingress", "ns", "name"),
+            MetaManifest("extensions/v1beta1", "Ingress", "ns", "name"),
         ]
 
         # Create dummy manifests to go along with the MetaManifests.
@@ -294,21 +294,14 @@ class TestPlan:
             # Namspace.
             meta[0]: ref[0],
 
-            # Ingress in legacy group ("extensions/v1beta").
+            # Ingress in "networking.k8s.io/v1beta1".
             meta[1]: ref[1],
-
-            # Ingress in preferred ("networking.k8s.io/v1beta").
-            meta[2]: ref[2],
         }
         expected = {
             # Namespace (same as in `src`).
             meta[0]: ref[0],
 
-            # Must have updated API version for legacy Ingress.
-            meta[2]: ref[2],
-
-            # No change for the second Ingress, because it was already in the
-            # preferred API group.
+            # Must have changed Ingress to "extensions/v1beta".
             meta[2]: ref[2],
         }
 
@@ -504,15 +497,15 @@ class TestPlan:
         """Test a plan that patches no resources.
 
         The local and server manifests are identical except for the API
-        version. The plan must still be empty because Square adapts to the
-        local manifests to the default API group.
+        version. The plan must still be empty because Square adapts the local
+        manifests to the default API group.
 
         """
         # Define a namespaces with an Ingress. The Ingress uses the legacy API group.
         meta = [
             MetaManifest("v1", "Namespace", None, "ns1"),
-            MetaManifest("extensions/v1beta1", "Ingress", "ns", "name"),
             MetaManifest("networking.k8s.io/v1beta1", "Ingress", "ns", "name"),
+            MetaManifest("extensions/v1beta1", "Ingress", "ns", "name"),
         ]
 
         # Create dummy manifests to go along with the MetaManifests.

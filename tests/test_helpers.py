@@ -206,11 +206,11 @@ def k8s_apis(config: K8sConfig):
             url=f"{config.url}/apis/autoscaling/v2beta2",
         ),
         ("Ingress", ""): K8sResource(
-            apiVersion="networking.k8s.io/v1beta1",
+            apiVersion="extensions/v1beta1",
             kind="Ingress",
             name="ingresses",
             namespaced=True,
-            url=f"{config.url}/apis/networking.k8s.io/v1beta1",
+            url=f"{config.url}/apis/extensions/v1beta1",
         ),
         ("Ingress", "extensions/v1beta1"): K8sResource(
             apiVersion="extensions/v1beta1",
