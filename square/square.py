@@ -21,7 +21,7 @@ logit = logging.getLogger("square")
 def make_patch(
         config: K8sConfig,
         local: ServerManifests,
-        server: ServerManifests) -> Tuple[Optional[JsonPatch], bool]:
+        server: ServerManifests) -> Tuple[JsonPatch, bool]:
     """Return JSON patch to transition `server` to `local`.
 
     Inputs:
@@ -39,7 +39,7 @@ def make_patch(
     (loc, _), err1 = manio.strip(config, local)
     (srv, _), err2 = manio.strip(config, server)
     if err1 or err2 or loc is None or srv is None:
-        return (None, True)
+        return (JsonPatch("", []), True)
 
     # Log the manifest info for which we will try to compute a patch.
     man_id = f"{loc.kind.upper()}: {loc.metadata.name}/{loc.metadata.name}"
@@ -60,7 +60,7 @@ def make_patch(
             "Cannot compute JSON patch for incompatible manifests. "
             f"Local: <{loc_tmp}>  Server: <{srv_tmp}>"
         )
-        return (None, True)
+        return (JsonPatch("", []), True)
 
     # Compute JSON patch.
     patch = jsonpatch.make_patch(srv, loc)
@@ -165,7 +165,7 @@ def preferred_api(config: K8sConfig,
 def compile_plan(
         config: K8sConfig,
         local: ServerManifests,
-        server: ServerManifests) -> Tuple[Optional[DeploymentPlan], bool]:
+        server: ServerManifests) -> Tuple[DeploymentPlan, bool]:
     """Return the `DeploymentPlan` to transition K8s to state of `local`.
 
     The deployment plan is a named tuple. It specifies which resources to
@@ -183,15 +183,17 @@ def compile_plan(
         DeploymentPlan
 
     """
+    err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
+
     # Replace the API group of the local resource with the one K8s prefers.
     local, err = preferred_api(config, local)
     if err:
-        return (None, True)
+        return err_resp
 
     # Partition the set of meta manifests into create/delete/patch groups.
     plan, err = partition_manifests(local, server)
     if err or not plan:
-        return (None, True)
+        return err_resp
 
     # Sanity check: the resources to patch *must* exist in both local and
     # server manifests. This is a bug if not.
@@ -205,7 +207,7 @@ def compile_plan(
         # is how the POST request to create a resource works in K8s.
         resource, err = k8s.urlpath(config, delta._replace(name=""))
         if err or not resource:
-            return (None, True)
+            return err_resp
         create.append(DeltaCreate(delta, resource.url, local[delta]))
 
     # Compile the Deltas to delete the excess resources. Every DELETE request
@@ -221,7 +223,7 @@ def compile_plan(
         # Resource URL.
         resource, err = k8s.urlpath(config, meta)
         if err or not resource:
-            return (None, True)
+            return err_resp
 
         # Compile the Delta and add it to the list.
         delete.append(DeltaDelete(meta, resource.url, del_opts.copy()))
@@ -234,13 +236,13 @@ def compile_plan(
         # Compute textual diff (only useful for the user to study the diff).
         diff_str, err = manio.diff(config, local[meta], server[meta])
         if err or diff_str is None:
-            return (None, True)
+            return err_resp
 
         # Compute the JSON patch that will change the K8s state to match the
         # one in the local files.
         patch, err = make_patch(config, local[meta], server[meta])
         if err or patch is None:
-            return (None, True)
+            return err_resp
 
         # Append the patch to the list of patches, unless it is empty.
         if len(patch.ops):
@@ -250,7 +252,7 @@ def compile_plan(
     return (DeploymentPlan(create, patches, delete), False)
 
 
-def show_plan(plan: Optional[DeploymentPlan]) -> Tuple[None, bool]:
+def show_plan(plan: Optional[DeploymentPlan]) -> bool:
     """Print human readable version of `plan` to terminal.
 
     Inputs:
@@ -263,7 +265,7 @@ def show_plan(plan: Optional[DeploymentPlan]) -> Tuple[None, bool]:
     # Do nothing if the plan is `None`. This special case makes it easier to
     # deal with cases where `square.make_plan` returns an error.
     if not plan:
-        return (None, False)
+        return False
 
     # Terminal colours for convenience.
     cAdd = colorama.Fore.GREEN
@@ -326,12 +328,12 @@ def show_plan(plan: Optional[DeploymentPlan]) -> Tuple[None, bool]:
           cMod + f"{n_mod:,} to change, " +  # noqa
           cDel + f"{n_del:,} to destroy." +  # noqa
           cReset + "\n")
-    return (None, False)
+    return False
 
 
 def find_namespace_orphans(
         meta_manifests: Iterable[MetaManifest]
-) -> Tuple[Optional[Set[MetaManifest]], bool]:
+) -> Tuple[Set[MetaManifest], bool]:
     """Return all orphaned resources in the `meta_manifest` set.
 
     A resource is orphaned iff it lives in a namespace that is not explicitly
@@ -412,8 +414,7 @@ def setup_logging(log_level: int) -> None:
 def apply_plan(
         kubeconfig: Filepath,
         kube_ctx: Optional[str],
-        plan: DeploymentPlan,
-) -> Tuple[None, bool]:
+        plan: DeploymentPlan) -> bool:
     """Update K8s resources according to the `plan`.
 
     Inputs:
@@ -452,10 +453,10 @@ def apply_plan(
             _, err = k8s.delete(k8s_client, data_d.url, data_d.manifest)
             assert not err
     except AssertionError:
-        return (None, True)
+        return True
 
     # All good.
-    return (None, False)
+    return False
 
 
 def make_plan(
@@ -463,7 +464,7 @@ def make_plan(
         kube_ctx: Optional[str],
         folder: Filepath,
         selectors: Selectors,
-) -> Tuple[Optional[DeploymentPlan], bool]:
+) -> Tuple[DeploymentPlan, bool]:
     """Print the diff between `local_manifests` and `server_manifests`.
 
     The diff shows what would have to change on the K8s server in order for it
@@ -505,7 +506,7 @@ def make_plan(
         plan, err = compile_plan(k8s_config, local_meta, server)
         assert not err and plan
     except AssertionError:
-        return (None, True)
+        return (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
     # Print the plan and return.
     return (plan, False)
@@ -516,8 +517,7 @@ def get_resources(
         kube_ctx: Optional[str],
         folder: Filepath,
         selectors: Selectors,
-        groupby: GroupBy,
-) -> Tuple[None, bool]:
+        groupby: GroupBy) -> bool:
     """Download all K8s manifests and merge them into local files.
 
     Inputs:
@@ -563,10 +563,10 @@ def get_resources(
         assert not err and synced_manifests
 
         # Write the new manifest files.
-        _, err = manio.save(folder, synced_manifests)
+        err = manio.save(folder, synced_manifests)
         assert not err
     except AssertionError:
-        return (None, True)
+        return True
 
     # Success.
-    return (None, False)
+    return False

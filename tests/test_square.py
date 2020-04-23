@@ -91,7 +91,7 @@ class TestBasic:
             ],
             delete=[DeltaDelete(meta, "url", "manifest")],
         )
-        assert square.show_plan(plan) == (None, False)
+        assert square.show_plan(plan) is False
 
 
 class TestPartition:
@@ -215,26 +215,27 @@ class TestPatchK8s:
         """
         # Demo Deployment manifest.
         srv = make_manifest('Deployment', 'Namespace', 'name')
+        err_resp = (JsonPatch("", []), True)
 
         # `apiVersion` must match.
         loc = copy.deepcopy(srv)
         loc['apiVersion'] = 'mismatch'
-        assert square.make_patch(k8sconfig, loc, srv) == (None, True)
+        assert square.make_patch(k8sconfig, loc, srv) == err_resp
 
         # `kind` must match.
         loc = copy.deepcopy(srv)
         loc['kind'] = 'Mismatch'
-        assert square.make_patch(k8sconfig, loc, srv) == (None, True)
+        assert square.make_patch(k8sconfig, loc, srv) == err_resp
 
         # `name` must match.
         loc = copy.deepcopy(srv)
         loc['metadata']['name'] = 'mismatch'
-        assert square.make_patch(k8sconfig, loc, srv) == (None, True)
+        assert square.make_patch(k8sconfig, loc, srv) == err_resp
 
         # `namespace` must match.
         loc = copy.deepcopy(srv)
         loc['metadata']['namespace'] = 'mismatch'
-        assert square.make_patch(k8sconfig, loc, srv) == (None, True)
+        assert square.make_patch(k8sconfig, loc, srv) == err_resp
 
     def test_make_patch_special(self, k8sconfig):
         """Namespace, ClusterRole(Bindings) etc are special.
@@ -271,7 +272,7 @@ class TestPatchK8s:
 
         # Test function must return with error.
         loc = srv = make_manifest("Deployment", "ns", "foo")
-        assert square.make_patch(k8sconfig, loc, srv) == (None, True)
+        assert square.make_patch(k8sconfig, loc, srv) == (JsonPatch("", []), True)
 
 
 class TestPlan:
@@ -363,6 +364,7 @@ class TestPlan:
 
     def test_make_patch_err(self, k8sconfig):
         """Verify error cases with invalid or incompatible manifests."""
+        err_resp = (JsonPatch("", []), True)
 
         # Create two valid manifests, then stunt one in such a way that
         # `manio.strip` will reject it.
@@ -372,20 +374,20 @@ class TestPlan:
         del invalid["kind"]
 
         # Must handle errors from `manio.strip`.
-        assert square.make_patch(k8sconfig, valid, invalid) == (None, True)
-        assert square.make_patch(k8sconfig, invalid, valid) == (None, True)
-        assert square.make_patch(k8sconfig, invalid, invalid) == (None, True)
+        assert square.make_patch(k8sconfig, valid, invalid) == err_resp
+        assert square.make_patch(k8sconfig, invalid, valid) == err_resp
+        assert square.make_patch(k8sconfig, invalid, invalid) == err_resp
 
         # Must handle `urlpath` errors.
         with mock.patch.object(square.k8s, "urlpath") as m_url:
             m_url.return_value = (None, True)
-            assert square.make_patch(k8sconfig, valid, valid) == (None, True)
+            assert square.make_patch(k8sconfig, valid, valid) == err_resp
 
         # Must handle incompatible manifests, ie manifests that do not belong
         # to the same resource.
         valid_a = make_manifest(kind, namespace, "bar")
         valid_b = make_manifest(kind, namespace, "foo")
-        assert square.make_patch(k8sconfig, valid_a, valid_b) == (None, True)
+        assert square.make_patch(k8sconfig, valid_a, valid_b) == err_resp
 
     def test_compile_plan_create_delete_ok(self, k8sconfig):
         """Test a plan that creates and deletes resource, but not patches any.
@@ -447,6 +449,8 @@ class TestPlan:
     @mock.patch.object(square, "preferred_api")
     def test_compile_plan_create_delete_err(self, m_api, m_part, k8sconfig):
         """Simulate `urlpath` errors"""
+        err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
+
         # Valid ManifestMeta and dummy manifest dict.
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
         man = {meta: None}
@@ -461,7 +465,7 @@ class TestPlan:
 
         with mock.patch.object(square.k8s, "urlpath") as m_url:
             m_url.return_value = (None, True)
-            assert square.compile_plan(k8sconfig, man, man) == (None, True)
+            assert square.compile_plan(k8sconfig, man, man) == err_resp
 
         # Pretend we only have to "delete" resources, and then trigger the
         # `urlpath` error in its code path.
@@ -471,7 +475,7 @@ class TestPlan:
         )
         with mock.patch.object(square.k8s, "urlpath") as m_url:
             m_url.return_value = (None, True)
-            assert square.compile_plan(k8sconfig, man, man) == (None, True)
+            assert square.compile_plan(k8sconfig, man, man) == err_resp
 
     def test_compile_plan_patch_no_diff(self, k8sconfig):
         """Test a plan that patches no resources.
@@ -545,7 +549,8 @@ class TestPlan:
         src = {_: make_manifest(_.kind, _.namespace, _.name) for _ in meta}
 
         # The plan must fail because the API group is invalid.
-        assert square.compile_plan(k8sconfig, src, src) == (None, True)
+        ret = square.compile_plan(k8sconfig, src, src)
+        assert ret == (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
     def test_compile_plan_patch_with_diff(self, k8sconfig):
         """Test a plan that patches all resources.
@@ -585,6 +590,8 @@ class TestPlan:
     @mock.patch.object(square, "make_patch")
     def test_compile_plan_err(self, m_apply, m_plan, m_part, k8sconfig):
         """Use mocks for the internal function calls to simulate errors."""
+        err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
+
         # Define a single resource and valid dummy return value for
         # `square.partition_manifests`.
         meta = MetaManifest('v1', 'Namespace', None, 'ns1')
@@ -596,18 +603,18 @@ class TestPlan:
 
         # Simulate an error in `compile_plan`.
         m_part.return_value = (None, True)
-        assert square.compile_plan(k8sconfig, loc_man, srv_man) == (None, True)
+        assert square.compile_plan(k8sconfig, loc_man, srv_man) == err_resp
 
         # Simulate an error in `diff`.
         m_part.return_value = (plan, False)
         m_plan.return_value = (None, True)
-        assert square.compile_plan(k8sconfig, loc_man, srv_man) == (None, True)
+        assert square.compile_plan(k8sconfig, loc_man, srv_man) == err_resp
 
         # Simulate an error in `make_patch`.
         m_part.return_value = (plan, False)
         m_plan.return_value = ("some string", False)
         m_apply.return_value = (None, True)
-        assert square.compile_plan(k8sconfig, loc_man, srv_man) == (None, True)
+        assert square.compile_plan(k8sconfig, loc_man, srv_man) == err_resp
 
 
 class TestMainOptions:
@@ -655,7 +662,7 @@ class TestMainOptions:
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
         reset_mocks()
-        assert square.apply_plan("kubeconfig", "kubectx", plan) == (None, False)
+        assert square.apply_plan("kubeconfig", "kubectx", plan) is False
         m_post.assert_called_once_with("k8s_client", "create_url", "create_man")
         m_apply.assert_called_once_with("k8s_client", patch.url, patch.ops)
         m_delete.assert_called_once_with("k8s_client", "delete_url", "delete_man")
@@ -670,7 +677,7 @@ class TestMainOptions:
 
         # Call test function and verify that it did not try to apply
         # the empty plan.
-        assert square.apply_plan("kubeconfig", "kubectx", empty_plan) == (None, False)
+        assert square.apply_plan("kubeconfig", "kubectx", empty_plan) is False
         assert not m_post.called
         assert not m_apply.called
         assert not m_delete.called
@@ -682,15 +689,15 @@ class TestMainOptions:
 
         # Make `delete` fail.
         m_delete.return_value = (None, True)
-        assert square.apply_plan("kubeconfig", "kubectx", plan) == (None, True)
+        assert square.apply_plan("kubeconfig", "kubectx", plan) is True
 
         # Make `patch` fail.
         m_apply.return_value = (None, True)
-        assert square.apply_plan("kubeconfig", "kubectx", plan) == (None, True)
+        assert square.apply_plan("kubeconfig", "kubectx", plan) is True
 
         # Make `post` fail.
         m_post.return_value = (None, True)
-        assert square.apply_plan("kubeconfig", "kubectx", plan) == (None, True)
+        assert square.apply_plan("kubeconfig", "kubectx", plan) is True
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
@@ -704,6 +711,8 @@ class TestMainOptions:
         handles errors correctly.
 
         """
+        err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
+
         # Valid deployment plan.
         plan = DeploymentPlan(create=[], patch=[], delete=[])
 
@@ -726,15 +735,15 @@ class TestMainOptions:
 
         # Make `compile_plan` fail.
         m_plan.return_value = (None, True)
-        assert square.make_plan(*args) == (None, True)
+        assert square.make_plan(*args) == err_resp
 
         # Make `download_manifests` fail.
         m_down.return_value = (None, True)
-        assert square.make_plan(*args) == (None, True)
+        assert square.make_plan(*args) == err_resp
 
         # Make `load` fail.
         m_load.return_value = (None, None, True)
-        assert square.make_plan(*args) == (None, True)
+        assert square.make_plan(*args) == err_resp
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
@@ -758,7 +767,7 @@ class TestMainOptions:
         m_load.return_value = ("local", {}, False)
         m_down.return_value = ("server", False)
         m_sync.return_value = ("synced", False)
-        m_save.return_value = (None, False)
+        m_save.return_value = False
 
         # The arguments to the test function will always be the same in this test.
         selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
@@ -770,7 +779,7 @@ class TestMainOptions:
         load_selectors = Selectors(kinds=SUPPORTED_KINDS, labels=None, namespaces=None)
 
         # Call test function and verify it passed the correct arguments.
-        assert square.get_resources(*args) == (None, False)
+        assert square.get_resources(*args) is False
         m_load.assert_called_once_with("folder", load_selectors)
         m_down.assert_called_once_with("k8s_config", "k8s_client", selectors)
         m_sync.assert_called_once_with({}, "server", selectors, groupby)
@@ -778,16 +787,16 @@ class TestMainOptions:
 
         # Simulate an error with `manio.save`.
         m_save.return_value = (None, True)
-        assert square.get_resources(*args) == (None, True)
+        assert square.get_resources(*args) is True
 
         # Simulate an error with `manio.sync`.
         m_sync.return_value = (None, True)
-        assert square.get_resources(*args) == (None, True)
+        assert square.get_resources(*args) is True
 
         # Simulate an error in `download_manifests`.
         m_down.return_value = (None, True)
-        assert square.get_resources(*args) == (None, True)
+        assert square.get_resources(*args) is True
 
         # Simulate an error in `load`.
         m_load.return_value = (None, None, True)
-        assert square.get_resources(*args) == (None, True)
+        assert square.get_resources(*args) is True

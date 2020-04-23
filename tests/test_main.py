@@ -81,11 +81,30 @@ class TestMain:
         # Must return error without K8s credentials.
         param = dummy_command_param()
         param.kubeconfig = None
-        assert main.compile_config(param) == (None, True)
+        assert main.compile_config(param) == (
+            Configuration(
+                command="",
+                verbosity=0,
+                folder=Filepath(""),
+                kubeconfig=Filepath(""),
+                kube_ctx=None,
+                selectors=Selectors(tuple(), None, None),
+                groupby=GroupBy("", tuple()),
+            ), True)
 
     def test_compile_hierarchy_ok(self):
         """Parse file system hierarchy."""
         param = dummy_command_param()
+
+        err_resp = Configuration(
+            command="",
+            verbosity=0,
+            folder=Filepath(""),
+            kubeconfig=Filepath(""),
+            kube_ctx=None,
+            selectors=Selectors(tuple(), None, None),
+            groupby=GroupBy("", tuple()),
+        ), True
 
         # ----------------------------------------------------------------------
         # Default hierarchy.
@@ -114,14 +133,14 @@ class TestMain:
         invalid_labels = ["label", "label=", "label=foo=bar"]
         for label in invalid_labels:
             param.groupby = ("ns", "kind", label, "ns")
-            assert main.compile_config(param) == (None, True)
+            assert main.compile_config(param) == err_resp
 
         # ----------------------------------------------------------------------
         # User defined hierarchy with invalid resource types.
         # ----------------------------------------------------------------------
         param.parser = "get"
         param.groupby = ("ns", "unknown")
-        assert main.compile_config(param) == (None, True)
+        assert main.compile_config(param) == err_resp
 
     @mock.patch.object(square, "get_resources")
     @mock.patch.object(square, "make_plan")
@@ -320,7 +339,16 @@ class TestMain:
             param = main.parse_commandline_args()
             assert param.groupby == ["ns", "label=foo", "label=bar"]
 
-        assert main.compile_config(param) == (None, True)
+        expected = Configuration(
+            command="",
+            verbosity=0,
+            folder=Filepath(""),
+            kubeconfig=Filepath(""),
+            kube_ctx=None,
+            selectors=Selectors(tuple(), None, None),
+            groupby=GroupBy("", tuple()),
+        )
+        assert main.compile_config(param) == (expected, True)
 
     def test_parse_commandline_args_labels_invalid(self):
         """Must abort on invalid labels."""
@@ -446,21 +474,21 @@ class TestApplyPlan:
 
         # Simulate a none empty plan and successful application of that plan.
         m_plan.return_value = (plan, False)
-        m_apply.return_value = (None, False)
+        m_apply.return_value = False
 
         # Function must not apply the plan without the user's confirmation.
         with mock.patch.object(main, 'input', lambda _: "no"):
-            assert fun("kubeconfig", None, tmp_path, selectors, "yes") == (None, True)
+            assert fun("kubeconfig", None, tmp_path, selectors, "yes") is True
         assert not m_apply.called
 
         # Function must apply the plan if the user confirms it.
         with mock.patch.object(main, 'input', lambda _: "yes"):
-            assert fun("kubeconfig", None, tmp_path, selectors, "yes") == (None, False)
+            assert fun("kubeconfig", None, tmp_path, selectors, "yes") is False
         m_apply.assert_called_once_with("kubeconfig", None, plan)
 
         # Repeat with disabled security question.
         m_apply.reset_mock()
-        assert fun("kubeconfig", None, tmp_path, selectors, None) == (None, False)
+        assert fun("kubeconfig", None, tmp_path, selectors, None) is False
         m_apply.assert_called_once_with("kubeconfig", None, plan)
 
         # -----------------------------------------------------------------
@@ -471,7 +499,7 @@ class TestApplyPlan:
         m_plan.return_value = (DeploymentPlan(create=[], patch=[], delete=[]), False)
 
         with mock.patch.object(main, 'input', lambda _: "yes"):
-            assert fun("kubeconfig", None, tmp_path, selectors, "yes") == (None, False)
+            assert fun("kubeconfig", None, tmp_path, selectors, "yes") is False
         assert not m_apply.called
 
         # -----------------------------------------------------------------
@@ -480,4 +508,4 @@ class TestApplyPlan:
         # Make `apply_plan` fail.
         m_plan.return_value = (plan, False)
         m_apply.return_value = (None, True)
-        assert fun("kubeconfig", None, tmp_path, selectors, None) == (None, True)
+        assert fun("kubeconfig", None, tmp_path, selectors, None) is True
