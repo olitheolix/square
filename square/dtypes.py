@@ -58,8 +58,6 @@ RESOURCE_ALIASES = {
 # Sanity check: we must have aliases for every supported resource kind.
 assert set(SUPPORTED_KINDS) == set(RESOURCE_ALIASES.keys())
 
-SUPPORTED_VERSIONS = ("1.9", "1.10", "1.11", "1.12", "1.13", "1.14", "1.15")
-
 Filepath = pathlib.Path
 
 

@@ -10,8 +10,7 @@ import square.k8s as k8s
 import square.square
 import yaml
 from square.dtypes import (
-    SUPPORTED_KINDS, SUPPORTED_VERSIONS, Filepath, K8sConfig, K8sResource,
-    MetaManifest,
+    SUPPORTED_KINDS, Filepath, K8sConfig, K8sResource, MetaManifest,
 )
 
 from .test_helpers import kind_available
@@ -264,8 +263,6 @@ class TestUrlPathBuilder:
         Those variables specify the supported K8s versions and resource types.
 
         """
-        assert SUPPORTED_VERSIONS == ("1.9", "1.10", "1.11", "1.12", "1.13",
-                                      "1.14", "1.15")
         assert SUPPORTED_KINDS == (
             "Namespace", "CustomResourceDefinition", "ConfigMap", "Secret",
             "PersistentVolumeClaim", "ClusterRole", "ClusterRoleBinding", "Role",
