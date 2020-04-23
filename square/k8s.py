@@ -447,7 +447,7 @@ def session(config: K8sConfig):
     return sess
 
 
-def urlpath(config: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
+def resource(config: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
     """Return `K8sResource` object.
 
     That object will contain the full path to a resource, eg.

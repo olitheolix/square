@@ -9,7 +9,7 @@ from square.dtypes import (
     SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
     GroupBy, JsonPatch, MetaManifest, Selectors,
 )
-from square.k8s import urlpath
+from square.k8s import resource
 
 from .test_helpers import make_manifest
 
@@ -197,7 +197,7 @@ class TestPatchK8s:
         kind, ns, name = 'Deployment', 'ns', 'foo'
 
         # PATCH URLs require the resource name at the end of the request path.
-        url = urlpath(k8sconfig, MetaManifest("apps/v1", kind, ns, name))[0].url
+        url = resource(k8sconfig, MetaManifest("apps/v1", kind, ns, name))[0].url
 
         # The patch must be empty for identical manifests.
         loc = srv = make_manifest(kind, ns, name)
@@ -249,7 +249,7 @@ class TestPatchK8s:
             meta = manio.make_meta(make_manifest(kind, None, "name"))
 
             # Determine the resource path so we can verify it later.
-            url = urlpath(k8sconfig, meta)[0].url
+            url = resource(k8sconfig, meta)[0].url
 
             # The patch between two identical manifests must be empty but valid.
             loc = srv = make_manifest(kind, None, "name")
@@ -264,10 +264,10 @@ class TestPatchK8s:
             data, err = square.make_patch(k8sconfig, loc, srv)
             assert err is False and len(data) > 0
 
-    @mock.patch.object(k8s, "urlpath")
-    def test_make_patch_error_urlpath(self, m_url, k8sconfig):
-        """Coverage gap: simulate `urlpath` error."""
-        # Simulate `urlpath` error.
+    @mock.patch.object(k8s, "resource")
+    def test_make_patch_error_resource(self, m_url, k8sconfig):
+        """Coverage gap: simulate `resource` error."""
+        # Simulate `resource` error.
         m_url.return_value = (None, True)
 
         # Test function must return with error.
@@ -325,7 +325,7 @@ class TestPlan:
         assert square.preferred_api(k8sconfig, {meta: manifest}) == ({}, True)
 
         # Simulate an error in the second call to Urlpath.
-        with mock.patch.object(square.k8s, "urlpath") as m_url:
+        with mock.patch.object(square.k8s, "resource") as m_url:
             m_url.side_effect = [(None, False), ({}, True)]
             assert square.preferred_api(k8sconfig, {meta: manifest}) == ({}, True)
 
@@ -346,7 +346,7 @@ class TestPlan:
         loc["metadata"]["labels"] = {"new": "new"}
 
         # The Patch between two identical manifests must be a No-Op.
-        res, err = urlpath(k8sconfig, MetaManifest("apps/v1", kind, namespace, name))
+        res, err = resource(k8sconfig, MetaManifest("apps/v1", kind, namespace, name))
         assert not err
         expected = JsonPatch(url=res.url, ops=[])
         assert square.make_patch(k8sconfig, loc, loc) == (expected, False)
@@ -378,8 +378,8 @@ class TestPlan:
         assert square.make_patch(k8sconfig, invalid, valid) == err_resp
         assert square.make_patch(k8sconfig, invalid, invalid) == err_resp
 
-        # Must handle `urlpath` errors.
-        with mock.patch.object(square.k8s, "urlpath") as m_url:
+        # Must handle `resource` errors.
+        with mock.patch.object(square.k8s, "resource") as m_url:
             m_url.return_value = (None, True)
             assert square.make_patch(k8sconfig, valid, valid) == err_resp
 
@@ -410,7 +410,7 @@ class TestPlan:
 
         # Determine the K8sResource for all involved resources. Also verify the
         # resources all specify valid API groups.
-        res = [urlpath(k8sconfig, _._replace(name="")) for _ in meta]
+        res = [resource(k8sconfig, _._replace(name="")) for _ in meta]
         assert not any([_[1] for _ in res])
         res = [_[0] for _ in res]
 
@@ -448,7 +448,7 @@ class TestPlan:
     @mock.patch.object(square, "partition_manifests")
     @mock.patch.object(square, "preferred_api")
     def test_compile_plan_create_delete_err(self, m_api, m_part, k8sconfig):
-        """Simulate `urlpath` errors"""
+        """Simulate `resource` errors"""
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
         # Valid ManifestMeta and dummy manifest dict.
@@ -456,24 +456,24 @@ class TestPlan:
         man = {meta: None}
 
         # Pretend we only have to "create" resources, and then trigger the
-        # `urlpath` error in its code path.
+        # `resource` error in its code path.
         m_part.return_value = (
             DeploymentPlan(create=[meta], patch=[], delete=[]),
             False,
         )
         m_api.side_effect = lambda _, data: (data, False)
 
-        with mock.patch.object(square.k8s, "urlpath") as m_url:
+        with mock.patch.object(square.k8s, "resource") as m_url:
             m_url.return_value = (None, True)
             assert square.compile_plan(k8sconfig, man, man) == err_resp
 
         # Pretend we only have to "delete" resources, and then trigger the
-        # `urlpath` error in its code path.
+        # `resource` error in its code path.
         m_part.return_value = (
             DeploymentPlan(create=[], patch=[], delete=[meta]),
             False,
         )
-        with mock.patch.object(square.k8s, "urlpath") as m_url:
+        with mock.patch.object(square.k8s, "resource") as m_url:
             m_url.return_value = (None, True)
             assert square.compile_plan(k8sconfig, man, man) == err_resp
 

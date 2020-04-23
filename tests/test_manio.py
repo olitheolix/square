@@ -11,7 +11,7 @@ from square.dtypes import (
     RESOURCE_ALIASES, SUPPORTED_KINDS, Filepath, GroupBy, MetaManifest,
     Selectors,
 )
-from square.k8s import urlpath
+from square.k8s import resource
 
 from .test_helpers import make_manifest, mk_deploy
 
@@ -794,7 +794,7 @@ class TestManifestValidation:
                     "namespace": "maybe",
                 },
             }
-            if urlpath(k8sconfig, MetaManifest("", kind, None, ""))[0].namespaced:
+            if resource(k8sconfig, MetaManifest("", kind, None, ""))[0].namespaced:
                 del manifest["metadata"]["namespace"]
             assert manio.strip(k8sconfig, manifest) == (({}, {}), True)
 
@@ -1690,14 +1690,14 @@ class TestDownloadManifests:
         ]
 
         # Resource URLs (not namespaced).
-        url_ns, err1 = urlpath(k8sconfig, MetaManifest("", "Namespace", None, ""))
-        url_deploy, err2 = urlpath(k8sconfig, MetaManifest("", "Deployment", None, ""))
+        res_ns, err1 = resource(k8sconfig, MetaManifest("", "Namespace", None, ""))
+        res_deploy, err2 = resource(k8sconfig, MetaManifest("", "Deployment", None, ""))
 
         # Namespaced resource URLs.
-        url_ns_0, err3 = urlpath(k8sconfig, MetaManifest("", "Namespace", "ns0", ""))
-        url_ns_1, err4 = urlpath(k8sconfig, MetaManifest("", "Namespace", "ns1", ""))
-        url_dply_0, err5 = urlpath(k8sconfig, MetaManifest("", "Deployment", "ns0", ""))
-        url_dply_1, err6 = urlpath(k8sconfig, MetaManifest("", "Deployment", "ns1", ""))
+        res_ns_0, err3 = resource(k8sconfig, MetaManifest("", "Namespace", "ns0", ""))
+        res_ns_1, err4 = resource(k8sconfig, MetaManifest("", "Namespace", "ns1", ""))
+        res_dply_0, err5 = resource(k8sconfig, MetaManifest("", "Deployment", "ns0", ""))
+        res_dply_1, err6 = resource(k8sconfig, MetaManifest("", "Deployment", "ns1", ""))
         assert not any([err1, err2, err3, err4, err5, err6])
         del err1, err2, err3, err4, err5, err6
 
@@ -1733,8 +1733,8 @@ class TestDownloadManifests:
         )
         assert ret == (expected, False)
         assert m_get.call_args_list == [
-            mock.call("client", url_ns.url),
-            mock.call("client", url_deploy.url),
+            mock.call("client", res_ns.url),
+            mock.call("client", res_deploy.url),
         ]
 
         # ------------------------------------------------------------------------------
@@ -1761,10 +1761,10 @@ class TestDownloadManifests:
             Selectors(["Namespace", "Deployment"], ["ns0", "ns1"], None)
         )
         assert m_get.call_args_list == [
-            mock.call("client", url_ns_0.url),
-            mock.call("client", url_dply_0.url),
-            mock.call("client", url_ns_1.url),
-            mock.call("client", url_dply_1.url),
+            mock.call("client", res_ns_0.url),
+            mock.call("client", res_dply_0.url),
+            mock.call("client", res_ns_1.url),
+            mock.call("client", res_dply_1.url),
         ]
 
         # ----------------------------------------------------------------------
@@ -1787,8 +1787,8 @@ class TestDownloadManifests:
             Selectors(["Namespace", "Deployment"], ["ns0"], None)
         )
         assert m_get.call_args_list == [
-            mock.call("client", url_ns_0.url),
-            mock.call("client", url_dply_0.url),
+            mock.call("client", res_ns_0.url),
+            mock.call("client", res_dply_0.url),
         ]
 
     @mock.patch.object(k8s, 'get')
@@ -1805,8 +1805,8 @@ class TestDownloadManifests:
         m_get.side_effect = [(man_list_ns, False), ({}, True)]
 
         # The request URLs. We will need them to validate the `get` arguments.
-        url_ns, err1 = urlpath(k8sconfig, MetaManifest("", "Namespace", None, ""))
-        url_deploy, err2 = urlpath(k8sconfig, MetaManifest("", "Deployment", None, ""))
+        res_ns, err1 = resource(k8sconfig, MetaManifest("", "Namespace", None, ""))
+        res_deploy, err2 = resource(k8sconfig, MetaManifest("", "Deployment", None, ""))
         assert not err1 and not err2
 
         # Run test function and verify it returns an error and no data, despite
@@ -1817,6 +1817,6 @@ class TestDownloadManifests:
         )
         assert ret == ({}, True)
         assert m_get.call_args_list == [
-            mock.call("client", url_ns.url),
-            mock.call("client", url_deploy.url),
+            mock.call("client", res_ns.url),
+            mock.call("client", res_deploy.url),
         ]
