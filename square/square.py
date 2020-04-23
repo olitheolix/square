@@ -542,7 +542,7 @@ def get_resources(
     # write the new ones. This logic will ensure we never have stale manifests
     # (see `manio.save_files` for details and how `manio.save`, which we call
     # at the end of this function, uses it).
-    load_selectors = Selectors(kinds=SUPPORTED_KINDS, labels=None, namespaces=None)
+    load_selectors = Selectors(kinds=list(SUPPORTED_KINDS), labels=None, namespaces=None)
 
     try:
         # Create properly configured Requests session to talk to K8s API.

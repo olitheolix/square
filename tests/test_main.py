@@ -41,13 +41,62 @@ def dummy_command_param():
     )
 
 
+class TestResourceCleanup:
+    @mock.patch.object(square.k8s, "cluster_config")
+    def test_sanitise_resource_kinds(self, m_cluster, k8sconfig):
+        """An invalid resource name must abort the program."""
+        m_cluster.side_effect = lambda *args: (k8sconfig, None, False)
+
+        cfg = Configuration(
+            command='get',
+            verbosity=9,
+            folder=pathlib.Path('/tmp'),
+            kubeconfig=None,
+            kube_ctx=None,
+            selectors=Selectors(
+                kinds=["svc", 'DEPLOYMENT', "Secret"],
+                namespaces=['default'],
+                labels={("app", "morty"), ("foo", "bar")},
+            ),
+            groupby=GroupBy("", tuple()),
+        )
+
+        # Convert the resource names to their correct K8s kind.
+        ret, err = main.sanitise_resource_kinds(cfg)
+        assert not err and ret.selectors.kinds == ["Service", "Deployment", "Secret"]
+
+        # Add two invalid resource names. This must return with an error.
+        cfg.selectors.kinds.clear()
+        cfg.selectors.kinds.extend(["invalid", "k8s-resource-kind"])
+        ret, err = main.sanitise_resource_kinds(cfg)
+        assert err and ret.selectors.kinds == ["invalid", "k8s-resource-kind"]
+
+    def test_sanitise_resource_kinds_err_config(self, k8sconfig):
+        """An invalid resource name must abort the program."""
+        cfg = Configuration(
+            command='get',
+            verbosity=9,
+            folder=pathlib.Path('/tmp'),
+            kubeconfig=Filepath("/does/not/exist"),
+            kube_ctx=None,
+            selectors=Selectors(
+                kinds=["svc", 'DEPLOYMENT', "Secret"],
+                namespaces=['default'],
+                labels={("app", "morty"), ("foo", "bar")},
+            ),
+            groupby=GroupBy("", tuple()),
+        )
+
+        ret, err = main.sanitise_resource_kinds(cfg)
+        assert err
+
+
 class TestMain:
     def test_compile_config_basic(self):
         """Compile various valid configurations."""
         param = dummy_command_param()
         cfg, err = main.compile_config(param)
-        assert not err
-        assert cfg == Configuration(
+        assert not err and cfg == Configuration(
             command='get',
             verbosity=9,
             folder=pathlib.Path('/tmp'),
@@ -97,7 +146,7 @@ class TestMain:
                 folder=Filepath(""),
                 kubeconfig=Filepath(""),
                 kube_ctx=None,
-                selectors=Selectors(tuple(), None, None),
+                selectors=Selectors([], None, None),
                 groupby=GroupBy("", tuple()),
             ), True)
 
@@ -111,7 +160,7 @@ class TestMain:
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kube_ctx=None,
-            selectors=Selectors(tuple(), None, None),
+            selectors=Selectors([], None, None),
             groupby=GroupBy("", tuple()),
         ), True
 
@@ -154,13 +203,17 @@ class TestMain:
     @mock.patch.object(square, "get_resources")
     @mock.patch.object(square, "make_plan")
     @mock.patch.object(main, "apply_plan")
-    def test_main_valid_options(self, m_apply, m_plan, m_get, tmp_path):
+    @mock.patch.object(square.k8s, "cluster_config")
+    def test_main_valid_options(self, m_cluster, m_apply, m_plan, m_get, tmp_path,
+                                k8sconfig):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
         `main_*` function will be called with the correct parameters.
 
         """
+        m_cluster.side_effect = lambda *args: (k8sconfig, None, False)
+
         # Kubeconfig file must exist (can be empty for this test).
         fname_kubeconfig = tmp_path / "kubeconfig"
         fname_kubeconfig.write_text("")
@@ -245,7 +298,7 @@ class TestMain:
 
     @mock.patch.object(main, "parse_commandline_args")
     @mock.patch.object(k8s, "cluster_config")
-    def test_main_invalid_option_in_main(self, m_cluster, m_cmd):
+    def test_main_invalid_option_in_main(self, m_cluster, m_cmd, k8sconfig):
         """Simulate an option that `square` does not know about.
 
         This is a somewhat pathological test and exists primarily to close some
@@ -253,11 +306,11 @@ class TestMain:
 
         """
         # Pretend the call to get K8s credentials succeeded.
-        m_cluster.return_value = (("foo", "bar"), False)
+        m_cluster.side_effect = lambda *args: (k8sconfig, None, False)
 
         # Force a configuration error due to the absence of K8s credentials.
         cmd_args = dummy_command_param()
-        cmd_args.kubeconfig = "does-not-exist"
+        cmd_args.kubeconfig /= "does-not-exist"
         m_cmd.return_value = cmd_args
         assert main.main() == 1
 
@@ -271,22 +324,10 @@ class TestMain:
     def test_main_version_error(self, m_k8s):
         """Program must abort if it cannot get the version from K8s."""
         # Mock all calls to the K8s API.
-        m_k8s.cluster_config.return_value = ((None, None), True)
+        m_k8s.cluster_config.return_value = (None, None, True)
 
         with mock.patch("sys.argv", ["square.py", "get", "deploy"]):
             assert main.main() == 1
-
-    def test_parse_commandline_args_basic(self):
-        """Must correctly expand eg "svc" -> "Service" and remove duplicates."""
-        with mock.patch("sys.argv", ["square.py", "get", "deploy", "svc"]):
-            ret = main.parse_commandline_args()
-            assert ret.kinds == ["Deployment", "Service"]
-
-    def test_parse_commandline_args_invalid(self):
-        """An invalid resource name must abort the program."""
-        with mock.patch("sys.argv", ["square.py", "get", "invalid"]):
-            with pytest.raises(SystemExit):
-                main.parse_commandline_args()
 
     def test_parse_commandline_args_labels_valid(self):
         """The labels must be returned as (name, value) tuples."""
@@ -358,7 +399,7 @@ class TestMain:
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kube_ctx=None,
-            selectors=Selectors(tuple(), None, None),
+            selectors=Selectors([], None, None),
             groupby=GroupBy("", tuple()),
         )
         assert main.compile_config(param) == (expected, True)

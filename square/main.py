@@ -12,8 +12,7 @@ import square
 import square.square
 from square import __version__
 from square.dtypes import (
-    RESOURCE_ALIASES, SUPPORTED_KINDS, Configuration, Filepath, GroupBy,
-    Selectors,
+    SUPPORTED_KINDS, Configuration, Filepath, GroupBy, Selectors,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -31,26 +30,6 @@ def parse_commandline_args():
       {name} plan
       {name} apply
     ''')
-
-    def _validate_kind(kind: str) -> str:
-        """Convert resource `kind` from aliases to canonical name.
-        For instance, `svc` -> `Service`.
-        """
-        kind = kind.lower()
-
-        # The "all" resource is special - do not expand.
-        if kind == "all":
-            return "all"
-
-        out = [
-            canonical for canonical, aliases in RESOURCE_ALIASES.items()
-            if kind in aliases
-        ]
-
-        # Must have found at most one or there is a serious bug.
-        if len(out) != 1:
-            raise argparse.ArgumentTypeError(kind)
-        return out[0]
 
     def _validate_label(label: str) -> Tuple[str, ...]:
         """Convert resource `kind` from aliases to canonical name.
@@ -109,7 +88,7 @@ def parse_commandline_args():
     # duplicated code.
     kinds_kwargs = {
         "dest": "kinds",
-        "type": _validate_kind,
+        "type": str,
         "nargs": '+',
         "metavar": "resource",
     }
@@ -183,7 +162,7 @@ def compile_config(cmdline_param) -> Tuple[Configuration, bool]:
         folder=Filepath(""),
         kubeconfig=Filepath(""),
         kube_ctx=None,
-        selectors=Selectors(tuple(), None, None),
+        selectors=Selectors([], None, None),
         groupby=GroupBy("", tuple()),
     ), True
 
@@ -313,6 +292,23 @@ def apply_plan(
     return False
 
 
+def sanitise_resource_kinds(cfg: Configuration) -> Tuple[Configuration, bool]:
+    # Specify the selectors (see definition of `dtypes.Selectors`).
+    k8sconfig, k8s_client, err = square.k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
+    if err:
+        return (cfg, True)
+
+    try:
+        kinds = [k8sconfig.short2kind[_.lower()] for _ in cfg.selectors.kinds]
+    except KeyError as e:
+        logit.error(f"Unknown resource type {e}")
+        return (cfg, True)
+
+    cfg.selectors.kinds.clear()
+    cfg.selectors.kinds.extend(kinds)
+    return (cfg, False)
+
+
 def main() -> int:
     param = parse_commandline_args()
     if param.parser == "version":
@@ -323,8 +319,9 @@ def main() -> int:
     square.square.setup_logging(param.verbosity)
 
     # Create Square configuration from command line arguments.
-    cfg, err = compile_config(param)
-    if cfg is None or err:
+    cfg, err1 = compile_config(param)
+    cfg, err2 = sanitise_resource_kinds(cfg)
+    if err1 or err2:
         return 1
 
     # Do what user asked us to do.
