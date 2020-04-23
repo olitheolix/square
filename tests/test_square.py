@@ -275,6 +275,59 @@ class TestPatchK8s:
 
 
 class TestPlan:
+    def test_preferred_api(self, k8sconfig):
+        """Convert resources to preferred API groups."""
+        # Define a namespaces with an Ingress. The Ingress uses the legacy API group.
+        meta = [
+            MetaManifest("v1", "Namespace", None, "ns1"),
+            MetaManifest("extensions/v1beta1", "Ingress", "ns", "name"),
+            MetaManifest("networking.k8s.io/v1beta1", "Ingress", "ns", "name"),
+        ]
+
+        # Create dummy manifests to go along with the MetaManifests.
+        ref = [make_manifest(_.kind, _.namespace, _.name) for _ in meta]
+
+        # Local and server manifests are identical. The plan must therefore
+        # only nominate patches but nothing to create or delete.
+        src = {
+            # Namspace.
+            meta[0]: ref[0],
+
+            # Ingress in legacy group ("extensions/v1beta").
+            meta[1]: ref[1],
+
+            # Ingress in preferred ("networking.k8s.io/v1beta").
+            meta[2]: ref[2],
+        }
+        expected = {
+            # Namespace (same as in `src`).
+            meta[0]: ref[0],
+
+            # Must have updated API version for legacy Ingress.
+            meta[2]: ref[2],
+
+            # No change for the second Ingress, because it was already in the
+            # preferred API group.
+            meta[2]: ref[2],
+        }
+
+        assert square.preferred_api(k8sconfig, src) == (expected, False)
+
+    def test_preferred_api_err(self, k8sconfig):
+        """Gracefully abort for unknown APIs."""
+        # Define an invalid resource and create a dummy manifest to go along
+        # with it.
+        meta = MetaManifest("invalid", "Namespace", None, "ns1")
+        manifest = make_manifest(meta.kind, meta.namespace, meta.name)
+
+        # Function must return an error because the resource is invalid.
+        assert square.preferred_api(k8sconfig, {meta: manifest}) == ({}, True)
+
+        # Simulate an error in the second call to Urlpath.
+        with mock.patch.object(square.k8s, "urlpath") as m_url:
+            m_url.side_effect = [(None, False), ({}, True)]
+            assert square.preferred_api(k8sconfig, {meta: manifest}) == ({}, True)
+
     def test_make_patch_ok(self, k8sconfig):
         """Compute patch between two manifests.
 
@@ -342,35 +395,28 @@ class TestPlan:
         be created, all server resources deleted, and none patched.
 
         """
-        config = k8sconfig
-        del k8sconfig
-
-        # Allocate arrays for the MetaManifests and resource URLs.
-        meta = [None] * 5
-
         # Local: defines Namespace "ns1" with 1 deployment.
-        meta[0] = MetaManifest('v1', 'Namespace', None, 'ns1')
-        meta[1] = MetaManifest('apps/v1', 'Deployment', 'ns1', 'res_0')
+        meta = [
+            MetaManifest('v1', 'Namespace', None, 'ns1'),
+            MetaManifest('apps/v1', 'Deployment', 'ns1', 'res_0'),
 
-        # Server: has a Namespace "ns2" with 2 deployments.
-        meta[2] = MetaManifest('v1', 'Namespace', None, 'ns2')
-        meta[3] = MetaManifest('apps/v1', 'Deployment', 'ns2', 'res_1')
-        meta[4] = MetaManifest('apps/v1', 'Deployment', 'ns2', 'res_2')
+            # Server: has a Namespace "ns2" with 2 deployments.
+            MetaManifest('v1', 'Namespace', None, 'ns2'),
+            MetaManifest('apps/v1', 'Deployment', 'ns2', 'res_1'),
+            MetaManifest('apps/v1', 'Deployment', 'ns2', 'res_2'),
+        ]
 
-        # Determine the K8sResource for all involved resources.
-        res = [urlpath(config, _._replace(name="")) for _ in meta]
-
-        # Sanity check: all resources types must have been known.
+        # Determine the K8sResource for all involved resources. Also verify the
+        # resources all specify valid API groups.
+        res = [urlpath(k8sconfig, _._replace(name="")) for _ in meta]
         assert not any([_[1] for _ in res])
-
-        # Strip off the "err" part of the (res, err) tuples.
         res = [_[0] for _ in res]
 
         # Compile local and server manifests. Their resources have no overlap.
         # This will ensure that we have to create all the local resources,
         # delete all the server resources, and patch nothing.
-        loc_man = {meta[0]: "0", meta[1]: "1"}
-        srv_man = {meta[2]: "2", meta[3]: "3", meta[4]: "4"}
+        loc_man = {_: make_manifest(_.kind, _.namespace, _.name) for _ in meta[:2]}
+        srv_man = {_: make_manifest(_.kind, _.namespace, _.name) for _ in meta[2:]}
 
         # The resources require a manifest to specify the terms of deletion.
         # This is currently hard coded into the function.
@@ -395,10 +441,11 @@ class TestPlan:
                 DeltaDelete(meta[4], res[4].url + "/" + meta[4].name, del_opts),
             ],
         )
-        assert square.compile_plan(config, loc_man, srv_man) == (expected, False)
+        assert square.compile_plan(k8sconfig, loc_man, srv_man) == (expected, False)
 
     @mock.patch.object(square, "partition_manifests")
-    def test_compile_plan_create_delete_err(self, m_part, k8sconfig):
+    @mock.patch.object(square, "preferred_api")
+    def test_compile_plan_create_delete_err(self, m_api, m_part, k8sconfig):
         """Simulate `urlpath` errors"""
         # Valid ManifestMeta and dummy manifest dict.
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
@@ -410,6 +457,8 @@ class TestPlan:
             DeploymentPlan(create=[meta], patch=[], delete=[]),
             False,
         )
+        m_api.side_effect = lambda _, data: (data, False)
+
         with mock.patch.object(square.k8s, "urlpath") as m_url:
             m_url.return_value = (None, True)
             assert square.compile_plan(k8sconfig, man, man) == (None, True)
@@ -432,25 +481,71 @@ class TestPlan:
         none to create and delete.
 
         """
-        # Allocate arrays for the MetaManifests.
-        meta = [None] * 4
-
         # Define two namespaces with 1 deployment in each.
-        meta[0] = MetaManifest('v1', 'Namespace', None, 'ns1')
-        meta[1] = MetaManifest('v1', 'Deployment', 'ns1', 'res_0')
-        meta[2] = MetaManifest('v1', 'Namespace', None, 'ns2')
-        meta[3] = MetaManifest('v1', 'Deployment', 'ns2', 'res_1')
+        meta = [
+            MetaManifest('v1', 'Namespace', None, 'ns1'),
+            MetaManifest('apps/v1', 'Deployment', 'ns1', 'res_0'),
+            MetaManifest('v1', 'Namespace', None, 'ns2'),
+            MetaManifest('apps/v1', 'Deployment', 'ns2', 'res_1'),
+        ]
 
         # Local and server manifests are identical. The plan must therefore
         # only nominate patches but nothing to create or delete.
-        loc_man = srv_man = {
-            meta[0]: make_manifest("Namespace", None, "ns1"),
-            meta[1]: make_manifest("Deployment", "ns1", "res_0"),
-            meta[2]: make_manifest("Namespace", None, "ns2"),
-            meta[3]: make_manifest("Deployment", "ns2", "res_1"),
+        src = {_: make_manifest(_.kind, _.namespace, _.name) for _ in meta}
+
+        expected = DeploymentPlan(create=[], patch=[], delete=[])
+        assert square.compile_plan(k8sconfig, src, src) == (expected, False)
+
+    def test_compile_plan_patch_no_diff_except_api_group(self, k8sconfig):
+        """Test a plan that patches no resources.
+
+        The local and server manifests are identical except for the API
+        version. The plan must still be empty because Square adapts to the
+        local manifests to the default API group.
+
+        """
+        # Define a namespaces with an Ingress. The Ingress uses the legacy API group.
+        meta = [
+            MetaManifest("v1", "Namespace", None, "ns1"),
+            MetaManifest("extensions/v1beta1", "Ingress", "ns", "name"),
+            MetaManifest("networking.k8s.io/v1beta1", "Ingress", "ns", "name"),
+        ]
+
+        # Create dummy manifests to go along with the MetaManifests.
+        mani = [make_manifest(_.kind, _.namespace, _.name) for _ in meta]
+
+        # Local and server manifests are identical. The plan must therefore
+        # only nominate patches but nothing to create or delete.
+        loc_man = {
+            meta[0]: make_manifest("Namespace", None, mani[0]),
+            meta[1]: make_manifest("Ingress", "ns1", mani[1]),
         }
+        srv_man = {
+            meta[0]: make_manifest("Namespace", None, mani[0]),
+            meta[2]: make_manifest("Ingress", "ns1", mani[2]),
+        }
+
         expected = DeploymentPlan(create=[], patch=[], delete=[])
         assert square.compile_plan(k8sconfig, loc_man, srv_man) == (expected, False)
+
+    def test_compile_plan_invalid_api_version(self, k8sconfig):
+        """Test a plan that patches no resources.
+
+        The local and server manifests are identical except for the API
+        version. The plan must still be empty because Square adapts to the
+        local manifests to the default API group.
+
+        """
+        # Define a namespaces with an Ingress. The Ingress uses the legacy API group.
+        meta = [
+            MetaManifest("invalid", "Deployment", "ns", "name"),
+        ]
+
+        # Local and server manifests will be identical.
+        src = {_: make_manifest(_.kind, _.namespace, _.name) for _ in meta}
+
+        # The plan must fail because the API group is invalid.
+        assert square.compile_plan(k8sconfig, src, src) == (None, True)
 
     def test_compile_plan_patch_with_diff(self, k8sconfig):
         """Test a plan that patches all resources.
