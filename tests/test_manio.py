@@ -1721,12 +1721,7 @@ class TestDownloadManifests:
             (l_ns, False),
             (l_dply, False),
         ]
-        expected = {
-            manio.make_meta(meta[0]): manio.strip(k8sconfig, meta[0])[0][0],
-            manio.make_meta(meta[1]): manio.strip(k8sconfig, meta[1])[0][0],
-            manio.make_meta(meta[2]): manio.strip(k8sconfig, meta[2])[0][0],
-            manio.make_meta(meta[3]): manio.strip(k8sconfig, meta[3])[0][0],
-        }
+        expected = {manio.make_meta(_): manio.strip(k8sconfig, _)[0][0] for _ in meta}
         ret = manio.download(
             k8sconfig, "client",
             Selectors(["Namespace", "Deployment"], None, None)
@@ -1750,12 +1745,6 @@ class TestDownloadManifests:
             (l_ns_1, False),
             (l_dply_1, False),
         ]
-        expected = {
-            manio.make_meta(meta[0]): manio.strip(k8sconfig, meta[0])[0][0],
-            manio.make_meta(meta[1]): manio.strip(k8sconfig, meta[1])[0][0],
-            manio.make_meta(meta[2]): manio.strip(k8sconfig, meta[2])[0][0],
-            manio.make_meta(meta[3]): manio.strip(k8sconfig, meta[3])[0][0],
-        }
         assert (expected, False) == manio.download(
             k8sconfig, "client",
             Selectors(["Namespace", "Deployment"], ["ns0", "ns1"], None)
