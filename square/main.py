@@ -191,8 +191,9 @@ def compile_config(cmdline_param) -> Tuple[Configuration, bool]:
     p = cmdline_param
 
     # Abort without credentials.
-    if not p.kubeconfig:
-        logit.error("ERROR: must either specify --kubeconfig or set KUBECONFIG")
+    kubeconfig = Filepath(p.kubeconfig)
+    if not kubeconfig.exists():
+        logit.error(f"Cannot find Kubernetes config file <{kubeconfig}>")
         return err_resp
 
     # Remove duplicates but retain the original order of "p.kinds". This is
@@ -249,7 +250,7 @@ def compile_config(cmdline_param) -> Tuple[Configuration, bool]:
         command=p.parser,
         verbosity=p.verbosity,
         folder=folder,
-        kubeconfig=p.kubeconfig,
+        kubeconfig=kubeconfig,
         kube_ctx=p.ctx,
         selectors=selectors,
         groupby=groupby,
