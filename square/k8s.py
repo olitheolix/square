@@ -26,10 +26,8 @@ FNAME_CERT = Filepath("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
 logit = logging.getLogger("square")
 
 
-def load_kubeconfig(
-        fname: Filepath,
-        context: Optional[str]
-) -> Tuple[Optional[str], Optional[dict], Optional[dict]]:
+def load_kubeconfig(fname: Filepath,
+                    context: Optional[str]) -> Tuple[str, dict, dict, bool]:
     """Return user name and user- and cluster information.
 
     Return None on error.
@@ -49,7 +47,7 @@ def load_kubeconfig(
         kubeconf = yaml.safe_load(open(fname))
     except (IOError, PermissionError) as err:
         logit.error(f"{err}")
-        return (None, None, None)
+        return ("", {}, {}, True)
 
     # Find the user and cluster information based on the specified `context`.
     try:
@@ -72,7 +70,7 @@ def load_kubeconfig(
             assert len(user_info) == len(cluster_info) == 1
         except AssertionError:
             logit.error(f"Could not find information for context <{ctx}>")
-            return (None, None, None)
+            return ("", {}, {}, True)
 
         # Unpack the cluster- and user information.
         cluster_name = cluster_info[0]["name"]
@@ -82,16 +80,16 @@ def load_kubeconfig(
         del cluster_info
     except (KeyError, TypeError):
         logit.error(f"Kubeconfig YAML file <{fname}> is invalid")
-        return (None, None, None)
+        return ("", {}, {}, True)
 
     # Success. The explicit `dicts()` are to satisfy MyPy.
     logit.info(f"Loaded {ctx} from Kubeconfig file <{fname}>")
-    return (username, dict(user_info), dict(cluster_info_out))
+    return (username, dict(user_info), dict(cluster_info_out), False)
 
 
 def load_incluster_config(
         fname_token: Filepath = FNAME_TOKEN,
-        fname_cert: Filepath = FNAME_CERT) -> Optional[K8sConfig]:
+        fname_cert: Filepath = FNAME_CERT) -> Tuple[K8sConfig, bool]:
     """Return K8s access config from Pod service account.
 
     Returns None if we are not running in a Pod.
@@ -117,7 +115,7 @@ def load_incluster_config(
         assert fname_token.exists()
     except AssertionError:
         logit.debug("Could not find incluster (service account) credentials.")
-        return None
+        return K8sConfig(), True
 
     # Return the compiled K8s access configuration.
     logit.info("Use incluster (service account) credentials.")
@@ -128,13 +126,13 @@ def load_incluster_config(
         client_cert=None,
         version="",
         name="",
-    )
+    ), False
 
 
 def load_gke_config(
         fname: Filepath,
         context: Optional[str],
-        disable_warnings: bool = False) -> Optional[K8sConfig]:
+        disable_warnings: bool = False) -> Tuple[K8sConfig, bool]:
     """Return K8s access config for GKE cluster described in `kubeconfig`.
 
     Returns None if `kubeconfig` does not exist or could not be parsed.
@@ -152,9 +150,9 @@ def load_gke_config(
 
     """
     # Parse the kubeconfig file.
-    name, user, cluster = load_kubeconfig(fname, context)
-    if name is None or user is None or cluster is None:
-        return None
+    name, user, cluster, err = load_kubeconfig(fname, context)
+    if err:
+        return (K8sConfig(), True)
 
     # Unpack the self signed certificate (Google does not register the K8s API
     # server certificate with a public CA).
@@ -162,7 +160,7 @@ def load_gke_config(
         ssl_ca_cert_data = base64.b64decode(cluster["certificate-authority-data"])
     except KeyError:
         logit.debug(f"Context {context} in <{fname}> is not a GKE config")
-        return None
+        return (K8sConfig(), True)
 
     # Save the certificate to a temporary file. This is only necessary because
     # the requests library will need a path to the CA file - unfortunately, we
@@ -187,13 +185,13 @@ def load_gke_config(
         client_cert=None,
         version="",
         name=cluster["name"],
-    )
+    ), False
 
 
 def load_eks_config(
         fname: Filepath,
         context: Optional[str],
-        disable_warnings: bool = False) -> Optional[K8sConfig]:
+        disable_warnings: bool = False) -> Tuple[K8sConfig, bool]:
     """Return K8s access config for EKS cluster described in `kubeconfig`.
 
     Returns None if `kubeconfig` does not exist or could not be parsed.
@@ -211,9 +209,9 @@ def load_eks_config(
 
     """
     # Parse the kubeconfig file.
-    name, user, cluster = load_kubeconfig(fname, context)
-    if name is None or user is None or cluster is None:
-        return None
+    name, user, cluster, err = load_kubeconfig(fname, context)
+    if err:
+        return (K8sConfig(), True)
 
     # Get a copy of all env vars. We will pass that one along to the
     # sub-process, plus the env vars specified in the kubeconfig file.
@@ -228,7 +226,7 @@ def load_eks_config(
         env_kubeconf = user["exec"].get("env", [])
     except KeyError:
         logit.debug(f"Context {context} in <{fname}> is not an EKS config")
-        return None
+        return (K8sConfig(), True)
 
     # Convert a None value (valid value in YAML) to an empty list of env vars.
     env_kubeconf = env_kubeconf if env_kubeconf is not None else []
@@ -253,10 +251,10 @@ def load_eks_config(
         token = yaml.safe_load(out.stdout.decode("utf8"))["status"]["token"]
     except FileNotFoundError:
         logit.error(f"Could not find <{cmd}> application to get token")
-        return None
+        return (K8sConfig(), True)
     except (KeyError, yaml.YAMLError):
         logit.error(f"Token manifest from <{cmd}> is corrupt")
-        return None
+        return (K8sConfig(), True)
 
     # Return the config data.
     logit.info(f"Assuming EKS cluster.")
@@ -267,13 +265,11 @@ def load_eks_config(
         client_cert=None,
         version="",
         name=cluster["name"],
-    )
+    ), False
 
 
-def load_minikube_config(
-        fname: Filepath,
-        context: Optional[str],
-) -> Optional[K8sConfig]:
+def load_minikube_config(fname: Filepath,
+                         context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Load minikube configuration from `fname`.
 
     Return None on error.
@@ -289,9 +285,9 @@ def load_minikube_config(
 
     """
     # Parse the kubeconfig file.
-    name, user, cluster = load_kubeconfig(fname, context)
-    if name is None or user is None or cluster is None:
-        return None
+    name, user, cluster, err = load_kubeconfig(fname, context)
+    if err:
+        return (K8sConfig(), True)
 
     # Minikube uses client certificates to authenticate. We need to pass those
     # to the HTTP client of our choice when we create the session.
@@ -310,16 +306,13 @@ def load_minikube_config(
             client_cert=client_cert,
             version="",
             name=cluster["name"],
-        )
+        ), False
     except KeyError:
         logit.debug(f"Context {context} in <{fname}> is not a Minikube config")
-        return None
+        return (K8sConfig(), True)
 
 
-def load_kind_config(
-        fname: Filepath,
-        context: Optional[str],
-) -> Optional[K8sConfig]:
+def load_kind_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Load Kind configuration from `fname`.
 
     https://github.com/bsycorp/kind
@@ -341,9 +334,9 @@ def load_kind_config(
 
     """
     # Parse the kubeconfig file.
-    name, user, cluster = load_kubeconfig(fname, context)
-    if name is None or user is None or cluster is None:
-        return None
+    name, user, cluster, err = load_kubeconfig(fname, context)
+    if err:
+        return (K8sConfig(), True)
 
     # Kind/Minikube use client certificates to authenticate. We need to pass
     # those to the HTTP client of our choice when we create the session.
@@ -369,16 +362,16 @@ def load_kind_config(
             client_cert=client_cert,
             version="",
             name=cluster["name"],
-        )
+        ), False
     except KeyError:
         logit.debug(f"Context {context} in <{fname}> is not a Minikube config")
-        return None
+        return (K8sConfig(), True)
 
 
 def load_auto_config(
         fname: Filepath,
         context: Optional[str],
-        disable_warnings: bool = False) -> Optional[K8sConfig]:
+        disable_warnings: bool = False) -> Tuple[K8sConfig, bool]:
     """Automagically find and load the correct K8s configuration.
 
     This function will load several possible configuration options and returns
@@ -399,33 +392,33 @@ def load_auto_config(
         Config
 
     """
-    conf = load_incluster_config()
-    if conf is not None:
-        return conf
+    conf, err = load_incluster_config()
+    if not err:
+        return conf, False
     logit.debug("Incluster config failed")
 
-    conf = load_minikube_config(fname, context)
-    if conf is not None:
-        return conf
+    conf, err = load_minikube_config(fname, context)
+    if not err:
+        return conf, False
     logit.debug("Minikube config failed")
 
-    conf = load_kind_config(fname, context)
-    if conf is not None:
-        return conf
+    conf, err = load_kind_config(fname, context)
+    if not err:
+        return conf, False
     logit.debug("KIND config failed")
 
-    conf = load_eks_config(fname, context, disable_warnings)
-    if conf is not None:
-        return conf
+    conf, err = load_eks_config(fname, context, disable_warnings)
+    if not err:
+        return conf, False
     logit.debug("EKS config failed")
 
-    conf = load_gke_config(fname, context, disable_warnings)
-    if conf is not None:
-        return conf
+    conf, err = load_gke_config(fname, context, disable_warnings)
+    if not err:
+        return conf, False
     logit.debug("GKE config failed")
 
     logit.error(f"Could not find a valid configuration in <{fname}>")
-    return None
+    return (K8sConfig(), True)
 
 
 def session(config: K8sConfig):
@@ -618,7 +611,7 @@ def post(client, url: str, payload: dict) -> Tuple[dict, bool]:
     return (resp, err)
 
 
-def version(config: K8sConfig, client) -> Tuple[Optional[K8sConfig], bool]:
+def version(config: K8sConfig, client) -> Tuple[K8sConfig, bool]:
     """Return new `config` with version number of K8s API.
 
     Contact the K8s API, query its version via `client` and return `config`
@@ -637,7 +630,7 @@ def version(config: K8sConfig, client) -> Tuple[Optional[K8sConfig], bool]:
     url = f"{config.url}/version"
     resp, err = get(client, url)
     if err or resp is None:
-        return (None, True)
+        return (K8sConfig(), True)
 
     # Construct the version number of the K8s API.
     major, minor = resp['major'], resp['minor']
@@ -656,7 +649,7 @@ def version(config: K8sConfig, client) -> Tuple[Optional[K8sConfig], bool]:
 
 def cluster_config(
         kubeconfig: Filepath,
-        context: Optional[str]) -> Tuple[Tuple[Optional[K8sConfig], Any], bool]:
+        context: Optional[str]) -> Tuple[K8sConfig, Any, bool]:
     """Return web session to K8s API.
 
     This will read the Kubernetes credentials, contact Kubernetes to
@@ -678,8 +671,8 @@ def cluster_config(
     kubeconfig = kubeconfig.expanduser()
     try:
         # Parse Kubeconfig file.
-        config = load_auto_config(kubeconfig, context, disable_warnings=True)
-        assert config
+        config, err = load_auto_config(kubeconfig, context, disable_warnings=True)
+        assert not err
 
         # Configure web session.
         client = session(config)
@@ -693,12 +686,12 @@ def cluster_config(
         err = compile_api_endpoints(config, client)
         assert not err
     except AssertionError:
-        return ((None, None), True)
+        return (K8sConfig(), None, True)
 
     # Log the K8s API address and version.
     logit.info(f"Kubernetes server at {config.url}")
     logit.info(f"Kubernetes version is {config.version}")
-    return (config, client), False
+    return (config, client, False)
 
 
 def compile_api_endpoints(config: K8sConfig, client) -> bool:

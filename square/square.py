@@ -428,7 +428,7 @@ def apply_plan(
     """
     try:
         # Create properly configured Requests session to talk to K8s API.
-        (k8s_config, k8s_client), err = k8s.cluster_config(kubeconfig, kube_ctx)
+        k8s_config, k8s_client, err = k8s.cluster_config(kubeconfig, kube_ctx)
         assert not err and k8s_config and k8s_client
 
         # Create the missing resources.
@@ -487,8 +487,8 @@ def make_plan(
     """
     try:
         # Create properly configured Requests session to talk to K8s API.
-        (k8s_config, k8s_client), err = k8s.cluster_config(kubeconfig, kube_ctx)
-        assert not err and k8s_config and k8s_client
+        k8s_config, k8s_client, err = k8s.cluster_config(kubeconfig, kube_ctx)
+        assert not err
 
         # Load manifests from local files.
         local, _, err = manio.load(folder, selectors)
@@ -546,7 +546,7 @@ def get_resources(
 
     try:
         # Create properly configured Requests session to talk to K8s API.
-        (k8s_config, k8s_client), err = k8s.cluster_config(kubeconfig, kube_ctx)
+        k8s_config, k8s_client, err = k8s.cluster_config(kubeconfig, kube_ctx)
         assert not err and k8s_config and k8s_client
 
         # Load manifests from local files.
