@@ -319,7 +319,7 @@ class TestMainPlan:
         # Backup all resources. A plan against that backup must be empty.
         # ---------------------------------------------------------------------
         assert not (backup_folder / "_other.yaml").exists()
-        _, err = get_resources(kubeconfig, None, backup_folder, selectors, groupby)
+        err = get_resources(kubeconfig, None, backup_folder, selectors, groupby)
         assert not err and (backup_folder / "_other.yaml").exists()
 
         plan_2, err = make_plan(kubeconfig, None, backup_folder, selectors)
@@ -329,8 +329,7 @@ class TestMainPlan:
         # ---------------------------------------------------------------------
         # Apply the first plan to delete all resources including the namespace.
         # ---------------------------------------------------------------------
-        _, err = apply_plan(kubeconfig, None, plan_1)
-        assert not err
+        assert not apply_plan(kubeconfig, None, plan_1)
 
         # ---------------------------------------------------------------------
         # Wait until K8s has deleted the namespace.
@@ -350,8 +349,7 @@ class TestMainPlan:
         assert plan_3.patch == plan_3.delete == [] and len(plan_3.create) > 0
 
         # Apply the new plan.
-        _, err = apply_plan(kubeconfig, None, plan_3)
-        assert not err
+        assert not apply_plan(kubeconfig, None, plan_3)
 
         plan_4, err = square.square.make_plan(kubeconfig, None, backup_folder, selectors)
         assert not err

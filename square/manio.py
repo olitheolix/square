@@ -117,7 +117,7 @@ def select(manifest: dict, selectors: Selectors) -> bool:
 
 
 def unpack_list(manifest_list: dict,
-                selectors: Selectors) -> Tuple[Optional[ServerManifests], bool]:
+                selectors: Selectors) -> Tuple[ServerManifests, bool]:
     """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
 
     Return a dictionary where each key uniquely identifies the resource via a
@@ -139,14 +139,14 @@ def unpack_list(manifest_list: dict,
     if len(missing) > 0:
         kind = manifest_list.get("kind", "UNKNOWN")
         logit.error(f"{kind} manifest is missing these keys: {missing}")
-        return (None, True)
+        return ({}, True)
     del must_have, missing
 
     # Sanity check: resource kind must end in "List", eg "DeploymentList".
     kind = manifest_list["kind"]
     if not kind.endswith('List'):
         logit.error(f"Kind {kind} is not a list")
-        return (None, True)
+        return ({}, True)
 
     # Strip of the "List".
     kind = kind[:-4]
@@ -171,7 +171,7 @@ def unpack_list(manifest_list: dict,
 
 def parse(
         file_yaml: Dict[Filepath, str],
-        selectors: Selectors) -> Tuple[Optional[LocalManifestLists], bool]:
+        selectors: Selectors) -> Tuple[LocalManifestLists, bool]:
     """Parse all YAML strings from `file_yaml` into `LocalManifestLists`.
 
     Exclude all manifests that do not satisfy the `selectors`.
@@ -201,7 +201,7 @@ def parse(
                 f"Cannot YAML parse <{fname}>"
                 f" - {err.problem} - Line {err.problem_mark.line}"
             )
-            return (None, True)
+            return ({}, True)
 
         # Remove all empty manifests. This typically happens when the YAML
         # file ends with a "---" string.
@@ -218,7 +218,7 @@ def parse(
             out[fname] = [(make_meta(_), _) for _ in manifests]
         except KeyError:
             logit.error(f"{file_yaml} does not look like a K8s manifest file.")
-            return None, True
+            return {}, True
 
     # Drop all files without manifests.
     out = {k: v for k, v in out.items() if len(v) > 0}
@@ -229,7 +229,7 @@ def parse(
     return (out, False)
 
 
-def unpack(manifests: LocalManifestLists) -> Tuple[Optional[ServerManifests], bool]:
+def unpack(manifests: LocalManifestLists) -> Tuple[ServerManifests, bool]:
     """Convert `manifests` to `ServerManifests` for internal processing.
 
     Returns `False` unless all resources in `manifests` are unique. For
@@ -266,7 +266,7 @@ def unpack(manifests: LocalManifestLists) -> Tuple[Optional[ServerManifests], bo
                 f"Defined in {str.join(', ', tmp)}"
             )
     if not unique:
-        return (None, True)
+        return ({}, True)
 
     # Compile the input manifests into a new dict with the meta manifest as key.
     out = {k: v for fname in manifests for k, v in manifests[fname]}
@@ -275,7 +275,7 @@ def unpack(manifests: LocalManifestLists) -> Tuple[Optional[ServerManifests], bo
 
 def unparse(
         file_manifests: LocalManifestLists
-) -> Tuple[Optional[Dict[Filepath, str]], bool]:
+) -> Tuple[Dict[Filepath, str], bool]:
     """Convert the Python dict to a Yaml string for each file and return it.
 
     The output dict can be passed directly to `save_files` to write the files.
@@ -295,7 +295,7 @@ def unparse(
         delta = kinds - set(SUPPORTED_KINDS)
         if len(delta) > 0:
             logit.error(f"Found unsupported KIND when writing <{fname}>: {delta}")
-            return (None, True)
+            return ({}, True)
 
         # Group the manifests by their "kind", sort each group and compile a
         # new list of grouped and sorted manifests.
@@ -330,7 +330,7 @@ def unparse(
         logit.error(
             f"YAML error. Cannot create <{fname}>: {err.args[0]} <{str(err.args[1])}>"
         )
-        return (None, True)
+        return ({}, True)
 
     # Return the Dict[Filepath:YamlStr]
     return (out_final, False)
@@ -341,7 +341,7 @@ def sync(
         server_manifests: ServerManifests,
         selectors: Selectors,
         groupby: GroupBy,
-) -> Tuple[Optional[LocalManifestLists], bool]:
+) -> Tuple[LocalManifestLists, bool]:
     """Update the local manifests with the server values and return the result.
 
     Inputs:
@@ -360,7 +360,7 @@ def sync(
     if not set(selectors.kinds).issubset(SUPPORTED_KINDS):
         unsupported = set(selectors.kinds) - set(SUPPORTED_KINDS)
         logit.error(f"Cannot sync unsupported kinds: {unsupported}")
-        return (None, True)
+        return ({}, True)
 
     # Avoid side effects.
     server_manifests = copy.deepcopy(server_manifests)
@@ -409,7 +409,7 @@ def sync(
         except KeyError:
             fname, err = filename_for_manifest(meta, manifest, groupby)
             if err:
-                return (None, True)
+                return ({}, True)
             out_add_mod[fname].append((meta, manifest))
         else:
             # Update the correct YAML document in the correct file.
@@ -484,7 +484,7 @@ def filename_for_manifest(
 def diff(
         config: K8sConfig,
         local: LocalManifests,
-        server: ServerManifests) -> Tuple[Optional[str], bool]:
+        server: ServerManifests) -> Tuple[str, bool]:
     """Return the human readable diff between the `local` and `server`.
 
     The diff shows the necessary changes to transition the `server` manifest
@@ -507,7 +507,7 @@ def diff(
     (srv, _), err1 = strip(config, server)
     (loc, _), err2 = strip(config, local)
     if err1 or err2:
-        return (None, True)
+        return ("", True)
 
     # Undo the DotDicts. This is a precaution because the YAML parser can
     # otherwise not dump the manifests.
@@ -718,7 +718,7 @@ def align_serviceaccount(
     return (local_manifests, False)
 
 
-def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> Tuple[None, bool]:
+def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> bool:
     """Save all `file_data` under `folder`.
 
     All paths in `file_data` are relative to `folder`.
@@ -742,7 +742,7 @@ def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> Tuple[None, 
             fp.unlink()
     except (IOError, PermissionError) as err:
         logit.error(f"{err}")
-        return (None, True)
+        return True
 
     # Iterate over the dict and write each file. Abort on error.
     for fname, yaml_str in file_data.items():
@@ -761,15 +761,15 @@ def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> Tuple[None, 
             fname_abs.write_text(yaml_str)
         except (IOError, PermissionError) as err:
             logit.error(f"{err}")
-            return (None, True)
+            return True
 
     # Tell caller that all files were successfully written.
-    return (None, False)
+    return False
 
 
 def load_files(
         folder: Filepath,
-        fnames: Iterable[Filepath]) -> Tuple[Optional[Dict[Filepath, str]], bool]:
+        fnames: Iterable[Filepath]) -> Tuple[Dict[Filepath, str], bool]:
     """Load all `fnames` in `folder` and return their content.
 
     The elements of `fname` can have sub-paths, eg `foo/bar/file.txt` is valid
@@ -804,14 +804,14 @@ def load_files(
             out[fname_rel] = fname_abs.read_text()
         except FileNotFoundError:
             logit.error(f"Could not find <{fname_abs}>")
-            return (None, True)
+            return ({}, True)
 
     # Return the read files.
     return (out, False)
 
 
 def load(folder: Filepath, selectors: Selectors) -> Tuple[
-        Optional[ServerManifests], Optional[LocalManifestLists], bool]:
+        ServerManifests, LocalManifestLists, bool]:
     """Recursively load all "*.yaml" files under `folder`.
 
     Ignores all files not ending in ".yaml". Also removes all manifests that do
@@ -851,13 +851,13 @@ def load(folder: Filepath, selectors: Selectors) -> Tuple[
         man_meta, err = unpack(man_files)
         assert not err and man_meta is not None
     except AssertionError:
-        return (None, None, True)
+        return ({}, {}, True)
 
     # Return the file based manifests and unpacked manifests.
     return (man_meta, man_files, False)
 
 
-def save(folder: Filepath, manifests: LocalManifestLists) -> Tuple[None, bool]:
+def save(folder: Filepath, manifests: LocalManifestLists) -> bool:
     """Convert all `manifests` to YAML and save them.
 
     Returns no data in the case of an error.
@@ -878,7 +878,7 @@ def save(folder: Filepath, manifests: LocalManifestLists) -> Tuple[None, bool]:
     # Convert the manifest to YAML strings. Abort on error.
     fdata_raw, err = unparse(manifests)
     if err or fdata_raw is None:
-        return (None, True)
+        return True
 
     # Save the files to disk.
     return save_files(folder, fdata_raw)
@@ -888,7 +888,7 @@ def download(
         config: K8sConfig,
         client,
         selectors: Selectors,
-) -> Tuple[Optional[ServerManifests], bool]:
+) -> Tuple[ServerManifests, bool]:
     """Download and return the resources that match `selectors`.
 
     Set `selectors.namespace` to `None` to download the resources from all
@@ -947,7 +947,7 @@ def download(
                 manifests = {k: v[0][0] for k, v in ret.items() if v[0][0] is not None}
             except AssertionError:
                 # Return nothing, even if we had downloaded other kinds already.
-                return (None, True)
+                return ({}, True)
             else:
                 # Copy the manifests into the output dictionary.
                 server_manifests.update(manifests)

@@ -267,20 +267,20 @@ class TestUnpackParse:
 
         # Missing `apiVersion`.
         src = {'kind': 'DeploymentList', 'items': []}
-        assert manio.unpack_list(src, selectors) == (None, True)
+        assert manio.unpack_list(src, selectors) == ({}, True)
 
         # Missing `kind`.
         src = {'apiVersion': 'v1', 'items': []}
-        assert manio.unpack_list(src, selectors) == (None, True)
+        assert manio.unpack_list(src, selectors) == ({}, True)
 
         # Missing `items`.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList'}
-        assert manio.unpack_list(src, selectors) == (None, True)
+        assert manio.unpack_list(src, selectors) == ({}, True)
 
         # All fields present but `kind` does not end in List (case sensitive).
         for invalid_kind in ('Deploymentlist', 'Deployment'):
             src = {'apiVersion': 'v1', 'kind': invalid_kind, 'items': []}
-            assert manio.unpack_list(src, selectors) == (None, True)
+            assert manio.unpack_list(src, selectors) == ({}, True)
 
 
 class TestYamlManifestIO:
@@ -382,7 +382,7 @@ class TestYamlManifestIO:
 
         # Construct manifests like `load_files` would return them.
         fdata_test_in = {"m0.yaml": "invalid :: - yaml"}
-        assert manio.parse(fdata_test_in, selectors) == (None, True)
+        assert manio.parse(fdata_test_in, selectors) == ({}, True)
 
         # Corrupt manifests (can happen when files are read from local YAML
         # files that are not actually K8s manifests). This one looks valid
@@ -394,7 +394,7 @@ class TestYamlManifestIO:
             'items': [{"invalid": "manifest"}]
         }
         fdata_test_in = {"m0.yaml": yaml.safe_dump(not_a_k8s_manifest)}
-        assert manio.parse(fdata_test_in, selectors) == (None, True)
+        assert manio.parse(fdata_test_in, selectors) == ({}, True)
 
     def test_unpack_ok(self):
         """Test function must remove the filename dimension.
@@ -423,14 +423,14 @@ class TestYamlManifestIO:
         src = {
             P("file0.txt"): [("meta0", "manifest0"), ("meta0", "manifest0")],
         }
-        assert manio.unpack(src) == (None, True)
+        assert manio.unpack(src) == ({}, True)
 
         # Two resources with same meta information in different files.
         src = {
             P("file0.txt"): [("meta0", "manifest0")],
             P("file1.txt"): [("meta0", "manifest0")],
         }
-        assert manio.unpack(src) == (None, True)
+        assert manio.unpack(src) == ({}, True)
 
     def test_unparse_ok(self):
         """Basic use case: convert Python dicts to YAML strings."""
@@ -526,7 +526,7 @@ class TestYamlManifestIO:
         }
 
         # Test function must return with an error.
-        assert manio.unparse(file_manifests) == (None, True)
+        assert manio.unparse(file_manifests) == ({}, True)
 
     def test_unparse_unknown_kinds(self):
         """Must handle unknown resource kinds gracefully."""
@@ -544,7 +544,7 @@ class TestYamlManifestIO:
         # Test function must gracefully reject all invalid kinds.
         for kind in invalid_kinds:
             file_manifests = {"m0.yaml": [(mm(kind, "ns", "name"), "0")]}
-            assert manio.unparse(file_manifests) == (None, True)
+            assert manio.unparse(file_manifests) == ({}, True)
 
     def test_unparse_known_kinds(self):
         """Must handle all known resource kinds without error."""
@@ -897,9 +897,9 @@ class TestDiff:
 
         # Test function must return with an error, irrespective of which
         # manifest was invalid.
-        assert manio.diff(k8sconfig, valid, invalid) == (None, True)
-        assert manio.diff(k8sconfig, invalid, valid) == (None, True)
-        assert manio.diff(k8sconfig, invalid, invalid) == (None, True)
+        assert manio.diff(k8sconfig, valid, invalid) == ("", True)
+        assert manio.diff(k8sconfig, invalid, valid) == ("", True)
+        assert manio.diff(k8sconfig, invalid, invalid) == ("", True)
 
 
 class TestYamlManifestIOIntegration:
@@ -912,11 +912,11 @@ class TestYamlManifestIOIntegration:
         file_data = {fname: f"Data in {fname}" for fname in fnames}
 
         # Asking for non-existing files must return an error.
-        assert manio.load_files(tmp_path, fnames) == (None, True)
+        assert manio.load_files(tmp_path, fnames) == ({}, True)
 
         # Saving files to the temporary folder and loading them afterwards
         # again must work.
-        assert manio.save_files(tmp_path, file_data) == (None, False)
+        assert manio.save_files(tmp_path, file_data) is False
         assert manio.load_files(tmp_path, fnames) == (file_data, False)
 
         # Manually verify the files.
@@ -931,7 +931,7 @@ class TestYamlManifestIOIntegration:
         file_data = {"empty.yaml": "", "nonempty.yaml": "some content"}
 
         # Saving the files. Verify that the empty one was not created.
-        assert manio.save_files(tmp_path, file_data) == (None, False)
+        assert manio.save_files(tmp_path, file_data) is False
         assert (tmp_path / "nonempty.yaml").exists()
         assert not (tmp_path / "empty.yaml").exists()
 
@@ -939,7 +939,7 @@ class TestYamlManifestIOIntegration:
         """Make temp folder readonly and try to save the manifests."""
         file_data = {"m0.yaml": "Some data"}
         tmp_path.chmod(0o555)
-        assert manio.save_files(tmp_path, file_data) == (None, True)
+        assert manio.save_files(tmp_path, file_data) is True
         assert not (tmp_path / "m0.yaml").exists()
 
     def test_save_remove_stale_err_permissions(self, tmp_path):
@@ -954,7 +954,7 @@ class TestYamlManifestIOIntegration:
         # stale manifests.
         tmp_file = (tmp_path / "foo.yaml")
         tmp_file.touch()
-        assert manio.save_files(tmp_path, {}) == (None, False)
+        assert manio.save_files(tmp_path, {}) is False
         assert not tmp_file.exists()
 
         # Create the dummy file again, then make its folder read-only. This
@@ -962,7 +962,7 @@ class TestYamlManifestIOIntegration:
         # files inside a read-only folder.
         tmp_file.touch()
         tmp_path.chmod(0o555)
-        assert manio.save_files(tmp_path, {}) == (None, True)
+        assert manio.save_files(tmp_path, {}) is True
         assert tmp_file.exists()
 
     def test_load_save_ok(self, tmp_path):
@@ -981,7 +981,7 @@ class TestYamlManifestIOIntegration:
         del dply, meta
 
         # Save the test data, then load it back and verify.
-        assert manio.save(tmp_path, man_files) == (None, False)
+        assert manio.save(tmp_path, man_files) is False
         assert manio.load(tmp_path, selectors) == (*expected, False)
 
         # Glob the folder and ensure it contains exactly the files specified in
@@ -1014,7 +1014,7 @@ class TestYamlManifestIOIntegration:
         del dply, meta
 
         # Save and load the test data.
-        assert manio.save(tmp_path, man_files) == (None, False)
+        assert manio.save(tmp_path, man_files) is False
         assert manio.load(tmp_path, selectors) == (*expected, False)
 
         # Save a reduced set of files. Compared to `fdata_full`, it is two
@@ -1031,7 +1031,7 @@ class TestYamlManifestIOIntegration:
         assert (tmp_path / "bar/m4.yaml").exists()
 
         # Save the reduced set of files.
-        assert manio.save(tmp_path, fdata_reduced) == (None, False)
+        assert manio.save(tmp_path, fdata_reduced) is False
 
         # Load the data. It must neither contain the files we removed from the
         # dict above, nor "bar/m4.yaml" which contained an empty manifest list.
@@ -1048,14 +1048,14 @@ class TestYamlManifestIOIntegration:
         """Simulate an error in `load_files` function."""
         # Generic selector that matches all manifests in this test.
         selectors = Selectors(["Deployment"], None, set())
-        m_load.return_value = (None, True)
-        assert manio.load(tmp_path, selectors) == (None, None, True)
+        m_load.return_value = ({}, True)
+        assert manio.load(tmp_path, selectors) == ({}, {}, True)
 
     @mock.patch.object(manio, "unparse")
     def test_save_err(self, m_unparse, tmp_path):
         """Simulate an error in `unparse` function."""
-        m_unparse.return_value = (None, True)
-        assert manio.save(tmp_path, "foo") == (None, True)
+        m_unparse.return_value = ({}, True)
+        assert manio.save(tmp_path, "foo") is True
 
 
 class TestSync:
@@ -1256,7 +1256,7 @@ class TestSync:
 
         # Invalid/unsupported kinds.
         selectors = Selectors(["Foo"], namespaces=None, labels=None)
-        assert fun(loc_man, srv_man, selectors, groupby) == (None, True)
+        assert fun(loc_man, srv_man, selectors, groupby) == ({}, True)
 
         # ----------------------------------------------------------------------
         # Sync all namespaces implicitly (Namespaces, Deployments, Services).
@@ -1518,7 +1518,7 @@ class TestSync:
         # `filename_for_manifest` will return an error and we can verify if
         # `sync` gracefully handles it and returns an error.
         groupby = GroupBy(order=["blah"], label="")
-        assert manio.sync(loc_man, srv_man, selectors, groupby) == (None, True)
+        assert manio.sync(loc_man, srv_man, selectors, groupby) == ({}, True)
 
     def test_service_account_support_file(self):
         """Ensure the ServiceAccount support file has the correct setup.
@@ -1802,7 +1802,7 @@ class TestDownloadManifests:
         }
 
         # The first call to get will succeed whereas the second will not.
-        m_get.side_effect = [(man_list_ns, False), (None, True)]
+        m_get.side_effect = [(man_list_ns, False), ({}, True)]
 
         # The request URLs. We will need them to validate the `get` arguments.
         url_ns, err1 = urlpath(k8sconfig, MetaManifest("", "Namespace", None, ""))
@@ -1815,7 +1815,7 @@ class TestDownloadManifests:
             k8sconfig, "client",
             Selectors(["Namespace", "Deployment"], None, None)
         )
-        assert ret == (None, True)
+        assert ret == ({}, True)
         assert m_get.call_args_list == [
             mock.call("client", url_ns.url),
             mock.call("client", url_deploy.url),

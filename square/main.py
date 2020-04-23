@@ -167,7 +167,7 @@ def user_confirmed(answer: Optional[str] = "yes") -> bool:
         return False
 
 
-def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
+def compile_config(cmdline_param) -> Tuple[Configuration, bool]:
     """Return `Configuration` from `cmdline_param`.
 
     Inputs:
@@ -177,13 +177,23 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
         Configuration, err
 
     """
+    err_resp = Configuration(
+        command="",
+        verbosity=0,
+        folder=Filepath(""),
+        kubeconfig=Filepath(""),
+        kube_ctx=None,
+        selectors=Selectors(tuple(), None, None),
+        groupby=GroupBy("", tuple()),
+    ), True
+
     # Convenience.
     p = cmdline_param
 
     # Abort without credentials.
     if not p.kubeconfig:
         logit.error("ERROR: must either specify --kubeconfig or set KUBECONFIG")
-        return None, True
+        return err_resp
 
     # Remove duplicates but retain the original order of "p.kinds". This is
     # a "trick" that will only work in Python 3.7+ which guarantees a stable
@@ -211,12 +221,12 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
     clean_order = [_ if not _.startswith("label") else "label" for _ in order]
     if not set(clean_order).issubset({"ns", "kind", "label"}):
         logit.error(f"Invalid resource names in <{order}>")
-        return None, True
+        return err_resp
 
     labels = [_ for _ in order if _.startswith("label")]
     if len(labels) > 1:
         logit.error("Can only specify one label in file hierarchy")
-        return None, True
+        return err_resp
 
     # Unpack the label name if the user specified it as part of `--groupby`.
     # Example, if user specified `--groupby label=app` then we need to extract
@@ -228,7 +238,7 @@ def compile_config(cmdline_param) -> Tuple[Optional[Configuration], bool]:
             assert len(label_name) > 0
         except (ValueError, AssertionError):
             logit.error(f"Invalid label specification <{labels[0]}>")
-            return None, True
+            return err_resp
     groupby = GroupBy(order=clean_order, label=label_name)
     del order, clean_order, label_name
 
@@ -252,8 +262,7 @@ def apply_plan(
         kube_ctx: Optional[str],
         folder: Filepath,
         selectors: Selectors,
-        confirm_string: Optional[str],
-) -> Tuple[None, bool]:
+        confirm_string: Optional[str]) -> bool:
     """Update K8s to match the specifications in `local_manifests`.
 
     Create a deployment plan that will transition the K8s state
@@ -283,7 +292,7 @@ def apply_plan(
         num_patch_ops = sum([len(_.patch.ops) for _ in plan.patch])
         if len(plan.create) == len(plan.delete) == num_patch_ops == 0:
             print("Nothing to change")
-            return (None, False)
+            return False
         del num_patch_ops
 
         # Print the plan and ask for user confirmation. Abort if the user does
@@ -291,17 +300,16 @@ def apply_plan(
         square.square.show_plan(plan)
         if not user_confirmed(confirm_string):
             print("User abort - no changes were made.")
-            return (None, True)
+            return True
         print()
 
         # Apply the plan.
-        _, err = square.square.apply_plan(kubeconfig, kube_ctx, plan)
-        assert not err
+        assert not square.square.apply_plan(kubeconfig, kube_ctx, plan)
     except AssertionError:
-        return (None, True)
+        return True
 
     # All good.
-    return (None, False)
+    return False
 
 
 def main() -> int:
@@ -321,12 +329,12 @@ def main() -> int:
     # Do what user asked us to do.
     common_args = Filepath(cfg.kubeconfig), cfg.kube_ctx, cfg.folder, cfg.selectors
     if cfg.command == "get":
-        _, err = square.square.get_resources(*common_args, cfg.groupby)
+        err = square.square.get_resources(*common_args, cfg.groupby)
     elif cfg.command == "plan":
         plan, err = square.square.make_plan(*common_args)
         square.square.show_plan(plan)
     elif cfg.command == "apply":
-        _, err = apply_plan(*common_args, "yes")
+        err = apply_plan(*common_args, "yes")
     else:
         logit.error(f"Unknown command <{cfg.command}>")
         return 1
