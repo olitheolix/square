@@ -116,6 +116,29 @@ class TestHelpers:
         assert select(manifest, Selectors(None, None, set())) is False
 
         # ---------------------------------------------------------------------
+        #                      ClusterRole Manifest
+        # ---------------------------------------------------------------------
+        # The namespace is irrelevant for a non-namespaced resource like ClusterRole.
+        manifest = make_manifest("ClusterRole", None, "name", {"app": "a", "env": "e"})
+        kinds = ({"ClusterRole"}, {"ClusterRole", "Namespace"})
+        namespaces = (["my-ns"], ["my-ns", "other-ns"])
+        for kind, ns, lab in itertools.product(kinds, namespaces, labels):
+            assert select(manifest, Selectors(kind, ns, lab)) is True
+
+        # Function must reject these because the selectors match only partially.
+        selectors = [
+            Selectors({"blah"}, None, set()),
+            Selectors({"Clusterrole"}, ["ns0"], {("app", "b")}),
+            Selectors({"Clusterrole"}, ["ns0"], {("app", "a"), ("env", "x")}),
+        ]
+        for sel in selectors:
+            assert select(manifest, sel) is False
+
+        # Reject the manifest if the selector does not specify at least one "kind".
+        assert select(manifest, Selectors(set(), None, set())) is False
+        assert select(manifest, Selectors(None, None, set())) is False
+
+        # ---------------------------------------------------------------------
         #                    Default Service Account
         # ---------------------------------------------------------------------
         # Must always ignore "default" service account.
