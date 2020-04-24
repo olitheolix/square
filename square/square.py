@@ -4,14 +4,15 @@ from typing import Iterable, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
+import square.dtypes as dtypes
 import square.k8s as k8s
 import square.manio as manio
 import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
-    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    DeploymentPlanMeta, Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest,
-    Selectors, ServerManifests,
+    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, DeploymentPlanMeta,
+    Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest, Selectors,
+    ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -566,7 +567,7 @@ def get_resources(
         assert not err and synced_manifests
 
         # Write the new manifest files.
-        err = manio.save(folder, synced_manifests, tuple(SUPPORTED_KINDS))
+        err = manio.save(folder, synced_manifests, tuple(dtypes.SUPPORTED_KINDS))
         assert not err
     except AssertionError:
         return True
