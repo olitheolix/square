@@ -694,6 +694,46 @@ def cluster_config(
     return (config, client, False)
 
 
+def parse_api_group(group_name, api_version, url, resp
+                    ) -> Tuple[List[K8sResource], Dict[str, str]]:
+    resources = resp["resources"]
+
+    group_urls: List[K8sResource]
+
+    minimal_verbs = {"create", "delete", "get", "list", "patch", "update"}
+
+    def valid(_res):
+        name = _res["name"]
+        # Ignore resource like "services/status". We only care for "services".
+        if "/" in name:
+            logit.debug(f"Ignore resource <{name}>: has a slash ('/') in its name")
+            return False
+
+        verbs = list(sorted(_res["verbs"]))
+        if not minimal_verbs.issubset(set(verbs)):
+            logit.debug(f"Ignore resource <{name}>: insufficient verbs: {verbs}")
+            return False
+
+        return True
+
+    group_urls = [
+        K8sResource(api_version, _["kind"], _["name"], _["namespaced"], url)
+        for _ in resources if valid(_)
+    ]
+
+    # Compile LUT to translate short names into their proper resource
+    # kind, for instance short = {"service":, "Service", "svc": "Service"}
+    short2kind: Dict[str, str] = {}
+    for res in resources:
+        kind = res["kind"]
+        short2kind[kind.lower()] = kind
+        short2kind[res["name"]] = kind
+        for short_name in res.get("shortNames", []):
+            short2kind[short_name] = kind
+
+    return (group_urls, short2kind)
+
+
 def compile_api_endpoints(config: K8sConfig, client) -> bool:
     """Populate `config.apis` with all the K8s endpoints`.
 
@@ -778,19 +818,9 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
                 logit.error(f"Could not interrogate the {config.url}/{url}")
                 return True
 
-            group_urls[(group_name, api_version, url)] = [
-                K8sResource(api_version, _["kind"], _["name"], _["namespaced"], url)
-                for _ in resp["resources"] if "/" not in _["name"]
-            ]
-
-            # Compile LUT to translate short names into their proper resource
-            # kind, for instance short = {"service":, "Service", "svc": "Service"}
-            for res in resp["resources"]:
-                kind = res["kind"]
-                config.short2kind[kind.lower()] = kind
-                config.short2kind[res["name"]] = kind
-                for short_name in res.get("shortNames", []):
-                    config.short2kind[short_name] = kind
+            data, short2kind = parse_api_group(group_name, api_version, url, resp)
+            group_urls[(group_name, api_version, url)] = data
+            config.short2kind.update(short2kind)
 
     # Produce the entries for `K8sConfig.apis` as described in the doc string.
     config.apis.clear()
