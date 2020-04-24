@@ -315,12 +315,12 @@ def unparse(file_manifests: LocalManifestLists,
         out[fname] = man_clean
         del fname, manifests, man_sorted, man_clean
 
-    # Ignore all files whose manifest list is empty.
+    # Ignore all files without manifests, ie empty files.
     out_nonempty = {k: v for k, v in out.items() if len(v) > 0}
     del out
 
-    # Ensure that all dicts are pure Python dicts or there will be problems
-    # with the YAML generation below.
+    # Ensure we have no `DotDicts` left. This will avoid problems with the YAML
+    # serialisation below.
     out_clean = {k: square.dotdict.undo(v) for k, v in out_nonempty.items()}
     del out_nonempty
 
