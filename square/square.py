@@ -9,9 +9,9 @@ import square.manio as manio
 import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
-    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    DeploymentPlanMeta, Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest,
-    Selectors, ServerManifests,
+    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, DeploymentPlanMeta,
+    Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest, Selectors,
+    ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -536,18 +536,20 @@ def get_resources(
         None
 
     """
-    # Use a wildcard Selector to ensure `manio.load` will read _all_ local
-    # manifests. This will allow `manio.sync` to modify the ones specified by
-    # the `selector` argument only, delete all the local manifests, and then
-    # write the new ones. This logic will ensure we never have stale manifests
-    # (see `manio.save_files` for details and how `manio.save`, which we call
-    # at the end of this function, uses it).
-    load_selectors = Selectors(kinds=list(SUPPORTED_KINDS), labels=None, namespaces=None)
-
     try:
         # Create properly configured Requests session to talk to K8s API.
         k8s_config, k8s_client, err = k8s.cluster_config(kubeconfig, kube_ctx)
         assert not err and k8s_config and k8s_client
+
+        # Use a wildcard Selector to ensure `manio.load` will read _all_ local
+        # manifests. This will allow `manio.sync` to modify the ones specified by
+        # the `selector` argument only, delete all the local manifests, and then
+        # write the new ones. This logic will ensure we never have stale manifests
+        # (see `manio.save_files` for details and how `manio.save`, which we call
+        # at the end of this function, uses it).
+        load_selectors = Selectors(kinds=list(k8s_config.kinds),
+                                   labels=None,
+                                   namespaces=None)
 
         # Load manifests from local files.
         _, local_files, err = manio.load(folder, load_selectors)

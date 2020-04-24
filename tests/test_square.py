@@ -751,6 +751,8 @@ class TestMainOptions:
         handles errors.
 
         """
+        k8sconfig: K8sConfig = kube_creds
+
         # Define a grouping (not relevant for this test but a necessary
         # argument to the test function).
         groupby = GroupBy(order=[], label="")
@@ -770,13 +772,13 @@ class TestMainOptions:
         # `manio.load` must have been called with a wildcard selector to ensure
         # it loads _all_ resources from the local files, even if we want to
         # sync only a subset.
-        load_selectors = Selectors(kinds=list(SUPPORTED_KINDS),
+        load_selectors = Selectors(kinds=list(k8sconfig.kinds),
                                    labels=None, namespaces=None)
 
         # Call test function and verify it passed the correct arguments.
         assert square.get_resources(*args) is False
         m_load.assert_called_once_with("folder", load_selectors)
-        m_down.assert_called_once_with("k8s_config", "k8s_client", selectors)
+        m_down.assert_called_once_with(k8sconfig, "k8s_client", selectors)
         m_sync.assert_called_once_with({}, "server", selectors, groupby)
         m_save.assert_called_once_with("folder", "synced")
 
