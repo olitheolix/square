@@ -10,8 +10,8 @@ import square.main as main
 import square.manio as manio
 import square.square as square
 from square.dtypes import (
-    SUPPORTED_KINDS, Commandline, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, Filepath, GroupBy, JsonPatch, Selectors,
+    Commandline, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+    Filepath, GroupBy, JsonPatch, Selectors,
 )
 
 from .test_helpers import make_manifest
