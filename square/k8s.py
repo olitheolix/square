@@ -696,6 +696,7 @@ def cluster_config(
 
 def parse_api_group(group_name, api_version, url, resp
                     ) -> Tuple[List[K8sResource], Dict[str, str]]:
+    """fixme: docu"""
     resources = resp["resources"]
 
     group_urls: List[K8sResource]

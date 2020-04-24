@@ -96,10 +96,11 @@ def select(manifest: dict, selectors: Selectors) -> bool:
         return False
 
     # Unless the namespace selector is None, the resource must match it.
-    if selectors.namespaces is not None:
-        if ns not in selectors.namespaces:
-            logit.debug(f"Namespace {ns} does not match selector {selectors.namespaces}")
-            return False
+    if ns is not None:
+        if selectors.namespaces is not None:
+            if ns not in selectors.namespaces:
+                logit.debug(f"Namespace {ns} does not match selector {selectors.namespaces}")
+                return False
 
     # Convert the labels dictionary into a set of (key, value) tuples. We can
     # then use set logic to determine if the resource specifies the desired
