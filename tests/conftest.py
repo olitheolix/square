@@ -33,6 +33,7 @@ def k8sconfig():
     cfg.short2kind["service"] = "Service"
     cfg.short2kind["svc"] = "Service"
     cfg.short2kind["secret"] = "Secret"
+    cfg.kinds.update({_ for _ in cfg.short2kind.values()})
 
     # Pass the fixture to the test.
     yield cfg

@@ -779,7 +779,7 @@ class TestMainOptions:
         assert square.get_resources(*args) is False
         m_load.assert_called_once_with("folder", load_selectors)
         m_down.assert_called_once_with(k8sconfig, "k8s_client", selectors)
-        m_sync.assert_called_once_with({}, "server", selectors, groupby)
+        m_sync.assert_called_once_with({}, "server", selectors, groupby, k8sconfig.kinds)
         m_save.assert_called_once_with("folder", "synced")
 
         # Simulate an error with `manio.save`.

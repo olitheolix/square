@@ -561,7 +561,8 @@ def get_resources(
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see `manio.save` in the next step.
-        synced_manifests, err = manio.sync(local_files, server, selectors, groupby)
+        synced_manifests, err = manio.sync(local_files, server, selectors,
+                                           groupby, k8s_config.kinds)
         assert not err and synced_manifests
 
         # Write the new manifest files.

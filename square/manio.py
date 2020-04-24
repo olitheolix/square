@@ -3,7 +3,7 @@ import copy
 import difflib
 import logging
 import pathlib
-from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple
+from typing import DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
 
 import square.dotdict
 import square.k8s
@@ -339,6 +339,7 @@ def sync(
         server_manifests: ServerManifests,
         selectors: Selectors,
         groupby: GroupBy,
+        all_kinds: Set[str],
 ) -> Tuple[LocalManifestLists, bool]:
     """Update the local manifests with the server values and return the result.
 
@@ -349,14 +350,16 @@ def sync(
             Only operate on resources that match the selectors.
         groupby: GroupBy
             Specify relationship between new manifests and file names.
+        all_kinds: Set[str]
+            The set of allowed kinds in `{local,server}_manifests`.
 
     Returns:
         Dict[Filepath, Tuple[MetaManifest, dict]]
 
     """
     # Sanity check: all `kinds` must be supported or we abort.
-    if not set(selectors.kinds).issubset(SUPPORTED_KINDS):
-        unsupported = set(selectors.kinds) - set(SUPPORTED_KINDS)
+    if not set(selectors.kinds).issubset(all_kinds):
+        unsupported = set(selectors.kinds) - set(all_kinds)
         logit.error(f"Cannot sync unsupported kinds: {unsupported}")
         return ({}, True)
 
