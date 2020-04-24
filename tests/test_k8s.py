@@ -10,9 +10,7 @@ import requests_mock
 import square.k8s as k8s
 import square.square
 import yaml
-from square.dtypes import (
-    SUPPORTED_KINDS, Filepath, K8sConfig, K8sResource, MetaManifest,
-)
+from square.dtypes import Filepath, K8sConfig, K8sResource, MetaManifest
 
 from .test_helpers import kind_available
 
@@ -258,20 +256,6 @@ class TestK8sVersion:
 
 
 class TestUrlPathBuilder:
-    def test_supported_resources_versions(self):
-        """Verify the global variables.
-
-        Those variables specify the supported K8s versions and resource types.
-
-        """
-        assert SUPPORTED_KINDS == (
-            "Namespace", "CustomResourceDefinition", "ConfigMap", "Secret",
-            "PersistentVolumeClaim", "ClusterRole", "ClusterRoleBinding", "Role",
-            "RoleBinding", "ServiceAccount", "Service", "PodDisruptionBudget",
-            "CronJob", "Deployment", "DaemonSet", "StatefulSet",
-            "HorizontalPodAutoscaler", "Ingress",
-        )
-
     def k8sconfig(self, integrationtest, config):
         """Return a valid K8sConfig for a dummy or the real integration test cluster.
 
