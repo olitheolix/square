@@ -1677,7 +1677,7 @@ class TestDownloadManifests:
         """Download two kinds of manifests: Deployments and Namespaces.
 
         The test only mocks the call to the K8s API. All other functions
-        actually execute.
+        actually run.
 
         """
         meta = [

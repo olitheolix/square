@@ -281,7 +281,7 @@ class TestMainPlan:
         """Delete and restore full namespace with Square.
 
         We will use `kubectl` to create a new namespace and populate it with
-        resource. Then we will use Square to backup it up, delete it and
+        resources. Then we will use Square to backup it up, delete it and
         finally restore it again.
 
         """
@@ -300,8 +300,8 @@ class TestMainPlan:
         backup_folder = tmp_path / "backup"
 
         # ---------------------------------------------------------------------
-        # Deploy a new namespace with only a few resources (no deployments
-        # among them because it takes too long to delete those namespaces).
+        # Deploy a new namespace with only a few resources. There are no
+        # deployments among them to speed up the deletion of the namespace.
         # ---------------------------------------------------------------------
         kubeconfig = Filepath("/tmp/kubeconfig-kind.yaml")
         sh.kubectl("apply", "--kubeconfig", kubeconfig,
