@@ -6,8 +6,8 @@ import square.k8s as k8s
 import square.manio as manio
 import square.square as square
 from square.dtypes import (
-    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    GroupBy, JsonPatch, K8sConfig, MetaManifest, Selectors,
+    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, GroupBy, JsonPatch,
+    K8sConfig, MetaManifest, Selectors,
 )
 from square.k8s import resource
 
@@ -717,7 +717,7 @@ class TestMainOptions:
         m_align.side_effect = lambda loc_man, srv_man: (loc_man, False)
 
         # The arguments to the test function will always be the same in this test.
-        selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
+        selectors = Selectors({"kinds"}, ["ns"], {("foo", "bar"), ("x", "y")})
         args = "kubeconf", "kubectx", "folder", selectors
 
         # A successful DIFF only computes and prints the plan.
@@ -766,13 +766,13 @@ class TestMainOptions:
         m_save.return_value = False
 
         # The arguments to the test function will always be the same in this test.
-        selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
+        selectors = Selectors({"kinds"}, ["ns"], {("foo", "bar"), ("x", "y")})
         args = "kubeconf", "kubectx", "folder", selectors, groupby
 
         # `manio.load` must have been called with a wildcard selector to ensure
         # it loads _all_ resources from the local files, even if we want to
         # sync only a subset.
-        load_selectors = Selectors(kinds=list(k8sconfig.kinds),
+        load_selectors = Selectors(kinds=k8sconfig.kinds,
                                    labels=None, namespaces=None)
 
         # Call test function and verify it passed the correct arguments.

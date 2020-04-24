@@ -295,7 +295,7 @@ class TestMainPlan:
         get_resources = square.square.get_resources
 
         # Fixtures.
-        selectors = Selectors(SUPPORTED_KINDS, ["test-workflow"], None)
+        selectors = Selectors(set(SUPPORTED_KINDS), ["test-workflow"], None)
         groupby = GroupBy(label="app", order=[])
         backup_folder = tmp_path / "backup"
 
