@@ -11,8 +11,8 @@ import square.schemas
 import yaml
 import yaml.scanner
 from square.dtypes import (
-    SUPPORTED_KINDS, Filepath, GroupBy, K8sConfig, LocalManifestLists,
-    LocalManifests, MetaManifest, Selectors, ServerManifests,
+    Filepath, GroupBy, K8sConfig, LocalManifestLists, LocalManifests,
+    MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -273,7 +273,8 @@ def unpack(manifests: LocalManifestLists) -> Tuple[ServerManifests, bool]:
     return (out, False)
 
 
-def unparse(file_manifests: LocalManifestLists) -> Tuple[Dict[Filepath, str], bool]:
+def unparse(file_manifests: LocalManifestLists,
+            kinds_order: Tuple[str, ...]) -> Tuple[Dict[Filepath, str], bool]:
     """Convert the Python dict to a Yaml string for each file and return it.
 
     The output dict can be passed directly to `save_files`.
@@ -281,6 +282,9 @@ def unparse(file_manifests: LocalManifestLists) -> Tuple[Dict[Filepath, str], bo
     Inputs:
         file_manifests: Dict[Filepath:Tuple[MetaManifest, manifest]]
             Typically the output from eg `manio.sync`.
+        kinds_order: Tuple[str, ...]
+            The order in which to save the manifest types.
+            Example: ["Namespace", "Service", "Deployment"]
 
     Returns:
         Dict[Filepath:YamlStr]: Yaml representation of all manifests.
@@ -290,15 +294,16 @@ def unparse(file_manifests: LocalManifestLists) -> Tuple[Dict[Filepath, str], bo
     for fname, manifests in file_manifests.items():
         # Verify that this file contains only supported resource kinds.
         kinds = {meta.kind for meta, _ in manifests}
-        delta = kinds - set(SUPPORTED_KINDS)
+        delta = kinds - set(kinds_order)
         if len(delta) > 0:
             logit.error(f"Found unsupported KIND when writing <{fname}>: {delta}")
             return ({}, True)
+        del kinds, delta
 
         # Group the manifests by their "kind", sort each group and compile a
         # new list of grouped and sorted manifests.
         man_sorted: List[dict] = []
-        for kind in SUPPORTED_KINDS:
+        for kind in kinds_order:
             man_sorted += sorted([_ for _ in manifests if _[0].kind == kind])
         assert len(man_sorted) == len(manifests)
 
@@ -858,7 +863,8 @@ def load(folder: Filepath, selectors: Selectors) -> Tuple[
     return (man_meta, man_files, False)
 
 
-def save(folder: Filepath, manifests: LocalManifestLists) -> bool:
+def save(folder: Filepath, manifests: LocalManifestLists,
+         kinds_order: Tuple[str, ...]) -> bool:
     """Convert all `manifests` to YAML and save them.
 
     Returns no data in the case of an error.
@@ -871,13 +877,16 @@ def save(folder: Filepath, manifests: LocalManifestLists) -> bool:
             Source folder.
         file_manifests: Dict[Filepath, Tuple(MetaManifest, dict)]
             Names of files and their Python dicts to save as YAML.
+        kinds_order: Tuple[str, ...]
+            The order in which to save the manifest types.
+            Example: ["Namespace", "Service", "Deployment"]
 
     Returns:
         None
 
     """
     # Convert the manifest to YAML strings. Abort on error.
-    fdata_raw, err = unparse(manifests)
+    fdata_raw, err = unparse(manifests, kinds_order)
     if err or fdata_raw is None:
         return True
 

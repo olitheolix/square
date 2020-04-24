@@ -9,9 +9,9 @@ import square.manio as manio
 import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
-    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, DeploymentPlanMeta,
-    Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest, Selectors,
-    ServerManifests,
+    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+    DeploymentPlanMeta, Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest,
+    Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -566,7 +566,7 @@ def get_resources(
         assert not err and synced_manifests
 
         # Write the new manifest files.
-        err = manio.save(folder, synced_manifests)
+        err = manio.save(folder, synced_manifests, tuple(SUPPORTED_KINDS))
         assert not err
     except AssertionError:
         return True
