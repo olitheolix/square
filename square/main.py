@@ -9,7 +9,6 @@ from typing import Optional, Tuple
 
 import colorama
 import square
-import square.dtypes as dtypes
 import square.square
 from square import __version__
 from square.dtypes import Commandline, Filepath, GroupBy, Selectors
@@ -300,7 +299,7 @@ def sanitise_resource_kinds(cfg: Commandline) -> Tuple[Commandline, bool]:
 
     # If the user did not specify any selectors then we assume it wants all.
     if len(cfg.selectors.kinds) == 0:
-        cfg.selectors.kinds.update(set(dtypes.SUPPORTED_KINDS))
+        cfg.selectors.kinds.update(k8sconfig.kinds)
 
     # Translate colloquial names like to their canonical counterpart.
     # Example: "svc" -> "Service"

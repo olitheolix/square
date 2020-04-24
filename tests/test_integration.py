@@ -54,10 +54,32 @@ class TestMainGet:
 
     def test_main_get(self, tmp_path):
         """GET all cluster resources."""
+        # The "square-tests" namespace must have these manifests.
+        non_namespaced = [
+            "clusterrole",
+            "clusterrolebinding",
+        ]
+        namespaced = [
+            "configmap",
+            "cronjob",
+            "daemonset",
+            "deployment",
+            "horizontalpodautoscaler",
+            "ingress",
+            "namespace",
+            "persistentvolumeclaim",
+            "role",
+            "rolebinding",
+            "secret",
+            "service",
+            "serviceaccount",
+            "statefulset",
+        ]
+
         # Command line arguments: get all manifests and group them by namespace,
         # "app" label and resource kind.
         args = (
-            "square.py", "get", "all",
+            "square.py", "get", *namespaced, *non_namespaced,
             "--folder", str(tmp_path),
             "--groupby", "ns", "label=app", "kind",
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
@@ -81,29 +103,12 @@ class TestMainGet:
         assert (demoapp_1_path).exists()
         assert (demoapp_1_path).is_dir()
 
-        # The "square-tests" namespace must have these manifests.
-        kinds = [
-            "configmap",
-            "cronjob",
-            "daemonset",
-            "deployment",
-            "horizontalpodautoscaler",
-            "ingress",
-            "namespace",
-            "persistentvolumeclaim",
-            "role",
-            "rolebinding",
-            "secret",
-            "service",
-            "serviceaccount",
-            "statefulset",
-        ]
-        for kind in kinds:
+        for kind in namespaced:
             assert (demoapp_1_path / f"{kind}.yaml").exists()
             assert not (demoapp_1_path / f"{kind}.yaml").is_dir()
 
         # Un-namespaced resources must be in special "_global_" folder.
-        for kind in ["clusterrole", "clusterrolebinding"]:
+        for kind in non_namespaced:
             assert (tmp_path / "_global_" / "demoapp-1" / f"{kind}.yaml").exists()
             assert not (tmp_path / "_global_" / "demoapp-1" / f"{kind}.yaml").is_dir()
 
