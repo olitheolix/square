@@ -6,6 +6,7 @@ import unittest.mock as mock
 import square.dotdict as dotdict
 import square.k8s as k8s
 import square.manio as manio
+import square.schemas
 import yaml
 from square.dtypes import (
     SUPPORTED_KINDS, Filepath, GroupBy, MetaManifest, Selectors,
@@ -650,81 +651,82 @@ class TestManifestValidation:
             },
             "status": False,
         }
-        with mock.patch("square.schemas.EXCLUSION_SCHEMA", {"Service": exclude}):
-            # Demo manifest. None of its keys matches the exclusion schema.
-            manifest = {
-                "apiVersion": "v1",
-                "kind": "Service",
-                "metadata": {"name": "name", "namespace": "ns"},
-                "spec": "spec",
-            }
-            (out, removed), err = manio.strip(k8sconfig, manifest)
-            assert (out, removed, err) == (manifest, {}, False)
-            assert isinstance(out, dotdict.DotDict)
-            del manifest
+        exclude = {"Service": exclude}
 
-            # Demo manifest. None of its keys matches the exclusion schema.
-            manifest = {
-                "apiVersion": "v1",
-                "kind": "Service",
-                "metadata": {
-                    "name": "name",
-                    "namespace": "ns",
-                    "labels": {"foo": "remove"}
-                },
-                "spec": "spec",
-            }
-            expected = {
-                "apiVersion": "v1",
-                "kind": "Service",
-                "metadata": {
-                    "name": "name",
-                    "namespace": "ns",
-                },
-                "spec": "spec",
-            }
-            (out, removed), err = manio.strip(k8sconfig, manifest)
-            assert not err
-            assert out == expected
-            assert removed == {'metadata': {'labels': {'foo': 'remove'}}}
-            del manifest
+        # Demo manifest. None of its keys matches the exclusion schema.
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {"name": "name", "namespace": "ns"},
+            "spec": "spec",
+        }
+        (out, removed), err = manio.strip(k8sconfig, manifest, exclude)
+        assert (out, removed, err) == (manifest, {}, False)
+        assert isinstance(out, dotdict.DotDict)
+        del manifest
 
-            # Valid manifest with all mandatory and *some* optional keys (
-            # "metadata.labels" and "optional-2" are present, "optional-1" is
-            # not).
-            manifest = {
-                "apiVersion": "v1",
-                "kind": "Service",
-                "metadata": {
-                    "name": "mandatory",
-                    "namespace": "ns",
-                    "labels": {
-                        "foo": "remove",
-                        "bar": "keep",
-                    }
-                },
-                "spec": "keep",
-                "status": "remove",
-            }
-            expected = {
-                "apiVersion": "v1",
-                "kind": "Service",
-                "metadata": {
-                    "name": "mandatory",
-                    "namespace": "ns",
-                    "labels": {
-                        "bar": "keep",
-                    }
-                },
-                "spec": "keep",
-            }
-            (out, removed), err = manio.strip(k8sconfig, manifest)
-            assert not err
-            assert out == expected
-            assert removed == {
-                "metadata": {"labels": {"foo": "remove"}},
-                "status": "remove",
-            }
+        # Demo manifest. None of its keys matches the exclusion schema.
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": "name",
+                "namespace": "ns",
+                "labels": {"foo": "remove"}
+            },
+            "spec": "spec",
+        }
+        expected = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": "name",
+                "namespace": "ns",
+            },
+            "spec": "spec",
+        }
+        (out, removed), err = manio.strip(k8sconfig, manifest, exclude)
+        assert not err
+        assert out == expected
+        assert removed == {'metadata': {'labels': {'foo': 'remove'}}}
+        del manifest
+
+        # Valid manifest with all mandatory and *some* optional keys (
+        # "metadata.labels" and "optional-2" are present, "optional-1" is
+        # not).
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": "mandatory",
+                "namespace": "ns",
+                "labels": {
+                    "foo": "remove",
+                    "bar": "keep",
+                }
+            },
+            "spec": "keep",
+            "status": "remove",
+        }
+        expected = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": "mandatory",
+                "namespace": "ns",
+                "labels": {
+                    "bar": "keep",
+                }
+            },
+            "spec": "keep",
+        }
+        (out, removed), err = manio.strip(k8sconfig, manifest, exclude)
+        assert not err
+        assert out == expected
+        assert removed == {
+            "metadata": {"labels": {"foo": "remove"}},
+            "status": "remove",
+        }
 
     def test_strip_invalid_schema(self, k8sconfig):
         """Create a corrupt exclusion schema and verify we get a proper error message."""
@@ -732,39 +734,39 @@ class TestManifestValidation:
             "metadata": {"labels": "neither-bool-nor-dict"}
         }}}
 
-        with mock.patch("square.schemas.EXCLUSION_SCHEMA", exclude):
-            manifest = {
-                "apiVersion": "v1",
-                "kind": "Service",
-                "metadata": {"name": "name", "namespace": "ns"},
-                "something": "here",
-            }
-            assert manio.strip(k8sconfig, manifest) == (({}, {}), True)
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {"name": "name", "namespace": "ns"},
+            "something": "here",
+        }
+        assert manio.strip(k8sconfig, manifest, exclude) == (({}, {}), True)
 
     def test_strip_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
         # Minimal valid schema for fake resource kind "TEST".
         exclude = {"1.10": {"TEST": {"metadata": False}}}
 
-        with mock.patch("square.schemas.EXCLUSION_SCHEMA", exclude):
-            # Valid K8s version with unknown resource type.
-            manifest = {"apiVersion": "v1", "kind": "Unknown"}
-            assert manio.strip(k8sconfig, manifest) == (({}, {}), True)
+        # Valid K8s version with unknown resource type.
+        manifest = {"apiVersion": "v1", "kind": "Unknown"}
+        assert manio.strip(k8sconfig, manifest, exclude) == (({}, {}), True)
 
-            # Invalid K8s version but valid resource type.
-            config = k8sconfig._replace(version="unknown")
-            manifest = {"apiVersion": "v1", "kind": "TEST"}
-            assert manio.strip(config, manifest) == (({}, {}), True)
+        # Invalid K8s version but valid resource type.
+        config = k8sconfig._replace(version="unknown")
+        manifest = {"apiVersion": "v1", "kind": "TEST"}
+        assert manio.strip(config, manifest, exclude) == (({}, {}), True)
 
     def test_strip_namespace(self, k8sconfig):
         """Filter NAMESPACE manifests."""
+        exclude = square.schemas.EXCLUSION_SCHEMA
+
         # Valid: a namespace manifest without a `metadata.namespace` field.
         manifest = {
             "apiVersion": "v1",
             "kind": "Namespace",
             "metadata": {"name": "mandatory"},
         }
-        assert manio.strip(k8sconfig, manifest) == ((manifest, {}), False)
+        assert manio.strip(k8sconfig, manifest, exclude) == ((manifest, {}), False)
         del manifest
 
         # Create invalid manifests that either specify a namespace for a
@@ -781,10 +783,12 @@ class TestManifestValidation:
             }
             if resource(k8sconfig, MetaManifest("", kind, None, ""))[0].namespaced:
                 del manifest["metadata"]["namespace"]
-            assert manio.strip(k8sconfig, manifest) == (({}, {}), True)
+            assert manio.strip(k8sconfig, manifest, exclude) == (({}, {}), True)
 
     def test_strip_deployment(self, k8sconfig):
         """Filter DEPLOYMENT manifests."""
+        exclude = square.schemas.EXCLUSION_SCHEMA
+
         # A valid service manifest with a few optional and irrelevant keys.
         manifest = {
             "apiVersion": "apps/v1",
@@ -825,7 +829,7 @@ class TestManifestValidation:
             },
             "spec": "some spec",
         }
-        (out, removed), err = manio.strip(k8sconfig, manifest)
+        (out, removed), err = manio.strip(k8sconfig, manifest, exclude)
         assert not err
         assert out == expected
         assert removed == {
@@ -848,7 +852,7 @@ class TestManifestValidation:
             "kind": "Deployment",
             "metadata": {"name": "mandatory"},
         }
-        assert manio.strip(k8sconfig, manifest) == (({}, {}), True)
+        assert manio.strip(k8sconfig, manifest, exclude) == (({}, {}), True)
 
 
 class TestDiff:
@@ -1674,6 +1678,8 @@ class TestDownloadManifests:
         actually run.
 
         """
+        exclude = square.schemas.EXCLUSION_SCHEMA
+
         meta = [
             make_manifest("Namespace", None, "ns0"),
             make_manifest("Namespace", None, "ns1"),
@@ -1713,7 +1719,7 @@ class TestDownloadManifests:
             (l_ns, False),
             (l_dply, False),
         ]
-        expected = {manio.make_meta(_): manio.strip(k8sconfig, _)[0][0] for _ in meta}
+        expected = {manio.make_meta(_): manio.strip(k8sconfig, _, exclude)[0][0] for _ in meta}
         ret = manio.download(
             k8sconfig, "client",
             Selectors({"Namespace", "Deployment"}, None, None)
@@ -1760,8 +1766,8 @@ class TestDownloadManifests:
             (l_dply_0, False),
         ]
         expected = {
-            manio.make_meta(meta[0]): manio.strip(k8sconfig, meta[0])[0][0],
-            manio.make_meta(meta[2]): manio.strip(k8sconfig, meta[2])[0][0],
+            manio.make_meta(meta[0]): manio.strip(k8sconfig, meta[0], exclude)[0][0],
+            manio.make_meta(meta[2]): manio.strip(k8sconfig, meta[2], exclude)[0][0],
         }
         assert (expected, False) == manio.download(
             k8sconfig, "client",

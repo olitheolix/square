@@ -511,8 +511,8 @@ def diff(
     """
     # Clean up the input manifests because we do not want to diff, for instance,
     # the `status` fields.
-    (srv, _), err1 = strip(config, server)
-    (loc, _), err2 = strip(config, local)
+    (srv, _), err1 = strip(config, server, square.schemas.EXCLUSION_SCHEMA)
+    (loc, _), err2 = strip(config, local, square.schemas.EXCLUSION_SCHEMA)
     if err1 or err2:
         return ("", True)
 
@@ -530,13 +530,16 @@ def diff(
 
 def strip(
         config: K8sConfig,
-        manifest: dict
+        manifest: dict,
+        exclusion_schema: Dict[str, dict],
         ) -> Tuple[Tuple[DotDict, dict], bool]:
     """Strip `manifest` according to the exclusion filters in `square.schemas`.
 
     Inputs:
         config: K8sConfig
         manifest: dict
+        exclusion_schema: Dict[str, dict]
+            fixme: docu
 
     Returns:
         dict: the removed keys.
@@ -592,7 +595,7 @@ def strip(
 
     # Verify the exclusion schema for the current resource and K8s version exist.
     try:
-        exclude = square.schemas.EXCLUSION_SCHEMA[manifest["kind"]]
+        exclude = exclusion_schema[manifest["kind"]]
     except KeyError:
         logit.error(f"No exclusion schema for: <{meta.kind}>")
         return ret_err
@@ -944,7 +947,8 @@ def download(
                 assert not err and manifests is not None
 
                 # Drop all manifest fields except "apiVersion", "metadata" and "spec".
-                ret = {k: strip(config, man) for k, man in manifests.items()}
+                ret = {k: strip(config, man, square.schemas.EXCLUSION_SCHEMA)
+                       for k, man in manifests.items()}
 
                 # Ensure `strip` worked for every manifest.
                 err = any((v[1] for v in ret.values()))

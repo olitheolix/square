@@ -7,6 +7,7 @@ import jsonpatch
 import square.dtypes as dtypes
 import square.k8s as k8s
 import square.manio as manio
+import square.schemas
 import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
@@ -37,8 +38,8 @@ def make_patch(
     """
     # Reduce local and server manifests to salient fields (ie apiVersion, kind,
     # metadata and spec). Abort on error.
-    (loc, _), err1 = manio.strip(config, local)
-    (srv, _), err2 = manio.strip(config, server)
+    (loc, _), err1 = manio.strip(config, local, square.schemas.EXCLUSION_SCHEMA)
+    (srv, _), err2 = manio.strip(config, server, square.schemas.EXCLUSION_SCHEMA)
     if err1 or err2 or loc is None or srv is None:
         return (JsonPatch("", []), True)
 
