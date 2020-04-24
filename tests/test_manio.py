@@ -447,7 +447,7 @@ class TestYamlManifestIO:
         })
 
         # Run the tests.
-        assert manio.unparse(file_manifests) == (expected, False)
+        assert manio.unparse(file_manifests, ("Deployment",)) == (expected, False)
 
     def test_unparse_sorted_ok(self):
         """The manifests in each file must be grouped and sorted.
@@ -458,6 +458,9 @@ class TestYamlManifestIO:
         All resources must be sorted by name inside each group.
 
         """
+        # Convenience.
+        kinds_order = ("Namespace", "Service", "Deployment")
+
         def mm(*args):
             return manio.make_meta(make_manifest(*args))
 
@@ -510,7 +513,7 @@ class TestYamlManifestIO:
         for i in range(10):
             for fname in file_manifests:
                 random.shuffle(file_manifests[fname])
-            assert manio.unparse(file_manifests) == (expected, False)
+            assert manio.unparse(file_manifests, kinds_order) == (expected, False)
 
     def test_unparse_invalid_manifest(self):
         """Must handle YAML errors gracefully."""
@@ -525,14 +528,14 @@ class TestYamlManifestIO:
         }
 
         # Test function must return with an error.
-        assert manio.unparse(file_manifests) == ({}, True)
+        assert manio.unparse(file_manifests, ("Deployment", )) == ({}, True)
 
     def test_unparse_unknown_kinds(self):
         """Must handle unknown resource kinds gracefully."""
-        invalid_kinds = (
-            "deployment",       # wrong capitalisation
+        kinds_order = ("Deployments", )
+        unsupported_kinds = (
             "DEPLOYMENT",       # wrong capitalisation
-            "foo",              # unknown
+            "Service",          # unknown
             "Pod",              # we do not support Pod manifests
         )
 
@@ -541,20 +544,9 @@ class TestYamlManifestIO:
             return manio.make_meta(make_manifest(*args))
 
         # Test function must gracefully reject all invalid kinds.
-        for kind in invalid_kinds:
+        for kind in unsupported_kinds:
             file_manifests = {"m0.yaml": [(mm(kind, "ns", "name"), "0")]}
-            assert manio.unparse(file_manifests) == ({}, True)
-
-    def test_unparse_known_kinds(self):
-        """Must handle all known resource kinds without error."""
-        # Convenience.
-        def mm(*args):
-            return manio.make_meta(make_manifest(*args))
-
-        # Test function must gracefully reject all invalid kinds.
-        for kind in SUPPORTED_KINDS:
-            file_manifests = {"m0.yaml": [(mm(kind, "ns", "name"), "0")]}
-            assert manio.unparse(file_manifests)[1] is False
+            assert manio.unparse(file_manifests, kinds_order) == ({}, True)
 
     def test_manifest_lifecycle(self, k8sconfig):
         """Load, sync and save manifests the hard way.
@@ -622,7 +614,7 @@ class TestYamlManifestIO:
         # Convert the data to YAML. The output would normally be passed to
         # `save_files` but here we will verify it directly (see below).
         # :: Dict[Filename:List[(MetaManifest, YamlDict)]] -> Dict[Filename:YamlStr]
-        fdata_raw_new, err = manio.unparse(updated_manifests)
+        fdata_raw_new, err = manio.unparse(updated_manifests, ("Deployment", ))
         assert err is False
 
         # Expected output after we merged back the changes (reminder: `dply[1]`
@@ -961,7 +953,8 @@ class TestYamlManifestIOIntegration:
     def test_load_save_ok(self, tmp_path):
         """Basic test that uses the {load,save} convenience functions."""
         # Generic selector that matches all manifests in this test.
-        selectors = Selectors({"Deployment"}, None, set())
+        kinds_order = ("Deployment", )
+        selectors = Selectors(set(kinds_order), None, set())
 
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
@@ -974,7 +967,7 @@ class TestYamlManifestIOIntegration:
         del dply, meta
 
         # Save the test data, then load it back and verify.
-        assert manio.save(tmp_path, man_files) is False
+        assert manio.save(tmp_path, man_files, kinds_order) is False
         assert manio.load(tmp_path, selectors) == (*expected, False)
 
         # Glob the folder and ensure it contains exactly the files specified in
@@ -990,7 +983,8 @@ class TestYamlManifestIOIntegration:
     def test_save_delete_stale_yaml(self, tmp_path):
         """`save_file` must remove all excess YAML files."""
         # Generic selector that matches all manifests in this test.
-        selectors = Selectors({"Deployment"}, None, set())
+        kinds_order = ("Deployment", )
+        selectors = Selectors(set(kinds_order), None, set())
 
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
@@ -1007,7 +1001,7 @@ class TestYamlManifestIOIntegration:
         del dply, meta
 
         # Save and load the test data.
-        assert manio.save(tmp_path, man_files) is False
+        assert manio.save(tmp_path, man_files, kinds_order) is False
         assert manio.load(tmp_path, selectors) == (*expected, False)
 
         # Save a reduced set of files. Compared to `fdata_full`, it is two
@@ -1024,7 +1018,7 @@ class TestYamlManifestIOIntegration:
         assert (tmp_path / "bar/m4.yaml").exists()
 
         # Save the reduced set of files.
-        assert manio.save(tmp_path, fdata_reduced) is False
+        assert manio.save(tmp_path, fdata_reduced, kinds_order) is False
 
         # Load the data. It must neither contain the files we removed from the
         # dict above, nor "bar/m4.yaml" which contained an empty manifest list.
@@ -1048,7 +1042,7 @@ class TestYamlManifestIOIntegration:
     def test_save_err(self, m_unparse, tmp_path):
         """Simulate an error in `unparse` function."""
         m_unparse.return_value = ({}, True)
-        assert manio.save(tmp_path, "foo") is True
+        assert manio.save(tmp_path, "foo", ("Deployment", )) is True
 
 
 class TestSync:
