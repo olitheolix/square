@@ -276,7 +276,7 @@ def unpack(manifests: LocalManifestLists) -> Tuple[ServerManifests, bool]:
 def unparse(file_manifests: LocalManifestLists) -> Tuple[Dict[Filepath, str], bool]:
     """Convert the Python dict to a Yaml string for each file and return it.
 
-    The output dict can be passed directly to `save_files` to write the files.
+    The output dict can be passed directly to `save_files`.
 
     Inputs:
         file_manifests: Dict[Filepath:Tuple[MetaManifest, manifest]]
