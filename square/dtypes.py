@@ -162,8 +162,6 @@ class Configuration(NamedTuple):
     kubeconfig: Filepath
     kube_ctx: Optional[str] = None
     verbosity: int = 0
-    k8s_config: K8sConfig = K8sConfig()
-    k8s_client: Any = None
 
 
 # -----------------------------------------------------------------------------

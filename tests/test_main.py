@@ -108,9 +108,6 @@ class TestMain:
                 labels={("app", "morty"), ("foo", "bar")}
             ),
             groupby=GroupBy(label='', order=[]),
-            # Must not populate Kubernetes data.
-            k8s_config=K8sConfig(),
-            k8s_client=None,
         )
 
     def test_compile_config_kinds(self):
