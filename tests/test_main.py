@@ -10,7 +10,7 @@ import square.main as main
 import square.manio as manio
 import square.square as square
 from square.dtypes import (
-    SUPPORTED_KINDS, Configuration, DeltaCreate, DeltaDelete, DeltaPatch,
+    SUPPORTED_KINDS, Commandline, DeltaCreate, DeltaDelete, DeltaPatch,
     DeploymentPlan, Filepath, GroupBy, JsonPatch, K8sConfig, Selectors,
 )
 
@@ -47,7 +47,7 @@ class TestResourceCleanup:
         """An invalid resource name must abort the program."""
         m_cluster.side_effect = lambda *args: (k8sconfig, None, False)
 
-        cfg = Configuration(
+        cfg = Commandline(
             command='get',
             verbosity=9,
             folder=pathlib.Path('/tmp'),
@@ -73,7 +73,7 @@ class TestResourceCleanup:
 
     def test_sanitise_resource_kinds_err_config(self, k8sconfig):
         """An invalid resource name must abort the program."""
-        cfg = Configuration(
+        cfg = Commandline(
             command='get',
             verbosity=9,
             folder=pathlib.Path('/tmp'),
@@ -96,7 +96,7 @@ class TestMain:
         """Compile various valid configurations."""
         param = dummy_command_param()
         cfg, err = main.compile_config(param)
-        assert not err and cfg == Configuration(
+        assert not err and cfg == Commandline(
             command='get',
             verbosity=9,
             folder=pathlib.Path('/tmp'),
@@ -137,7 +137,7 @@ class TestMain:
         param = dummy_command_param()
         param.kubeconfig /= "does-not-exist"
         assert main.compile_config(param) == (
-            Configuration(
+            Commandline(
                 command="",
                 verbosity=0,
                 folder=Filepath(""),
@@ -151,7 +151,7 @@ class TestMain:
         """Parse file system hierarchy."""
         param = dummy_command_param()
 
-        err_resp = Configuration(
+        err_resp = Commandline(
             command="",
             verbosity=0,
             folder=Filepath(""),
@@ -390,7 +390,7 @@ class TestMain:
             param = main.parse_commandline_args()
             assert param.groupby == ["ns", "label=foo", "label=bar"]
 
-        expected = Configuration(
+        expected = Commandline(
             command="",
             verbosity=0,
             folder=Filepath(""),

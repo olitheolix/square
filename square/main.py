@@ -12,7 +12,7 @@ import square
 import square.square
 from square import __version__
 from square.dtypes import (
-    SUPPORTED_KINDS, Configuration, Filepath, GroupBy, Selectors,
+    SUPPORTED_KINDS, Commandline, Filepath, GroupBy, Selectors,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -146,17 +146,17 @@ def user_confirmed(answer: Optional[str] = "yes") -> bool:
         return False
 
 
-def compile_config(cmdline_param) -> Tuple[Configuration, bool]:
-    """Return `Configuration` from `cmdline_param`.
+def compile_config(cmdline_param) -> Tuple[Commandline, bool]:
+    """Return `Commandline` from `cmdline_param`.
 
     Inputs:
         cmdline_param: SimpleNamespace
 
     Returns:
-        Configuration, err
+        Commandline, err
 
     """
-    err_resp = Configuration(
+    err_resp = Commandline(
         command="",
         verbosity=0,
         folder=Filepath(""),
@@ -225,7 +225,7 @@ def compile_config(cmdline_param) -> Tuple[Configuration, bool]:
     # -------------------------------------------------------------------------
     # Assemble the full configuration and return it.
     # -------------------------------------------------------------------------
-    cfg = Configuration(
+    cfg = Commandline(
         command=p.parser,
         verbosity=p.verbosity,
         folder=folder,
@@ -292,7 +292,7 @@ def apply_plan(
     return False
 
 
-def sanitise_resource_kinds(cfg: Configuration) -> Tuple[Configuration, bool]:
+def sanitise_resource_kinds(cfg: Commandline) -> Tuple[Commandline, bool]:
     # Specify the selectors (see definition of `dtypes.Selectors`).
     k8sconfig, k8s_client, err = square.k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
     if err:

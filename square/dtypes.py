@@ -149,12 +149,8 @@ class GroupBy(NamedTuple):
     order: Iterable[str]        # ["ns", "label=app", kind"]
 
 
-class Configuration(NamedTuple):
-    """Square configuration.
-
-    This will be compiled at startup but is immutable afterwards.
-
-    """
+class Commandline(NamedTuple):
+    """Convenience structure for `main.py` - not used internally."""
     command: str
     folder: Filepath
     selectors: Selectors
