@@ -694,39 +694,54 @@ def cluster_config(
     return (config, client, False)
 
 
-def parse_api_group(group_name, api_version, url, resp
-                    ) -> Tuple[List[K8sResource], Dict[str, str]]:
-    """fixme: docu"""
+def parse_api_group(api_version, url, resp) -> Tuple[List[K8sResource], Dict[str, str]]:
+    """Compile the K8s API `resp` into a `K8sResource` tuples.
+
+    The `resp` is the verbatim response from the K8s API group regarding the
+    resources it provides. Here we compile those into `K8sResource` tuples iff
+    they meet the criteria to be manageable by Square. These criteria are, most
+    notably, the ability to create, get, patch and delete the resource.
+
+    Also return a LUT to convert short names like "svc" into the proper resource
+    kind "Service".
+
+    """
     resources = resp["resources"]
 
-    group_urls: List[K8sResource]
-
-    minimal_verbs = {"create", "delete", "get", "list", "patch", "update"}
-
     def valid(_res):
+        """Return `True` if `res` describes a Square compatible resource."""
+        # Convenience.
         name = _res["name"]
+        verbs = list(sorted(_res["verbs"]))
+
         # Ignore resource like "services/status". We only care for "services".
         if "/" in name:
             logit.debug(f"Ignore resource <{name}>: has a slash ('/') in its name")
             return False
 
-        verbs = list(sorted(_res["verbs"]))
+        # Square can only man age the resource if it can be read, modified and
+        # deleted. Here we check if `res` has the respective verbs.
+        minimal_verbs = {"create", "delete", "get", "list", "patch", "update"}
         if not minimal_verbs.issubset(set(verbs)):
             logit.debug(f"Ignore resource <{name}>: insufficient verbs: {verbs}")
             return False
 
         return True
 
+    # Compile the K8s resource definition into a `K8sResource` structure if it
+    # is compatible with Square (see `valid` helper above).
+    group_urls: List[K8sResource]
     group_urls = [
         K8sResource(api_version, _["kind"], _["name"], _["namespaced"], url)
         for _ in resources if valid(_)
     ]
 
     # Compile LUT to translate short names into their proper resource
-    # kind, for instance short = {"service":, "Service", "svc": "Service"}
+    # kind: Example short2kind = {"service":, "Service", "svc": "Service"}
     short2kind: Dict[str, str] = {}
     for res in resources:
         kind = res["kind"]
+
         short2kind[kind.lower()] = kind
         short2kind[res["name"]] = kind
         for short_name in res.get("shortNames", []):
@@ -819,7 +834,7 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
                 logit.error(f"Could not interrogate the {config.url}/{url}")
                 return True
 
-            data, short2kind = parse_api_group(group_name, api_version, url, resp)
+            data, short2kind = parse_api_group(api_version, url, resp)
             group_urls[(group_name, api_version, url)] = data
             config.short2kind.update(short2kind)
 
@@ -836,17 +851,17 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
                 config.apis[(res.kind, "")] = config.apis[key]
 
     # Determine the default API endpoint Square should query for each resource.
-    for kind, res in default.items():
+    for kind, resources in default.items():
         # Happy case: the resource is only available from a single API group.
-        if len(res) == 1:
-            config.apis[(kind, "")] = res.pop()
+        if len(resources) == 1:
+            config.apis[(kind, "")] = resources.pop()
             continue
 
         # If we get here then it means a resource is available from different
         # API groups. Here we use heuristics to pick one. The heuristic is
         # simply to look for one that is neither alpha nor beta. In Kubernetes
         # v1.15 this resolves almost all disputes.
-        all_apis = list(sorted([_.apiVersion for _ in res]))
+        all_apis = list(sorted([_.apiVersion for _ in resources]))
         logit.info(f"Ambiguous <{kind}> endpoints: {all_apis}")
 
         # Remove all alpha/beta resources.
@@ -859,8 +874,7 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
         # Pick the one with probably the highest version number.
         apis.sort()
         version = apis.pop()
-        res = [_ for _ in res if _.apiVersion == version]
-        config.apis[(kind, "")] = res[0]
+        config.apis[(kind, "")] = [_ for _ in resources if _.apiVersion == version][0]
 
     # Compile the set of all resource kinds that this Kubernetes cluster supports.
     for kind, _ in config.apis:
