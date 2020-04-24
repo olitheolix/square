@@ -1673,6 +1673,7 @@ class TestDownloadManifests:
 
         """
         exclude = square.schemas.EXCLUSION_SCHEMA
+        make_meta = manio.make_meta
 
         meta = [
             make_manifest("Namespace", None, "ns0"),
@@ -1713,7 +1714,7 @@ class TestDownloadManifests:
             (l_ns, False),
             (l_dply, False),
         ]
-        expected = {manio.make_meta(_): manio.strip(k8sconfig, _, exclude)[0][0] for _ in meta}
+        expected = {make_meta(_): manio.strip(k8sconfig, _, exclude)[0][0] for _ in meta}
         ret = manio.download(
             k8sconfig, "client",
             Selectors({"Namespace", "Deployment"}, None, None)
@@ -1760,8 +1761,8 @@ class TestDownloadManifests:
             (l_dply_0, False),
         ]
         expected = {
-            manio.make_meta(meta[0]): manio.strip(k8sconfig, meta[0], exclude)[0][0],
-            manio.make_meta(meta[2]): manio.strip(k8sconfig, meta[2], exclude)[0][0],
+            make_meta(meta[0]): manio.strip(k8sconfig, meta[0], exclude)[0][0],
+            make_meta(meta[2]): manio.strip(k8sconfig, meta[2], exclude)[0][0],
         }
         assert (expected, False) == manio.download(
             k8sconfig, "client",
