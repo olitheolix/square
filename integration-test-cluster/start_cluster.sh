@@ -16,8 +16,8 @@ while true; do
     sleep 1
 
     # KIND provides an HTTP endpoint to ascertain whether or not it is ready yet.
-    curl http://localhost:10080/kubernetes-ready > /dev/null 2>/dev/null
-    if [ $? == 0 ]; then break; fi
+    HEADER=`curl -i http://localhost:10080/kubernetes-ready 2>/dev/null | head -n 1 | tr -d '\r'`
+    if [ "$HEADER" == "HTTP/1.1 200 OK" ]; then break; fi
 done
 set -e
 printf "done\n"
