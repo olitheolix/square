@@ -302,13 +302,15 @@ def sanitise_resource_kinds(cfg: Commandline) -> Tuple[Commandline, bool]:
     if len(cfg.selectors.kinds) == 0:
         cfg.selectors.kinds.update(set(dtypes.SUPPORTED_KINDS))
 
-    # Translate the colloquial names like "svc" in the canonical resource name "Service".
+    # Translate colloquial names like to their canonical counterpart.
+    # Example: "svc" -> "Service"
     try:
         kinds = {k8sconfig.short2kind[_.lower()] for _ in cfg.selectors.kinds}
     except KeyError as e:
         logit.error(f"Unknown resource type {e}")
         return (cfg, True)
 
+    # Replace the (possibly) colloquial names with their correct K8s kinds.
     cfg.selectors.kinds.clear()
     cfg.selectors.kinds.update(kinds)
     return (cfg, False)
@@ -329,7 +331,7 @@ def main() -> int:
     if err1 or err2:
         return 1
 
-    # Do what user asked us to do.
+    # Do what the user asked us to do.
     common_args = Filepath(cfg.kubeconfig), cfg.kube_ctx, cfg.folder, cfg.selectors
     if cfg.command == "get":
         err = square.square.get_resources(*common_args, cfg.groupby)
