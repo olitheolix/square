@@ -8,9 +8,7 @@ import square.k8s as k8s
 import square.manio as manio
 import square.schemas
 import yaml
-from square.dtypes import (
-    SUPPORTED_KINDS, Filepath, GroupBy, MetaManifest, Selectors,
-)
+from square.dtypes import Filepath, GroupBy, MetaManifest, Selectors
 from square.k8s import resource
 
 from .test_helpers import make_manifest, mk_deploy
