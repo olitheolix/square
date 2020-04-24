@@ -1,6 +1,6 @@
 import pathlib
 from typing import (
-    Any, Collection, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple,
+    Any, Collection, Dict, Iterable, NamedTuple, Optional, Set, Tuple,
 )
 
 # We support these resource types. The order matters because it determines the
@@ -143,7 +143,7 @@ class DeploymentPlanMeta(NamedTuple):
 # -----------------------------------------------------------------------------
 class Selectors(NamedTuple):
     """Comprises all the filters to select manifests."""
-    kinds: List[str]
+    kinds: Set[str]
     namespaces: Optional[Iterable[str]]
     labels: Optional[Set[Tuple[str, str]]]
 

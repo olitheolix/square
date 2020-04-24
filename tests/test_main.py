@@ -54,7 +54,7 @@ class TestResourceCleanup:
             kubeconfig=None,
             kube_ctx=None,
             selectors=Selectors(
-                kinds=["svc", 'DEPLOYMENT', "Secret"],
+                kinds={"svc", 'DEPLOYMENT', "Secret"},
                 namespaces=['default'],
                 labels={("app", "morty"), ("foo", "bar")},
             ),
@@ -63,13 +63,13 @@ class TestResourceCleanup:
 
         # Convert the resource names to their correct K8s kind.
         ret, err = main.sanitise_resource_kinds(cfg)
-        assert not err and ret.selectors.kinds == ["Service", "Deployment", "Secret"]
+        assert not err and ret.selectors.kinds == {"Service", "Deployment", "Secret"}
 
         # Add two invalid resource names. This must return with an error.
         cfg.selectors.kinds.clear()
-        cfg.selectors.kinds.extend(["invalid", "k8s-resource-kind"])
+        cfg.selectors.kinds.update({"invalid", "k8s-resource-kind"})
         ret, err = main.sanitise_resource_kinds(cfg)
-        assert err and ret.selectors.kinds == ["invalid", "k8s-resource-kind"]
+        assert err and ret.selectors.kinds == {"invalid", "k8s-resource-kind"}
 
     def test_sanitise_resource_kinds_err_config(self, k8sconfig):
         """An invalid resource name must abort the program."""
@@ -80,7 +80,7 @@ class TestResourceCleanup:
             kubeconfig=Filepath("/does/not/exist"),
             kube_ctx=None,
             selectors=Selectors(
-                kinds=["svc", 'DEPLOYMENT', "Secret"],
+                kinds={"svc", 'DEPLOYMENT', "Secret"},
                 namespaces=['default'],
                 labels={("app", "morty"), ("foo", "bar")},
             ),
@@ -103,7 +103,7 @@ class TestMain:
             kubeconfig=param.kubeconfig,
             kube_ctx=None,
             selectors=Selectors(
-                kinds=['Deployment'],
+                kinds={'Deployment'},
                 namespaces=['default'],
                 labels={("app", "morty"), ("foo", "bar")}
             ),
@@ -117,19 +117,19 @@ class TestMain:
         param.kinds = ["Service", "Deploy", "Service"]
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.selectors.kinds == ["Service", "Deploy"]
+        assert cfg.selectors.kinds == {"Service", "Deploy"}
 
         # The "all" resource must expand to all supported kinds.
         param.kinds = ["all"]
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.selectors.kinds == list(SUPPORTED_KINDS)
+        assert cfg.selectors.kinds == set(SUPPORTED_KINDS)
 
         # Must remove duplicate resources.
         param.kinds = ["all", "svc", "all"]
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.selectors.kinds == list(SUPPORTED_KINDS)
+        assert cfg.selectors.kinds == set(SUPPORTED_KINDS)
 
     def test_compile_config_k8s_credentials(self):
         """Parse K8s credentials."""
@@ -143,7 +143,7 @@ class TestMain:
                 folder=Filepath(""),
                 kubeconfig=Filepath(""),
                 kube_ctx=None,
-                selectors=Selectors([], None, None),
+                selectors=Selectors(set(), None, None),
                 groupby=GroupBy("", tuple()),
             ), True)
 
@@ -157,7 +157,7 @@ class TestMain:
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kube_ctx=None,
-            selectors=Selectors([], None, None),
+            selectors=Selectors(set(), None, None),
             groupby=GroupBy("", tuple()),
         ), True
 
@@ -235,7 +235,7 @@ class TestMain:
             del args
 
         # Every main function must have been called exactly once.
-        selectors = Selectors(["Deployment", "Service"], None, set())
+        selectors = Selectors({"Deployment", "Service"}, None, set())
         args = fname_kubeconfig, None, pathlib.Path("myfolder"), selectors
         m_get.assert_called_once_with(*args, groupby)
         m_apply.assert_called_once_with(*args, "yes")
@@ -396,7 +396,7 @@ class TestMain:
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kube_ctx=None,
-            selectors=Selectors([], None, None),
+            selectors=Selectors(set(), None, None),
             groupby=GroupBy("", tuple()),
         )
         assert main.compile_config(param) == (expected, True)
@@ -502,7 +502,7 @@ class TestApplyPlan:
 
         """
         fun = main.apply_plan
-        selectors = Selectors(["kinds"], ["ns"], {("foo", "bar"), ("x", "y")})
+        selectors = Selectors({"kinds"}, ["ns"], {("foo", "bar"), ("x", "y")})
 
         # -----------------------------------------------------------------
         #                   Simulate A Non-Empty Plan

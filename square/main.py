@@ -162,7 +162,7 @@ def compile_config(cmdline_param) -> Tuple[Commandline, bool]:
         folder=Filepath(""),
         kubeconfig=Filepath(""),
         kube_ctx=None,
-        selectors=Selectors([], None, None),
+        selectors=Selectors(set(), None, None),
         groupby=GroupBy("", tuple()),
     ), True
 
@@ -178,12 +178,12 @@ def compile_config(cmdline_param) -> Tuple[Commandline, bool]:
     # Remove duplicates but retain the original order of "p.kinds". This is
     # a "trick" that will only work in Python 3.7+ which guarantees a stable
     # insertion order for dictionaries (but not sets).
-    p.kinds = list(dict.fromkeys(p.kinds))
+    p.kinds = set(dict.fromkeys(p.kinds))
 
     # Expand the "all" resource (if present) and ignore all other resources, if
     # any were specified.
     if "all" in p.kinds:
-        p.kinds = list(SUPPORTED_KINDS)
+        p.kinds = set(SUPPORTED_KINDS)
 
     # Folder must be `Path` object.
     folder = pathlib.Path(p.folder)
@@ -299,13 +299,13 @@ def sanitise_resource_kinds(cfg: Commandline) -> Tuple[Commandline, bool]:
         return (cfg, True)
 
     try:
-        kinds = [k8sconfig.short2kind[_.lower()] for _ in cfg.selectors.kinds]
+        kinds = {k8sconfig.short2kind[_.lower()] for _ in cfg.selectors.kinds}
     except KeyError as e:
         logit.error(f"Unknown resource type {e}")
         return (cfg, True)
 
     cfg.selectors.kinds.clear()
-    cfg.selectors.kinds.extend(kinds)
+    cfg.selectors.kinds.update(kinds)
     return (cfg, False)
 
 

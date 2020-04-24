@@ -547,7 +547,7 @@ def get_resources(
         # write the new ones. This logic will ensure we never have stale manifests
         # (see `manio.save_files` for details and how `manio.save`, which we call
         # at the end of this function, uses it).
-        load_selectors = Selectors(kinds=list(k8s_config.kinds),
+        load_selectors = Selectors(kinds=k8s_config.kinds,
                                    labels=None,
                                    namespaces=None)
 

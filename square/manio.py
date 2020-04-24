@@ -358,8 +358,8 @@ def sync(
 
     """
     # Sanity check: all `kinds` must be supported or we abort.
-    if not set(selectors.kinds).issubset(all_kinds):
-        unsupported = set(selectors.kinds) - set(all_kinds)
+    if not selectors.kinds.issubset(all_kinds):
+        unsupported = selectors.kinds - set(all_kinds)
         logit.error(f"Cannot sync unsupported kinds: {unsupported}")
         return ({}, True)
 
@@ -918,7 +918,7 @@ def download(
 
     # Download each resource type. Abort at the first error and return nothing.
     for namespace in all_namespaces:
-        for kind in selectors.kinds:
+        for kind in sorted(selectors.kinds):
             try:
                 # Get the K8s URL for the current resource kind.
                 resource, err = square.k8s.resource(config, MetaManifest("", kind, namespace, ""))  # noqa
