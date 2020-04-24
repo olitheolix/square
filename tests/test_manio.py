@@ -728,19 +728,15 @@ class TestManifestValidation:
             "status": "remove",
         }
 
-    def test_strip_invalid_schema(self, k8sconfig):
-        """Create a corrupt exclusion schema and verify we get a proper error message."""
-        exclude = {k8sconfig.version: {"Service": {
-            "metadata": {"labels": "neither-bool-nor-dict"}
-        }}}
-
+    def test_strip_missing_schema(self, k8sconfig):
+        """Return the input manifests in the absence of a n exclusion schema."""
         manifest = {
             "apiVersion": "v1",
             "kind": "Service",
             "metadata": {"name": "name", "namespace": "ns"},
             "something": "here",
         }
-        assert manio.strip(k8sconfig, manifest, exclude) == (({}, {}), True)
+        assert manio.strip(k8sconfig, manifest, {}) == ((manifest, {}), False)
 
     def test_strip_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""

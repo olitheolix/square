@@ -597,8 +597,8 @@ def strip(
     try:
         exclude = exclusion_schema[manifest["kind"]]
     except KeyError:
-        logit.error(f"No exclusion schema for: <{meta.kind}>")
-        return ret_err
+        logit.warning(f"No exclusion schema for: <{meta.kind}>")
+        exclude = {}
 
     # Strip down the manifest to its essential parts and return it.
     manifest = copy.deepcopy(manifest)
