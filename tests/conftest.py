@@ -14,10 +14,10 @@ def pytest_configure(*args, **kwargs):
 
 
 @pytest.fixture
-def kube_creds(request):
+def kube_creds(request, k8sconfig):
     with mock.patch.object(square.k8s, "cluster_config") as m:
-        m.return_value = ("k8s_config", "k8s_client", False)
-        yield m
+        m.return_value = (k8sconfig, "k8s_client", False)
+        yield k8sconfig
 
 
 @pytest.fixture

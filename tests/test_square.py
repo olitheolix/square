@@ -7,7 +7,7 @@ import square.manio as manio
 import square.square as square
 from square.dtypes import (
     SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    GroupBy, JsonPatch, MetaManifest, Selectors,
+    GroupBy, JsonPatch, K8sConfig, MetaManifest, Selectors,
 )
 from square.k8s import resource
 
@@ -704,6 +704,7 @@ class TestMainOptions:
         handles errors correctly.
 
         """
+        k8sconfig: K8sConfig = kube_creds
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
         # Valid deployment plan.
@@ -723,8 +724,8 @@ class TestMainOptions:
         plan, err = square.make_plan(*args)
         assert not err and isinstance(plan, DeploymentPlan)
         m_load.assert_called_once_with("folder", selectors)
-        m_down.assert_called_once_with("k8s_config", "k8s_client", selectors)
-        m_plan.assert_called_once_with("k8s_config", "local", "server")
+        m_down.assert_called_once_with(k8sconfig, "k8s_client", selectors)
+        m_plan.assert_called_once_with(k8sconfig, "local", "server")
 
         # Make `compile_plan` fail.
         m_plan.return_value = (None, True)
