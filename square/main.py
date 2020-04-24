@@ -183,7 +183,7 @@ def compile_config(cmdline_param) -> Tuple[Commandline, bool]:
     # Expand the "all" resource (if present) and ignore all other resources, if
     # any were specified.
     if "all" in p.kinds:
-        p.kinds = set(SUPPORTED_KINDS)
+        p.kinds.clear()
 
     # Folder must be `Path` object.
     folder = pathlib.Path(p.folder)
@@ -293,11 +293,17 @@ def apply_plan(
 
 
 def sanitise_resource_kinds(cfg: Commandline) -> Tuple[Commandline, bool]:
-    # Specify the selectors (see definition of `dtypes.Selectors`).
+    """Populate the `Selector.kinds` with what the use specified on the commandline."""
+    # Create a K8sConfig instance because it will contain all the info we need.
     k8sconfig, k8s_client, err = square.k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
     if err:
         return (cfg, True)
 
+    # If the user did not specify any selectors then we assume it wants all.
+    if len(cfg.selectors.kinds) == 0:
+        cfg.selectors.kinds.update(set(SUPPORTED_KINDS))
+
+    # Translate the colloquial names like "svc" in the canonical resource name "Service".
     try:
         kinds = {k8sconfig.short2kind[_.lower()] for _ in cfg.selectors.kinds}
     except KeyError as e:
