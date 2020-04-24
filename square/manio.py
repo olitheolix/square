@@ -593,7 +593,7 @@ def strip(
     try:
         exclude = square.schemas.EXCLUSION_SCHEMA[manifest["kind"]]
     except KeyError:
-        logit.error(f"Unknown resource kind: <{meta.kind}>")
+        logit.error(f"No exclusion schema for: <{meta.kind}>")
         return ret_err
 
     # Strip down the manifest to its essential parts and return it.
