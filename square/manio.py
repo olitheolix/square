@@ -96,7 +96,7 @@ def select(manifest: dict, selectors: Selectors) -> bool:
         return False
 
     # Include the resource if it is a) namespaced b) we have namespace
-    # selectors and c) the resource matches one of selectors.
+    # selectors and c) the resource matches one of them.
     if ns and selectors.namespaces is not None and ns not in selectors.namespaces:
         logit.debug(f"Namespace {ns} does not match selector {selectors.namespaces}")
         return False
