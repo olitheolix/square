@@ -493,11 +493,11 @@ def make_plan(
 
         # Load manifests from local files.
         local, _, err = manio.load(folder, selectors)
-        assert not err and local is not None
+        assert not err
 
         # Download manifests from K8s.
         server, err = manio.download(k8s_config, k8s_client, selectors)
-        assert not err and server is not None
+        assert not err
 
         # Align non-plannable fields, like the ServiceAccount tokens.
         local_meta, err = manio.align_serviceaccount(local, server)
