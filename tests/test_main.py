@@ -123,13 +123,13 @@ class TestMain:
         param.kinds = ["all"]
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.selectors.kinds == set(SUPPORTED_KINDS)
+        assert cfg.selectors.kinds == set()
 
         # Must remove duplicate resources.
         param.kinds = ["all", "svc", "all"]
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.selectors.kinds == set(SUPPORTED_KINDS)
+        assert cfg.selectors.kinds == set()
 
     def test_compile_config_k8s_credentials(self):
         """Parse K8s credentials."""
