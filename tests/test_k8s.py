@@ -542,10 +542,38 @@ class TestUrlPathBuilder:
         assert k8s.compile_api_endpoints(k8sconfig, "client") is False
         assert isinstance(k8sconfig.apis, dict) and len(k8sconfig.apis) > 0
 
-        # # Services have a short name, whereas Secrets do not.
+        # Services have a short name.
         k8sconfig.short2kind["service"] == "Service"
         k8sconfig.short2kind["services"] == "Service"
         k8sconfig.short2kind["svc"] == "Service"
+
+        # Sanity check: must contain at least the default resource kinds. The
+        # spelling must match with what would be declared in `manifest.kind`.
+        "Service" in k8sconfig.kinds
+        "service" not in k8sconfig.kinds
+        "Services" not in k8sconfig.kinds
+        "Deployment" in k8sconfig.kinds
+        "deployment" not in k8sconfig.kinds
+        "Deployments" not in k8sconfig.kinds
+
+    @pytest.mark.parametrize("integrationtest", [False, True])
+    def test_compile_api_endpoints_resource_kinds(self, integrationtest, k8sconfig):
+        """Manually verify some resource kinds."""
+        # Fixtures.
+        config = self.k8sconfig(integrationtest, k8sconfig)
+
+        # Sanity check: must contain at least the default resource kinds. The
+        # spelling must match with what would be declared in `manifest.kind`.
+        "Service" in config.kinds
+        "service" not in config.kinds
+        "Services" not in config.kinds
+        "Deployment" in config.kinds
+        "deployment" not in config.kinds
+        "Deployments" not in config.kinds
+        "CustomResourceDefinition" in config.kinds
+
+        # Our demo CRD.
+        "DemoCRD" in config.kinds
 
     @mock.patch.object(k8s, "get")
     def test_compile_api_endpoints_err(self, m_get, k8sconfig):

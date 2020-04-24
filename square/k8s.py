@@ -830,4 +830,8 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
         version = apis.pop()
         res = [_ for _ in res if _.apiVersion == version]
         config.apis[(kind, "")] = res[0]
+
+    # Compile the set of all resource kinds that this Kubernetes cluster supports.
+    for kind, _ in config.apis:
+        config.kinds.add(kind)
     return False
