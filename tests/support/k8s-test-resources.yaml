@@ -7,7 +7,7 @@ kind: Namespace
 metadata:
   name: test-workflow
   labels:
-    app: demoapp
+    app: test-workflow
 
 ---
 
@@ -17,7 +17,7 @@ metadata:
   name: demo-secret
   namespace: test-workflow
   labels:
-    app: demoapp
+    app: test-workflow
 data:
   mysecret: blah
 
@@ -31,7 +31,7 @@ metadata:
   name: demo-configmap
   namespace: test-workflow
   labels:
-    app: demoapp
+    app: test-workflow
 
 ---
 
@@ -40,7 +40,7 @@ kind: ClusterRole
 metadata:
   name: square
   labels:
-    app: demoapp
+    app: test-workflow
 rules:
 - apiGroups: [""]
   resources:
@@ -54,7 +54,7 @@ kind: ClusterRoleBinding
 metadata:
   name: square
   labels:
-    app: demoapp
+    app: test-workflow
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -68,7 +68,7 @@ metadata:
   name: square
   namespace: test-workflow
   labels:
-    app: demoapp
+    app: test-workflow
 rules:
 - apiGroups: [""]
   resources:
@@ -83,7 +83,7 @@ metadata:
   name: square
   namespace: test-workflow
   labels:
-    app: demoapp
+    app: test-workflow
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

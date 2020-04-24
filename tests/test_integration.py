@@ -8,9 +8,7 @@ import square.k8s
 import square.main
 import square.manio as manio
 import yaml
-from square.dtypes import (
-    SUPPORTED_KINDS, Filepath, GroupBy, K8sConfig, Selectors,
-)
+from square.dtypes import Filepath, GroupBy, K8sConfig, Selectors
 
 from .test_helpers import kind_available
 
@@ -289,13 +287,22 @@ class TestMainPlan:
         # humongous amount of logs from all the K8s calls.
         square.square.setup_logging(2)
 
+        # Define the resource kinds we have in our workflow manifests.
+        # Only target the `test-workflow` labels to avoid problems with
+        # non-namespaced resources.
+        kinds = {
+            "Namespace", "Secret", "ConfigMap", "ClusterRole",
+            "ClusterRoleBinding", "Role", "RoleBinding",
+        }
+        labels = {("app", "test-workflow")}
+
         # Convenience.
         apply_plan = square.square.apply_plan
         make_plan = square.square.make_plan
         get_resources = square.square.get_resources
 
         # Fixtures.
-        selectors = Selectors(set(SUPPORTED_KINDS), ["test-workflow"], None)
+        selectors = Selectors(kinds, ["test-workflow"], labels)
         groupby = GroupBy(label="app", order=[])
         backup_folder = tmp_path / "backup"
 
@@ -334,12 +341,14 @@ class TestMainPlan:
         # ---------------------------------------------------------------------
         # Wait until K8s has deleted the namespace.
         # ---------------------------------------------------------------------
-        while True:
+        for i in range(120):
             time.sleep(1)
             try:
                 sh.kubectl("get", "ns", "test-workflow", "--kubeconfig", kubeconfig)
             except sh.ErrorReturnCode_1:
                 break
+        else:
+            assert False, "Could not delete the namespace <test-workflow> in time"
 
         # ---------------------------------------------------------------------
         # Use backup manifests to restore the namespace.
