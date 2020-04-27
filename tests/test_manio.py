@@ -314,7 +314,7 @@ class TestYamlManifestIO:
     def test_sort_manifests(self):
         """Verify the sorted output for three files with randomly ordered manifests."""
         # Convenience.
-        all_kinds = priority = ("Namespace", "Service", "Deployment")
+        priority = ("Namespace", "Service", "Deployment")
 
         def mm(*args):
             man = make_manifest(*args)
@@ -370,12 +370,11 @@ class TestYamlManifestIO:
         for i in range(10):
             for fname in file_manifests:
                 random.shuffle(file_manifests[fname])
-            assert manio.sort_manifests(file_manifests, all_kinds, priority) == (expected, False)
+            assert manio.sort_manifests(file_manifests, priority) == (expected, False)
 
     def test_sort_manifests_priority(self):
         """Verify the sorted output for three files with randomly ordered manifests."""
         # Convenience.
-        all_kinds = ("Namespace", "Service", "Deployment")
         fname = "manifests.yaml"
         random.seed(1)
 
@@ -410,7 +409,7 @@ class TestYamlManifestIO:
         # Shuffle the manifests in each file and verify the sorted output.
         for i in range(10):
             random.shuffle(file_manifests[fname])
-            assert manio.sort_manifests(file_manifests, all_kinds, priority) == (expected, False)
+            assert manio.sort_manifests(file_manifests, priority) == (expected, False)
 
         # --- Define manifests in the correctly prioritised order.
         priority = ("Service", "Namespace", "Deployment")
@@ -430,7 +429,7 @@ class TestYamlManifestIO:
         # Shuffle the manifests in each file and verify the sorted output.
         for i in range(10):
             random.shuffle(file_manifests[fname])
-            assert manio.sort_manifests(file_manifests, all_kinds, priority) == (expected, False)
+            assert manio.sort_manifests(file_manifests, priority) == (expected, False)
 
         # --- Define manifests in the correctly prioritised order.
         priority = ("Service", "Deployment")
@@ -450,7 +449,7 @@ class TestYamlManifestIO:
         # Shuffle the manifests in each file and verify the sorted output.
         for i in range(10):
             random.shuffle(file_manifests[fname])
-            assert manio.sort_manifests(file_manifests, all_kinds, priority) == (expected, False)
+            assert manio.sort_manifests(file_manifests, priority) == (expected, False)
 
         # --- Define manifests in the correctly prioritised order.
         priority = tuple()
@@ -470,47 +469,7 @@ class TestYamlManifestIO:
         # Shuffle the manifests in each file and verify the sorted output.
         for i in range(10):
             random.shuffle(file_manifests[fname])
-            assert manio.sort_manifests(file_manifests, all_kinds, priority) == (expected, False)
-
-    def test_sort_manifests_unknown_kinds(self):
-        """Must handle unknown resource kinds gracefully."""
-        all_kinds = priority = ("Deployments", )
-        unsupported_kinds = (
-            "DEPLOYMENT",       # wrong capitalisation
-            "Service",          # unknown
-            "Pod",              # we do not support Pod manifests
-        )
-
-        # Convenience.
-        def mm(*args):
-            man = make_manifest(*args)
-            meta = manio.make_meta(man)
-            return (meta, man)
-
-        # Test function must gracefully reject all invalid kinds.
-        for kind in unsupported_kinds:
-            file_manifests = {"m0.yaml": [mm(kind, "ns", "name")]}
-            assert manio.sort_manifests(file_manifests, all_kinds, priority) == ({}, True)
-
-    def test_sort_manifest_priority_subset(self):
-        # The priority list is not a subset of all kinds - must produce an error.
-        all_kinds = ("Namespace",)
-
-        # Valid: `priority` is a sub-set of `all_kinds`.
-        priority = tuple()
-        assert manio.sort_manifests({}, all_kinds, priority) == ({}, False)
-
-        # Valid: `priority` is a sub-set of `all_kinds`.
-        priority = ("Namespace",)
-        assert manio.sort_manifests({}, all_kinds, priority) == ({}, False)
-
-        # Invalid: `priority` is not a subset of `all_kinds`.
-        priority = ("Deployment",)
-        assert manio.sort_manifests({}, all_kinds, priority) == ({}, True)
-
-        # Invalid: `priority` has only some items in common with `all_kinds`.
-        priority = ("Namespace", "Deployment")
-        assert manio.sort_manifests({}, all_kinds, priority) == ({}, True)
+            assert manio.sort_manifests(file_manifests, priority) == (expected, False)
 
     def test_parse_noselector_ok(self):
         """Test function must be able to parse the YAML string and compile a dict."""
@@ -720,9 +679,7 @@ class TestYamlManifestIO:
         # Convert the data to YAML. The output would normally be passed to
         # `save_files` but here we will verify it directly (see below).
         # :: Dict[Filename:List[(MetaManifest, YamlDict)]] -> Dict[Filename:YamlStr]
-        assert not manio.save(tmp_path, updated_manifests,
-                              all_kinds=("Deployment", ),
-                              priority=("Deployment", ))
+        assert not manio.save(tmp_path, updated_manifests, ("Deployment", ))
 
         # Expected output after we merged back the changes (reminder: `dply[1]`
         # is different, `dply[{3,5}]` were deleted and `dply[{6,7}]` are new).
@@ -1077,7 +1034,7 @@ class TestYamlManifestIOIntegration:
         del dply, meta
 
         # Save the test data, then load it back and verify.
-        assert manio.save(tmp_path, man_files, priority, priority) is False
+        assert manio.save(tmp_path, man_files, priority) is False
         assert manio.load(tmp_path, selectors) == (*expected, False)
 
         # Glob the folder and ensure it contains exactly the files specified in
@@ -1111,7 +1068,7 @@ class TestYamlManifestIOIntegration:
         del dply, meta
 
         # Save and load the test data.
-        assert manio.save(tmp_path, man_files, priority, priority) is False
+        assert manio.save(tmp_path, man_files, priority) is False
         assert manio.load(tmp_path, selectors) == (*expected, False)
 
         # Save a reduced set of files. Compared to `fdata_full`, it is two
@@ -1128,7 +1085,7 @@ class TestYamlManifestIOIntegration:
         assert (tmp_path / "bar/m4.yaml").exists()
 
         # Save the reduced set of files.
-        assert manio.save(tmp_path, fdata_reduced, priority, priority) is False
+        assert manio.save(tmp_path, fdata_reduced, priority) is False
 
         # Load the data. It must neither contain the files we removed from the
         # dict above, nor "bar/m4.yaml" which contained an empty manifest list.
@@ -1161,8 +1118,7 @@ class TestYamlManifestIOIntegration:
         }
 
         # Test function must return with an error.
-        assert manio.save(tmp_path, file_manifests,
-                          ("Deployment", ), ("Deployment", )) is True
+        assert manio.save(tmp_path, file_manifests, ("Deployment", )) is True
 
 
 class TestSync:
