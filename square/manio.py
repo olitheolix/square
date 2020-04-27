@@ -3,7 +3,9 @@ import copy
 import difflib
 import logging
 import pathlib
-from typing import DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
+from typing import (
+    Collection, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple,
+)
 
 import square.dotdict
 import square.k8s
@@ -273,6 +275,38 @@ def unpack(manifests: LocalManifestLists) -> Tuple[ServerManifests, bool]:
     return (out, False)
 
 
+def sort_manifests(
+        kinds_order: Collection[str],
+        file_manifests: LocalManifestLists,
+) -> Tuple[Dict[Filepath, Collection[MetaManifest]], bool]:
+
+    out: Dict[Filepath, Collection[MetaManifest]] = {}
+    for fname, manifests in file_manifests.items():
+        # Verify that this file contains only supported resource kinds.
+        kinds = {meta.kind for meta, _ in manifests}
+        delta = kinds - set(kinds_order)
+        if len(delta) > 0:
+            logit.error(f"Found unsupported K8s resources: {delta}")
+            return ({}, True)
+        del kinds, delta
+
+        # Group the manifests by their "kind", sort each group and compile a
+        # new list of grouped and sorted manifests.
+        man_sorted: List[dict] = []
+        for kind in kinds_order:
+            man_sorted += sorted([_ for _ in manifests if _[0].kind == kind])
+        assert len(man_sorted) == len(manifests)
+
+        # Drop the MetaManifest, ie
+        # Dict[Filepath:Tuple[MetaManifest, manifest]] -> Dict[Filepath:manifest]
+        man_clean = [manifest for _, manifest in man_sorted]
+
+        # Assign the grouped and sorted list of manifests to the output dict.
+        out[fname] = man_clean
+
+    return out, False
+
+
 def unparse(file_manifests: LocalManifestLists,
             kinds_order: Tuple[str, ...]) -> Tuple[Dict[Filepath, str], bool]:
     """Convert the Python dict to a Yaml string for each file and return it.
@@ -290,30 +324,10 @@ def unparse(file_manifests: LocalManifestLists,
         Dict[Filepath:YamlStr]: Yaml representation of all manifests.
 
     """
-    out = {}
-    for fname, manifests in file_manifests.items():
-        # Verify that this file contains only supported resource kinds.
-        kinds = {meta.kind for meta, _ in manifests}
-        delta = kinds - set(kinds_order)
-        if len(delta) > 0:
-            logit.error(f"Found unsupported KIND when writing <{fname}>: {delta}")
-            return ({}, True)
-        del kinds, delta
-
-        # Group the manifests by their "kind", sort each group and compile a
-        # new list of grouped and sorted manifests.
-        man_sorted: List[dict] = []
-        for kind in kinds_order:
-            man_sorted += sorted([_ for _ in manifests if _[0].kind == kind])
-        assert len(man_sorted) == len(manifests)
-
-        # Drop the MetaManifest, ie
-        # Dict[Filepath:Tuple[MetaManifest, manifest]] -> Dict[Filepath:manifest]
-        man_clean = [manifest for _, manifest in man_sorted]
-
-        # Assign the grouped and sorted list of manifests to the output dict.
-        out[fname] = man_clean
-        del fname, manifests, man_sorted, man_clean
+    # Sort the manifest in each file by priority.
+    out, err = sort_manifests(kinds_order, file_manifests)
+    if err:
+        return {}, True
 
     # Ignore all files without manifests, ie empty files.
     out_nonempty = {k: v for k, v in out.items() if len(v) > 0}
@@ -329,9 +343,9 @@ def unparse(file_manifests: LocalManifestLists,
     try:
         for fname, v in out_clean.items():
             out_final[fname] = yaml.safe_dump_all(v, default_flow_style=False)
-    except yaml.YAMLError as err:
+    except yaml.YAMLError as e:
         logit.error(
-            f"YAML error. Cannot create <{fname}>: {err.args[0]} <{str(err.args[1])}>"
+            f"YAML error. Cannot create <{fname}>: {e.args[0]} <{str(e.args[1])}>"
         )
         return ({}, True)
 
