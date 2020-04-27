@@ -936,11 +936,15 @@ def download(
     # Download each resource type. Abort at the first error and return nothing.
     for namespace in all_namespaces:
         for kind in sorted(selectors.kinds):
-            try:
-                # Get the K8s URL for the current resource kind.
-                resource, err = square.k8s.resource(config, MetaManifest("", kind, namespace, ""))  # noqa
-                assert not err
+            # Get the K8s URL for the current resource kind. Ignore this
+            # resource if K8s does not know about it. The reason for that could
+            # by a typo or that it is a custom resource that does not (yet) exist.
+            resource, err = square.k8s.resource(config, MetaManifest("", kind, namespace, ""))  # noqa
+            if err:
+                logit.warning(f"Skipping unknown resource {kind}")
+                continue
 
+            try:
                 # Download the resource list from K8s.
                 manifest_list, err = square.k8s.get(client, resource.url)
                 assert not err and manifest_list is not None
