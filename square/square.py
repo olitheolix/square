@@ -1,22 +1,64 @@
 import json
 import logging
+from types import SimpleNamespace
 from typing import Collection, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
+import pydantic
 import square.k8s as k8s
 import square.manio as manio
-import square.schemas
 import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
-    Config, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    DeploymentPlanMeta, JsonPatch, K8sConfig, MetaManifest, Selectors,
-    ServerManifests,
+    Config, ConfigFile, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+    DeploymentPlanMeta, Filepath, JsonPatch, K8sConfig, MetaManifest,
+    Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
+
+
+def load_config(fname: Filepath) -> Tuple[Config, bool]:
+    """Parse the Square configuration file `fname` and return it as a `Config`."""
+    # Load the configuration file.
+    try:
+        raw = yaml.safe_load(Filepath(fname).read_text())
+    except FileNotFoundError as e:
+        logit.error(f"Cannot load config file <{fname}>: {e.args[1]}")
+        return Config(folder="", kubeconfig="", kube_ctx=None), True
+    except yaml.YAMLError as exc:
+        msg = f"Could not parse YAML file {fname}"
+
+        # Special case: parser supplied location information.
+        mark = getattr(exc, "problem_mark", SimpleNamespace(line=-1, column=-1))
+        line, col = (mark.line + 1, mark.column + 1)
+        msg = f"YAML format error in {fname}: Line {line} Column {col}"
+        logit.error(msg)
+        return Config(folder="", kubeconfig="", kube_ctx=None), True
+
+    # Parse the configuration into `ConfigFile` structure.
+    try:
+        raw = ConfigFile.parse_obj(raw)
+    except pydantic.ValidationError as e:
+        logit.error(f"Schema is invalid: {e}")
+        return Config(folder="", kubeconfig="", kube_ctx=None), True
+
+    # Compile the config file into a `dtypes.Config` tuple.
+    config = Config(
+        folder=raw.folder,
+        kubeconfig=raw.kubeconfig,
+        kube_ctx=raw.kubecontext,
+        priorities=raw.priorities,
+        filters=raw.filters,
+        selectors=Selectors(
+            kinds=set(raw.selectors.kinds),
+            namespaces=None or raw.selectors.namespaces,
+            labels={(kv.name, kv.value) for kv in raw.selectors.labels},
+        )
+    )
+    return config, False
 
 
 def make_patch(
@@ -523,7 +565,7 @@ def get_resources(cfg: Config) -> bool:
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see `manio.save` in the next step.
         synced_manifests, err = manio.sync(local, server, cfg.selectors, cfg.groupby)
-        assert not err and synced_manifests
+        assert not err
 
         # Write the new manifest files.
         err = manio.save(cfg.folder, synced_manifests, cfg.priorities)

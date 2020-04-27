@@ -6,7 +6,8 @@ import square.manio as manio
 import square.square as sq
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, GroupBy, JsonPatch, K8sConfig, MetaManifest, Selectors,
+    DeploymentPlan, Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest,
+    Selectors,
 )
 from square.k8s import resource
 
@@ -96,6 +97,51 @@ class TestBasic:
             delete=[DeltaDelete(meta, "url", "manifest")],
         )
         assert sq.show_plan(plan) is False
+
+
+class TestLoadConfig:
+    def test_load_config(self):
+        """Load and parse configuration file."""
+        # Load the sample that ships with Square.
+        fname = Filepath("resources/sampleconfig.yaml")
+        cfg, err = sq.load_config(fname)
+        assert not err and isinstance(cfg, Config)
+
+        assert cfg.folder == Filepath("./")
+        assert cfg.kubeconfig == Filepath("/some/where")
+        assert cfg.kube_ctx is None
+        assert cfg.folder == Filepath("./")
+        assert cfg.priorities == list(DEFAULT_PRIORITIES)
+        assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
+        assert cfg.selectors.namespaces is None
+        assert cfg.selectors.labels == {("app", "square"), ("foo", "bar")}
+        assert set(cfg.filters.keys()) == {
+            "_common_", "Service", "ClusterRole", "ClusterRoleBinding",
+            "CustomResourceDefinition", "ConfigMap",
+            "CronJob", "DaemonSet", "Deployment", "HorizontalPodAutoscaler",
+            "Ingress", "Namespace", "PersistentVolumeClaim",
+            "PodDisruptionBudget", "Role", "RoleBinding", "Secret",
+            "ServiceAccount", "StatefulSet"
+        }
+
+    def test_load_config_err(self, tmp_path):
+        """Gracefully handle missing file, corrupt content etc."""
+        # Must gracefully handle a corrupt configuration file.
+        fname = tmp_path / "does-not-exist.yaml"
+        _, err = sq.load_config(fname)
+        assert err
+
+        # YAML error.
+        fname = tmp_path / "corrupt-yaml.yaml"
+        fname.write_text("[foo")
+        _, err = sq.load_config(fname)
+        assert err
+
+        # Does not match the definition of `dtypes.ConfigFile`.
+        fname = tmp_path / "invalid-pydantic-schema.yaml"
+        fname.write_text("")
+        _, err = sq.load_config(fname)
+        assert err
 
 
 class TestPartition:

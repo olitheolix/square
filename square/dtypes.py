@@ -1,7 +1,10 @@
 import pathlib
 from typing import (
-    Any, Collection, Dict, Iterable, NamedTuple, Optional, Set, Tuple,
+    Any, Collection, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple,
+    Union,
 )
+
+from pydantic import BaseModel
 
 # Square will first save/deploy the resources in this list in this order.
 # Afterwards it will move on to all those resources not in this list. The order
@@ -184,6 +187,33 @@ class Config(NamedTuple):
 
     # Define which fields to skip for which resource.
     filters: dict = {}
+
+
+# -----------------------------------------------------------------------------
+#                               Configuration File
+# -----------------------------------------------------------------------------
+class ConfigFileKeyValue(BaseModel):
+    # To parse the `selectors.labels` section.
+    name: str
+    value: str
+
+
+class ConfigFileSelectors(BaseModel):
+    # Config file equivalent to `Selectors` defined above.
+    kinds: List[str]
+    namespaces: Optional[List[str]]
+    labels: List[ConfigFileKeyValue]
+
+
+class ConfigFile(BaseModel):
+    """Configuration file structure."""
+    version: str
+    kubeconfig: Filepath
+    kubecontext: Optional[str] = None
+    folder: Filepath = Filepath(".")
+    selectors: ConfigFileSelectors
+    priorities: List[str]
+    filters: Dict[str, List[Union[str, dict]]]
 
 
 # -----------------------------------------------------------------------------
