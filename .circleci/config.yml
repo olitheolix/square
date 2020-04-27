@@ -50,7 +50,7 @@ jobs:
             sudo -E -u square pipenv run pytest --cov=square
 
             # Static type analysis.
-            pipenv run mypy --ignore-missing-imports square/*.py
+            pipenv run mypy --ignore-missing-imports --allow-redefinition square/*.py
 
             # Upload results to CodeCov.
             codecov
