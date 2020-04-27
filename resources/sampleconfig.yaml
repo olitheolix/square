@@ -1,0 +1,112 @@
+# Square configuration Syntax.
+version: v0.1
+
+kubeconfig: /some/where
+kubecontext: null
+folder: ./
+
+priorities:
+  # Custom Resources should come first.
+  - CustomResourceDefinition
+
+  # Commone non-namespaced resources.
+  - ClusterRole
+  - ClusterRoleBinding
+
+  # Namespaces must come before any namespaced resources,
+  - Namespace
+
+  # Configuration and PVC before Deployments & friends use them.
+  - ConfigMap
+  - Secret
+  - PersistentVolumeClaim
+
+  # RBAC.
+  - Role
+  - RoleBinding
+  - ServiceAccount
+
+  # Define Services before creating Deployments & friends.
+  - Service
+  - PodDisruptionBudget
+
+  # Everything that will spawn pods.
+  - CronJob
+  - Deployment
+  - DaemonSet
+  - StatefulSet
+
+  # Other.
+  - Ingress
+  - HorizontalPodAutoscaler
+
+selectors:
+  kinds:
+    - CustomResourceDefinition
+    - ClusterRole
+    - ClusterRoleBinding
+    - Namespace
+    - ConfigMap
+    - Secret
+    - PersistentVolumeClaim
+    - Role
+    - RoleBinding
+    - ServiceAccount
+    - Service
+    - PodDisruptionBudget
+    - CronJob
+    - Deployment
+    - DaemonSet
+    - StatefulSet
+    - Ingress
+    - HorizontalPodAutoscaler
+  namespaces: null
+  labels:
+    - name: app
+      value: square
+    - name: foo
+      value: bar
+
+filters:
+  _common_:
+    - metadata:
+      - creationTimestamp
+      - generation
+      - resourceVersion
+      - selfLink
+      - uid
+      - annotations:
+        - deployment.kubernetes.io/revision
+        - kubectl.kubernetes.io/last-applied-configuration
+        - kubernetes.io/change-cause
+    - status
+
+  ClusterRole: []
+  ClusterRoleBinding: []
+  CustomResourceDefinition: []
+  ConfigMap:
+    - metadata:
+      - annotations
+      - control-plane.alpha.kubernetes.io/leader
+  CronJob: []
+  DaemonSet: []
+  Deployment: []
+  HorizontalPodAutoscaler:
+    - metadata:
+      - annotations:
+        - control-plane.alpha.kubernetes.io/leader
+        - autoscaling.alpha.kubernetes.io/conditions
+        - autoscaling.alpha.kubernetes.io/current-metrics
+  Ingress: []
+  Namespace: []
+  PersistentVolumeClaim: []
+  PodDisruptionBudget: []
+  Role: []
+  RoleBinding: []
+  Secret: []
+  Service:
+    - spec:
+      - ports:
+        - nodePort
+  ServiceAccount: []
+  StatefulSet: []
