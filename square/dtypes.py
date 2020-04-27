@@ -163,6 +163,7 @@ class Commandline(NamedTuple):
     kubeconfig: Filepath
     kube_ctx: Optional[str] = None
     verbosity: int = 0
+    priority: Collection[str] = tuple(SUPPORTED_KINDS)
 
 
 # -----------------------------------------------------------------------------

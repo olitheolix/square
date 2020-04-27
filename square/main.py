@@ -333,7 +333,7 @@ def main() -> int:
     # Do what the user asked us to do.
     common_args = Filepath(cfg.kubeconfig), cfg.kube_ctx, cfg.folder, cfg.selectors
     if cfg.command == "get":
-        err = square.square.get_resources(*common_args, cfg.groupby)
+        err = square.square.get_resources(*common_args, cfg.groupby, cfg.priority)
     elif cfg.command == "plan":
         plan, err = square.square.make_plan(*common_args)
         square.square.show_plan(plan)
