@@ -26,15 +26,6 @@ class TestLogging:
 
 
 class TestBasic:
-    @classmethod
-    def teardown_class(cls):
-        pass
-
-    def setup_method(self, method):
-        # All tests must run relative to this folder because the script makes
-        # assumptions about the location of the templates, tf, etc folder.
-        os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
     def test_find_namespace_orphans(self):
         """Return all resource manifests that belong to non-existing
         namespaces.
