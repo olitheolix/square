@@ -312,9 +312,9 @@ class TestYamlManifestIO:
         }
 
     def test_sort_manifests(self):
-        """Verify the sourted output for three files with randomly ordered manifests."""
+        """Verify the sorted output for three files with randomly ordered manifests."""
         # Convenience.
-        kinds_order = ("Namespace", "Service", "Deployment")
+        all_kinds = priority = ("Namespace", "Service", "Deployment")
 
         def mm(*args):
             man = make_manifest(*args)
@@ -370,11 +370,111 @@ class TestYamlManifestIO:
         for i in range(10):
             for fname in file_manifests:
                 random.shuffle(file_manifests[fname])
-            assert manio.sort_manifests(kinds_order, file_manifests) == (expected, False)
+            assert manio.sort_manifests(file_manifests, all_kinds, priority) == (expected, False)
+
+    def test_sort_manifests_priority(self):
+        """Verify the sorted output for three files with randomly ordered manifests."""
+        # Convenience.
+        all_kinds = ("Namespace", "Service", "Deployment")
+        fname = "manifests.yaml"
+        random.seed(1)
+
+        def mm(*args):
+            man = make_manifest(*args)
+            meta = manio.make_meta(man)
+            return (meta, man)
+
+        # Create valid MetaManifests.
+        meta_ns_a = mm("Namespace", "a", "a")
+        meta_ns_b = mm("Namespace", "b", "b")
+        meta_svc_a = mm("Service", "a", "svc-a")
+        meta_svc_b = mm("Service", "b", "svc-b")
+        meta_dpl_a = mm("Deployment", "a", "dpl-a")
+        meta_dpl_b = mm("Deployment", "b", "dpl-b")
+
+        # --- Define manifests in the correctly prioritised order.
+        priority = ("Namespace", "Service", "Deployment")
+        sorted_manifests = [
+            meta_ns_a,
+            meta_ns_b,
+            meta_svc_a,
+            meta_svc_a,
+            meta_dpl_a,
+            meta_dpl_b,
+        ]
+
+        # Compile input and expected output for test function.
+        file_manifests = {fname: sorted_manifests.copy()}
+        expected = {k: [man for _, man in v] for k, v in file_manifests.items()}
+
+        # Shuffle the manifests in each file and verify the sorted output.
+        for i in range(10):
+            random.shuffle(file_manifests[fname])
+            assert manio.sort_manifests(file_manifests, all_kinds, priority) == (expected, False)
+
+        # --- Define manifests in the correctly prioritised order.
+        priority = ("Service", "Namespace", "Deployment")
+        sorted_manifests = [
+            meta_svc_a,
+            meta_svc_a,
+            meta_ns_a,
+            meta_ns_b,
+            meta_dpl_a,
+            meta_dpl_b,
+        ]
+
+        # Compile input and expected output for test function.
+        file_manifests = {fname: sorted_manifests.copy()}
+        expected = {k: [man for _, man in v] for k, v in file_manifests.items()}
+
+        # Shuffle the manifests in each file and verify the sorted output.
+        for i in range(10):
+            random.shuffle(file_manifests[fname])
+            assert manio.sort_manifests(file_manifests, all_kinds, priority) == (expected, False)
+
+        # --- Define manifests in the correctly prioritised order.
+        priority = ("Service", "Deployment")
+        sorted_manifests = [
+            meta_svc_a,
+            meta_svc_a,
+            meta_dpl_a,
+            meta_dpl_b,
+            meta_ns_a,
+            meta_ns_b,
+        ]
+
+        # Compile input and expected output for test function.
+        file_manifests = {fname: sorted_manifests.copy()}
+        expected = {k: [man for _, man in v] for k, v in file_manifests.items()}
+
+        # Shuffle the manifests in each file and verify the sorted output.
+        for i in range(10):
+            random.shuffle(file_manifests[fname])
+            assert manio.sort_manifests(file_manifests, all_kinds, priority) == (expected, False)
+
+        # --- Define manifests in the correctly prioritised order.
+        priority = tuple()
+        sorted_manifests = [
+            meta_dpl_a,
+            meta_dpl_b,
+            meta_ns_a,
+            meta_ns_b,
+            meta_svc_a,
+            meta_svc_a,
+        ]
+
+        # Compile input and expected output for test function.
+        file_manifests = {fname: sorted_manifests.copy()}
+        expected = {k: [man for _, man in v] for k, v in file_manifests.items()}
+
+        # Shuffle the manifests in each file and verify the sorted output.
+        for i in range(10):
+            random.shuffle(file_manifests[fname])
+            assert manio.sort_manifests(file_manifests, all_kinds, priority) == (expected, False)
 
     def test_sort_manifests_unknown_kinds(self):
         """Must handle unknown resource kinds gracefully."""
-        kinds_order = ("Deployments", )
+        all_kinds = priority = ("Deployments", )
         unsupported_kinds = (
             "DEPLOYMENT",       # wrong capitalisation
             "Service",          # unknown
@@ -390,7 +490,27 @@ class TestYamlManifestIO:
         # Test function must gracefully reject all invalid kinds.
         for kind in unsupported_kinds:
             file_manifests = {"m0.yaml": [mm(kind, "ns", "name")]}
-            assert manio.sort_manifests(kinds_order, file_manifests) == ({}, True)
+            assert manio.sort_manifests(file_manifests, all_kinds, priority) == ({}, True)
+
+    def test_sort_manifest_priority_subset(self):
+        # The priority list is not a subset of all kinds - must produce an error.
+        all_kinds = ("Namespace",)
+
+        # Valid: `priority` is a sub-set of `all_kinds`.
+        priority = tuple()
+        assert manio.sort_manifests({}, all_kinds, priority) == ({}, False)
+
+        # Valid: `priority` is a sub-set of `all_kinds`.
+        priority = ("Namespace",)
+        assert manio.sort_manifests({}, all_kinds, priority) == ({}, False)
+
+        # Invalid: `priority` is not a subset of `all_kinds`.
+        priority = ("Deployment",)
+        assert manio.sort_manifests({}, all_kinds, priority) == ({}, True)
+
+        # Invalid: `priority` has only some items in common with `all_kinds`.
+        priority = ("Namespace", "Deployment")
+        assert manio.sort_manifests({}, all_kinds, priority) == ({}, True)
 
     def test_parse_noselector_ok(self):
         """Test function must be able to parse the YAML string and compile a dict."""
