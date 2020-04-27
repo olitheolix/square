@@ -286,15 +286,20 @@ def sort_manifests(
         kinds = {meta.kind for meta, _ in manifests}
         delta = kinds - set(kinds_order)
         if len(delta) > 0:
-            logit.error(f"Found unsupported K8s resources: {delta}")
+            logit.error(f"Found unsupported K8s resources in {fname}: {delta}")
             return ({}, True)
         del kinds, delta
 
-        # Group the manifests by their "kind", sort each group and compile a
-        # new list of grouped and sorted manifests.
+        # Group the manifests by their "kind", sort each group by their
+        # `MetaManifest` and compile a new list of grouped and sorted
+        # manifests.
         man_sorted: List[dict] = []
         for kind in kinds_order:
-            man_sorted += sorted([_ for _ in manifests if _[0].kind == kind])
+            # All manifests of type eg "Service".
+            tmp = [_ for _ in manifests if _[0].kind == kind]
+
+            # Append the manifests ordered by their MetaManifest.
+            man_sorted += sorted(tmp, key=lambda _: _[0])
         assert len(man_sorted) == len(manifests)
 
         # Drop the MetaManifest, ie
