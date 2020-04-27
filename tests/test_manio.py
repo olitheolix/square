@@ -570,7 +570,7 @@ class TestYamlManifestIO:
             file_manifests = {"m0.yaml": [(mm(kind, "ns", "name"), "0")]}
             assert manio.unparse(file_manifests, kinds_order) == ({}, True)
 
-    def test_manifest_lifecycle(self, k8sconfig):
+    def test_manifest_lifecycle(self, k8sconfig, tmp_path):
         """Load, sync and save manifests the hard way.
 
         This test does not cover error scenarios. Instead, it shows how the
@@ -636,8 +636,7 @@ class TestYamlManifestIO:
         # Convert the data to YAML. The output would normally be passed to
         # `save_files` but here we will verify it directly (see below).
         # :: Dict[Filename:List[(MetaManifest, YamlDict)]] -> Dict[Filename:YamlStr]
-        fdata_raw_new, err = manio.unparse(updated_manifests, ("Deployment", ))
-        assert err is False
+        assert not manio.save(tmp_path, updated_manifests, ("Deployment", ))
 
         # Expected output after we merged back the changes (reminder: `dply[1]`
         # is different, `dply[{3,5}]` were deleted and `dply[{6,7}]` are new).
@@ -649,7 +648,11 @@ class TestYamlManifestIO:
             Filepath("_other.yaml"): [dply[6], dply[7]],
         }
         expected = self.yamlfy(expected)
-        assert fdata_raw_new == expected
+        for fname, ref in expected.items():
+            out = yaml.safe_load_all((tmp_path / fname).read_text())
+            ref = yaml.safe_load_all(ref)
+            out, ref = list(out), list(ref)
+            assert ref == out
 
 
 class TestManifestValidation:
