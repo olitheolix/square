@@ -169,6 +169,7 @@ def compile_config(cmdline_param) -> Tuple[Commandline, bool]:
         kube_ctx=None,
         selectors=Selectors(set(), None, None),
         groupby=GroupBy("", tuple()),
+        priorities=tuple(),
     ), True
 
     # Convenience.
@@ -238,6 +239,7 @@ def compile_config(cmdline_param) -> Tuple[Commandline, bool]:
         kube_ctx=p.ctx,
         selectors=selectors,
         groupby=groupby,
+        priorities=p.priorities,
     )
     return cfg, False
 
@@ -340,7 +342,7 @@ def main() -> int:
     # Do what the user asked us to do.
     common_args = Filepath(cfg.kubeconfig), cfg.kube_ctx, cfg.folder, cfg.selectors
     if cfg.command == "get":
-        err = square.square.get_resources(*common_args, cfg.groupby, cfg.priority)
+        err = square.square.get_resources(*common_args, cfg.groupby, cfg.priorities)
     elif cfg.command == "plan":
         plan, err = square.square.make_plan(*common_args)
         square.square.show_plan(plan)
