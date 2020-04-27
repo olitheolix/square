@@ -275,43 +275,6 @@ def unpack(manifests: LocalManifestLists) -> Tuple[ServerManifests, bool]:
     return (out, False)
 
 
-def sort_manifests(
-        kinds_order: Collection[str],
-        file_manifests: LocalManifestLists,
-) -> Tuple[Dict[Filepath, Collection[MetaManifest]], bool]:
-
-    out: Dict[Filepath, Collection[MetaManifest]] = {}
-    for fname, manifests in file_manifests.items():
-        # Verify that this file contains only supported resource kinds.
-        kinds = {meta.kind for meta, _ in manifests}
-        delta = kinds - set(kinds_order)
-        if len(delta) > 0:
-            logit.error(f"Found unsupported K8s resources in {fname}: {delta}")
-            return ({}, True)
-        del kinds, delta
-
-        # Group the manifests by their "kind", sort each group by their
-        # `MetaManifest` and compile a new list of grouped and sorted
-        # manifests.
-        man_sorted: List[dict] = []
-        for kind in kinds_order:
-            # All manifests of type eg "Service".
-            tmp = [_ for _ in manifests if _[0].kind == kind]
-
-            # Append the manifests ordered by their MetaManifest.
-            man_sorted += sorted(tmp, key=lambda _: _[0])
-        assert len(man_sorted) == len(manifests)
-
-        # Drop the MetaManifest, ie
-        # Dict[Filepath:Tuple[MetaManifest, manifest]] -> Dict[Filepath:manifest]
-        man_clean = [manifest for _, manifest in man_sorted]
-
-        # Assign the grouped and sorted list of manifests to the output dict.
-        out[fname] = man_clean
-
-    return out, False
-
-
 def sync(
         local_manifests: LocalManifestLists,
         server_manifests: ServerManifests,
@@ -837,6 +800,43 @@ def load(folder: Filepath, selectors: Selectors) -> Tuple[
 
     # Return the file based manifests and unpacked manifests.
     return (man_meta, man_files, False)
+
+
+def sort_manifests(
+        kinds_order: Collection[str],
+        file_manifests: LocalManifestLists,
+) -> Tuple[Dict[Filepath, Collection[MetaManifest]], bool]:
+
+    out: Dict[Filepath, Collection[MetaManifest]] = {}
+    for fname, manifests in file_manifests.items():
+        # Verify that this file contains only supported resource kinds.
+        kinds = {meta.kind for meta, _ in manifests}
+        delta = kinds - set(kinds_order)
+        if len(delta) > 0:
+            logit.error(f"Found unsupported K8s resources in {fname}: {delta}")
+            return ({}, True)
+        del kinds, delta
+
+        # Group the manifests by their "kind", sort each group by their
+        # `MetaManifest` and compile a new list of grouped and sorted
+        # manifests.
+        man_sorted: List[dict] = []
+        for kind in kinds_order:
+            # All manifests of type eg "Service".
+            tmp = [_ for _ in manifests if _[0].kind == kind]
+
+            # Append the manifests ordered by their MetaManifest.
+            man_sorted += sorted(tmp, key=lambda _: _[0])
+        assert len(man_sorted) == len(manifests)
+
+        # Drop the MetaManifest, ie
+        # Dict[Filepath:Tuple[MetaManifest, manifest]] -> Dict[Filepath:manifest]
+        man_clean = [manifest for _, manifest in man_sorted]
+
+        # Assign the grouped and sorted list of manifests to the output dict.
+        out[fname] = man_clean
+
+    return out, False
 
 
 def save(folder: Filepath, manifests: LocalManifestLists,
