@@ -292,13 +292,14 @@ class TestMainPlan:
         # humongous amount of logs from all the K8s calls.
         square.square.setup_logging(2)
 
-        # Define the resource kinds we have in our workflow manifests.
-        # Only target the `test-workflow` labels to avoid problems with
-        # non-namespaced resources.
-        kinds = {
+        # Define the resource priority and kinds we have in our workflow
+        # manifests. Only target the `test-workflow` labels to avoid problems
+        # with non-namespaced resources.
+        priority = (
             "Namespace", "Secret", "ConfigMap", "ClusterRole",
             "ClusterRoleBinding", "Role", "RoleBinding",
-        }
+        )
+        kinds = set(priority)
         labels = {("app", "test-workflow")}
 
         # Convenience.
@@ -331,7 +332,8 @@ class TestMainPlan:
         # Backup all resources. A plan against that backup must be empty.
         # ---------------------------------------------------------------------
         assert not (backup_folder / "_other.yaml").exists()
-        err = get_resources(kubeconfig, None, backup_folder, selectors, groupby)
+        err = get_resources(kubeconfig, None, backup_folder, selectors,
+                            groupby, priority)
         assert not err and (backup_folder / "_other.yaml").exists()
 
         plan_2, err = make_plan(kubeconfig, None, backup_folder, selectors)

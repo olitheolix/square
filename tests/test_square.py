@@ -760,7 +760,8 @@ class TestMainOptions:
 
         # The arguments to the test function will always be the same in this test.
         selectors = Selectors({"kinds"}, ["ns"], {("foo", "bar"), ("x", "y")})
-        args = "kubeconf", "kubectx", "folder", selectors, groupby
+        priority = ("Namespace", "Deployment")
+        args = "kubeconf", "kubectx", "folder", selectors, groupby, priority
 
         # `manio.load` must have been called with a wildcard selector to ensure
         # it loads _all_ resources from the local files, even if we want to
@@ -773,7 +774,7 @@ class TestMainOptions:
         m_load.assert_called_once_with("folder", load_selectors)
         m_down.assert_called_once_with(k8sconfig, "k8s_client", selectors)
         m_sync.assert_called_once_with({}, "server", selectors, groupby, k8sconfig.kinds)
-        m_save.assert_called_once_with("folder", "synced", SUPPORTED_KINDS)
+        m_save.assert_called_once_with("folder", "synced", priority)
 
         # Simulate an error with `manio.save`.
         m_save.return_value = (None, True)

@@ -10,8 +10,8 @@ import square.main as main
 import square.manio as manio
 import square.square as square
 from square.dtypes import (
-    Commandline, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    Filepath, GroupBy, JsonPatch, Selectors,
+    SUPPORTED_KINDS, Commandline, DeltaCreate, DeltaDelete, DeltaPatch,
+    DeploymentPlan, Filepath, GroupBy, JsonPatch, Selectors,
 )
 
 from .test_helpers import make_manifest
@@ -237,7 +237,7 @@ class TestMain:
         # Every main function must have been called exactly once.
         selectors = Selectors({"Deployment", "Service"}, None, set())
         args = fname_kubeconfig, None, pathlib.Path("myfolder"), selectors
-        m_get.assert_called_once_with(*args, groupby)
+        m_get.assert_called_once_with(*args, groupby, SUPPORTED_KINDS)
         m_apply.assert_called_once_with(*args, "yes")
         m_plan.assert_called_once_with(*args)
 

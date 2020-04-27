@@ -1,10 +1,9 @@
 import json
 import logging
-from typing import Iterable, Optional, Set, Tuple
+from typing import Collection, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
-import square.dtypes as dtypes
 import square.k8s as k8s
 import square.manio as manio
 import square.schemas
@@ -334,7 +333,7 @@ def show_plan(plan: Optional[DeploymentPlan]) -> bool:
 
 
 def find_namespace_orphans(
-        meta_manifests: Iterable[MetaManifest]
+        meta_manifests: Collection[MetaManifest]
 ) -> Tuple[Set[MetaManifest], bool]:
     """Return all orphaned resources in the `meta_manifest` set.
 
@@ -346,7 +345,7 @@ def find_namespace_orphans(
     their namespace field.
 
     Inputs:
-        meta_manifests: Iterable[MetaManifest]
+        meta_manifests: Collection[MetaManifest]
 
     Returns:
         set[MetaManifest]: orphaned resources.
@@ -519,7 +518,8 @@ def get_resources(
         kube_ctx: Optional[str],
         folder: Filepath,
         selectors: Selectors,
-        groupby: GroupBy) -> bool:
+        groupby: GroupBy,
+        priority: Collection[str]) -> bool:
     """Download all K8s manifests and merge them into local files.
 
     Inputs:
@@ -533,6 +533,9 @@ def get_resources(
             Only operate on resources that match the selectors.
         groupby: GroupBy
             Specify relationship between new manifests and file names.
+        priority: Collection[str]
+            Sort the manifest in this order, or alphabetically at the end if
+            not in the list.
 
     Returns:
         None
@@ -568,7 +571,7 @@ def get_resources(
         assert not err and synced_manifests
 
         # Write the new manifest files.
-        err = manio.save(folder, synced_manifests, tuple(dtypes.SUPPORTED_KINDS))
+        err = manio.save(folder, synced_manifests, priority)
         assert not err
     except AssertionError:
         return True
