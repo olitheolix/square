@@ -803,8 +803,9 @@ def load(folder: Filepath, selectors: Selectors) -> Tuple[
 
 
 def sort_manifests(
-        kinds_order: Collection[str],
         file_manifests: LocalManifestLists,
+        all_kinds: Collection[str],
+        priority: Collection[str]
 ) -> Tuple[Dict[Filepath, Collection[MetaManifest]], bool]:
     """Sort the manifests in each `file_manifests` by their `priority`.
 
@@ -821,28 +822,46 @@ def sort_manifests(
             not in the list.
 
     """
+    # Return with an error if `priority` is not a sub-set of `all_kinds`.
+    delta = set(priority) - set(all_kinds)
+    if len(delta) > 0:
+        logit.error(f"The priority list must be a subset of all_kinds: {diff}")
+        return ({}, True)
 
+    # Sort the manifests in each file.
     out: Dict[Filepath, Collection[MetaManifest]] = {}
     for fname, manifests in file_manifests.items():
         # Verify that this file contains only supported resource kinds.
         kinds = {meta.kind for meta, _ in manifests}
-        delta = kinds - set(kinds_order)
+        delta = kinds - set(all_kinds)
         if len(delta) > 0:
             logit.error(f"Found unsupported K8s resources in {fname}: {delta}")
             return ({}, True)
         del kinds, delta
 
-        # Group the manifests by their "kind", sort each group by their
-        # `MetaManifest` and compile a new list of grouped and sorted
-        # manifests.
+        # Group the manifests by their "kind" in order of `priority` and sort
+        # each group alphabetically.
         man_sorted: List[dict] = []
-        for kind in kinds_order:
-            # All manifests of type eg "Service".
+        for kind in priority:
+            # Partition the manifest list into the current `kind` and the rest.
             tmp = [_ for _ in manifests if _[0].kind == kind]
+            manifests = [_ for _ in manifests if _[0].kind != kind]
 
             # Append the manifests ordered by their MetaManifest.
             man_sorted += sorted(tmp, key=lambda _: _[0])
-        assert len(man_sorted) == len(manifests)
+
+        # Group the remaining manifests by their "kind" and sort each group
+        # alphabetically.
+        for kind in sorted(all_kinds):
+            # Partition the manifest list into the current `kind` and the rest.
+            tmp = [_ for _ in manifests if _[0].kind == kind]
+            manifests = [_ for _ in manifests if _[0].kind != kind]
+
+            # Append the manifests ordered by their MetaManifest.
+            man_sorted += sorted(tmp, key=lambda _: _[0])
+
+        # sanity check: we must have used up all manifests.
+        assert len(manifests) == 0
 
         # Drop the MetaManifest, ie
         # Dict[Filepath:Tuple[MetaManifest, manifest]] -> Dict[Filepath:manifest]
@@ -872,7 +891,7 @@ def save(folder: Filepath, manifests: LocalManifestLists,
 
     """
     # Sort the manifest in each file by priority.
-    out, err = sort_manifests(kinds_order, manifests)
+    out, err = sort_manifests(manifests, kinds_order, kinds_order)
     if err:
         return True
 
