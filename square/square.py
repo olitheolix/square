@@ -568,7 +568,8 @@ def get_resources(
         assert not err and synced_manifests
 
         # Write the new manifest files.
-        err = manio.save(folder, synced_manifests, tuple(dtypes.SUPPORTED_KINDS))
+        err = manio.save(folder, synced_manifests, k8s_config.kinds,
+                         tuple(dtypes.SUPPORTED_KINDS))
         assert not err
     except AssertionError:
         return True

@@ -874,7 +874,7 @@ def sort_manifests(
 
 
 def save(folder: Filepath, manifests: LocalManifestLists,
-         kinds_order: Tuple[str, ...]) -> bool:
+         all_kinds: Collection[str], priority: Collection[str]) -> bool:
     """Saves all `manifests` as YAMLs in `folder`.
 
     Input:
@@ -882,16 +882,19 @@ def save(folder: Filepath, manifests: LocalManifestLists,
             Source folder.
         file_manifests: Dict[Filepath, Tuple(MetaManifest, dict)]
             Names of files and their Python dicts to save as YAML.
-        kinds_order: Tuple[str, ...]
-            The order in which to save the manifest types.
-            Example: ["Namespace", "Service", "Deployment"]
+        all_kinds: Collection[str]
+            Return with an error unless all `file_manifests` kinds are
+            among the ones declared in this list.
+        priority: Collection[str]
+            Sort the manifest in this order, or alphabetically at the end if
+            not in the list.
 
     Returns:
         None
 
     """
     # Sort the manifest in each file by priority.
-    out, err = sort_manifests(manifests, kinds_order, kinds_order)
+    out, err = sort_manifests(manifests, all_kinds, priority)
     if err:
         return True
 
