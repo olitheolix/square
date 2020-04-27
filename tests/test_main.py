@@ -365,12 +365,17 @@ class TestMain:
             ret = main.parse_commandline_args()
             assert ret.priorities == ["foo", "bar"]
 
-    def test_parse_commandline_get_grouping(self):
-        """The GET supports file hierarchy options."""
+    def test_parse_commandline_get_grouping(self, tmp_path):
+        """GET supports file hierarchy options."""
+        kubeconfig = tmp_path / "kubeconfig.yaml"
+        kubeconfig.write_text("")
+        base_cmd = ("square.py", "get", "all",
+                    "--kubeconfig", str(tmp_path / "kubeconfig.yaml"))
+
         # ----------------------------------------------------------------------
         # Default file system hierarchy.
         # ----------------------------------------------------------------------
-        with mock.patch("sys.argv", ["square.py", "get", "all"]):
+        with mock.patch("sys.argv", base_cmd):
             param = main.parse_commandline_args()
             assert param.groupby is None
 
@@ -381,8 +386,8 @@ class TestMain:
         # ----------------------------------------------------------------------
         # User defined file system hierarchy.
         # ----------------------------------------------------------------------
-        cmd = ["--groupby", "ns", "kind"]
-        with mock.patch("sys.argv", ["square.py", "get", "all", *cmd]):
+        cmd = ("--groupby", "ns", "kind")
+        with mock.patch("sys.argv", base_cmd + cmd):
             param = main.parse_commandline_args()
             assert param.groupby == ["ns", "kind"]
 
@@ -394,7 +399,7 @@ class TestMain:
         # Include a label into the hierarchy and use "ns" twice.
         # ----------------------------------------------------------------------
         cmd = ("--groupby", "ns", "label=foo", "ns")
-        with mock.patch("sys.argv", ["square.py", "get", "all", *cmd]):
+        with mock.patch("sys.argv", base_cmd + cmd):
             param = main.parse_commandline_args()
             assert param.groupby == ["ns", "label=foo", "ns"]
 
@@ -407,7 +412,7 @@ class TestMain:
         # at most once.
         # ----------------------------------------------------------------------
         cmd = ("--groupby", "ns", "label=foo", "label=bar")
-        with mock.patch("sys.argv", ["square.py", "get", "all", *cmd]):
+        with mock.patch("sys.argv", base_cmd + cmd):
             param = main.parse_commandline_args()
             assert param.groupby == ["ns", "label=foo", "label=bar"]
 
