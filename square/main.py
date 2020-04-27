@@ -306,17 +306,17 @@ def sanitise_resource_kinds(cfg: Commandline) -> Tuple[Commandline, bool]:
     if err:
         return (cfg, True)
 
-    # If the user did not specify any selectors then we assume it wants all.
+    # If the user did not specify any selectors then we assume he wants all resources.
     if len(cfg.selectors.kinds) == 0:
         cfg.selectors.kinds.update(k8sconfig.kinds)
 
-    # Translate colloquial names like to their canonical counterpart.
+    # Translate colloquial names to their canonical counterpart if possible.
     # Example: "svc" -> "Service"
-    try:
-        kinds = {k8sconfig.short2kind[_.lower()] for _ in cfg.selectors.kinds}
-    except KeyError as e:
-        logit.error(f"Unknown resource type {e}")
-        return (cfg, True)
+    # Do nothing if we do not recognise the name. This can happen because the
+    # user made a typo, or the resource is a custom resource that is not yet
+    # known. Since we cannot distinguish them, we allow typos and then ignore
+    # the resource during the get/plan/apply cycle.
+    kinds = {k8sconfig.short2kind.get(_.lower(), _) for _ in cfg.selectors.kinds}
 
     # Replace the (possibly) colloquial names with their correct K8s kinds.
     cfg.selectors.kinds.clear()
