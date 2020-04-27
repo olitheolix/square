@@ -773,7 +773,7 @@ class TestMainOptions:
         m_load.assert_called_once_with("folder", load_selectors)
         m_down.assert_called_once_with(k8sconfig, "k8s_client", selectors)
         m_sync.assert_called_once_with({}, "server", selectors, groupby, k8sconfig.kinds)
-        m_save.assert_called_once_with("folder", "synced", SUPPORTED_KINDS)
+        m_save.assert_called_once_with("folder", "synced", k8sconfig.kinds, SUPPORTED_KINDS)
 
         # Simulate an error with `manio.save`.
         m_save.return_value = (None, True)

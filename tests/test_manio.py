@@ -720,7 +720,9 @@ class TestYamlManifestIO:
         # Convert the data to YAML. The output would normally be passed to
         # `save_files` but here we will verify it directly (see below).
         # :: Dict[Filename:List[(MetaManifest, YamlDict)]] -> Dict[Filename:YamlStr]
-        assert not manio.save(tmp_path, updated_manifests, ("Deployment", ))
+        assert not manio.save(tmp_path, updated_manifests,
+                              all_kinds=("Deployment", ),
+                              priority=("Deployment", ))
 
         # Expected output after we merged back the changes (reminder: `dply[1]`
         # is different, `dply[{3,5}]` were deleted and `dply[{6,7}]` are new).
@@ -1061,8 +1063,8 @@ class TestYamlManifestIOIntegration:
     def test_load_save_ok(self, tmp_path):
         """Basic test that uses the {load,save} convenience functions."""
         # Generic selector that matches all manifests in this test.
-        kinds_order = ("Deployment", )
-        selectors = Selectors(set(kinds_order), None, set())
+        priority = ("Deployment", )
+        selectors = Selectors(set(priority), None, set())
 
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
@@ -1075,7 +1077,7 @@ class TestYamlManifestIOIntegration:
         del dply, meta
 
         # Save the test data, then load it back and verify.
-        assert manio.save(tmp_path, man_files, kinds_order) is False
+        assert manio.save(tmp_path, man_files, priority, priority) is False
         assert manio.load(tmp_path, selectors) == (*expected, False)
 
         # Glob the folder and ensure it contains exactly the files specified in
@@ -1091,8 +1093,8 @@ class TestYamlManifestIOIntegration:
     def test_save_delete_stale_yaml(self, tmp_path):
         """`save_file` must remove all excess YAML files."""
         # Generic selector that matches all manifests in this test.
-        kinds_order = ("Deployment", )
-        selectors = Selectors(set(kinds_order), None, set())
+        priority = ("Deployment", )
+        selectors = Selectors(set(priority), None, set())
 
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
@@ -1109,7 +1111,7 @@ class TestYamlManifestIOIntegration:
         del dply, meta
 
         # Save and load the test data.
-        assert manio.save(tmp_path, man_files, kinds_order) is False
+        assert manio.save(tmp_path, man_files, priority, priority) is False
         assert manio.load(tmp_path, selectors) == (*expected, False)
 
         # Save a reduced set of files. Compared to `fdata_full`, it is two
@@ -1126,7 +1128,7 @@ class TestYamlManifestIOIntegration:
         assert (tmp_path / "bar/m4.yaml").exists()
 
         # Save the reduced set of files.
-        assert manio.save(tmp_path, fdata_reduced, kinds_order) is False
+        assert manio.save(tmp_path, fdata_reduced, priority, priority) is False
 
         # Load the data. It must neither contain the files we removed from the
         # dict above, nor "bar/m4.yaml" which contained an empty manifest list.
@@ -1159,7 +1161,8 @@ class TestYamlManifestIOIntegration:
         }
 
         # Test function must return with an error.
-        assert manio.save(tmp_path, file_manifests, ("Deployment", )) is True
+        assert manio.save(tmp_path, file_manifests,
+                          ("Deployment", ), ("Deployment", )) is True
 
 
 class TestSync:
