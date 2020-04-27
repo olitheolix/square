@@ -1,7 +1,9 @@
 import copy
 import os
+import random
 import unittest.mock as mock
 
+import pytest
 import square.k8s as k8s
 import square.manio as manio
 import square.square as square
@@ -11,7 +13,7 @@ from square.dtypes import (
 )
 from square.k8s import resource
 
-from .test_helpers import make_manifest
+from .test_helpers import make_manifest, mk_deploy
 
 
 class TestLogging:
@@ -92,6 +94,87 @@ class TestBasic:
             delete=[DeltaDelete(meta, "url", "manifest")],
         )
         assert square.show_plan(plan) is False
+
+    def test_sort_manifests(self):
+        """Verify the sourted output for three files with randomly ordered manifests."""
+        # Convenience.
+        kinds_order = ("Namespace", "Service", "Deployment")
+
+        def mm(*args):
+            man = make_manifest(*args)
+            meta = manio.make_meta(man)
+            return (meta, man)
+
+        # Create valid MetaManifests.
+        meta_ns_a = mm("Namespace", "a", "a")
+        meta_ns_b = mm("Namespace", "b", "b")
+        meta_svc_a = [mm("Service", "a", f"d_{_}") for _ in range(10)]
+        meta_dply_a = [mm("Deployment", "a", f"d_{_}") for _ in range(10)]
+        meta_svc_b = [mm("Service", "b", f"d_{_}") for _ in range(10)]
+        meta_dply_b = [mm("Deployment", "b", f"d_{_}") for _ in range(10)]
+
+        # Define manifests in the correctly grouped and sorted order for three
+        # YAML files.
+        sorted_manifests_1 = [
+            meta_ns_a,
+            meta_ns_b,
+            meta_svc_a[0],
+            meta_svc_a[1],
+            meta_svc_b[0],
+            meta_svc_b[1],
+            meta_dply_a[0],
+            meta_dply_a[1],
+            meta_dply_b[0],
+            meta_dply_b[1],
+        ]
+        sorted_manifests_2 = [
+            meta_svc_a[0],
+            meta_svc_a[1],
+            meta_dply_b[0],
+            meta_dply_b[1],
+        ]
+        sorted_manifests_3 = [
+            meta_ns_a,
+            meta_svc_b[0],
+            meta_dply_a[1],
+        ]
+
+        # Compile input and expected output for test function.
+        file_manifests = {
+            "m0.yaml": sorted_manifests_1.copy(),
+            "m1.yaml": sorted_manifests_2.copy(),
+            "m2.yaml": sorted_manifests_3.copy(),
+        }
+        expected = {k: [man for _, man in v] for k, v in file_manifests.items()}
+
+        # Shuffle the manifests in each file and verify that the test function
+        # always produces the correct order, ie NS, SVC, DEPLOY, and all
+        # manifests in each group sorted by namespace and name.
+        random.seed(1)
+        for i in range(10):
+            for fname in file_manifests:
+                random.shuffle(file_manifests[fname])
+            assert square.sort_manifests(kinds_order, file_manifests) == (expected, False)
+
+    def test_sort_manifests_unknown_kinds(self):
+        """Must handle unknown resource kinds gracefully."""
+        kinds_order = ("Deployments", )
+        unsupported_kinds = (
+            "DEPLOYMENT",       # wrong capitalisation
+            "Service",          # unknown
+            "Pod",              # we do not support Pod manifests
+        )
+
+        # Convenience.
+        def mm(*args):
+            man = make_manifest(*args)
+            meta = manio.make_meta(man)
+            return (meta, man)
+
+        # Test function must gracefully reject all invalid kinds.
+        for kind in unsupported_kinds:
+            file_manifests = {"m0.yaml": [mm(kind, "ns", "name")]}
+            assert square.sort_manifests(kinds_order, file_manifests) == ({}, True)
 
 
 class TestPartition:
