@@ -941,7 +941,7 @@ def download(
             # by a typo or that it is a custom resource that does not (yet) exist.
             resource, err = square.k8s.resource(config, MetaManifest("", kind, namespace, ""))  # noqa
             if err:
-                logit.warning(f"Skipping unknown resource {kind}")
+                logit.warning(f"Skipping unknown resource <{kind}>")
                 continue
 
             try:
