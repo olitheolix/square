@@ -11,7 +11,9 @@ import colorama
 import square
 import square.square
 from square import __version__
-from square.dtypes import Commandline, Filepath, GroupBy, Selectors
+from square.dtypes import (
+    SUPPORTED_KINDS, Commandline, Filepath, GroupBy, Selectors,
+)
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
@@ -58,6 +60,11 @@ def parse_commandline_args():
         "-l", "--labels", type=_validate_label, nargs="*",
         metavar="labels", dest="labels", default=tuple(),
         help="Only select resources with these labels (eg 'app=foo')",
+    )
+    parent.add_argument(
+        "-p", "--priorities", nargs="*",
+        metavar="priorities", dest="priorities", default=tuple(SUPPORTED_KINDS),
+        help="Sort resource in this order when saving and applying",
     )
     parent.add_argument(
         "--kubeconfig", type=str, metavar="path",

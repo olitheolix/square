@@ -344,6 +344,19 @@ class TestMain:
             ret = main.parse_commandline_args()
             assert ret.labels == [("foo", "bar"), ("x", "y")]
 
+    def test_parse_commandline_args_priority(self):
+        """Custom priorities must override the default."""
+        args = ["square.py", "get", "ns"]
+        # User did not specify a priority.
+        with mock.patch("sys.argv", args):
+            ret = main.parse_commandline_args()
+            assert ret.priorities == SUPPORTED_KINDS
+
+        # User did specify priorities.
+        with mock.patch("sys.argv", args + ["--priorities", "foo", "bar"]):
+            ret = main.parse_commandline_args()
+            assert ret.priorities == ["foo", "bar"]
+
     def test_parse_commandline_get_grouping(self):
         """The GET supports file hierarchy options."""
         # ----------------------------------------------------------------------
