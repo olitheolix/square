@@ -38,6 +38,7 @@ def dummy_command_param():
         kubeconfig=fname,
         ctx=None,
         groupby=None,
+        priorities=("Namespace", "Deployment"),
     )
 
 
@@ -59,6 +60,7 @@ class TestResourceCleanup:
                 labels={("app", "morty"), ("foo", "bar")},
             ),
             groupby=GroupBy("", tuple()),
+            priorities=("Namespace", "Deployment"),
         )
 
         # Convert the resource names to their correct K8s kind.
@@ -68,7 +70,7 @@ class TestResourceCleanup:
         # Add two invalid resource names. This must return with an error.
         cfg.selectors.kinds.clear()
         cfg.selectors.kinds.update({"invalid", "k8s-resource-kind"})
-        ret, err = main.sanitise_resource_kinds(cfg)
+        _, err = main.sanitise_resource_kinds(cfg)
         assert err and ret.selectors.kinds == {"invalid", "k8s-resource-kind"}
 
     def test_sanitise_resource_kinds_err_config(self, k8sconfig):
@@ -85,9 +87,10 @@ class TestResourceCleanup:
                 labels={("app", "morty"), ("foo", "bar")},
             ),
             groupby=GroupBy("", tuple()),
+            priorities=("Namespace", "Deployment"),
         )
 
-        ret, err = main.sanitise_resource_kinds(cfg)
+        _, err = main.sanitise_resource_kinds(cfg)
         assert err
 
 
@@ -108,6 +111,7 @@ class TestMain:
                 labels={("app", "morty"), ("foo", "bar")}
             ),
             groupby=GroupBy(label='', order=[]),
+            priorities=("Namespace", "Deployment"),
         )
 
     def test_compile_config_kinds(self):
@@ -145,6 +149,7 @@ class TestMain:
                 kube_ctx=None,
                 selectors=Selectors(set(), None, None),
                 groupby=GroupBy("", tuple()),
+                priorities=tuple(),
             ), True)
 
     def test_compile_hierarchy_ok(self):
@@ -159,6 +164,7 @@ class TestMain:
             kube_ctx=None,
             selectors=Selectors(set(), None, None),
             groupby=GroupBy("", tuple()),
+            priorities=tuple(),
         ), True
 
         # ----------------------------------------------------------------------
@@ -411,6 +417,7 @@ class TestMain:
             kube_ctx=None,
             selectors=Selectors(set(), None, None),
             groupby=GroupBy("", tuple()),
+            priorities=tuple(),
         )
         assert main.compile_config(param) == (expected, True)
 

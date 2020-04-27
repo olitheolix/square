@@ -161,9 +161,9 @@ class Commandline(NamedTuple):
     selectors: Selectors
     groupby: GroupBy
     kubeconfig: Filepath
+    priorities: Collection[str]
     kube_ctx: Optional[str] = None
     verbosity: int = 0
-    priority: Collection[str] = tuple(SUPPORTED_KINDS)
 
 
 # -----------------------------------------------------------------------------
