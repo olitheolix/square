@@ -45,9 +45,10 @@ def dummy_command_param():
 class TestResourceCleanup:
     @mock.patch.object(square.k8s, "cluster_config")
     def test_sanitise_resource_kinds(self, m_cluster, k8sconfig):
-        """An invalid resource name must abort the program."""
+        """Must expand the short names if possible, and leave as is otherwise."""
         m_cluster.side_effect = lambda *args: (k8sconfig, None, False)
 
+        # Use specified a valid set of `selectors.kinds` using various spellings.
         cfg = Commandline(
             command='get',
             verbosity=9,
@@ -67,14 +68,15 @@ class TestResourceCleanup:
         ret, err = main.sanitise_resource_kinds(cfg)
         assert not err and ret.selectors.kinds == {"Service", "Deployment", "Secret"}
 
-        # Add two invalid resource names. This must return with an error.
+        # Add two invalid resource names. This must succeed and return the
+        # resource names unchanged.
         cfg.selectors.kinds.clear()
         cfg.selectors.kinds.update({"invalid", "k8s-resource-kind"})
         _, err = main.sanitise_resource_kinds(cfg)
-        assert err and ret.selectors.kinds == {"invalid", "k8s-resource-kind"}
+        assert not err and ret.selectors.kinds == {"invalid", "k8s-resource-kind"}
 
     def test_sanitise_resource_kinds_err_config(self, k8sconfig):
-        """An invalid resource name must abort the program."""
+        """Abort if the kubeconfig file does not exist."""
         cfg = Commandline(
             command='get',
             verbosity=9,
