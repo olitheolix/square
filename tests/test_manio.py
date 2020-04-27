@@ -1785,6 +1785,7 @@ class TestDownloadManifests:
         # ----------------------------------------------------------------------
         # Request resources from all namespaces implicitly via namespaces=None
         # Must make two calls: one for each kind ("Deployment", "Namespace").
+        # Must silently ignore the "Unknown" resource.
         # ----------------------------------------------------------------------
         m_get.reset_mock()
         m_get.side_effect = [
@@ -1794,7 +1795,7 @@ class TestDownloadManifests:
         expected = {make_meta(_): manio.strip(k8sconfig, _, exclude)[0][0] for _ in meta}
         ret = manio.download(
             k8sconfig, "client",
-            Selectors({"Namespace", "Deployment"}, None, None)
+            Selectors({"Namespace", "Deployment", "Unknown"}, None, None)
         )
         assert ret == (expected, False)
         assert m_get.call_args_list == [
