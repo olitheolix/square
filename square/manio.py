@@ -307,52 +307,6 @@ def sort_manifests(
     return out, False
 
 
-def unparse(file_manifests: LocalManifestLists,
-            kinds_order: Tuple[str, ...]) -> Tuple[Dict[Filepath, str], bool]:
-    """Convert the Python dict to a Yaml string for each file and return it.
-
-    The output dict can be passed directly to `save_files`.
-
-    Inputs:
-        file_manifests: Dict[Filepath:Tuple[MetaManifest, manifest]]
-            Typically the output from eg `manio.sync`.
-        kinds_order: Tuple[str, ...]
-            The order in which to save the manifest types.
-            Example: ["Namespace", "Service", "Deployment"]
-
-    Returns:
-        Dict[Filepath:YamlStr]: Yaml representation of all manifests.
-
-    """
-    # Sort the manifest in each file by priority.
-    out, err = sort_manifests(kinds_order, file_manifests)
-    if err:
-        return {}, True
-
-    # Ignore all files without manifests, ie empty files.
-    out_nonempty = {k: v for k, v in out.items() if len(v) > 0}
-    del out
-
-    # Ensure we have no `DotDicts` left. This will avoid problems with the YAML
-    # serialisation below.
-    out_clean = {k: square.dotdict.undo(v) for k, v in out_nonempty.items()}
-    del out_nonempty
-
-    # Convert all manifest dicts into YAML strings.
-    out_final: Dict[Filepath, str] = {}
-    try:
-        for fname, v in out_clean.items():
-            out_final[fname] = yaml.safe_dump_all(v, default_flow_style=False)
-    except yaml.YAMLError as e:
-        logit.error(
-            f"YAML error. Cannot create <{fname}>: {e.args[0]} <{str(e.args[1])}>"
-        )
-        return ({}, True)
-
-    # Return the Dict[Filepath:YamlStr]
-    return (out_final, False)
-
-
 def sync(
         local_manifests: LocalManifestLists,
         server_manifests: ServerManifests,
@@ -882,12 +836,7 @@ def load(folder: Filepath, selectors: Selectors) -> Tuple[
 
 def save(folder: Filepath, manifests: LocalManifestLists,
          kinds_order: Tuple[str, ...]) -> bool:
-    """Convert all `manifests` to YAML and save them.
-
-    Returns no data in the case of an error.
-
-    NOTE: this is merely a wrapper around the various low-level functions to
-    create YAML string and save the files.
+    """Saves all `manifests` as YAMLs in `folder`.
 
     Input:
         folder: Filepath
@@ -902,13 +851,33 @@ def save(folder: Filepath, manifests: LocalManifestLists,
         None
 
     """
-    # Convert the manifest to YAML strings. Abort on error.
-    fdata_raw, err = unparse(manifests, kinds_order)
-    if err or fdata_raw is None:
+    # Sort the manifest in each file by priority.
+    out, err = sort_manifests(kinds_order, manifests)
+    if err:
+        return True
+
+    # Ignore all files without manifests, ie empty files.
+    out_nonempty = {k: v for k, v in out.items() if len(v) > 0}
+    del out
+
+    # Ensure we have no `DotDicts` left. This will avoid problems with the YAML
+    # serialisation below.
+    out_clean = {k: square.dotdict.undo(v) for k, v in out_nonempty.items()}
+    del out_nonempty
+
+    # Convert all manifest dicts into YAML strings.
+    out_final: Dict[Filepath, str] = {}
+    try:
+        for fname, v in out_clean.items():
+            out_final[fname] = yaml.safe_dump_all(v, default_flow_style=False)
+    except yaml.YAMLError as e:
+        logit.error(
+            f"YAML error. Cannot create <{fname}>: {e.args[0]} <{str(e.args[1])}>"
+        )
         return True
 
     # Save the files to disk.
-    return save_files(folder, fdata_raw)
+    return save_files(folder, out_final)
 
 
 def download(

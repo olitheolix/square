@@ -453,21 +453,6 @@ class TestYamlManifestIO:
         }
         assert manio.unpack(src) == ({}, True)
 
-    def test_unparse_invalid_manifest(self):
-        """Must handle YAML errors gracefully."""
-        # Create valid MetaManifests.
-        meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
-
-        # Input to test function where one "manifest" is garbage that cannot be
-        # converted to a YAML string, eg a Python frozenset.
-        file_manifests = {
-            "m0.yaml": [(meta[0], "0"), (meta[1], frozenset(("invalid", "input")))],
-            "m1.yaml": [(meta[2], "2")],
-        }
-
-        # Test function must return with an error.
-        assert manio.unparse(file_manifests, ("Deployment", )) == ({}, True)
-
     def test_manifest_lifecycle(self, k8sconfig, tmp_path):
         """Load, sync and save manifests the hard way.
 
@@ -960,11 +945,20 @@ class TestYamlManifestIOIntegration:
         m_load.return_value = ({}, True)
         assert manio.load(tmp_path, selectors) == ({}, {}, True)
 
-    @mock.patch.object(manio, "unparse")
-    def test_save_err(self, m_unparse, tmp_path):
-        """Simulate an error in `unparse` function."""
-        m_unparse.return_value = ({}, True)
-        assert manio.save(tmp_path, "foo", ("Deployment", )) is True
+    def test_save_invalid_manifest(self, tmp_path):
+        """Must handle YAML errors gracefully."""
+        # Create valid MetaManifests.
+        meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
+
+        # Input to test function where one "manifest" is garbage that cannot be
+        # converted to a YAML string, eg a Python frozenset.
+        file_manifests = {
+            "m0.yaml": [(meta[0], "0"), (meta[1], frozenset(("invalid", "input")))],
+            "m1.yaml": [(meta[2], "2")],
+        }
+
+        # Test function must return with an error.
+        assert manio.save(tmp_path, file_manifests, ("Deployment", )) is True
 
 
 class TestSync:
