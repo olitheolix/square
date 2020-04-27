@@ -8,8 +8,8 @@ import square.k8s as k8s
 import square.manio as manio
 import square.square as square
 from square.dtypes import (
-    SUPPORTED_KINDS, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    GroupBy, JsonPatch, K8sConfig, MetaManifest, Selectors,
+    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, GroupBy, JsonPatch,
+    K8sConfig, MetaManifest, Selectors,
 )
 from square.k8s import resource
 
