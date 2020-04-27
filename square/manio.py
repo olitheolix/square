@@ -806,6 +806,21 @@ def sort_manifests(
         kinds_order: Collection[str],
         file_manifests: LocalManifestLists,
 ) -> Tuple[Dict[Filepath, Collection[MetaManifest]], bool]:
+    """Sort the manifests in each `file_manifests` by their `priority`.
+
+    The returned data contains only the manifests without the `MetaData`. The
+    idea is to pass that data directly to `save_files`.
+
+    Inputs:
+        file_manifests: the manifests that should go into each file.
+        all_kinds: Collection[str]
+            Return with an error unless all `file_manifests` kinds are
+            among the ones declared in this list.
+        priority: Collection[str]
+            Sort the manifest in this order, or alphabetically at the end if
+            not in the list.
+
+    """
 
     out: Dict[Filepath, Collection[MetaManifest]] = {}
     for fname, manifests in file_manifests.items():
