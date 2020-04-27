@@ -462,7 +462,7 @@ def resource(config: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
         # Use the most recent version of the API if None was specified.
         candidates = [(kind, ver) for kind, ver in config.apis if kind == meta.kind]
         if len(candidates) == 0:
-            logit.error(f"Cannot determine API version for <{meta.kind}>")
+            logit.warning(f"Cannot determine API version for <{meta.kind}>")
             return err_resp
         candidates.sort()
         key = candidates.pop(0)
