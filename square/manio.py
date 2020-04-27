@@ -804,7 +804,6 @@ def load(folder: Filepath, selectors: Selectors) -> Tuple[
 
 def sort_manifests(
         file_manifests: LocalManifestLists,
-        all_kinds: Collection[str],
         priority: Collection[str]
 ) -> Tuple[Dict[Filepath, Collection[MetaManifest]], bool]:
     """Sort the manifests in each `file_manifests` by their `priority`.
@@ -814,31 +813,14 @@ def sort_manifests(
 
     Inputs:
         file_manifests: the manifests that should go into each file.
-        all_kinds: Collection[str]
-            Return with an error unless all `file_manifests` kinds are
-            among the ones declared in this list.
         priority: Collection[str]
             Sort the manifest in this order, or alphabetically at the end if
             not in the list.
 
     """
-    # Return with an error if `priority` is not a sub-set of `all_kinds`.
-    delta = set(priority) - set(all_kinds)
-    if len(delta) > 0:
-        logit.error(f"The priority list must be a subset of all_kinds: {diff}")
-        return ({}, True)
-
     # Sort the manifests in each file.
     out: Dict[Filepath, Collection[MetaManifest]] = {}
     for fname, manifests in file_manifests.items():
-        # Verify that this file contains only supported resource kinds.
-        kinds = {meta.kind for meta, _ in manifests}
-        delta = kinds - set(all_kinds)
-        if len(delta) > 0:
-            logit.error(f"Found unsupported K8s resources in {fname}: {delta}")
-            return ({}, True)
-        del kinds, delta
-
         # Group the manifests by their "kind" in order of `priority` and sort
         # each group alphabetically.
         man_sorted: List[dict] = []
@@ -852,7 +834,8 @@ def sort_manifests(
 
         # Group the remaining manifests by their "kind" and sort each group
         # alphabetically.
-        for kind in sorted(all_kinds):
+        remaining_kinds = {_[0].kind for _ in manifests}
+        for kind in sorted(remaining_kinds):
             # Partition the manifest list into the current `kind` and the rest.
             tmp = [_ for _ in manifests if _[0].kind == kind]
             manifests = [_ for _ in manifests if _[0].kind != kind]
@@ -874,7 +857,7 @@ def sort_manifests(
 
 
 def save(folder: Filepath, manifests: LocalManifestLists,
-         all_kinds: Collection[str], priority: Collection[str]) -> bool:
+         priority: Collection[str]) -> bool:
     """Saves all `manifests` as YAMLs in `folder`.
 
     Input:
@@ -882,9 +865,6 @@ def save(folder: Filepath, manifests: LocalManifestLists,
             Source folder.
         file_manifests: Dict[Filepath, Tuple(MetaManifest, dict)]
             Names of files and their Python dicts to save as YAML.
-        all_kinds: Collection[str]
-            Return with an error unless all `file_manifests` kinds are
-            among the ones declared in this list.
         priority: Collection[str]
             Sort the manifest in this order, or alphabetically at the end if
             not in the list.
@@ -894,7 +874,7 @@ def save(folder: Filepath, manifests: LocalManifestLists,
 
     """
     # Sort the manifest in each file by priority.
-    out, err = sort_manifests(manifests, all_kinds, priority)
+    out, err = sort_manifests(manifests, priority)
     if err:
         return True
 
