@@ -918,7 +918,7 @@ class TestManifestValidation:
 
 
 class TestDiff:
-    def test_diff_ok(self, k8sconfig):
+    def test_diff_ok(self, config, k8sconfig):
         """Diff two valid manifests and (roughly) verify the output."""
         # Two valid manifests.
         srv = make_manifest("Deployment", "namespace", "name1")
@@ -929,7 +929,7 @@ class TestDiff:
         loc = dotdict.make(loc)
 
         # Diff the manifests. Must not return an error.
-        diff_str, err = manio.diff(k8sconfig, loc, srv)
+        diff_str, err = manio.diff(config, k8sconfig, loc, srv)
         assert err is False
 
         # Since it is difficult to compare the correct diff string due to
@@ -938,7 +938,7 @@ class TestDiff:
         assert "-  name: name1" in diff_str
         assert "+  name: name2" in diff_str
 
-    def test_diff_err(self, k8sconfig):
+    def test_diff_err(self, config, k8sconfig):
         """Diff two valid manifests and verify the output."""
         # Create two valid manifests, then stunt one in such a way that
         # `essential` will reject it.
@@ -948,9 +948,9 @@ class TestDiff:
 
         # Test function must return with an error, irrespective of which
         # manifest was invalid.
-        assert manio.diff(k8sconfig, valid, invalid) == ("", True)
-        assert manio.diff(k8sconfig, invalid, valid) == ("", True)
-        assert manio.diff(k8sconfig, invalid, invalid) == ("", True)
+        assert manio.diff(config, k8sconfig, valid, invalid) == ("", True)
+        assert manio.diff(config, k8sconfig, invalid, valid) == ("", True)
+        assert manio.diff(config, k8sconfig, invalid, invalid) == ("", True)
 
 
 class TestYamlManifestIOIntegration:
@@ -1742,7 +1742,7 @@ class TestSync:
 
 class TestDownloadManifests:
     @mock.patch.object(k8s, 'get')
-    def test_download_ok(self, m_get, k8sconfig):
+    def test_download_ok(self, m_get, config, k8sconfig):
         """Download two kinds of manifests: Deployments and Namespaces.
 
         The test only mocks the K8s API call. All other functions actually run.
@@ -1792,9 +1792,8 @@ class TestDownloadManifests:
             (l_dply, False),
         ]
         expected = {make_meta(_): manio.strip(k8sconfig, _, exclude)[0][0] for _ in meta}
-        ret = manio.download(
-            k8sconfig, Selectors({"Namespace", "Deployment", "Unknown"}, None, None)
-        )
+        selectors = Selectors({"Namespace", "Deployment", "Unknown"}, None, None)
+        ret = manio.download(config._replace(selectors=selectors), k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_args_list == [
             mock.call(k8sconfig.client, res_deploy.url),
@@ -1814,9 +1813,9 @@ class TestDownloadManifests:
             (l_ns_1, False),
             (l_dply_1, False),
         ]
-        assert (expected, False) == manio.download(
-            k8sconfig, Selectors({"Namespace", "Deployment"}, ["ns0", "ns1"], None)
-        )
+        selectors = Selectors({"Namespace", "Deployment"}, ["ns0", "ns1"], None)
+        ret = manio.download(config._replace(selectors=selectors), k8sconfig)
+        assert ret == (expected, False)
         assert m_get.call_args_list == [
             mock.call(k8sconfig.client, res_dply_0.url),
             mock.call(k8sconfig.client, res_ns_0.url),
@@ -1839,16 +1838,16 @@ class TestDownloadManifests:
             make_meta(meta[0]): manio.strip(k8sconfig, meta[0], exclude)[0][0],
             make_meta(meta[2]): manio.strip(k8sconfig, meta[2], exclude)[0][0],
         }
-        assert (expected, False) == manio.download(
-            k8sconfig, Selectors({"Namespace", "Deployment"}, ["ns0"], None)
-        )
+        selectors = Selectors({"Namespace", "Deployment"}, ["ns0"], None)
+        ret = manio.download(config._replace(selectors=selectors), k8sconfig)
+        assert ret == (expected, False)
         assert m_get.call_args_list == [
             mock.call(k8sconfig.client, res_dply_0.url),
             mock.call(k8sconfig.client, res_ns_0.url),
         ]
 
     @mock.patch.object(k8s, 'get')
-    def test_download_err(self, m_get, k8sconfig):
+    def test_download_err(self, m_get, config, k8sconfig):
         """Simulate a download error."""
         # A valid NamespaceList with one element.
         man_list_ns = {
@@ -1865,10 +1864,13 @@ class TestDownloadManifests:
         res_deploy, err2 = resource(k8sconfig, MetaManifest("", "Deployment", None, ""))
         assert not err1 and not err2
 
+        config = config._replace(
+            selectors=Selectors({"Namespace", "Deployment"}, None, None)
+        )
+
         # Run test function and verify it returns an error and no data, despite
         # a successful `NamespaceList` download.
-        ret = manio.download(k8sconfig,
-                             Selectors({"Namespace", "Deployment"}, None, None))
+        ret = manio.download(config, k8sconfig)
         assert ret == ({}, True)
         assert m_get.call_args_list == [
             mock.call(k8sconfig.client, res_deploy.url),

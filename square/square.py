@@ -20,12 +20,15 @@ logit = logging.getLogger("square")
 
 
 def make_patch(
+        config: Config,
         k8sconfig: K8sConfig,
         local: ServerManifests,
         server: ServerManifests) -> Tuple[JsonPatch, bool]:
     """Return JSON patch to transition `server` to `local`.
 
     Inputs:
+        config: Square configuration.
+        k8sconfig: K8sConfig
         local: LocalManifests
             Usually the dictionary keys returned by `load_manifest`.
         server: ServerManifests
@@ -164,6 +167,7 @@ def preferred_api(k8sconfig: K8sConfig,
 
 
 def compile_plan(
+        config: Config,
         k8sconfig: K8sConfig,
         local: ServerManifests,
         server: ServerManifests) -> Tuple[DeploymentPlan, bool]:
@@ -174,6 +178,7 @@ def compile_plan(
     specified in `local`.
 
     Inputs:
+        config: Square configuration.
         k8sconfig: K8sConfig
         local: ServerManifests
             Should be output from `load_manifest` or `load`.
@@ -235,13 +240,13 @@ def compile_plan(
     patches = []
     for meta in plan.patch:
         # Compute textual diff (only useful for the user to study the diff).
-        diff_str, err = manio.diff(k8sconfig, local[meta], server[meta])
+        diff_str, err = manio.diff(config, k8sconfig, local[meta], server[meta])
         if err or diff_str is None:
             return err_resp
 
         # Compute the JSON patch that will change the K8s state to match the
         # one in the local files.
-        patch, err = make_patch(k8sconfig, local[meta], server[meta])
+        patch, err = make_patch(config, k8sconfig, local[meta], server[meta])
         if err or patch is None:
             return err_resp
 
@@ -473,7 +478,7 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         assert not err
 
         # Download manifests from K8s.
-        server, err = manio.download(k8sconfig, cfg.selectors)
+        server, err = manio.download(cfg, k8sconfig)
         assert not err
 
         # Align non-plannable fields, like the ServiceAccount tokens.
@@ -481,7 +486,7 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         assert not err
 
         # Create deployment plan.
-        plan, err = compile_plan(k8sconfig, local_meta, server)
+        plan, err = compile_plan(cfg, k8sconfig, local_meta, server)
         assert not err and plan
     except AssertionError:
         return (DeploymentPlan(tuple(), tuple(), tuple()), True)
@@ -494,7 +499,7 @@ def get_resources(cfg: Config) -> bool:
     """Download all K8s manifests and merge them into local files."""
     try:
         # Create properly configured Requests session to talk to K8s API.
-        k8s_config, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
+        k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
         assert not err
 
         # Use a wildcard Selector to ensure `manio.load` will read _all_ local
@@ -503,7 +508,7 @@ def get_resources(cfg: Config) -> bool:
         # write the new ones. This logic will ensure we never have stale manifests
         # (see `manio.save_files` for details and how `manio.save`, which we call
         # at the end of this function, uses it).
-        load_selectors = Selectors(kinds=k8s_config.kinds,
+        load_selectors = Selectors(kinds=k8sconfig.kinds,
                                    labels=None,
                                    namespaces=None)
 
@@ -512,13 +517,13 @@ def get_resources(cfg: Config) -> bool:
         assert not err
 
         # Download manifests from K8s.
-        server, err = manio.download(k8s_config, cfg.selectors)
+        server, err = manio.download(cfg, k8sconfig)
         assert not err
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see `manio.save` in the next step.
         synced_manifests, err = manio.sync(local, server, cfg.selectors,
-                                           cfg.groupby, k8s_config.kinds)
+                                           cfg.groupby, k8sconfig.kinds)
         assert not err and synced_manifests
 
         # Write the new manifest files.
