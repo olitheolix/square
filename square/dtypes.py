@@ -154,7 +154,7 @@ class GroupBy(NamedTuple):
     order: Iterable[str]        # ["ns", "label=app", kind"]
 
 
-class Commandline(NamedTuple):
+class Config(NamedTuple):
     """Convenience structure for `main.py` - not used internally."""
     folder: Filepath
     groupby: GroupBy
