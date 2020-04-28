@@ -156,14 +156,12 @@ class GroupBy(NamedTuple):
 
 class Commandline(NamedTuple):
     """Convenience structure for `main.py` - not used internally."""
-    command: str
     folder: Filepath
-    selectors: Selectors
     groupby: GroupBy
+    kube_ctx: Optional[str]
     kubeconfig: Filepath
     priorities: Collection[str]
-    kube_ctx: Optional[str] = None
-    verbosity: int = 0
+    selectors: Selectors
 
 
 # -----------------------------------------------------------------------------
