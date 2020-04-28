@@ -671,7 +671,6 @@ class TestYamlManifestIO:
             fdata_meta, server_manifests,
             Selectors({"Deployment"}, namespaces=None, labels=None),
             groupby,
-            k8sconfig.kinds,
         )
         assert err is False
 
@@ -1304,22 +1303,18 @@ class TestSync:
         # ----------------------------------------------------------------------
         expected = loc_man
         selectors = Selectors(set(), namespaces=None, labels=None)
-        assert fun(loc_man, srv_man, selectors, groupby, kinds) == (expected, False)
+        assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         selectors = Selectors(set(), namespaces=[], labels=None)
-        assert fun(loc_man, srv_man, selectors, groupby, kinds) == (expected, False)
+        assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         selectors = Selectors({"Deployment", "Service"}, namespaces=[], labels=None)
-        assert fun(loc_man, srv_man, selectors, groupby, kinds) == (expected, False)
+        assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # NOTE: this must *not* sync the Namespace manifest from "ns1" because
         # it was not an explicitly specified resource.
         selectors = Selectors(set(), namespaces=["ns1"], labels=None)
-        assert fun(loc_man, srv_man, selectors, groupby, kinds) == (expected, False)
-
-        # Invalid/unsupported kinds.
-        selectors = Selectors({"Foo"}, namespaces=None, labels=None)
-        assert fun(loc_man, srv_man, selectors, groupby, kinds) == ({}, True)
+        assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # ----------------------------------------------------------------------
         # Sync all namespaces implicitly (Namespaces, Deployments, Services).
@@ -1341,12 +1336,12 @@ class TestSync:
 
             # Implicitly use all namespaces.
             selectors = Selectors(kinds, namespaces=None, labels=None)
-            assert fun(loc_man, srv_man, selectors, groupby, kinds) == expected
+            assert fun(loc_man, srv_man, selectors, groupby) == expected
 
             # Specify all namespaces explicitly.
             for ns in itertools.permutations(["ns0", "ns1"]):
                 selectors = Selectors(kinds, namespaces=ns, labels=None)
-                assert fun(loc_man, srv_man, selectors, groupby, kinds) == expected
+                assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
         # Sync the server manifests in namespace "ns0".
@@ -1364,7 +1359,7 @@ class TestSync:
         for kinds in itertools.permutations(["Deployment", "Service"]):
             kinds = set(kinds)
             selectors = Selectors(kinds, namespaces=["ns0"], labels=None)
-            assert fun(loc_man, srv_man, selectors, groupby, kinds) == expected
+            assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
         # Sync only Deployments (all namespaces).
@@ -1380,7 +1375,7 @@ class TestSync:
             ],
         }, False
         selectors = Selectors({"Deployment"}, namespaces=None, labels=None)
-        assert fun(loc_man, srv_man, selectors, groupby, kinds) == expected
+        assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
         # Sync only Deployments in namespace "ns0".
@@ -1396,7 +1391,7 @@ class TestSync:
             ],
         }, False
         selectors = Selectors({"Deployment"}, namespaces=["ns0"], labels=None)
-        assert fun(loc_man, srv_man, selectors, groupby, kinds) == expected
+        assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
         # Sync only Services in namespace "ns1".
@@ -1412,7 +1407,7 @@ class TestSync:
             ],
         }, False
         selectors = Selectors({"Service"}, namespaces=["ns1"], labels=None)
-        assert fun(loc_man, srv_man, selectors, groupby, kinds) == expected
+        assert fun(loc_man, srv_man, selectors, groupby) == expected
 
     @mock.patch.object(manio, "filename_for_manifest")
     def test_sync_modify_delete_ok(self, m_fname):
@@ -1475,7 +1470,7 @@ class TestSync:
                               (meta_1[8], man_1[8])],
         }, False
         selectors = Selectors(kinds, namespaces, labels=None)
-        assert manio.sync(loc_man, srv_man, selectors, groupby, kinds) == expected
+        assert manio.sync(loc_man, srv_man, selectors, groupby) == expected
 
     def test_sync_catch_all_files(self):
         """Verify that syncing the catch-all files works as expected.
@@ -1562,7 +1557,7 @@ class TestSync:
             ],
         }, False
         selectors = Selectors(kinds, namespaces, labels=None)
-        assert manio.sync(loc_man, srv_man, selectors, groupby, kinds) == expected
+        assert manio.sync(loc_man, srv_man, selectors, groupby) == expected
 
     def test_sync_filename_err(self, k8sconfig):
         """Must gracefully handle errors in `filename_for_manifest`.
@@ -1584,8 +1579,7 @@ class TestSync:
         # `filename_for_manifest` will return an error and we can verify if
         # `sync` gracefully handles it and returns an error.
         groupby = GroupBy(order=["blah"], label="")
-        assert manio.sync(loc_man, srv_man, selectors,
-                          groupby, k8sconfig.kinds) == ({}, True)
+        assert manio.sync(loc_man, srv_man, selectors, groupby) == ({}, True)
 
     def test_service_account_support_file(self):
         """Ensure the ServiceAccount support file has the correct setup.

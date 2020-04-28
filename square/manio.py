@@ -4,7 +4,7 @@ import difflib
 import logging
 import pathlib
 from typing import (
-    Collection, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple,
+    Collection, DefaultDict, Dict, Iterable, List, Optional, Tuple,
 )
 
 import square.dotdict
@@ -278,8 +278,7 @@ def unpack(manifests: LocalManifestLists) -> Tuple[ServerManifests, bool]:
 def sync(local_manifests: LocalManifestLists,
          server_manifests: ServerManifests,
          selectors: Selectors,
-         groupby: GroupBy,
-         all_kinds: Set[str]) -> Tuple[LocalManifestLists, bool]:
+         groupby: GroupBy) -> Tuple[LocalManifestLists, bool]:
     """Update the local manifests with the server values and return the result.
 
     Inputs:
@@ -289,19 +288,11 @@ def sync(local_manifests: LocalManifestLists,
             Only operate on resources that match the selectors.
         groupby: GroupBy
             Specify relationship between new manifests and file names.
-        all_kinds: Set[str]
-            The set of allowed kinds in `{local,server}_manifests`.
 
     Returns:
         Dict[Filepath, Tuple[MetaManifest, dict]]
 
     """
-    # Sanity check: all `kinds` must be supported or we abort.
-    if not selectors.kinds.issubset(all_kinds):
-        unsupported = selectors.kinds - set(all_kinds)
-        logit.error(f"Cannot sync unsupported kinds: {unsupported}")
-        return ({}, True)
-
     # Avoid side effects.
     server_manifests = copy.deepcopy(server_manifests)
 

@@ -760,7 +760,7 @@ class TestMainOptions:
         assert square.get_resources(config) is False
         m_load.assert_called_once_with(config.folder, load_selectors)
         m_down.assert_called_once_with(config, k8sconfig)
-        m_sync.assert_called_once_with({}, "server", config.selectors, config.groupby, k8sconfig.kinds)  # noqa
+        m_sync.assert_called_once_with({}, "server", config.selectors, config.groupby)
         m_save.assert_called_once_with(config.folder, "synced", config.priorities)
 
         # Simulate an error with `manio.save`.
