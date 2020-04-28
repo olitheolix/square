@@ -17,7 +17,7 @@ def pytest_configure(*args, **kwargs):
 @pytest.fixture
 def kube_creds(request, k8sconfig):
     with mock.patch.object(square.k8s, "cluster_config") as m:
-        m.return_value = (k8sconfig, "k8s_client", False)
+        m.return_value = (k8sconfig, False)
         yield k8sconfig
 
 
@@ -25,7 +25,7 @@ def kube_creds(request, k8sconfig):
 def k8sconfig():
     # Return a valid K8sConfig with a subsection of API endpoints available in
     # K8s v1.15.
-    cfg = square.dtypes.K8sConfig(version="1.15")
+    cfg = square.dtypes.K8sConfig(version="1.15", client="k8s_client")
 
     # The set of API endpoints we can use in the tests.
     cfg.apis.clear()

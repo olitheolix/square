@@ -425,14 +425,14 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     """
     try:
         # Create properly configured Requests session to talk to K8s API.
-        k8s_config, k8s_client, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
-        assert not err and k8s_config and k8s_client
+        k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
+        assert not err
 
         # Create the missing resources.
         for data_c in plan.create:
             print(f"Creating {data_c.meta.kind.upper()} "
                   f"{data_c.meta.namespace}/{data_c.meta.name}")
-            _, err = k8s.post(k8s_client, data_c.url, data_c.manifest)
+            _, err = k8s.post(k8sconfig.client, data_c.url, data_c.manifest)
             assert not err
 
         # Patch the server resources.
@@ -440,14 +440,14 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
         for meta, patch in patches:
             print(f"Patching {meta.kind.upper()} "
                   f"{meta.namespace}/{meta.name}")
-            _, err = k8s.patch(k8s_client, patch.url, patch.ops)
+            _, err = k8s.patch(k8sconfig.client, patch.url, patch.ops)
             assert not err
 
         # Delete the excess resources.
         for data_d in plan.delete:
             print(f"Deleting {data_d.meta.kind.upper()} "
                   f"{data_d.meta.namespace}/{data_d.meta.name}")
-            _, err = k8s.delete(k8s_client, data_d.url, data_d.manifest)
+            _, err = k8s.delete(k8sconfig.client, data_d.url, data_d.manifest)
             assert not err
     except AssertionError:
         return True
@@ -465,7 +465,7 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
     """
     try:
         # Create properly configured Requests session to talk to K8s API.
-        k8s_config, k8s_client, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
+        k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
         assert not err
 
         # Load manifests from local files.
@@ -473,7 +473,7 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         assert not err
 
         # Download manifests from K8s.
-        server, err = manio.download(k8s_config, k8s_client, cfg.selectors)
+        server, err = manio.download(k8sconfig, cfg.selectors)
         assert not err
 
         # Align non-plannable fields, like the ServiceAccount tokens.
@@ -481,7 +481,7 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         assert not err
 
         # Create deployment plan.
-        plan, err = compile_plan(k8s_config, local_meta, server)
+        plan, err = compile_plan(k8sconfig, local_meta, server)
         assert not err and plan
     except AssertionError:
         return (DeploymentPlan(tuple(), tuple(), tuple()), True)
@@ -494,8 +494,8 @@ def get_resources(cfg: Config) -> bool:
     """Download all K8s manifests and merge them into local files."""
     try:
         # Create properly configured Requests session to talk to K8s API.
-        k8s_config, k8s_client, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
-        assert not err and k8s_config and k8s_client
+        k8s_config, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
+        assert not err
 
         # Use a wildcard Selector to ensure `manio.load` will read _all_ local
         # manifests. This will allow `manio.sync` to modify the ones specified by
@@ -512,7 +512,7 @@ def get_resources(cfg: Config) -> bool:
         assert not err
 
         # Download manifests from K8s.
-        server, err = manio.download(k8s_config, k8s_client, cfg.selectors)
+        server, err = manio.download(k8s_config, cfg.selectors)
         assert not err
 
         # Sync the server manifests into the local manifests. All this happens in

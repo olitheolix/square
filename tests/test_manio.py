@@ -387,7 +387,6 @@ class TestYamlManifestIO:
         meta_ns_a = mm("Namespace", "a", "a")
         meta_ns_b = mm("Namespace", "b", "b")
         meta_svc_a = mm("Service", "a", "svc-a")
-        meta_svc_b = mm("Service", "b", "svc-b")
         meta_dpl_a = mm("Deployment", "a", "dpl-a")
         meta_dpl_b = mm("Deployment", "b", "dpl-b")
 
@@ -1794,13 +1793,12 @@ class TestDownloadManifests:
         ]
         expected = {make_meta(_): manio.strip(k8sconfig, _, exclude)[0][0] for _ in meta}
         ret = manio.download(
-            k8sconfig, "client",
-            Selectors({"Namespace", "Deployment", "Unknown"}, None, None)
+            k8sconfig, Selectors({"Namespace", "Deployment", "Unknown"}, None, None)
         )
         assert ret == (expected, False)
         assert m_get.call_args_list == [
-            mock.call("client", res_deploy.url),
-            mock.call("client", res_ns.url),
+            mock.call(k8sconfig.client, res_deploy.url),
+            mock.call(k8sconfig.client, res_ns.url),
         ]
 
         # ------------------------------------------------------------------------------
@@ -1817,14 +1815,13 @@ class TestDownloadManifests:
             (l_dply_1, False),
         ]
         assert (expected, False) == manio.download(
-            k8sconfig, "client",
-            Selectors({"Namespace", "Deployment"}, ["ns0", "ns1"], None)
+            k8sconfig, Selectors({"Namespace", "Deployment"}, ["ns0", "ns1"], None)
         )
         assert m_get.call_args_list == [
-            mock.call("client", res_dply_0.url),
-            mock.call("client", res_ns_0.url),
-            mock.call("client", res_dply_1.url),
-            mock.call("client", res_ns_1.url),
+            mock.call(k8sconfig.client, res_dply_0.url),
+            mock.call(k8sconfig.client, res_ns_0.url),
+            mock.call(k8sconfig.client, res_dply_1.url),
+            mock.call(k8sconfig.client, res_ns_1.url),
         ]
 
         # ----------------------------------------------------------------------
@@ -1843,12 +1840,11 @@ class TestDownloadManifests:
             make_meta(meta[2]): manio.strip(k8sconfig, meta[2], exclude)[0][0],
         }
         assert (expected, False) == manio.download(
-            k8sconfig, "client",
-            Selectors({"Namespace", "Deployment"}, ["ns0"], None)
+            k8sconfig, Selectors({"Namespace", "Deployment"}, ["ns0"], None)
         )
         assert m_get.call_args_list == [
-            mock.call("client", res_dply_0.url),
-            mock.call("client", res_ns_0.url),
+            mock.call(k8sconfig.client, res_dply_0.url),
+            mock.call(k8sconfig.client, res_ns_0.url),
         ]
 
     @mock.patch.object(k8s, 'get')
@@ -1871,12 +1867,10 @@ class TestDownloadManifests:
 
         # Run test function and verify it returns an error and no data, despite
         # a successful `NamespaceList` download.
-        ret = manio.download(
-            k8sconfig, "client",
-            Selectors({"Namespace", "Deployment"}, None, None)
-        )
+        ret = manio.download(k8sconfig,
+                             Selectors({"Namespace", "Deployment"}, None, None))
         assert ret == ({}, True)
         assert m_get.call_args_list == [
-            mock.call("client", res_deploy.url),
-            mock.call("client", res_ns.url),
+            mock.call(k8sconfig.client, res_deploy.url),
+            mock.call(k8sconfig.client, res_ns.url),
         ]

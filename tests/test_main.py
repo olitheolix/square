@@ -40,7 +40,7 @@ class TestResourceCleanup:
     @mock.patch.object(square.k8s, "cluster_config")
     def test_sanitise_resource_kinds(self, m_cluster, k8sconfig):
         """Must expand the short names if possible, and leave as is otherwise."""
-        m_cluster.side_effect = lambda *args: (k8sconfig, None, False)
+        m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
         # Use specified a valid set of `selectors.kinds` using various spellings.
         cfg = Config(
@@ -189,7 +189,7 @@ class TestMain:
         `main_*` function will be called with the correct parameters.
 
         """
-        m_cluster.side_effect = lambda *args: (k8sconfig, None, False)
+        m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
         # Pretend all functions return successfully.
         m_get.return_value = (None, False)
@@ -276,7 +276,7 @@ class TestMain:
 
         """
         # Pretend the call to get K8s credentials succeeded.
-        m_cluster.side_effect = lambda *args: (k8sconfig, None, False)
+        m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
         # Force a configuration error due to the absence of K8s credentials.
         cmd_args = dummy_command_param(config)
@@ -294,7 +294,7 @@ class TestMain:
     def test_main_version_error(self, m_k8s):
         """Program must abort if it cannot get the version from K8s."""
         # Mock all calls to the K8s API.
-        m_k8s.cluster_config.return_value = (None, None, True)
+        m_k8s.cluster_config.return_value = (None, True)
 
         with mock.patch("sys.argv", ["square.py", "get", "deploy"]):
             assert main.main() == 1
