@@ -3,6 +3,7 @@ import unittest.mock as mock
 import pytest
 import square.dtypes
 import square.square
+from square.dtypes import Commandline, GroupBy, Selectors
 
 from .test_helpers import k8s_apis
 
@@ -36,4 +37,24 @@ def k8sconfig():
     cfg.kinds.update({_ for _ in cfg.short2kind.values()})
 
     # Pass the fixture to the test.
+    yield cfg
+
+
+@pytest.fixture
+def config(k8sconfig, tmp_path):
+    kubeconf = (tmp_path / "kubeconf")
+    kubeconf.write_text("")
+
+    cfg = Commandline(
+        folder=tmp_path,
+        kubeconfig=kubeconf,
+        kube_ctx=None,
+        selectors=Selectors(
+            kinds=set(k8sconfig.kinds),
+            namespaces=['default'],
+            labels={("app", "demo")},
+        ),
+        groupby=GroupBy("", tuple()),
+        priorities=("Namespace", "Secret", "Service", "Deployment"),
+    )
     yield cfg
