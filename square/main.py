@@ -11,9 +11,7 @@ import colorama
 import square
 import square.square
 from square import __version__
-from square.dtypes import (
-    SUPPORTED_KINDS, Commandline, Filepath, GroupBy, Selectors,
-)
+from square.dtypes import SUPPORTED_KINDS, Config, Filepath, GroupBy, Selectors
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
@@ -151,17 +149,17 @@ def user_confirmed(answer: Optional[str] = "yes") -> bool:
         return False
 
 
-def compile_config(cmdline_param) -> Tuple[Commandline, bool]:
-    """Return `Commandline` from `cmdline_param`.
+def compile_config(cmdline_param) -> Tuple[Config, bool]:
+    """Return `Config` from `cmdline_param`.
 
     Inputs:
         cmdline_param: SimpleNamespace
 
     Returns:
-        Commandline, err
+        Config, err
 
     """
-    err_resp = Commandline(
+    err_resp = Config(
         folder=Filepath(""),
         kubeconfig=Filepath(""),
         kube_ctx=None,
@@ -229,7 +227,7 @@ def compile_config(cmdline_param) -> Tuple[Commandline, bool]:
     # -------------------------------------------------------------------------
     # Assemble the full configuration and return it.
     # -------------------------------------------------------------------------
-    cfg = Commandline(
+    cfg = Config(
         folder=folder,
         kubeconfig=kubeconfig,
         kube_ctx=p.ctx,
@@ -295,7 +293,7 @@ def apply_plan(
     return False
 
 
-def sanitise_resource_kinds(cfg: Commandline) -> Tuple[Commandline, bool]:
+def sanitise_resource_kinds(cfg: Config) -> Tuple[Config, bool]:
     """Populate the `Selector.kinds` with what the use specified on the commandline."""
     # Create a K8sConfig instance because it will contain all the info we need.
     k8sconfig, k8s_client, err = square.k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)

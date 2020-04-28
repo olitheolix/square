@@ -10,7 +10,7 @@ import square.main as main
 import square.manio as manio
 import square.square as square
 from square.dtypes import (
-    SUPPORTED_KINDS, Commandline, DeltaCreate, DeltaDelete, DeltaPatch,
+    SUPPORTED_KINDS, Config, DeltaCreate, DeltaDelete, DeltaPatch,
     DeploymentPlan, Filepath, GroupBy, JsonPatch, Selectors,
 )
 
@@ -49,7 +49,7 @@ class TestResourceCleanup:
         m_cluster.side_effect = lambda *args: (k8sconfig, None, False)
 
         # Use specified a valid set of `selectors.kinds` using various spellings.
-        cfg = Commandline(
+        cfg = Config(
             folder=pathlib.Path('/tmp'),
             kubeconfig=None,
             kube_ctx=None,
@@ -75,7 +75,7 @@ class TestResourceCleanup:
 
     def test_sanitise_resource_kinds_err_config(self, k8sconfig):
         """Abort if the kubeconfig file does not exist."""
-        cfg = Commandline(
+        cfg = Config(
             folder=pathlib.Path('/tmp'),
             kubeconfig=Filepath("/does/not/exist"),
             kube_ctx=None,
@@ -97,7 +97,7 @@ class TestMain:
         """Compile various valid configurations."""
         param = dummy_command_param()
         cfg, err = main.compile_config(param)
-        assert not err and cfg == Commandline(
+        assert not err and cfg == Config(
             folder=pathlib.Path('/tmp'),
             kubeconfig=param.kubeconfig,
             kube_ctx=None,
@@ -137,7 +137,7 @@ class TestMain:
         param = dummy_command_param()
         param.kubeconfig /= "does-not-exist"
         assert main.compile_config(param) == (
-            Commandline(
+            Config(
                 folder=Filepath(""),
                 kubeconfig=Filepath(""),
                 kube_ctx=None,
@@ -150,7 +150,7 @@ class TestMain:
         """Parse file system hierarchy."""
         param = dummy_command_param()
 
-        err_resp = Commandline(
+        err_resp = Config(
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kube_ctx=None,
@@ -406,7 +406,7 @@ class TestMain:
             param = main.parse_commandline_args()
             assert param.groupby == ["ns", "label=foo", "label=bar"]
 
-        expected = Commandline(
+        expected = Config(
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kube_ctx=None,
