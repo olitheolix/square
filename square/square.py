@@ -531,16 +531,16 @@ def get_resources(cfg: Config) -> bool:
                                    namespaces=None)
 
         # Load manifests from local files.
-        _, local_files, err = manio.load(cfg.folder, load_selectors)
-        assert not err and local_files is not None
+        _, local, err = manio.load(cfg.folder, load_selectors)
+        assert not err
 
         # Download manifests from K8s.
         server, err = manio.download(k8s_config, k8s_client, cfg.selectors)
-        assert not err and server is not None
+        assert not err
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see `manio.save` in the next step.
-        synced_manifests, err = manio.sync(local_files, server, cfg.selectors,
+        synced_manifests, err = manio.sync(local, server, cfg.selectors,
                                            cfg.groupby, k8s_config.kinds)
         assert not err and synced_manifests
 
