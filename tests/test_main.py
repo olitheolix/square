@@ -50,8 +50,6 @@ class TestResourceCleanup:
 
         # Use specified a valid set of `selectors.kinds` using various spellings.
         cfg = Commandline(
-            command='get',
-            verbosity=9,
             folder=pathlib.Path('/tmp'),
             kubeconfig=None,
             kube_ctx=None,
@@ -78,8 +76,6 @@ class TestResourceCleanup:
     def test_sanitise_resource_kinds_err_config(self, k8sconfig):
         """Abort if the kubeconfig file does not exist."""
         cfg = Commandline(
-            command='get',
-            verbosity=9,
             folder=pathlib.Path('/tmp'),
             kubeconfig=Filepath("/does/not/exist"),
             kube_ctx=None,
@@ -102,8 +98,6 @@ class TestMain:
         param = dummy_command_param()
         cfg, err = main.compile_config(param)
         assert not err and cfg == Commandline(
-            command='get',
-            verbosity=9,
             folder=pathlib.Path('/tmp'),
             kubeconfig=param.kubeconfig,
             kube_ctx=None,
@@ -144,8 +138,6 @@ class TestMain:
         param.kubeconfig /= "does-not-exist"
         assert main.compile_config(param) == (
             Commandline(
-                command="",
-                verbosity=0,
                 folder=Filepath(""),
                 kubeconfig=Filepath(""),
                 kube_ctx=None,
@@ -159,8 +151,6 @@ class TestMain:
         param = dummy_command_param()
 
         err_resp = Commandline(
-            command="",
-            verbosity=0,
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kube_ctx=None,
@@ -417,8 +407,6 @@ class TestMain:
             assert param.groupby == ["ns", "label=foo", "label=bar"]
 
         expected = Commandline(
-            command="",
-            verbosity=0,
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kube_ctx=None,

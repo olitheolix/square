@@ -162,8 +162,6 @@ def compile_config(cmdline_param) -> Tuple[Commandline, bool]:
 
     """
     err_resp = Commandline(
-        command="",
-        verbosity=0,
         folder=Filepath(""),
         kubeconfig=Filepath(""),
         kube_ctx=None,
@@ -232,8 +230,6 @@ def compile_config(cmdline_param) -> Tuple[Commandline, bool]:
     # Assemble the full configuration and return it.
     # -------------------------------------------------------------------------
     cfg = Commandline(
-        command=p.parser,
-        verbosity=p.verbosity,
         folder=folder,
         kubeconfig=kubeconfig,
         kube_ctx=p.ctx,
@@ -341,15 +337,15 @@ def main() -> int:
 
     # Do what the user asked us to do.
     common_args = Filepath(cfg.kubeconfig), cfg.kube_ctx, cfg.folder, cfg.selectors
-    if cfg.command == "get":
+    if param.parser == "get":
         err = square.square.get_resources(*common_args, cfg.groupby, cfg.priorities)
-    elif cfg.command == "plan":
+    elif param.parser == "plan":
         plan, err = square.square.make_plan(*common_args)
         square.square.show_plan(plan)
-    elif cfg.command == "apply":
+    elif param.parser == "apply":
         err = apply_plan(*common_args, "yes")
     else:
-        logit.error(f"Unknown command <{cfg.command}>")
+        logit.error(f"Unknown command <{param.parser}>")
         return 1
 
     # Return error code.
