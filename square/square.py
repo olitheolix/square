@@ -412,15 +412,11 @@ def setup_logging(log_level: int) -> None:
     logit.info(f"Set log level to {level}")
 
 
-def apply_plan(
-        kubeconfig: Filepath,
-        kube_ctx: Optional[str],
-        plan: DeploymentPlan) -> bool:
+def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     """Update K8s resources according to the `plan`.
 
     Inputs:
-        kubeconfig: Filepath,
-        kube_ctx: Optional[str],
+        cfg: Square configuration.
         plan: DeploymentPlan
 
     Returns:
@@ -429,7 +425,7 @@ def apply_plan(
     """
     try:
         # Create properly configured Requests session to talk to K8s API.
-        k8s_config, k8s_client, err = k8s.cluster_config(kubeconfig, kube_ctx)
+        k8s_config, k8s_client, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
         assert not err and k8s_config and k8s_client
 
         # Create the missing resources.

@@ -524,12 +524,12 @@ class TestApplyPlan:
         # Function must apply the plan if the user confirms it.
         with mock.patch.object(main, 'input', lambda _: "yes"):
             assert fun(config, "yes") is False
-        m_apply.assert_called_once_with(config.kubeconfig, config.kube_ctx, plan)
+        m_apply.assert_called_once_with(config, plan)
 
         # Repeat with disabled security question.
         m_apply.reset_mock()
         assert fun(config, None) is False
-        m_apply.assert_called_once_with(config.kubeconfig, config.kube_ctx, plan)
+        m_apply.assert_called_once_with(config, plan)
 
         # -----------------------------------------------------------------
         #                   Simulate An Empty Plan
