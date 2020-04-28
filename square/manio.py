@@ -13,7 +13,7 @@ import square.schemas
 import yaml
 import yaml.scanner
 from square.dtypes import (
-    Filepath, GroupBy, K8sConfig, LocalManifestLists, LocalManifests,
+    Config, Filepath, GroupBy, K8sConfig, LocalManifestLists, LocalManifests,
     MetaManifest, Selectors, ServerManifests,
 )
 
@@ -275,13 +275,11 @@ def unpack(manifests: LocalManifestLists) -> Tuple[ServerManifests, bool]:
     return (out, False)
 
 
-def sync(
-        local_manifests: LocalManifestLists,
-        server_manifests: ServerManifests,
-        selectors: Selectors,
-        groupby: GroupBy,
-        all_kinds: Set[str],
-) -> Tuple[LocalManifestLists, bool]:
+def sync(local_manifests: LocalManifestLists,
+         server_manifests: ServerManifests,
+         selectors: Selectors,
+         groupby: GroupBy,
+         all_kinds: Set[str]) -> Tuple[LocalManifestLists, bool]:
     """Update the local manifests with the server values and return the result.
 
     Inputs:
@@ -423,16 +421,17 @@ def filename_for_manifest(
     return Filepath(path), False
 
 
-def diff(
-        k8sconfig: K8sConfig,
-        local: LocalManifests,
-        server: ServerManifests) -> Tuple[str, bool]:
+def diff(config: Config,
+         k8sconfig: K8sConfig,
+         local: LocalManifests,
+         server: ServerManifests) -> Tuple[str, bool]:
     """Return the human readable diff between the `local` and `server`.
 
     The diff shows the necessary changes to transition the `server` manifest
     into the state of the `local` manifest.
 
     Inputs:
+        config: Square configuration.
         k8sconfig: K8sConfig
         local: dict
             Local manifest.
@@ -904,10 +903,7 @@ def save(folder: Filepath, manifests: LocalManifestLists,
     return save_files(folder, out_final)
 
 
-def download(
-        k8sconfig: K8sConfig,
-        selectors: Selectors,
-) -> Tuple[ServerManifests, bool]:
+def download(config: Config, k8sconfig: K8sConfig) -> Tuple[ServerManifests, bool]:
     """Download and return the resources that match `selectors`.
 
     Set `selectors.namespace` to `None` to download the resources from all
@@ -916,8 +912,8 @@ def download(
     Either returns all the data or an error; never returns partial results.
 
     Inputs:
+        config: Square configuration.
         k8sconfig: K8sConfig
-        selectors: Selectors
 
     Returns:
         Dict[MetaManifest, dict]: the K8s manifests from K8s.
@@ -928,14 +924,14 @@ def download(
 
     # Ensure `namespaces` is always a list to avoid special casing below.
     all_namespaces: Iterable[Optional[str]]
-    if selectors.namespaces is None:
+    if config.selectors.namespaces is None:
         all_namespaces = [None]
     else:
-        all_namespaces = selectors.namespaces
+        all_namespaces = config.selectors.namespaces
 
     # Download each resource type. Abort at the first error and return nothing.
     for namespace in all_namespaces:
-        for kind in sorted(selectors.kinds):
+        for kind in sorted(config.selectors.kinds):
             # Get the K8s URL for the current resource kind. Ignore this
             # resource if K8s does not know about it. The reason for that could
             # by a typo or that it is a custom resource that does not (yet) exist.
@@ -951,7 +947,7 @@ def download(
 
                 # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a
                 # Dict[MetaManifest, dict] dictionary.
-                manifests, err = unpack_list(manifest_list, selectors)
+                manifests, err = unpack_list(manifest_list, config.selectors)
                 assert not err and manifests is not None
 
                 # Drop all manifest fields except "apiVersion", "metadata" and "spec".
