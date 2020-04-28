@@ -10,9 +10,9 @@ import square.schemas
 import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
-    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, DeploymentPlanMeta,
-    Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest, Selectors,
-    ServerManifests,
+    Config, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+    DeploymentPlanMeta, Filepath, JsonPatch, K8sConfig, MetaManifest,
+    Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -513,37 +513,11 @@ def make_plan(
     return (plan, False)
 
 
-def get_resources(
-        kubeconfig: Filepath,
-        kube_ctx: Optional[str],
-        folder: Filepath,
-        selectors: Selectors,
-        groupby: GroupBy,
-        priority: Collection[str]) -> bool:
-    """Download all K8s manifests and merge them into local files.
-
-    Inputs:
-        kubeconfig: Filepath
-            Path to Kubernetes credentials.
-        kubectx: str
-            Kubernetes context (use `None` to use the default).
-        folder: Path
-            Path to local manifests eg "./foo"
-        selectors: Selectors
-            Only operate on resources that match the selectors.
-        groupby: GroupBy
-            Specify relationship between new manifests and file names.
-        priority: Collection[str]
-            Sort the manifest in this order, or alphabetically at the end if
-            not in the list.
-
-    Returns:
-        None
-
-    """
+def get_resources(cfg: Config) -> bool:
+    """Download all K8s manifests and merge them into local files."""
     try:
         # Create properly configured Requests session to talk to K8s API.
-        k8s_config, k8s_client, err = k8s.cluster_config(kubeconfig, kube_ctx)
+        k8s_config, k8s_client, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
         assert not err and k8s_config and k8s_client
 
         # Use a wildcard Selector to ensure `manio.load` will read _all_ local
@@ -557,21 +531,21 @@ def get_resources(
                                    namespaces=None)
 
         # Load manifests from local files.
-        _, local_files, err = manio.load(folder, load_selectors)
+        _, local_files, err = manio.load(cfg.folder, load_selectors)
         assert not err and local_files is not None
 
         # Download manifests from K8s.
-        server, err = manio.download(k8s_config, k8s_client, selectors)
+        server, err = manio.download(k8s_config, k8s_client, cfg.selectors)
         assert not err and server is not None
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see `manio.save` in the next step.
-        synced_manifests, err = manio.sync(local_files, server, selectors,
-                                           groupby, k8s_config.kinds)
+        synced_manifests, err = manio.sync(local_files, server, cfg.selectors,
+                                           cfg.groupby, k8s_config.kinds)
         assert not err and synced_manifests
 
         # Write the new manifest files.
-        err = manio.save(folder, synced_manifests, priority)
+        err = manio.save(cfg.folder, synced_manifests, cfg.priorities)
         assert not err
     except AssertionError:
         return True

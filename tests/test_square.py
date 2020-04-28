@@ -736,7 +736,7 @@ class TestMainOptions:
     @mock.patch.object(manio, "download")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
-    def test_get_resources(self, m_save, m_sync, m_down, m_load, kube_creds):
+    def test_get_resources(self, m_save, m_sync, m_down, m_load, kube_creds, config):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -746,10 +746,6 @@ class TestMainOptions:
         """
         k8sconfig: K8sConfig = kube_creds
 
-        # Define a grouping (not relevant for this test but a necessary
-        # argument to the test function).
-        groupby = GroupBy(order=[], label="")
-
         # Simulate successful responses from the two auxiliary functions.
         # The `load` function must return empty dicts to ensure the error
         # conditions are properly coded.
@@ -758,11 +754,6 @@ class TestMainOptions:
         m_sync.return_value = ("synced", False)
         m_save.return_value = False
 
-        # The arguments to the test function will always be the same in this test.
-        selectors = Selectors({"kinds"}, ["ns"], {("foo", "bar"), ("x", "y")})
-        priority = ("Namespace", "Deployment")
-        args = "kubeconf", "kubectx", "folder", selectors, groupby, priority
-
         # `manio.load` must have been called with a wildcard selector to ensure
         # it loads _all_ resources from the local files, even if we want to
         # sync only a subset.
@@ -770,24 +761,24 @@ class TestMainOptions:
                                    labels=None, namespaces=None)
 
         # Call test function and verify it passed the correct arguments.
-        assert square.get_resources(*args) is False
-        m_load.assert_called_once_with("folder", load_selectors)
-        m_down.assert_called_once_with(k8sconfig, "k8s_client", selectors)
-        m_sync.assert_called_once_with({}, "server", selectors, groupby, k8sconfig.kinds)
-        m_save.assert_called_once_with("folder", "synced", priority)
+        assert square.get_resources(config) is False
+        m_load.assert_called_once_with(config.folder, load_selectors)
+        m_down.assert_called_once_with(k8sconfig, "k8s_client", config.selectors)
+        m_sync.assert_called_once_with({}, "server", config.selectors, config.groupby, k8sconfig.kinds)  # noqa
+        m_save.assert_called_once_with(config.folder, "synced", config.priorities)
 
         # Simulate an error with `manio.save`.
         m_save.return_value = (None, True)
-        assert square.get_resources(*args) is True
+        assert square.get_resources(config) is True
 
         # Simulate an error with `manio.sync`.
         m_sync.return_value = (None, True)
-        assert square.get_resources(*args) is True
+        assert square.get_resources(config) is True
 
         # Simulate an error in `download_manifests`.
         m_down.return_value = (None, True)
-        assert square.get_resources(*args) is True
+        assert square.get_resources(config) is True
 
         # Simulate an error in `load`.
         m_load.return_value = (None, None, True)
-        assert square.get_resources(*args) is True
+        assert square.get_resources(config) is True
