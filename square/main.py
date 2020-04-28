@@ -272,7 +272,7 @@ def apply_plan(cfg: Config, confirm_string: Optional[str]) -> bool:
         print()
 
         # Apply the plan.
-        assert not square.square.apply_plan(cfg.kubeconfig, cfg.kube_ctx, plan)
+        assert not square.square.apply_plan(cfg, plan)
     except AssertionError:
         return True
 

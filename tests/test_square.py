@@ -604,7 +604,7 @@ class TestMainOptions:
     @mock.patch.object(k8s, "post")
     @mock.patch.object(k8s, "patch")
     @mock.patch.object(k8s, "delete")
-    def test_apply_plan(self, m_delete, m_apply, m_post, kube_creds):
+    def test_apply_plan(self, m_delete, m_apply, m_post, config, kube_creds):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -645,7 +645,7 @@ class TestMainOptions:
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
         reset_mocks()
-        assert square.apply_plan("kubeconfig", "kubectx", plan) is False
+        assert square.apply_plan(config, plan) is False
         m_post.assert_called_once_with("k8s_client", "create_url", "create_man")
         m_apply.assert_called_once_with("k8s_client", patch.url, patch.ops)
         m_delete.assert_called_once_with("k8s_client", "delete_url", "delete_man")
@@ -660,7 +660,7 @@ class TestMainOptions:
 
         # Call test function and verify that it did not try to apply
         # the empty plan.
-        assert square.apply_plan("kubeconfig", "kubectx", empty_plan) is False
+        assert square.apply_plan(config, empty_plan) is False
         assert not m_post.called
         assert not m_apply.called
         assert not m_delete.called
@@ -672,15 +672,15 @@ class TestMainOptions:
 
         # Make `delete` fail.
         m_delete.return_value = (None, True)
-        assert square.apply_plan("kubeconfig", "kubectx", plan) is True
+        assert square.apply_plan(config, plan) is True
 
         # Make `patch` fail.
         m_apply.return_value = (None, True)
-        assert square.apply_plan("kubeconfig", "kubectx", plan) is True
+        assert square.apply_plan(config, plan) is True
 
         # Make `post` fail.
         m_post.return_value = (None, True)
-        assert square.apply_plan("kubeconfig", "kubectx", plan) is True
+        assert square.apply_plan(config, plan) is True
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
