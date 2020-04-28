@@ -421,34 +421,34 @@ def load_auto_config(
     return (K8sConfig(), True)
 
 
-def session(config: K8sConfig):
+def session(k8sconfig: K8sConfig):
     """Return configured `requests` session."""
     # Plain session.
     sess = requests.Session()
 
     # Load the CA file (necessary for self signed certs to avoid https warning).
-    sess.verify = str(config.ca_cert)
+    sess.verify = str(k8sconfig.ca_cert)
 
     # Add the client certificate, if the cluster uses those to authenticate users.
-    if config.client_cert is not None:
-        sess.cert = (str(config.client_cert.crt), str(config.client_cert.key))
+    if k8sconfig.client_cert is not None:
+        sess.cert = (str(k8sconfig.client_cert.crt), str(k8sconfig.client_cert.key))
 
     # Add the bearer token if this cluster uses them to authenticate users.
-    if config.token is not None:
-        sess.headers.update({'authorization': f'Bearer {config.token}'})
+    if k8sconfig.token is not None:
+        sess.headers.update({'authorization': f'Bearer {k8sconfig.token}'})
 
     # Return the configured session object.
     return sess
 
 
-def resource(config: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
+def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
     """Return `K8sResource` object.
 
     That object will contain the full path to a resource, eg.
     https://1.2.3.4/api/v1/namespace/foo/services.
 
     Inputs:
-        config: k8s.Config
+        k8sconfig: k8s.Config
         meta: MetaManifest
 
     Returns:
@@ -460,7 +460,7 @@ def resource(config: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
     # Compile the lookup key for the resource, eg `("Service", "v1")`.
     if not meta.apiVersion:
         # Use the most recent version of the API if None was specified.
-        candidates = [(kind, ver) for kind, ver in config.apis if kind == meta.kind]
+        candidates = [(kind, ver) for kind, ver in k8sconfig.apis if kind == meta.kind]
         if len(candidates) == 0:
             logit.warning(f"Cannot determine API version for <{meta.kind}>")
             return err_resp
@@ -471,7 +471,7 @@ def resource(config: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
 
     # Retrieve the resource.
     try:
-        resource = config.apis[key]
+        resource = k8sconfig.apis[key]
     except KeyError:
         logit.error(f"Unsupported resource <{meta.kind}> {key}.")
         return err_resp
@@ -611,23 +611,23 @@ def post(client, url: str, payload: dict) -> Tuple[dict, bool]:
     return (resp, err)
 
 
-def version(config: K8sConfig, client) -> Tuple[K8sConfig, bool]:
-    """Return new `config` with version number of K8s API.
+def version(k8sconfig: K8sConfig, client) -> Tuple[K8sConfig, bool]:
+    """Return new `k8sconfig` with version number of K8s API.
 
-    Contact the K8s API, query its version via `client` and return `config`
-    with an updated `version` field. All other field in `config` will remain
+    Contact the K8s API, query its version via `client` and return `k8sconfig`
+    with an updated `version` field. All other field in `k8sconfig` will remain
     intact.
 
     Inputs:
-        config: Config
+        k8sconfig: K8sConfig
         client: `requests` session with correct K8s certificates.
 
     Returns:
-        Config
+        K8sConfig
 
     """
     # Ask the K8s API for its version and check for errors.
-    url = f"{config.url}/version"
+    url = f"{k8sconfig.url}/version"
     resp, err = get(client, url)
     if err or resp is None:
         return (K8sConfig(), True)
@@ -642,9 +642,9 @@ def version(config: K8sConfig, client) -> Tuple[K8sConfig, bool]:
     # to determines which URLs to contact, which fields are valid.
     version = version.replace("+", "")
 
-    # Return an updated `Config` tuple.
-    config = config._replace(version=version)
-    return (config, False)
+    # Return an updated `K8sconfig` tuple.
+    k8sconfig = k8sconfig._replace(version=version)
+    return (k8sconfig, False)
 
 
 def cluster_config(
@@ -662,7 +662,7 @@ def cluster_config(
             Kubernetes context to use (can be `None` to use default).
 
     Returns:
-        Config, client
+        K8sConfig, client
 
     """
     # Read Kubeconfig file and use it to create a `requests` client session.
@@ -671,27 +671,27 @@ def cluster_config(
     kubeconfig = kubeconfig.expanduser()
     try:
         # Parse Kubeconfig file.
-        config, err = load_auto_config(kubeconfig, context, disable_warnings=True)
+        k8sconfig, err = load_auto_config(kubeconfig, context, disable_warnings=True)
         assert not err
 
         # Configure web session.
-        client = session(config)
+        client = session(k8sconfig)
         assert client
 
         # Contact the K8s API to update version field in `config`.
-        config, err = version(config, client)
-        assert not err and config
+        k8sconfig, err = version(k8sconfig, client)
+        assert not err and k8sconfig
 
-        # Populate the `config.apis` field.
-        err = compile_api_endpoints(config, client)
+        # Populate the `k8sconfig.apis` field.
+        err = compile_api_endpoints(k8sconfig, client)
         assert not err
     except AssertionError:
         return (K8sConfig(), None, True)
 
     # Log the K8s API address and version.
-    logit.info(f"Kubernetes server at {config.url}")
-    logit.info(f"Kubernetes version is {config.version}")
-    return (config, client, False)
+    logit.info(f"Kubernetes server at {k8sconfig.url}")
+    logit.info(f"Kubernetes version is {k8sconfig.version}")
+    return (k8sconfig, client, False)
 
 
 def parse_api_group(api_version, url, resp) -> Tuple[List[K8sResource], Dict[str, str]]:
@@ -750,10 +750,10 @@ def parse_api_group(api_version, url, resp) -> Tuple[List[K8sResource], Dict[str
     return (group_urls, short2kind)
 
 
-def compile_api_endpoints(config: K8sConfig, client) -> bool:
-    """Populate `config.apis` with all the K8s endpoints`.
+def compile_api_endpoints(k8sconfig: K8sConfig, client) -> bool:
+    """Populate `k8sconfig.apis` with all the K8s endpoints`.
 
-    NOTE: This will purge the existing content in `config.apis`.
+    NOTE: This will purge the existing content in `k8sconfig.apis`.
 
     Returns a dictionary like the following:
     {
@@ -772,14 +772,14 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
     }
 
     Inputs:
-        config: K8sConfig
+        k8sconfig: K8sConfig
         client: `requests` session with correct K8s certificates.
 
     """
     # Compile the list of all K8s API groups that this K8s instance knows about.
-    resp, err = get(client, f"{config.url}/apis")
+    resp, err = get(client, f"{k8sconfig.url}/apis")
     if err:
-        logit.error(f"Could not interrogate the {config.url}/apis")
+        logit.error(f"Could not interrogate the {k8sconfig.url}/apis")
         return True
 
     # Compile the list of all API groups and their endpoints. Example
@@ -829,32 +829,32 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
     group_urls: Dict[Tuple[str, str, str], List[K8sResource]] = {}
     for group_name, ver_url in apigroups.items():
         for api_version, url in ver_url:
-            resp, err = get(client, f"{config.url}/{url}")
+            resp, err = get(client, f"{k8sconfig.url}/{url}")
             if err:
-                logit.error(f"Could not interrogate the {config.url}/{url}")
+                logit.error(f"Could not interrogate the {k8sconfig.url}/{url}")
                 return True
 
             data, short2kind = parse_api_group(api_version, url, resp)
             group_urls[(group_name, api_version, url)] = data
-            config.short2kind.update(short2kind)
+            k8sconfig.short2kind.update(short2kind)
 
     # Produce the entries for `K8sConfig.apis` as described in the doc string.
-    config.apis.clear()
+    k8sconfig.apis.clear()
     default: Dict[str, Set[K8sResource]] = defaultdict(set)
     for (group_name, api_version, url), resources in group_urls.items():
         for res in resources:
             key = (res.kind, res.apiVersion)  # fixme: define namedtuple
-            config.apis[key] = res._replace(url=f"{config.url}/{res.url}")
+            k8sconfig.apis[key] = res._replace(url=f"{k8sconfig.url}/{res.url}")
 
             if preferred_group[api_version] == api_version:
-                default[res.kind].add(config.apis[key])
-                config.apis[(res.kind, "")] = config.apis[key]
+                default[res.kind].add(k8sconfig.apis[key])
+                k8sconfig.apis[(res.kind, "")] = k8sconfig.apis[key]
 
     # Determine the default API endpoint Square should query for each resource.
     for kind, resources in default.items():
         # Happy case: the resource is only available from a single API group.
         if len(resources) == 1:
-            config.apis[(kind, "")] = resources.pop()
+            k8sconfig.apis[(kind, "")] = resources.pop()
             continue
 
         # If we get here then it means a resource is available from different
@@ -874,9 +874,9 @@ def compile_api_endpoints(config: K8sConfig, client) -> bool:
         # Pick the one with probably the highest version number.
         apis.sort()
         version = apis.pop()
-        config.apis[(kind, "")] = [_ for _ in resources if _.apiVersion == version][0]
+        k8sconfig.apis[(kind, "")] = [_ for _ in resources if _.apiVersion == version][0]
 
     # Compile the set of all resource kinds that this Kubernetes cluster supports.
-    for kind, _ in config.apis:
-        config.kinds.add(kind)
+    for kind, _ in k8sconfig.apis:
+        k8sconfig.kinds.add(kind)
     return False
