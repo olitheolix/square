@@ -155,12 +155,23 @@ class GroupBy(NamedTuple):
 
 
 class Config(NamedTuple):
-    """Convenience structure for `main.py` - not used internally."""
+    """Uniform interface into top level Square API."""
+    # Path to local manifests eg "./foo"
     folder: Filepath
+
+    # Specify relationship between new manifests and file names.
     groupby: GroupBy
+
+    # Kubernetes context (use `None` to use the default).
     kube_ctx: Optional[str]
+
+    # Path to Kubernetes credentials.
     kubeconfig: Filepath
+
+    # Sort the manifest in this order, or alphabetically at the end if not in the list.
     priorities: Collection[str]
+
+    # Only operate on resources that match the selectors.
     selectors: Selectors
 
 

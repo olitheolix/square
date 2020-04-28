@@ -235,7 +235,15 @@ class TestMain:
         # Every main function must have been called exactly once.
         selectors = Selectors({"Deployment", "Service"}, None, set())
         args = fname_kubeconfig, None, pathlib.Path("myfolder"), selectors
-        m_get.assert_called_once_with(*args, groupby, SUPPORTED_KINDS)
+        cfg = Config(
+            folder=pathlib.Path("myfolder"),
+            groupby=groupby,
+            kube_ctx=None,
+            kubeconfig=fname_kubeconfig,
+            priorities=tuple(SUPPORTED_KINDS),
+            selectors=selectors,
+        )
+        m_get.assert_called_once_with(cfg)
         m_apply.assert_called_once_with(*args, "yes")
         m_plan.assert_called_once_with(*args)
 

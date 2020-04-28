@@ -3,7 +3,7 @@ import unittest.mock as mock
 import pytest
 import square.dtypes
 import square.square
-from square.dtypes import Commandline, GroupBy, Selectors
+from square.dtypes import Config, GroupBy, Selectors
 
 from .test_helpers import k8s_apis
 
@@ -45,7 +45,7 @@ def config(k8sconfig, tmp_path):
     kubeconf = (tmp_path / "kubeconf")
     kubeconf.write_text("")
 
-    cfg = Commandline(
+    cfg = Config(
         folder=tmp_path,
         kubeconfig=kubeconf,
         kube_ctx=None,
