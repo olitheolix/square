@@ -27,13 +27,17 @@ def k8sconfig():
     # K8s v1.15.
     cfg = square.dtypes.K8sConfig(version="1.15")
 
-    # Update the API endpoints.
+    # The set of API endpoints we can use in the tests.
     cfg.apis.clear()
     cfg.apis.update(k8s_apis(cfg))
+
+    # Manually insert common short spellings.
     cfg.short2kind["deployment"] = "Deployment"
     cfg.short2kind["service"] = "Service"
     cfg.short2kind["svc"] = "Service"
     cfg.short2kind["secret"] = "Secret"
+
+    # The set of canonical K8s resources we support.
     cfg.kinds.update({_ for _ in cfg.short2kind.values()})
 
     # Pass the fixture to the test.
