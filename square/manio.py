@@ -424,7 +424,7 @@ def filename_for_manifest(
 
 
 def diff(
-        config: K8sConfig,
+        k8sconfig: K8sConfig,
         local: LocalManifests,
         server: ServerManifests) -> Tuple[str, bool]:
     """Return the human readable diff between the `local` and `server`.
@@ -433,7 +433,7 @@ def diff(
     into the state of the `local` manifest.
 
     Inputs:
-        config: K8sConfig
+        k8sconfig: K8sConfig
         local: dict
             Local manifest.
         server: dict
@@ -446,8 +446,8 @@ def diff(
     """
     # Clean up the input manifests because we do not want to diff, for instance,
     # the `status` fields.
-    (srv, _), err1 = strip(config, server, square.schemas.EXCLUSION_SCHEMA)
-    (loc, _), err2 = strip(config, local, square.schemas.EXCLUSION_SCHEMA)
+    (srv, _), err1 = strip(k8sconfig, server, square.schemas.EXCLUSION_SCHEMA)
+    (loc, _), err2 = strip(k8sconfig, local, square.schemas.EXCLUSION_SCHEMA)
     if err1 or err2:
         return ("", True)
 
@@ -464,14 +464,14 @@ def diff(
 
 
 def strip(
-        config: K8sConfig,
+        k8sconfig: K8sConfig,
         manifest: dict,
         exclusion_schema: Dict[str, dict],
         ) -> Tuple[Tuple[DotDict, dict], bool]:
     """Strip `manifest` according to the exclusion filters in `square.schemas`.
 
     Inputs:
-        config: K8sConfig
+        k8sconfig: K8sConfig
         manifest: dict
         exclusion_schema: Dict[str, dict]
             fixme: docu
@@ -480,7 +480,7 @@ def strip(
         dict: the removed keys.
 
     """
-    assert config.version is not None
+    assert k8sconfig.version is not None
 
     # Convenience: default return value if an error occurs.
     ret_err: Tuple[Tuple[DotDict, dict], bool] = ((square.dotdict.make({}), {}), True)
@@ -488,7 +488,7 @@ def strip(
     # Parse the manifest.
     try:
         meta = make_meta(manifest)
-        resource, err = square.k8s.resource(config, meta)
+        resource, err = square.k8s.resource(k8sconfig, meta)
         assert not err
     except KeyError as e:
         logit.error(f"Manifest is missing the <{e.args[0]}> key.")
@@ -905,7 +905,7 @@ def save(folder: Filepath, manifests: LocalManifestLists,
 
 
 def download(
-        config: K8sConfig,
+        k8sconfig: K8sConfig,
         client,
         selectors: Selectors,
 ) -> Tuple[ServerManifests, bool]:
@@ -917,7 +917,7 @@ def download(
     Either returns all the data or an error; never returns partial results.
 
     Inputs:
-        config: K8sConfig
+        k8sconfig: K8sConfig
         client: `requests` session with correct K8s certificates.
         selectors: Selectors
 
@@ -941,7 +941,7 @@ def download(
             # Get the K8s URL for the current resource kind. Ignore this
             # resource if K8s does not know about it. The reason for that could
             # by a typo or that it is a custom resource that does not (yet) exist.
-            resource, err = square.k8s.resource(config, MetaManifest("", kind, namespace, ""))  # noqa
+            resource, err = square.k8s.resource(k8sconfig, MetaManifest("", kind, namespace, ""))  # noqa
             if err:
                 logit.warning(f"Skipping unknown resource <{kind}>")
                 continue
@@ -957,7 +957,7 @@ def download(
                 assert not err and manifests is not None
 
                 # Drop all manifest fields except "apiVersion", "metadata" and "spec".
-                ret = {k: strip(config, man, square.schemas.EXCLUSION_SCHEMA)
+                ret = {k: strip(k8sconfig, man, square.schemas.EXCLUSION_SCHEMA)
                        for k, man in manifests.items()}
 
                 # Ensure `strip` worked for every manifest.

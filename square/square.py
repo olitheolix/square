@@ -11,8 +11,8 @@ import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
     Config, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    DeploymentPlanMeta, Filepath, JsonPatch, K8sConfig, MetaManifest,
-    Selectors, ServerManifests,
+    DeploymentPlanMeta, JsonPatch, K8sConfig, MetaManifest, Selectors,
+    ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -20,7 +20,7 @@ logit = logging.getLogger("square")
 
 
 def make_patch(
-        config: K8sConfig,
+        k8sconfig: K8sConfig,
         local: ServerManifests,
         server: ServerManifests) -> Tuple[JsonPatch, bool]:
     """Return JSON patch to transition `server` to `local`.
@@ -37,8 +37,8 @@ def make_patch(
     """
     # Reduce local and server manifests to salient fields (ie apiVersion, kind,
     # metadata and spec). Abort on error.
-    (loc, _), err1 = manio.strip(config, local, square.schemas.EXCLUSION_SCHEMA)
-    (srv, _), err2 = manio.strip(config, server, square.schemas.EXCLUSION_SCHEMA)
+    (loc, _), err1 = manio.strip(k8sconfig, local, square.schemas.EXCLUSION_SCHEMA)
+    (srv, _), err2 = manio.strip(k8sconfig, server, square.schemas.EXCLUSION_SCHEMA)
     if err1 or err2 or loc is None or srv is None:
         return (JsonPatch("", []), True)
 
@@ -48,8 +48,8 @@ def make_patch(
 
     # Sanity checks: abort if the manifests do not specify the same resource.
     try:
-        res_srv, err_srv = k8s.resource(config, manio.make_meta(srv))
-        res_loc, err_loc = k8s.resource(config, manio.make_meta(loc))
+        res_srv, err_srv = k8s.resource(k8sconfig, manio.make_meta(srv))
+        res_loc, err_loc = k8s.resource(k8sconfig, manio.make_meta(loc))
         assert err_srv is err_loc is False
         assert res_srv == res_loc
     except AssertionError:
@@ -114,7 +114,7 @@ def partition_manifests(
     return (plan, False)
 
 
-def preferred_api(config: K8sConfig,
+def preferred_api(k8sconfig: K8sConfig,
                   local: ServerManifests) -> Tuple[ServerManifests, bool]:
     """Return a new version of `local` where all APIs point to the preferred group.
 
@@ -139,11 +139,11 @@ def preferred_api(config: K8sConfig,
     for meta, manifest in local.items():
         # The current `meta` can be outdated but must still be a valid resource
         # in the current cluster.
-        if k8s.resource(config, meta)[1]:
+        if k8s.resource(k8sconfig, meta)[1]:
             return {}, True
 
         # Get the canonical resource description.
-        res, err = k8s.resource(config, meta._replace(apiVersion=""))
+        res, err = k8s.resource(k8sconfig, meta._replace(apiVersion=""))
         if err:
             logit.critical(f"BUG: resource <{meta}> should have been valid")
             return {}, True
@@ -164,7 +164,7 @@ def preferred_api(config: K8sConfig,
 
 
 def compile_plan(
-        config: K8sConfig,
+        k8sconfig: K8sConfig,
         local: ServerManifests,
         server: ServerManifests) -> Tuple[DeploymentPlan, bool]:
     """Return the `DeploymentPlan` to transition K8s to state of `local`.
@@ -174,7 +174,7 @@ def compile_plan(
     specified in `local`.
 
     Inputs:
-        config: K8sConfig
+        k8sconfig: K8sConfig
         local: ServerManifests
             Should be output from `load_manifest` or `load`.
         server: ServerManifests
@@ -187,7 +187,7 @@ def compile_plan(
     err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
     # Replace the API group of the local resource with the one K8s prefers.
-    local, err = preferred_api(config, local)
+    local, err = preferred_api(k8sconfig, local)
     if err:
         return err_resp
 
@@ -206,7 +206,7 @@ def compile_plan(
     for delta in plan.create:
         # We only need the resource and namespace, not its name, because that
         # is how the POST request to create a resource works in K8s.
-        resource, err = k8s.resource(config, delta._replace(name=""))
+        resource, err = k8s.resource(k8sconfig, delta._replace(name=""))
         if err or not resource:
             return err_resp
         create.append(DeltaCreate(delta, resource.url, local[delta]))
@@ -222,7 +222,7 @@ def compile_plan(
     delete = []
     for meta in plan.delete:
         # Resource URL.
-        resource, err = k8s.resource(config, meta)
+        resource, err = k8s.resource(k8sconfig, meta)
         if err or not resource:
             return err_resp
 
@@ -235,13 +235,13 @@ def compile_plan(
     patches = []
     for meta in plan.patch:
         # Compute textual diff (only useful for the user to study the diff).
-        diff_str, err = manio.diff(config, local[meta], server[meta])
+        diff_str, err = manio.diff(k8sconfig, local[meta], server[meta])
         if err or diff_str is None:
             return err_resp
 
         # Compute the JSON patch that will change the K8s state to match the
         # one in the local files.
-        patch, err = make_patch(config, local[meta], server[meta])
+        patch, err = make_patch(k8sconfig, local[meta], server[meta])
         if err or patch is None:
             return err_resp
 
