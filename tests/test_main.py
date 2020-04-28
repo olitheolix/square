@@ -1,6 +1,5 @@
 import os
 import pathlib
-import tempfile
 import types
 import unittest.mock as mock
 
@@ -17,28 +16,23 @@ from square.dtypes import (
 from .test_helpers import make_manifest
 
 
-def dummy_command_param():
+def dummy_command_param(cfg: Config):
     """Helper function: return a valid parsed command line.
 
     This is mostly useful for `compile_config` related tests.
 
     """
-    # Create an empty Kubeconfig file. We only need it to exist.
-    path = Filepath(tempfile.mkdtemp())
-    fname = path / "kubeconfig.demo"
-    fname.write_text("")
-
     return types.SimpleNamespace(
         parser="get",
         verbosity=9,
-        folder="/tmp",
-        kinds=["Deployment"],
-        labels=[("app", "morty"), ("foo", "bar")],
-        namespaces=["default"],
-        kubeconfig=fname,
-        ctx=None,
+        folder=cfg.folder,
+        kinds=cfg.selectors.kinds,
+        labels=cfg.selectors.labels,
+        namespaces=cfg.selectors.namespaces,
+        kubeconfig=cfg.kubeconfig,
+        ctx=cfg.kube_ctx,
         groupby=None,
-        priorities=("Namespace", "Deployment"),
+        priorities=cfg.priorities,
     )
 
 
@@ -93,27 +87,15 @@ class TestResourceCleanup:
 
 
 class TestMain:
-    def test_compile_config_basic(self):
+    def test_compile_config_basic(self, config):
         """Compile various valid configurations."""
-        param = dummy_command_param()
-        cfg, err = main.compile_config(param)
-        assert not err and cfg == Config(
-            folder=pathlib.Path('/tmp'),
-            kubeconfig=param.kubeconfig,
-            kube_ctx=None,
-            selectors=Selectors(
-                kinds={'Deployment'},
-                namespaces=['default'],
-                labels={("app", "morty"), ("foo", "bar")}
-            ),
-            groupby=GroupBy(label='', order=[]),
-            priorities=("Namespace", "Deployment"),
-        )
+        param = dummy_command_param(config)
+        assert main.compile_config(param) == (config, False)
 
-    def test_compile_config_kinds(self):
+    def test_compile_config_kinds(self, config):
         """Parse resource kinds."""
         # Specify `Service` twice.
-        param = dummy_command_param()
+        param = dummy_command_param(config)
         param.kinds = ["Service", "Deploy", "Service"]
         cfg, err = main.compile_config(param)
         assert not err
@@ -131,10 +113,10 @@ class TestMain:
         assert not err
         assert cfg.selectors.kinds == set()
 
-    def test_compile_config_k8s_credentials(self):
+    def test_compile_config_k8s_credentials(self, config):
         """Parse K8s credentials."""
         # Must return error without K8s credentials.
-        param = dummy_command_param()
+        param = dummy_command_param(config)
         param.kubeconfig /= "does-not-exist"
         assert main.compile_config(param) == (
             Config(
@@ -146,9 +128,9 @@ class TestMain:
                 priorities=tuple(),
             ), True)
 
-    def test_compile_hierarchy_ok(self):
+    def test_compile_hierarchy_ok(self, config):
         """Parse file system hierarchy."""
-        param = dummy_command_param()
+        param = dummy_command_param(config)
 
         err_resp = Config(
             folder=Filepath(""),
@@ -166,7 +148,7 @@ class TestMain:
             param.parser = cmd
             ret, err = main.compile_config(param)
             assert not err
-            assert ret.groupby == GroupBy(order=[], label="")
+            assert ret.groupby == GroupBy(order=tuple(), label="")
             del cmd, ret, err
 
         # ----------------------------------------------------------------------
@@ -177,7 +159,7 @@ class TestMain:
         ret, err = main.compile_config(param)
         assert not err
         assert ret.groupby == GroupBy(
-            order=["ns", "kind", "label", "ns"], label="app")
+            order=("ns", "kind", "label", "ns"), label="app")
 
         # ----------------------------------------------------------------------
         # User defined hierarchy with invalid labels.
@@ -200,7 +182,7 @@ class TestMain:
     @mock.patch.object(main, "apply_plan")
     @mock.patch.object(square.k8s, "cluster_config")
     def test_main_valid_options(self, m_cluster, m_apply, m_plan, m_get, tmp_path,
-                                k8sconfig):
+                                config, k8sconfig):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
@@ -208,13 +190,6 @@ class TestMain:
 
         """
         m_cluster.side_effect = lambda *args: (k8sconfig, None, False)
-
-        # Kubeconfig file must exist (can be empty for this test).
-        fname_kubeconfig = tmp_path / "kubeconfig"
-        fname_kubeconfig.write_text("")
-
-        # Default grouping because we will not specify custom ones in this test.
-        groupby = GroupBy(order=[], label="")
 
         # Pretend all functions return successfully.
         m_get.return_value = (None, False)
@@ -224,28 +199,20 @@ class TestMain:
         # Simulate all input options.
         for option in ["get", "plan", "apply"]:
             args = (
-                "square.py", option,
-                "deployment", "service", "--folder", "myfolder",
-                "--kubeconfig", str(fname_kubeconfig)
+                "square.py", option, *config.selectors.kinds,
+                "--folder", str(config.folder),
+                "--kubeconfig", str(config.kubeconfig),
+                "--labels", "app=demo",
+                "--namespace", "default",
             )
             with mock.patch("sys.argv", args):
                 main.main()
             del args
 
         # Every main function must have been called exactly once.
-        selectors = Selectors({"Deployment", "Service"}, None, set())
-        args = fname_kubeconfig, None, pathlib.Path("myfolder"), selectors
-        cfg = Config(
-            folder=pathlib.Path("myfolder"),
-            groupby=groupby,
-            kube_ctx=None,
-            kubeconfig=fname_kubeconfig,
-            priorities=tuple(SUPPORTED_KINDS),
-            selectors=selectors,
-        )
-        m_get.assert_called_once_with(cfg)
-        m_apply.assert_called_once_with(*args, "yes")
-        m_plan.assert_called_once_with(cfg)
+        m_get.assert_called_once_with(config)
+        m_apply.assert_called_once_with(config, "yes")
+        m_plan.assert_called_once_with(config)
 
     def test_main_version(self):
         """Simulate "version" command."""
@@ -301,7 +268,7 @@ class TestMain:
 
     @mock.patch.object(main, "parse_commandline_args")
     @mock.patch.object(k8s, "cluster_config")
-    def test_main_invalid_option_in_main(self, m_cluster, m_cmd, k8sconfig):
+    def test_main_invalid_option_in_main(self, m_cluster, m_cmd, config, k8sconfig):
         """Simulate an option that `square` does not know about.
 
         This is a somewhat pathological test and exists primarily to close some
@@ -312,13 +279,13 @@ class TestMain:
         m_cluster.side_effect = lambda *args: (k8sconfig, None, False)
 
         # Force a configuration error due to the absence of K8s credentials.
-        cmd_args = dummy_command_param()
+        cmd_args = dummy_command_param(config)
         cmd_args.kubeconfig /= "does-not-exist"
         m_cmd.return_value = cmd_args
         assert main.main() == 1
 
         # Simulate an invalid Square command.
-        cmd_args = dummy_command_param()
+        cmd_args = dummy_command_param(config)
         cmd_args.parser = "invalid"
         m_cmd.return_value = cmd_args
         assert main.main() == 1
@@ -379,7 +346,7 @@ class TestMain:
 
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.groupby == GroupBy(label="", order=[])
+        assert cfg.groupby == GroupBy(label="", order=tuple())
 
         # ----------------------------------------------------------------------
         # User defined file system hierarchy.
@@ -391,7 +358,7 @@ class TestMain:
 
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.groupby == GroupBy(label="", order=["ns", "kind"])
+        assert cfg.groupby == GroupBy(label="", order=("ns", "kind"))
 
         # ----------------------------------------------------------------------
         # Include a label into the hierarchy and use "ns" twice.
@@ -403,7 +370,7 @@ class TestMain:
 
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.groupby == GroupBy(label="foo", order=["ns", "label", "ns"])
+        assert cfg.groupby == GroupBy(label="foo", order=("ns", "label", "ns"))
 
         # ----------------------------------------------------------------------
         # The label resource, unlike "ns" or "kind", can only be specified
@@ -514,7 +481,7 @@ class TestMain:
 class TestApplyPlan:
     @mock.patch.object(square, "make_plan")
     @mock.patch.object(square, "apply_plan")
-    def test_apply_plan(self, m_apply, m_plan, tmp_path):
+    def test_apply_plan(self, m_apply, m_plan, config):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -525,7 +492,6 @@ class TestApplyPlan:
 
         """
         fun = main.apply_plan
-        selectors = Selectors({"kinds"}, ["ns"], {("foo", "bar"), ("x", "y")})
 
         # -----------------------------------------------------------------
         #                   Simulate A Non-Empty Plan
@@ -552,18 +518,18 @@ class TestApplyPlan:
 
         # Function must not apply the plan without the user's confirmation.
         with mock.patch.object(main, 'input', lambda _: "no"):
-            assert fun("kubeconfig", None, tmp_path, selectors, "yes") is True
+            assert fun(config, "yes") is True
         assert not m_apply.called
 
         # Function must apply the plan if the user confirms it.
         with mock.patch.object(main, 'input', lambda _: "yes"):
-            assert fun("kubeconfig", None, tmp_path, selectors, "yes") is False
-        m_apply.assert_called_once_with("kubeconfig", None, plan)
+            assert fun(config, "yes") is False
+        m_apply.assert_called_once_with(config.kubeconfig, config.kube_ctx, plan)
 
         # Repeat with disabled security question.
         m_apply.reset_mock()
-        assert fun("kubeconfig", None, tmp_path, selectors, None) is False
-        m_apply.assert_called_once_with("kubeconfig", None, plan)
+        assert fun(config, None) is False
+        m_apply.assert_called_once_with(config.kubeconfig, config.kube_ctx, plan)
 
         # -----------------------------------------------------------------
         #                   Simulate An Empty Plan
@@ -573,7 +539,7 @@ class TestApplyPlan:
         m_plan.return_value = (DeploymentPlan(create=[], patch=[], delete=[]), False)
 
         with mock.patch.object(main, 'input', lambda _: "yes"):
-            assert fun("kubeconfig", None, tmp_path, selectors, "yes") is False
+            assert fun(config, "yes") is False
         assert not m_apply.called
 
         # -----------------------------------------------------------------
@@ -582,4 +548,4 @@ class TestApplyPlan:
         # Make `apply_plan` fail.
         m_plan.return_value = (plan, False)
         m_apply.return_value = (None, True)
-        assert fun("kubeconfig", None, tmp_path, selectors, None) is True
+        assert fun(config, None) is True

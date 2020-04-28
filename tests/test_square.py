@@ -1,19 +1,16 @@
 import copy
-import os
-import random
 import unittest.mock as mock
 
-import pytest
 import square.k8s as k8s
 import square.manio as manio
 import square.square as square
 from square.dtypes import (
-    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, GroupBy, JsonPatch,
-    K8sConfig, MetaManifest, Selectors,
+    DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan, JsonPatch, K8sConfig,
+    MetaManifest, Selectors,
 )
 from square.k8s import resource
 
-from .test_helpers import make_manifest, mk_deploy
+from .test_helpers import make_manifest
 
 
 class TestLogging:

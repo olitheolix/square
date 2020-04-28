@@ -221,7 +221,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         except (ValueError, AssertionError):
             logit.error(f"Invalid label specification <{labels[0]}>")
             return err_resp
-    groupby = GroupBy(order=clean_order, label=label_name)
+    groupby = GroupBy(order=tuple(clean_order), label=label_name)
     del order, clean_order, label_name
 
     # -------------------------------------------------------------------------
@@ -238,35 +238,22 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     return cfg, False
 
 
-def apply_plan(
-        kubeconfig: Filepath,
-        kube_ctx: Optional[str],
-        folder: Filepath,
-        selectors: Selectors,
-        confirm_string: Optional[str]) -> bool:
+def apply_plan(cfg: Config, confirm_string: Optional[str]) -> bool:
     """Update K8s to match the specifications in `local_manifests`.
 
     Create a deployment plan that will transition the K8s state
     `server_manifests` to the desired `local_manifests`.
 
     Inputs:
-        kubeconfig: Filepath,
-        kube_ctx: Optional[str],
-        folder: Filepath
-            Path to local manifests eg "./foo"
-        selectors: Selectors
-            Only operate on resources that match the selectors.
+        cfg: Square configuration.
         confirm_string:
             Only apply the plan if user answers with this string in the
             confirmation dialog (set to `None` to disable confirmation).
 
-    Returns:
-        None
-
     """
     try:
         # Obtain the plan.
-        plan, err = square.square.make_plan(kubeconfig, kube_ctx, folder, selectors)
+        plan, err = square.square.make_plan(cfg)
         assert not err and plan
 
         # Exit prematurely if there are no changes to apply.
@@ -285,7 +272,7 @@ def apply_plan(
         print()
 
         # Apply the plan.
-        assert not square.square.apply_plan(kubeconfig, kube_ctx, plan)
+        assert not square.square.apply_plan(cfg.kubeconfig, cfg.kube_ctx, plan)
     except AssertionError:
         return True
 
@@ -334,14 +321,13 @@ def main() -> int:
         return 1
 
     # Do what the user asked us to do.
-    common_args = Filepath(cfg.kubeconfig), cfg.kube_ctx, cfg.folder, cfg.selectors
     if param.parser == "get":
         err = square.square.get_resources(cfg)
     elif param.parser == "plan":
         plan, err = square.square.make_plan(cfg)
         square.square.show_plan(plan)
     elif param.parser == "apply":
-        err = apply_plan(*common_args, "yes")
+        err = apply_plan(cfg, "yes")
     else:
         logit.error(f"Unknown command <{param.parser}>")
         return 1
