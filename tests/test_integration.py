@@ -34,13 +34,13 @@ class TestBasic:
         fname = Filepath("/tmp/kubeconfig-kind.yaml")
 
         # Must produce a valid K8s configuration.
-        cfg, sess, err = fun(fname, None)
+        cfg, err = fun(fname, None)
         assert not err and isinstance(cfg, K8sConfig)
 
         # Gracefully handle connection errors to K8s.
         with mock.patch.object(square.k8s, "session") as m_sess:
             m_sess.return_value = None
-            assert fun(fname, None) == (K8sConfig(), None, True)
+            assert fun(fname, None) == (K8sConfig(), True)
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Minikube")

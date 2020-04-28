@@ -906,7 +906,6 @@ def save(folder: Filepath, manifests: LocalManifestLists,
 
 def download(
         k8sconfig: K8sConfig,
-        client,
         selectors: Selectors,
 ) -> Tuple[ServerManifests, bool]:
     """Download and return the resources that match `selectors`.
@@ -918,7 +917,6 @@ def download(
 
     Inputs:
         k8sconfig: K8sConfig
-        client: `requests` session with correct K8s certificates.
         selectors: Selectors
 
     Returns:
@@ -948,7 +946,7 @@ def download(
 
             try:
                 # Download the resource list from K8s.
-                manifest_list, err = square.k8s.get(client, resource.url)
+                manifest_list, err = square.k8s.get(k8sconfig.client, resource.url)
                 assert not err and manifest_list is not None
 
                 # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a

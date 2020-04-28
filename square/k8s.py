@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import warnings
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import google.auth
 import google.auth.transport.requests
@@ -448,7 +448,7 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
     https://1.2.3.4/api/v1/namespace/foo/services.
 
     Inputs:
-        k8sconfig: k8s.Config
+        k8sconfig: K8sConfig
         meta: MetaManifest
 
     Returns:
@@ -611,7 +611,7 @@ def post(client, url: str, payload: dict) -> Tuple[dict, bool]:
     return (resp, err)
 
 
-def version(k8sconfig: K8sConfig, client) -> Tuple[K8sConfig, bool]:
+def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     """Return new `k8sconfig` with version number of K8s API.
 
     Contact the K8s API, query its version via `client` and return `k8sconfig`
@@ -620,7 +620,6 @@ def version(k8sconfig: K8sConfig, client) -> Tuple[K8sConfig, bool]:
 
     Inputs:
         k8sconfig: K8sConfig
-        client: `requests` session with correct K8s certificates.
 
     Returns:
         K8sConfig
@@ -628,7 +627,7 @@ def version(k8sconfig: K8sConfig, client) -> Tuple[K8sConfig, bool]:
     """
     # Ask the K8s API for its version and check for errors.
     url = f"{k8sconfig.url}/version"
-    resp, err = get(client, url)
+    resp, err = get(k8sconfig.client, url)
     if err or resp is None:
         return (K8sConfig(), True)
 
@@ -649,7 +648,7 @@ def version(k8sconfig: K8sConfig, client) -> Tuple[K8sConfig, bool]:
 
 def cluster_config(
         kubeconfig: Filepath,
-        context: Optional[str]) -> Tuple[K8sConfig, Any, bool]:
+        context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Return web session to K8s API.
 
     This will read the Kubernetes credentials, contact Kubernetes to
@@ -658,11 +657,11 @@ def cluster_config(
     Inputs:
         kubeconfig: str
             Path to kubeconfig file.
-        kube_context: str
+        context: str
             Kubernetes context to use (can be `None` to use default).
 
     Returns:
-        K8sConfig, client
+        K8sConfig
 
     """
     # Read Kubeconfig file and use it to create a `requests` client session.
@@ -675,23 +674,23 @@ def cluster_config(
         assert not err
 
         # Configure web session.
-        client = session(k8sconfig)
-        assert client
+        k8sconfig = k8sconfig._replace(client=session(k8sconfig))
+        assert k8sconfig.client
 
-        # Contact the K8s API to update version field in `config`.
-        k8sconfig, err = version(k8sconfig, client)
+        # Contact the K8s API to update version field in `k8sconfig`.
+        k8sconfig, err = version(k8sconfig)
         assert not err and k8sconfig
 
         # Populate the `k8sconfig.apis` field.
-        err = compile_api_endpoints(k8sconfig, client)
+        err = compile_api_endpoints(k8sconfig)
         assert not err
     except AssertionError:
-        return (K8sConfig(), None, True)
+        return (K8sConfig(), True)
 
     # Log the K8s API address and version.
     logit.info(f"Kubernetes server at {k8sconfig.url}")
     logit.info(f"Kubernetes version is {k8sconfig.version}")
-    return (k8sconfig, client, False)
+    return (k8sconfig, False)
 
 
 def parse_api_group(api_version, url, resp) -> Tuple[List[K8sResource], Dict[str, str]]:
@@ -750,7 +749,7 @@ def parse_api_group(api_version, url, resp) -> Tuple[List[K8sResource], Dict[str
     return (group_urls, short2kind)
 
 
-def compile_api_endpoints(k8sconfig: K8sConfig, client) -> bool:
+def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
     """Populate `k8sconfig.apis` with all the K8s endpoints`.
 
     NOTE: This will purge the existing content in `k8sconfig.apis`.
@@ -773,11 +772,10 @@ def compile_api_endpoints(k8sconfig: K8sConfig, client) -> bool:
 
     Inputs:
         k8sconfig: K8sConfig
-        client: `requests` session with correct K8s certificates.
 
     """
     # Compile the list of all K8s API groups that this K8s instance knows about.
-    resp, err = get(client, f"{k8sconfig.url}/apis")
+    resp, err = get(k8sconfig.client, f"{k8sconfig.url}/apis")
     if err:
         logit.error(f"Could not interrogate the {k8sconfig.url}/apis")
         return True
@@ -829,7 +827,7 @@ def compile_api_endpoints(k8sconfig: K8sConfig, client) -> bool:
     group_urls: Dict[Tuple[str, str, str], List[K8sResource]] = {}
     for group_name, ver_url in apigroups.items():
         for api_version, url in ver_url:
-            resp, err = get(client, f"{k8sconfig.url}/{url}")
+            resp, err = get(k8sconfig.client, f"{k8sconfig.url}/{url}")
             if err:
                 logit.error(f"Could not interrogate the {k8sconfig.url}/{url}")
                 return True

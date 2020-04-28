@@ -710,7 +710,7 @@ class TestMainOptions:
         plan, err = square.make_plan(config)
         assert not err and isinstance(plan, DeploymentPlan)
         m_load.assert_called_once_with(config.folder, config.selectors)
-        m_down.assert_called_once_with(k8sconfig, "k8s_client", config.selectors)
+        m_down.assert_called_once_with(k8sconfig, config.selectors)
         m_plan.assert_called_once_with(k8sconfig, "local", "server")
 
         # Make `compile_plan` fail.
@@ -756,7 +756,7 @@ class TestMainOptions:
         # Call test function and verify it passed the correct arguments.
         assert square.get_resources(config) is False
         m_load.assert_called_once_with(config.folder, load_selectors)
-        m_down.assert_called_once_with(k8sconfig, "k8s_client", config.selectors)
+        m_down.assert_called_once_with(k8sconfig, config.selectors)
         m_sync.assert_called_once_with({}, "server", config.selectors, config.groupby, k8sconfig.kinds)  # noqa
         m_save.assert_called_once_with(config.folder, "synced", config.priorities)
 

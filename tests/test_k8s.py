@@ -216,10 +216,11 @@ class TestK8sVersion:
 
         # Create vanilla `Config` instance.
         m_client = mock.MagicMock()
+        k8sconfig = k8sconfig._replace(client=m_client)
 
         # Test function must contact the K8s API and return a `Config` tuple
         # with the correct version number.
-        config2, err = k8s.version(k8sconfig, client=m_client)
+        config2, err = k8s.version(k8sconfig)
         assert err is False
         assert isinstance(config2, K8sConfig)
         assert config2.version == "1.10"
@@ -238,25 +239,24 @@ class TestK8sVersion:
         # minor version as eg "11+".
         response["minor"] = "11+"
         m_get.return_value = (response, None)
-        config, err = k8s.version(k8sconfig, client=m_client)
+        config, err = k8s.version(k8sconfig)
         assert config.version == "1.11"
 
     @mock.patch.object(k8s, "get")
     def test_version_auto_err(self, m_get, k8sconfig):
         """Simulate an error when fetching the K8s version."""
-
-        # Create vanilla `Config` instance.
-        m_client = mock.MagicMock()
+        # Create vanilla `K8sConfig` instance.
+        k8sconfig = k8sconfig._replace(client=mock.MagicMock())
 
         # Simulate an error in `get`.
         m_get.return_value = (None, True)
 
         # Test function must abort gracefully.
-        assert k8s.version(k8sconfig, m_client) == (K8sConfig(), True)
+        assert k8s.version(k8sconfig) == (K8sConfig(), True)
 
 
 class TestUrlPathBuilder:
-    def k8sconfig(self, integrationtest, config):
+    def k8sconfig(self, integrationtest, ref_config):
         """Return a valid K8sConfig for a dummy or the real integration test cluster.
 
         The `config` is a reference K8s config. Return it if `integrationtest
@@ -266,16 +266,16 @@ class TestUrlPathBuilder:
         """
         # Use a fake or genuine K8s cluster.
         if not integrationtest:
-            return config
+            return ref_config
 
         if not kind_available():
             pytest.skip()
         kubeconfig = Filepath("/tmp/kubeconfig-kind.yaml")
 
         # Create a genuine K8s config from our integration test cluster.
-        config, client, err = k8s.cluster_config(kubeconfig, None)
-        assert not err and config and client
-        return config
+        k8sconfig, err = k8s.cluster_config(kubeconfig, None)
+        assert not err and k8sconfig and k8sconfig.client
+        return k8sconfig
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     def test_resource_service(self, integrationtest, k8sconfig):
@@ -285,7 +285,7 @@ class TestUrlPathBuilder:
 
         """
         # Fixtures.
-        config = self.k8sconfig(integrationtest, k8sconfig)
+        k8sconfig = self.k8sconfig(integrationtest, k8sconfig)
         err_resp = (K8sResource("", "", "", False, ""), True)
 
         # Tuples of API version that we ask for (if any), and what the final
@@ -300,32 +300,32 @@ class TestUrlPathBuilder:
 
         for src, expected in api_versions:
             # A particular Service in a particular namespace.
-            res, err = k8s.resource(config, MetaManifest(src, "Service", "ns", "name"))
+            res, err = k8s.resource(k8sconfig, MetaManifest(src, "Service", "ns", "name"))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected, kind="Service", name="services", namespaced=True,
-                url=f"{config.url}/api/v1/namespaces/ns/services/name",
+                url=f"{k8sconfig.url}/api/v1/namespaces/ns/services/name",
             )
 
             # All Services in all namespaces.
-            res, err = k8s.resource(config, MetaManifest(src, "Service", None, None))
+            res, err = k8s.resource(k8sconfig, MetaManifest(src, "Service", None, None))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected, kind="Service", name="services", namespaced=True,
-                url=f"{config.url}/api/v1/services",
+                url=f"{k8sconfig.url}/api/v1/services",
             )
 
             # All Services in a particular namespace.
-            res, err = k8s.resource(config, MetaManifest(src, "Service", "ns", ""))
+            res, err = k8s.resource(k8sconfig, MetaManifest(src, "Service", "ns", ""))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected, kind="Service", name="services", namespaced=True,
-                url=f"{config.url}/api/v1/namespaces/ns/services",
+                url=f"{k8sconfig.url}/api/v1/namespaces/ns/services",
             )
 
             # A particular Service in all namespaces -> Invalid.
             MM = MetaManifest
-            assert k8s.resource(config, MM(src, "Service", None, "name")) == err_resp
+            assert k8s.resource(k8sconfig, MM(src, "Service", None, "name")) == err_resp
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     def test_resource_statefulset(self, integrationtest, k8sconfig):
@@ -510,7 +510,7 @@ class TestUrlPathBuilder:
         """Compile all endpoints from a pre-recorded set of API responses."""
         # All web requests fail. Function must thus abort with an error.
         m_get.return_value = ({}, True)
-        assert k8s.compile_api_endpoints(k8sconfig, "client") is True
+        assert k8s.compile_api_endpoints(k8sconfig) is True
 
         # Sample return value for `https://k8s.com/apis`
         fake_api = json.loads(open("support/apis-v1-15.json").read())
@@ -523,7 +523,7 @@ class TestUrlPathBuilder:
         m_get.side_effect = supply_fake_api
 
         k8sconfig.apis.clear()
-        assert k8s.compile_api_endpoints(k8sconfig, "client") is False
+        assert k8s.compile_api_endpoints(k8sconfig) is False
         assert isinstance(k8sconfig.apis, dict) and len(k8sconfig.apis) > 0
 
         # Services have a short name.
@@ -564,7 +564,7 @@ class TestUrlPathBuilder:
         """Simulate network errors while compiling API endpoints."""
         # All web requests fail. Function must thus abort with an error.
         m_get.return_value = ({}, True)
-        assert k8s.compile_api_endpoints(k8sconfig, "client") is True
+        assert k8s.compile_api_endpoints(k8sconfig) is True
 
         # Sample return value for `https://k8s.com/apis`
         ret = {
@@ -583,7 +583,7 @@ class TestUrlPathBuilder:
         # Pretend that we could get all the API groups, but could not
         # interrogate the group endpoint to get the resources it offers.
         m_get.side_effect = [(ret, False), ({}, True)]
-        assert k8s.compile_api_endpoints(k8sconfig, "client") is True
+        assert k8s.compile_api_endpoints(k8sconfig) is True
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     def test_compile_api_endpoints_integrated(self, integrationtest, k8sconfig):

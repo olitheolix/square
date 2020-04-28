@@ -72,6 +72,9 @@ class K8sConfig(NamedTuple):
     ca_cert: Filepath = Filepath()
     client_cert: Optional[K8sClientCert] = None
 
+    # Request session.
+    client: Any = None
+
     # Kubernetes version and name.
     version: str = ""
     name: str = ""

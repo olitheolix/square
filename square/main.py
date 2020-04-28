@@ -281,9 +281,9 @@ def apply_plan(cfg: Config, confirm_string: Optional[str]) -> bool:
 
 
 def sanitise_resource_kinds(cfg: Config) -> Tuple[Config, bool]:
-    """Populate the `Selector.kinds` with what the use specified on the commandline."""
+    """Populate the `Selector.kinds` with those the user specified on the commandline."""
     # Create a K8sConfig instance because it will contain all the info we need.
-    k8sconfig, k8s_client, err = square.k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
+    k8sconfig, err = square.k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
     if err:
         return (cfg, True)
 
