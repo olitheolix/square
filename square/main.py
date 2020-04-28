@@ -338,7 +338,7 @@ def main() -> int:
     if param.parser == "get":
         err = square.square.get_resources(cfg)
     elif param.parser == "plan":
-        plan, err = square.square.make_plan(*common_args)
+        plan, err = square.square.make_plan(cfg)
         square.square.show_plan(plan)
     elif param.parser == "apply":
         err = apply_plan(*common_args, "yes")

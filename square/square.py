@@ -460,27 +460,8 @@ def apply_plan(
     return False
 
 
-def make_plan(
-        kubeconfig: Filepath,
-        kube_ctx: Optional[str],
-        folder: Filepath,
-        selectors: Selectors,
-) -> Tuple[DeploymentPlan, bool]:
-    """Print the diff between `local_manifests` and `server_manifests`.
-
-    The diff shows what would have to change on the K8s server in order for it
-    to match the setup defined in `local_manifests`.
-
-    Inputs:
-        kubeconfig: Filepath
-            Path to Kubernetes credentials.
-        kubectx: str
-            Kubernetes context (use `None` to use the default).
-        client: `requests` session with correct K8s certificates.
-        folder: Path
-            Path to local manifests eg "./foo"
-        selectors: Selectors
-            Only operate on resources that match the selectors.
+def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
+    """Return the deployment plan.
 
     Returns:
         Deployment plan.
@@ -488,15 +469,15 @@ def make_plan(
     """
     try:
         # Create properly configured Requests session to talk to K8s API.
-        k8s_config, k8s_client, err = k8s.cluster_config(kubeconfig, kube_ctx)
+        k8s_config, k8s_client, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
         assert not err
 
         # Load manifests from local files.
-        local, _, err = manio.load(folder, selectors)
+        local, _, err = manio.load(cfg.folder, cfg.selectors)
         assert not err
 
         # Download manifests from K8s.
-        server, err = manio.download(k8s_config, k8s_client, selectors)
+        server, err = manio.download(k8s_config, k8s_client, cfg.selectors)
         assert not err
 
         # Align non-plannable fields, like the ServiceAccount tokens.

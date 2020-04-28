@@ -689,7 +689,7 @@ class TestMainOptions:
     @mock.patch.object(manio, "download")
     @mock.patch.object(manio, "align_serviceaccount")
     @mock.patch.object(square, "compile_plan")
-    def test_make_plan(self, m_plan, m_align, m_down, m_load, kube_creds):
+    def test_make_plan(self, m_plan, m_align, m_down, m_load, config, kube_creds):
         """Basic test.
 
         This function does hardly anything to begin with, so we will merely
@@ -709,28 +709,24 @@ class TestMainOptions:
         m_plan.return_value = (plan, False)
         m_align.side_effect = lambda loc_man, srv_man: (loc_man, False)
 
-        # The arguments to the test function will always be the same in this test.
-        selectors = Selectors({"kinds"}, ["ns"], {("foo", "bar"), ("x", "y")})
-        args = "kubeconf", "kubectx", "folder", selectors
-
         # A successful DIFF only computes and prints the plan.
-        plan, err = square.make_plan(*args)
+        plan, err = square.make_plan(config)
         assert not err and isinstance(plan, DeploymentPlan)
-        m_load.assert_called_once_with("folder", selectors)
-        m_down.assert_called_once_with(k8sconfig, "k8s_client", selectors)
+        m_load.assert_called_once_with(config.folder, config.selectors)
+        m_down.assert_called_once_with(k8sconfig, "k8s_client", config.selectors)
         m_plan.assert_called_once_with(k8sconfig, "local", "server")
 
         # Make `compile_plan` fail.
         m_plan.return_value = (None, True)
-        assert square.make_plan(*args) == err_resp
+        assert square.make_plan(config) == err_resp
 
         # Make `download_manifests` fail.
         m_down.return_value = (None, True)
-        assert square.make_plan(*args) == err_resp
+        assert square.make_plan(config) == err_resp
 
         # Make `load` fail.
         m_load.return_value = (None, None, True)
-        assert square.make_plan(*args) == err_resp
+        assert square.make_plan(config) == err_resp
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")

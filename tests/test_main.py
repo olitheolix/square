@@ -245,7 +245,7 @@ class TestMain:
         )
         m_get.assert_called_once_with(cfg)
         m_apply.assert_called_once_with(*args, "yes")
-        m_plan.assert_called_once_with(*args)
+        m_plan.assert_called_once_with(cfg)
 
     def test_main_version(self):
         """Simulate "version" command."""
