@@ -9,7 +9,7 @@ import square.main as main
 import square.manio as manio
 import square.square as square
 from square.dtypes import (
-    SUPPORTED_KINDS, Config, DeltaCreate, DeltaDelete, DeltaPatch,
+    DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
     DeploymentPlan, Filepath, GroupBy, JsonPatch, Selectors,
 )
 
@@ -323,7 +323,7 @@ class TestMain:
         # User did not specify a priority.
         with mock.patch("sys.argv", args):
             ret = main.parse_commandline_args()
-            assert ret.priorities == SUPPORTED_KINDS
+            assert ret.priorities == DEFAULT_PRIORITIES
 
         # User did specify priorities.
         with mock.patch("sys.argv", args + ["--priorities", "foo", "bar"]):
