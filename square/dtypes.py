@@ -179,6 +179,9 @@ class Config(NamedTuple):
     # How to structure the folder directory when syncing manifests.
     groupby: GroupBy = GroupBy("", tuple())
 
+    # Define which fields to skip for which resource.
+    filters: dict = {}
+
 
 # -----------------------------------------------------------------------------
 #                                 Miscellaneous
