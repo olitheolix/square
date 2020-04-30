@@ -518,14 +518,15 @@ def strip(
         # Remove all empty sub-dictionaries from `removed`.
         return {k: v for k, v in removed.items() if v != {}}
 
-    # Add a default exclusion scheme for the current resource if none exists yet.
-    # Get the exclusion scheme for the current resource.
+    # Get the exclusion scheme for the current resource. Use the default one if
+    # none exists.
     try:
         exclude = exclusion_schema[manifest["kind"]]
     except KeyError:
         logit.info(f"No exclusion schema for: <{meta.kind}> - using default")
-        exclude = {manifest["kind"]: {}}
-        square.schemas.populate_schemas(exclude)
+        exclude_tmp: Dict[str, dict] = {manifest["kind"]: {}}
+        square.schemas.populate_schemas(exclude_tmp)
+        exclude = exclude_tmp[manifest["kind"]]
 
     # Strip down the manifest to its essential parts and return it.
     manifest = copy.deepcopy(manifest)
