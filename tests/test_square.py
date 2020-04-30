@@ -34,6 +34,7 @@ class TestBasic:
                                 labels=set()),
             priorities=DEFAULT_PRIORITIES,
             groupby=GroupBy("", tuple()),
+            filters={},
         )
 
     def test_find_namespace_orphans(self):
