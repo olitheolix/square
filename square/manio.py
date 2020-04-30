@@ -519,13 +519,13 @@ def strip(
         return {k: v for k, v in removed.items() if v != {}}
 
     # Add a default exclusion scheme for the current resource if none exists yet.
-    if manifest["kind"] not in exclusion_schema:
-        logit.warning(f"No exclusion schema for: <{meta.kind}> - using default")
-        exclusion_schema[manifest["kind"]] = {}
-        square.schemas.populate_schemas(exclusion_schema)
-
     # Get the exclusion scheme for the current resource.
-    exclude = exclusion_schema[manifest["kind"]]
+    try:
+        exclude = exclusion_schema[manifest["kind"]]
+    except KeyError:
+        logit.info(f"No exclusion schema for: <{meta.kind}> - using default")
+        exclude = {manifest["kind"]: {}}
+        square.schemas.populate_schemas(exclude)
 
     # Strip down the manifest to its essential parts and return it.
     manifest = copy.deepcopy(manifest)
