@@ -436,8 +436,8 @@ def diff(config: Config,
     """
     # Clean up the input manifests because we do not want to diff, for instance,
     # the `status` fields.
-    (srv, _), err1 = strip(k8sconfig, server, square.schemas.EXCLUSION_SCHEMA)
-    (loc, _), err2 = strip(k8sconfig, local, square.schemas.EXCLUSION_SCHEMA)
+    (srv, _), err1 = strip(k8sconfig, server, config.filters)
+    (loc, _), err2 = strip(k8sconfig, local, config.filters)
     if err1 or err2:
         return ("", True)
 
@@ -943,7 +943,7 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[ServerManifests, boo
                 assert not err and manifests is not None
 
                 # Drop all manifest fields except "apiVersion", "metadata" and "spec".
-                ret = {k: strip(k8sconfig, man, square.schemas.EXCLUSION_SCHEMA)
+                ret = {k: strip(k8sconfig, man, config.filters)
                        for k, man in manifests.items()}
 
                 # Ensure `strip` worked for every manifest.

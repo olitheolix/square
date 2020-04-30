@@ -40,8 +40,8 @@ def make_patch(
     """
     # Reduce local and server manifests to salient fields (ie apiVersion, kind,
     # metadata and spec). Abort on error.
-    (loc, _), err1 = manio.strip(k8sconfig, local, square.schemas.EXCLUSION_SCHEMA)
-    (srv, _), err2 = manio.strip(k8sconfig, server, square.schemas.EXCLUSION_SCHEMA)
+    (loc, _), err1 = manio.strip(k8sconfig, local, config.filters)
+    (srv, _), err2 = manio.strip(k8sconfig, server, config.filters)
     if err1 or err2 or loc is None or srv is None:
         return (JsonPatch("", []), True)
 
