@@ -5,7 +5,7 @@ from typing import (
 
 # We support these resource types. The order matters because it determines the
 # order in which the manifests will be grouped in the output files.
-SUPPORTED_KINDS = (
+DEFAULT_PRIORITIES = (
     # Namespaces must come first to ensure the other resources can be created
     # within them.
     "Namespace",

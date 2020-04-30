@@ -3,7 +3,7 @@ import unittest.mock as mock
 import pytest
 import square.dtypes
 import square.square
-from square.dtypes import SUPPORTED_KINDS, Config, GroupBy, Selectors
+from square.dtypes import DEFAULT_PRIORITIES, Config, GroupBy, Selectors
 
 from .test_helpers import k8s_apis
 
@@ -59,6 +59,6 @@ def config(k8sconfig, tmp_path):
             labels={("app", "demo")},
         ),
         groupby=GroupBy("", tuple()),
-        priorities=SUPPORTED_KINDS
+        priorities=DEFAULT_PRIORITIES
     )
     yield cfg

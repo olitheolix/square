@@ -11,7 +11,9 @@ import colorama
 import square
 import square.square
 from square import __version__
-from square.dtypes import SUPPORTED_KINDS, Config, Filepath, GroupBy, Selectors
+from square.dtypes import (
+    DEFAULT_PRIORITIES, Config, Filepath, GroupBy, Selectors,
+)
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
@@ -61,7 +63,7 @@ def parse_commandline_args():
     )
     parent.add_argument(
         "-p", "--priorities", nargs="*",
-        metavar="priorities", dest="priorities", default=tuple(SUPPORTED_KINDS),
+        metavar="priorities", dest="priorities", default=tuple(DEFAULT_PRIORITIES),
         help="Sort resource in this order when saving and applying",
     )
     parent.add_argument(
