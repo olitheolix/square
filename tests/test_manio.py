@@ -6,7 +6,6 @@ import unittest.mock as mock
 import square.dotdict as dotdict
 import square.k8s as k8s
 import square.manio as manio
-import square.schemas
 import yaml
 from square.dtypes import Filepath, GroupBy, MetaManifest, Selectors
 from square.k8s import resource
@@ -819,7 +818,7 @@ class TestManifestValidation:
 
     def test_strip_namespace(self, k8sconfig):
         """Filter NAMESPACE manifests."""
-        exclude = square.schemas.EXCLUSION_SCHEMA
+        exclude = {}
 
         # Valid: a namespace manifest without a `metadata.namespace` field.
         manifest = {
@@ -848,7 +847,7 @@ class TestManifestValidation:
 
     def test_strip_deployment(self, k8sconfig):
         """Filter DEPLOYMENT manifests."""
-        exclude = square.schemas.EXCLUSION_SCHEMA
+        exclude = {}
 
         # A valid service manifest with a few optional and irrelevant keys.
         manifest = {
@@ -1742,7 +1741,7 @@ class TestDownloadManifests:
         The test only mocks the K8s API call. All other functions actually run.
 
         """
-        exclude = square.schemas.EXCLUSION_SCHEMA
+        exclude = {}
         make_meta = manio.make_meta
 
         meta = [
