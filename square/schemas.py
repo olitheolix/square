@@ -13,23 +13,6 @@ from typing import Any, Dict, Union
 logit = logging.getLogger("square")
 
 
-EXCLUSION_SCHEMA: Dict[str, dict] = {
-    "ConfigMap": {
-        "metadata": {"annotations": {
-            "control-plane.alpha.kubernetes.io/leader": False,
-        }}
-    },
-    "HorizontalPodAutoscaler": {
-        "metadata": {"annotations": {
-            "control-plane.alpha.kubernetes.io/leader": False,
-            "autoscaling.alpha.kubernetes.io/conditions": False,
-            "autoscaling.alpha.kubernetes.io/current-metrics": False,
-        }}
-    },
-    "Service": {"spec": {"clusterIP": False, "sessionAffinity": False}},
-}
-
-
 def _is_exclusion_sane(schema: Dict[str, Union[dict, bool]]) -> bool:
     """Return `True` iff `schema` is valid."""
     # Iterate over all fields of all K8s resource type.
@@ -88,7 +71,3 @@ def populate_schemas(schemas: Dict[str, Dict[Any, Any]]) -> bool:
             logit.error(f"ERROR - Exclusion schema for <{resource_kind}> is invalid")
             return True
     return False
-
-
-# Finalise the exclusion schemas and sanity check them.
-assert populate_schemas(EXCLUSION_SCHEMA) is False
