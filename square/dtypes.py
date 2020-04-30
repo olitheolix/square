@@ -162,20 +162,22 @@ class Config(NamedTuple):
     # Path to local manifests eg "./foo"
     folder: Filepath
 
-    # Specify relationship between new manifests and file names.
-    groupby: GroupBy
+    # Path to Kubernetes credentials.
+    kubeconfig: Filepath
 
     # Kubernetes context (use `None` to use the default).
     kube_ctx: Optional[str]
 
-    # Path to Kubernetes credentials.
-    kubeconfig: Filepath
+    # Only operate on resources that match the selectors.
+    selectors: Selectors = Selectors(kinds=set(DEFAULT_PRIORITIES),
+                                     namespaces=None,
+                                     labels=set())
 
     # Sort the manifest in this order, or alphabetically at the end if not in the list.
-    priorities: Collection[str]
+    priorities: Collection[str] = tuple(DEFAULT_PRIORITIES)
 
-    # Only operate on resources that match the selectors.
-    selectors: Selectors
+    # How to structure the folder directory when syncing manifests.
+    groupby: GroupBy = GroupBy("", tuple())
 
 
 # -----------------------------------------------------------------------------
