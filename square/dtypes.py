@@ -3,30 +3,33 @@ from typing import (
     Any, Collection, Dict, Iterable, NamedTuple, Optional, Set, Tuple,
 )
 
-# We support these resource types. The order matters because it determines the
-# order in which the manifests will be grouped in the output files.
+# Square will first save/deploy the resources in this list in this order.
+# Afterwards it will move on to all those resources not in this list. The order
+# in which it does that is undefined.
 DEFAULT_PRIORITIES = (
-    # Namespaces must come first to ensure the other resources can be created
-    # within them.
-    "Namespace",
-
-    # Custom Resources
+    # Custom Resources should come first.
     "CustomResourceDefinition",
+
+    # Commone non-namespaced resources.
+    "ClusterRole", "ClusterRoleBinding",
+
+    # Namespaces must come before any namespaced resources,
+    "Namespace",
 
     # Configuration and PVC before Deployments & friends use them.
     "ConfigMap", "Secret", "PersistentVolumeClaim",
 
     # RBAC.
-    "ClusterRole", "ClusterRoleBinding", "Role", "RoleBinding", "ServiceAccount",
+    "Role", "RoleBinding", "ServiceAccount",
 
     # Define Services before creating Deployments & friends.
     "Service", "PodDisruptionBudget",
 
     # Everything that will spawn pods.
-    "CronJob", "Deployment", "DaemonSet", "StatefulSet", "HorizontalPodAutoscaler",
+    "CronJob", "Deployment", "DaemonSet", "StatefulSet",
 
-    # Ingresses should be after Deployments & friends.
-    "Ingress",
+    # Other.
+    "Ingress", "HorizontalPodAutoscaler",
 )
 
 Filepath = pathlib.Path
