@@ -11,6 +11,7 @@ jsonpatch = "*"
 pyyaml = "*"
 requests = "*"
 colorlog = "*"
+pydantic = "*"
 
 [dev-packages]
 ipython = "*"
