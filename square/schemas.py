@@ -7,67 +7,54 @@ defined here.
 
 """
 import logging
-from typing import Any, Dict, Union
+from typing import List, Union
 
 # Convenience.
 logit = logging.getLogger("square")
 
 
-def _is_exclusion_sane(schema: Dict[str, Union[dict, bool]]) -> bool:
-    """Return `True` iff `schema` is valid."""
-    # Iterate over all fields of all K8s resource type.
-    for k, v in schema.items():
-        assert isinstance(k, str)
+def valid(filters: List[Union[dict, list, str]]) -> bool:
+    """Return `True` iff `filters` is valid."""
+    if not isinstance(filters, list):
+        logit.error(f"<{filters}> must be a list")
+        return False
 
-        # All schemas must contain only dicts and boolean `False` values.
-        if isinstance(v, dict):
-            # Recursively check the dict to ensure it also only contains dicts
-            # and boolean `False` values.
-            if not _is_exclusion_sane(v):
-                logit.error(f"<{v}> is invalid")
+    # Iterate over all fields of all K8s resource type.
+    for el in filters:
+        # All filterss must contain only dicts and boolean `False` values.
+        if isinstance(el, dict):
+            if len(el) != 1:
+                logit.error(f"<{el}> must have exactly one key")
                 return False
-        elif v is False:
-            # Boolean `False` is what we expect at the leaf.
-            pass
+            value = list(el.values())[0]
+
+            # Recursively check the dictionary values.
+            if not valid(value):
+                logit.error(f"<{value}> is invalid")
+                return False
+        elif isinstance(el, str):
+            if el == "":
+                logit.error("Strings must be non-empty")
+                return False
         else:
-            logit.error(f"<{k}> is not a boolean `False`")
+            logit.error(f"<{el}> must be a string")
             return False
     return True
 
 
-def populate_schemas(schemas: Dict[str, Dict[Any, Any]]) -> bool:
-    """Add default values to all exclusion schemas and validate them."""
-    # Iterate over all schemas and insert default values.
-    for resource_kind, data in schemas.items():
-        # Ensure that `metadata.annotations` exists.
-        data["metadata"] = data.get("metadata", {})
-        data["metadata"]["annotations"] = data["metadata"].get("annotations", {})
-
-        # We do not want to manage the status of a resource since K8s
-        # updates that whenever necessary with the latest values.
-        data["status"] = False
-
-        # Default resource tags that K8s manages itself. It would be
-        # dangerous to overwrite them.
-        data["metadata"].update({
-            "creationTimestamp": False,
-            "generation": False,
-            "resourceVersion": False,
-            "selfLink": False,
-            "uid": False,
-        })
-
-        # Never touch the annotation of `kubectl`.
-        data["metadata"]["annotations"].update(
-            {
-                "deployment.kubernetes.io/revision": False,
-                "kubectl.kubernetes.io/last-applied-configuration": False,
-                "kubernetes.io/change-cause": False,
-            }
-        )
-
-        # Ensure the exclusion schema is valid.
-        if not _is_exclusion_sane(data):
-            logit.error(f"ERROR - Exclusion schema for <{resource_kind}> is invalid")
-            return True
-    return False
+def default():
+    return [
+        {"metadata": [
+            {"annotations": [
+                "deployment.kubernetes.io/revision",
+                "kubectl.kubernetes.io/last-applied-configuration",
+                "kubernetes.io/change-cause",
+            ]},
+            "creationTimestamp",
+            "generation",
+            "resourceVersion",
+            "selfLink",
+            "uid",
+        ]},
+        "status",
+    ]
