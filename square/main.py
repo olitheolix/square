@@ -94,7 +94,7 @@ def parse_commandline_args():
     kinds_kwargs = {
         "dest": "kinds",
         "type": str,
-        "nargs": '+',
+        "nargs": '*',
         "metavar": "resource",
     }
 
@@ -184,13 +184,8 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # insertion order for dictionaries (but not sets).
     p.kinds = set(dict.fromkeys(p.kinds))
 
-    # Expand the "all" resource (if present) and ignore all other resources, if
-    # any were specified.
-    if "all" in p.kinds:
-        p.kinds.clear()
-
-    # Folder must be `Path` object.
-    folder = pathlib.Path(p.folder)
+    # Folder must be `Filepath` object.
+    folder = Filepath(p.folder)
 
     # Specify the selectors (see definition of `dtypes.Selectors`).
     selectors = Selectors(p.kinds, p.namespaces, set(p.labels))
