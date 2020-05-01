@@ -793,14 +793,20 @@ class TestManifestValidation:
         }
 
     def test_strip_missing_schema(self, k8sconfig):
-        """Return the input manifests in the absence of a n exclusion schema."""
+        """Remove default fields like `metadata.uid` in the absence of a filter."""
         manifest = {
             "apiVersion": "v1",
             "kind": "Service",
-            "metadata": {"name": "name", "namespace": "ns"},
             "something": "here",
         }
-        assert manio.strip(k8sconfig, manifest, {}) == ((manifest, {}), False)
+        expected = manifest.copy()
+
+        manifest["metadata"] = {"name": "name", "namespace": "ns", "uid": "some-uid"}
+        expected["metadata"] = {"name": "name", "namespace": "ns"}
+
+        # Must remove the `metadata.uid` field.
+        missing = {"metadata": {"uid": "some-uid"}}
+        assert manio.strip(k8sconfig, manifest, {}) == ((expected, missing), False)
 
     def test_strip_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
