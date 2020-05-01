@@ -22,12 +22,14 @@ logit = logging.getLogger("square")
 
 def load_config(fname: Filepath) -> Tuple[Config, bool]:
     """Parse the Square configuration file `fname` and return it as a `Config`."""
+    err_resp = Config(folder=Filepath(""), kubeconfig=Filepath(""), kube_ctx=None), True
+
     # Load the configuration file.
     try:
         raw = yaml.safe_load(Filepath(fname).read_text())
     except FileNotFoundError as e:
         logit.error(f"Cannot load config file <{fname}>: {e.args[1]}")
-        return Config(folder="", kubeconfig="", kube_ctx=None), True
+        return err_resp
     except yaml.YAMLError as exc:
         msg = f"Could not parse YAML file {fname}"
 
@@ -36,14 +38,14 @@ def load_config(fname: Filepath) -> Tuple[Config, bool]:
         line, col = (mark.line + 1, mark.column + 1)
         msg = f"YAML format error in {fname}: Line {line} Column {col}"
         logit.error(msg)
-        return Config(folder="", kubeconfig="", kube_ctx=None), True
+        return err_resp
 
     # Parse the configuration into `ConfigFile` structure.
     try:
         raw = ConfigFile.parse_obj(raw)
     except pydantic.ValidationError as e:
         logit.error(f"Schema is invalid: {e}")
-        return Config(folder="", kubeconfig="", kube_ctx=None), True
+        return err_resp
 
     # Compile the config file into a `dtypes.Config` tuple.
     config = Config(
