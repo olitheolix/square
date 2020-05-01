@@ -33,6 +33,7 @@ def dummy_command_param(cfg: Config):
         ctx=cfg.kube_ctx,
         groupby=None,
         priorities=cfg.priorities,
+        config="",
     )
 
 
@@ -106,6 +107,38 @@ class TestMain:
         cfg, err = main.compile_config(param)
         assert not err
         assert cfg.selectors.kinds == set()
+
+    def test_compile_config_kinds_merge_file(self, config):
+        """Merge configuration from file and command line."""
+        # Load everything from file.
+        param = dummy_command_param(config)
+        param.config = Filepath("resources/sampleconfig.yaml")
+        cfg, err = main.compile_config(param)
+        assert not err
+
+        assert cfg.folder == Filepath("./")
+        assert cfg.kubeconfig == Filepath("/some/where")
+        assert cfg.kube_ctx is None
+        assert cfg.folder == Filepath("./")
+        assert cfg.priorities == list(DEFAULT_PRIORITIES)
+        assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
+        assert cfg.selectors.namespaces is None
+        assert cfg.selectors.labels == {("app", "square"), ("foo", "bar")}
+        assert set(cfg.filters.keys()) == {
+            "_common_", "Service", "ClusterRole", "ClusterRoleBinding",
+            "CustomResourceDefinition", "ConfigMap",
+            "CronJob", "DaemonSet", "Deployment", "HorizontalPodAutoscaler",
+            "Ingress", "Namespace", "PersistentVolumeClaim",
+            "PodDisruptionBudget", "Role", "RoleBinding", "Secret",
+            "ServiceAccount", "StatefulSet",
+        }
+
+    def test_compile_config_missing_config_file(self, config):
+        """Abort if the config file is missing or invalid."""
+        param = dummy_command_param(config)
+        param.config = Filepath("/does/not/exist.yaml")
+        _, err = main.compile_config(param)
+        assert err
 
     def test_compile_config_k8s_credentials(self, config):
         """Parse K8s credentials."""

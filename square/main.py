@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os
-import pathlib
 import re
 import sys
 import textwrap
@@ -50,6 +49,10 @@ def parse_commandline_args():
     parent.add_argument(
         "-v", "--verbosity", action="count", default=0,
         help="Log level (-v: WARNING -vv: INFO -vvv: DEBUG)"
+    )
+    parent.add_argument(
+        "-c", "--config", type=str, default="",
+        help="Read configuration from this file"
     )
     parent.add_argument(
         "-n", "--namespace", type=str, nargs="*",
@@ -172,6 +175,11 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
 
     # Convenience.
     p = cmdline_param
+
+    # Exclusively use the config file if the user specified one.
+    if p.config:
+        cfg, err = square.square.load_config(p.config)
+        return err_resp if err else (cfg, False)
 
     # Abort without credentials.
     kubeconfig = Filepath(p.kubeconfig)
