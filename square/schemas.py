@@ -1,9 +1,10 @@
 """Define which manifest fields to exclude from diffs and patches.
 
-For instance, almost all manifests can have a "status" field that K8s will
-populate and update as necessary. It does not make sense for Square to compute
-diffs on that field or patch them. Therefore, we add it to the exclusion filter
-defined here.
+For instance, almost all manifests can have a "status" field or a
+`manifest.uid` that K8s manages itself. It does not make sense, or is even
+dangerous, for Square to compute diffs on such field or patch them.
+
+This module defines utility functions to define these filters.
 
 """
 import logging
@@ -43,6 +44,7 @@ def valid(filters: List[Union[dict, list, str]]) -> bool:
 
 
 def default():
+    """Return a default set of filters that should be applicable to all resources."""
     return [
         {"metadata": [
             {"annotations": [

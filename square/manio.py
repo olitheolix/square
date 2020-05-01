@@ -458,7 +458,7 @@ def strip(
     manifest: dict,
     exclusion_schema: Dict[str, list],
 ) -> Tuple[Tuple[DotDict, dict], bool]:
-    """Strip `manifest` according to the exclusion filters in `square.schemas`.
+    """Strip `manifest` according to the filters in `square.schemas`.
 
     Inputs:
         k8sconfig: K8sConfig
