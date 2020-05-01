@@ -101,14 +101,8 @@ class TestMain:
         assert not err
         assert cfg.selectors.kinds == {"Service", "Deploy"}
 
-        # The "all" resource must expand to all supported kinds.
-        param.kinds = ["all"]
-        cfg, err = main.compile_config(param)
-        assert not err
-        assert cfg.selectors.kinds == set()
-
-        # Must remove duplicate resources.
-        param.kinds = ["all", "svc", "all"]
+        # An empty resource list must expand to all supported kinds.
+        param.kinds = []
         cfg, err = main.compile_config(param)
         assert not err
         assert cfg.selectors.kinds == set()
