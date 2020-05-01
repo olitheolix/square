@@ -456,15 +456,15 @@ def diff(config: Config,
 def strip(
     k8sconfig: K8sConfig,
     manifest: dict,
-    exclusion_schema: Dict[str, list],
+    manifest_filters: Dict[str, list],
 ) -> Tuple[Tuple[DotDict, dict], bool]:
     """Strip `manifest` according to the filters in `square.schemas`.
 
     Inputs:
         k8sconfig: K8sConfig
         manifest: dict
-        exclusion_schema: Dict[str, dict]
-            fixme: docu
+        manifest_filters: Dict[str, list]
+            See tests for examples
 
     Returns:
         dict: the removed keys.
@@ -500,8 +500,8 @@ def strip(
         filter_map = [_ for _ in filters if isinstance(_, dict)]
         filter_map = {k: v for d in filter_map for k, v in d.items()}
 
-        # Iterate over the manifest. Prune all keys that match the exclusions
-        # schema and record them in `removed`.
+        # Iterate over the manifest. Prune all keys that match the `filters`
+        # and record them in `removed`.
         removed = {}
         for k, v in list(manifest.items()):
             if k in filter_str:
@@ -530,7 +530,7 @@ def strip(
         return {k: v for k, v in removed.items() if v != {}}
 
     # Get the filters for the current resource. Use the default one if none exists.
-    filters = exclusion_schema.get(manifest["kind"], square.schemas.default())
+    filters = manifest_filters.get(manifest["kind"], square.schemas.default())
     if not square.schemas.valid(filters):
         return ret_err
 
