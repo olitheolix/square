@@ -703,7 +703,7 @@ class TestManifestValidation:
         is to validate the algorithm that strips the manifests.
 
         """
-        # Define exclusion schema for this test.
+        # Define filters for this test.
         filters = [
             "invalid",
             {"metadata": [
