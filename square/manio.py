@@ -454,10 +454,10 @@ def diff(config: Config,
 
 
 def strip(
-        k8sconfig: K8sConfig,
-        manifest: dict,
-        exclusion_schema: Dict[str, dict],
-        ) -> Tuple[Tuple[DotDict, dict], bool]:
+    k8sconfig: K8sConfig,
+    manifest: dict,
+    exclusion_schema: Dict[str, list],
+) -> Tuple[Tuple[DotDict, dict], bool]:
     """Strip `manifest` according to the exclusion filters in `square.schemas`.
 
     Inputs:
@@ -470,8 +470,6 @@ def strip(
         dict: the removed keys.
 
     """
-    assert k8sconfig.version is not None
-
     # Convenience: default return value if an error occurs.
     ret_err: Tuple[Tuple[DotDict, dict], bool] = ((square.dotdict.make({}), {}), True)
 
@@ -486,51 +484,59 @@ def strip(
     except AssertionError:
         return ret_err
 
-    def _update(exclude: dict, manifest: dict):
-        """Recursively traverse the `manifest` and prune it according to `exclude`.
+    def _update(filters: list, manifest: dict):
+        """Recursively traverse the `manifest` and prune it according to `filters`.
 
         Returns dict with the excluded keys.
 
         Raise `KeyError` if an invalid key was found.
 
         """
+        # Split the list of strings and dicts into a dedicated set of string
+        # and dedicated list of dicts.
+        # Example: ["foo", "bar", {"a": "b", "c": "d"}] will become
+        #   {"foo", "bar"} and {"a": "b", "c", "d"}.
+        filter_str = {_ for _ in filters if isinstance(_, str)}
+        filter_map = [_ for _ in filters if isinstance(_, dict)]
+        filter_map = {k: v for d in filter_map for k, v in d.items()}
+
         # Iterate over the manifest. Prune all keys that match the exclusions
         # schema and record them in `removed`.
         removed = {}
         for k, v in list(manifest.items()):
-            # Keep this manifest key because there is no exclusion filter for it.
-            if k not in exclude:
-                continue
-
-            if isinstance(exclude[k], dict):
-                # Recurse into the next dictionary and collect the removed keys.
-                removed[k] = _update(exclude[k], manifest[k])
-            else:
-                # Remove the current key from the manifest.
-                # NOTE: the value of `exclude[k]` is irrelevant. All that
-                # matters is that it is a bool.
+            if k in filter_str:
+                # Remove the entire key (and all sub-fields if present).
+                logit.debug(f"Remove <{k}>")
                 removed[k] = manifest.pop(k)
+            elif isinstance(v, list) and k in filter_map:
+                # Recursively filter each list element.
+                tmp = [_update(filter_map[k], _) for _ in v]
+                removed[k] = [_ for _ in tmp if _]
 
-            # Remove the key altogether if it has become an empty dict.
-            if manifest.get(k, None) == {}:
+                # Do not leave empty elements in the list.
+                manifest[k] = [_ for _ in v if _]
+            elif isinstance(v, dict) and k in filter_map:
+                # Recursively filter each dictionary element.
+                logit.debug(f"Dive into <{k}>")
+                removed[k] = _update(filter_map[k], manifest[k])
+            else:
+                logit.debug(f"Skip <{k}>")
+
+            # Remove the key from the manifest altogether if it has become empty.
+            if not manifest.get(k, "non-empty"):
                 del manifest[k]
 
         # Remove all empty sub-dictionaries from `removed`.
         return {k: v for k, v in removed.items() if v != {}}
 
-    # Get the exclusion scheme for the current resource. Use the default one if
-    # none exists.
-    try:
-        exclude = exclusion_schema[manifest["kind"]]
-    except KeyError:
-        logit.info(f"No exclusion schema for: <{meta.kind}> - using default")
-        exclude_tmp: Dict[str, dict] = {manifest["kind"]: {}}
-        square.schemas.populate_schemas(exclude_tmp)
-        exclude = exclude_tmp[manifest["kind"]]
+    # Get the filters for the current resource. Use the default one if none exists.
+    filters = exclusion_schema.get(manifest["kind"], square.schemas.default())
+    if not square.schemas.valid(filters):
+        return ret_err
 
-    # Strip down the manifest to its essential parts and return it.
+    # Remove the keys from the `manifest` according to `filters`.
     manifest = copy.deepcopy(manifest)
-    removed = _update(exclude, manifest)
+    removed = _update(filters, manifest)
     return ((square.dotdict.make(manifest), removed), False)
 
 
