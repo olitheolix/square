@@ -198,7 +198,7 @@ class Config:
     groupby: GroupBy = GroupBy()
 
     # Define which fields to skip for which resource.
-    filters: dict = _factory({})
+    filters: Dict[str, List[Union[str, dict]]] = _factory({})
 
 
 # -----------------------------------------------------------------------------
