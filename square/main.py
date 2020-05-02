@@ -75,9 +75,8 @@ def parse_commandline_args():
         help="Location of kubeconfig file (defaults to env KUBECONFIG)",
     )
     parent.add_argument(
-        "--folder", type=str, metavar="path",
-        default=os.environ.get("SQUARE_FOLDER", "./"),
-        help="Manifest folder (defaults to env SQUARE_FOLDER first then ./)",
+        "--folder", type=str, metavar="path", default="./",
+        help="Manifest folder (defaults to ./)",
     )
     parent.add_argument(
         "--context", type=str, metavar="ctx", dest="ctx", default=None,
