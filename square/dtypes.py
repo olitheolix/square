@@ -4,8 +4,6 @@ from typing import (
     Tuple, Union,
 )
 
-from pydantic import BaseModel
-
 if TYPE_CHECKING:
     from dataclasses import dataclass
 else:
@@ -201,33 +199,6 @@ class Config:
     filters: Dict[str, List[Union[str, dict]]] = _factory({})
 
     version: str = ""
-
-
-# -----------------------------------------------------------------------------
-#                               Configuration File
-# -----------------------------------------------------------------------------
-class ConfigFileKeyValue(BaseModel):
-    # To parse the `selectors.labels` section.
-    name: str
-    value: str
-
-
-class ConfigFileSelectors(BaseModel):
-    # Config file equivalent to `Selectors` defined above.
-    kinds: List[str]
-    namespaces: Optional[List[str]]
-    labels: List[ConfigFileKeyValue]
-
-
-class ConfigFile(BaseModel):
-    """Configuration file structure."""
-    version: str
-    kubeconfig: Filepath
-    kubecontext: Optional[str] = None
-    folder: Filepath = Filepath(".")
-    selectors: ConfigFileSelectors
-    priorities: List[str]
-    filters: Dict[str, List[Union[str, dict]]]
 
 
 # -----------------------------------------------------------------------------
