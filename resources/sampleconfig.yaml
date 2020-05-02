@@ -18,8 +18,8 @@ priorities:
 
   # Configuration and PVC before Deployments & friends use them.
   - ConfigMap
-  - Secret
   - PersistentVolumeClaim
+  - Secret
 
   # RBAC.
   - Role
@@ -27,39 +27,39 @@ priorities:
   - ServiceAccount
 
   # Define Services before creating Deployments & friends.
-  - Service
   - PodDisruptionBudget
+  - Service
 
   # Everything that will spawn pods.
   - CronJob
-  - Deployment
   - DaemonSet
+  - Deployment
   - StatefulSet
 
   # Other.
-  - Ingress
   - HorizontalPodAutoscaler
+  - Ingress
 
 selectors:
   kinds:
-    - CustomResourceDefinition
     - ClusterRole
     - ClusterRoleBinding
-    - Namespace
     - ConfigMap
-    - Secret
+    - CronJob
+    - CustomResourceDefinition
+    - DaemonSet
+    - Deployment
+    - HorizontalPodAutoscaler
+    - Ingress
+    - Namespace
     - PersistentVolumeClaim
+    - PodDisruptionBudget
     - Role
     - RoleBinding
-    - ServiceAccount
+    - Secret
     - Service
-    - PodDisruptionBudget
-    - CronJob
-    - Deployment
-    - DaemonSet
+    - ServiceAccount
     - StatefulSet
-    - Ingress
-    - HorizontalPodAutoscaler
   namespaces: []
   labels:
     - [app, square]
@@ -86,9 +86,9 @@ filters:
   HorizontalPodAutoscaler:
     - metadata:
       - annotations:
-        - control-plane.alpha.kubernetes.io/leader
         - autoscaling.alpha.kubernetes.io/conditions
         - autoscaling.alpha.kubernetes.io/current-metrics
+        - control-plane.alpha.kubernetes.io/leader
   Service:
     - spec:
       - ports:
