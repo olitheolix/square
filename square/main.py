@@ -129,6 +129,11 @@ def parse_commandline_args():
         'version', help="Show Square version and exit", parents=[parent]
     )
 
+    # Sub-command CONFIG.
+    subparsers.add_parser(
+        'config', help="Create .square.yaml (works with --folder)", parents=[parent]
+    )
+
     # Parse the actual arguments.
     param = parser.parse_args()
 
@@ -314,6 +319,17 @@ def main() -> int:
     param = parse_commandline_args()
     if param.parser == "version":
         print(__version__)
+        return 0
+
+    if param.parser == "config":
+        fname = Filepath(param.folder) / ".square.yaml"
+        fname.parent.mkdir(parents=True, exist_ok=True)
+        fname.write_text(open("resources/sampleconfig.yaml").read())
+        print(
+            f"Created configuration file <{fname}>.\n"
+            "Please open the file in an editor and adjust the values, most notably "
+            "<kubeconfig>, <kubecontext>, <folder> and <selectors.labels>."
+        )
         return 0
 
     # Initialise logging.
