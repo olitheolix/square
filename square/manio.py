@@ -506,6 +506,8 @@ def strip(
         for k, v in list(manifest.items()):
             if k in filter_str:
                 # Remove the entire key (and all sub-fields if present).
+                # NOTE: it does not matter if the key also exists in
+                # `filter_map` - we remove the entire key.
                 logit.debug(f"Remove <{k}>")
                 removed[k] = manifest.pop(k)
             elif isinstance(v, list) and k in filter_map:
