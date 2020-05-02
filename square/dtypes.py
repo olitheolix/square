@@ -25,19 +25,19 @@ DEFAULT_PRIORITIES = (
     "Namespace",
 
     # Configuration and PVC before Deployments & friends use them.
-    "ConfigMap", "Secret", "PersistentVolumeClaim",
+    "ConfigMap", "PersistentVolumeClaim", "Secret",
 
     # RBAC.
     "Role", "RoleBinding", "ServiceAccount",
 
     # Define Services before creating Deployments & friends.
-    "Service", "PodDisruptionBudget",
+    "PodDisruptionBudget", "Service",
 
     # Everything that will spawn pods.
-    "CronJob", "Deployment", "DaemonSet", "StatefulSet",
+    "CronJob", "DaemonSet", "Deployment", "StatefulSet",
 
     # Other.
-    "Ingress", "HorizontalPodAutoscaler",
+    "HorizontalPodAutoscaler", "Ingress",
 )
 
 Filepath = pathlib.Path
