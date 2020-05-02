@@ -78,16 +78,10 @@ filters:
         - kubectl.kubernetes.io/last-applied-configuration
         - kubernetes.io/change-cause
     - status
-
-  ClusterRole: []
-  ClusterRoleBinding: []
-  CustomResourceDefinition: []
   ConfigMap:
     - metadata:
       - annotations
       - control-plane.alpha.kubernetes.io/leader
-  CronJob: []
-  DaemonSet: []
   Deployment: []
   HorizontalPodAutoscaler:
     - metadata:
@@ -95,16 +89,7 @@ filters:
         - control-plane.alpha.kubernetes.io/leader
         - autoscaling.alpha.kubernetes.io/conditions
         - autoscaling.alpha.kubernetes.io/current-metrics
-  Ingress: []
-  Namespace: []
-  PersistentVolumeClaim: []
-  PodDisruptionBudget: []
-  Role: []
-  RoleBinding: []
-  Secret: []
   Service:
     - spec:
       - ports:
         - nodePort
-  ServiceAccount: []
-  StatefulSet: []

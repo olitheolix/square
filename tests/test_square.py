@@ -117,12 +117,7 @@ class TestLoadConfig:
         assert cfg.selectors.namespaces == []
         assert cfg.selectors.labels == {("app", "square"), ("foo", "bar")}
         assert set(cfg.filters.keys()) == {
-            "_common_", "Service", "ClusterRole", "ClusterRoleBinding",
-            "CustomResourceDefinition", "ConfigMap",
-            "CronJob", "DaemonSet", "Deployment", "HorizontalPodAutoscaler",
-            "Ingress", "Namespace", "PersistentVolumeClaim",
-            "PodDisruptionBudget", "Role", "RoleBinding", "Secret",
-            "ServiceAccount", "StatefulSet"
+            "_common_", "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
 
     def test_load_config_err(self, tmp_path):
