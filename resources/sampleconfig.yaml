@@ -60,12 +60,10 @@ selectors:
     - StatefulSet
     - Ingress
     - HorizontalPodAutoscaler
-  namespaces: null
+  namespaces: []
   labels:
-    - name: app
-      value: square
-    - name: foo
-      value: bar
+    - [app, square]
+    - [foo, bar]
 
 filters:
   _common_:
