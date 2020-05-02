@@ -33,8 +33,8 @@ class TestBasic:
             selectors=Selectors(kinds=set(DEFAULT_PRIORITIES),
                                 namespaces=None,
                                 labels=set()),
-            priorities=DEFAULT_PRIORITIES,
-            groupby=GroupBy("", tuple()),
+            priorities=list(DEFAULT_PRIORITIES),
+            groupby=GroupBy(label="", order=[]),
             filters={},
         )
 

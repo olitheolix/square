@@ -169,8 +169,8 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         kubeconfig=Filepath(""),
         kube_ctx=None,
         selectors=Selectors(set(), None, None),
-        groupby=GroupBy("", tuple()),
-        priorities=tuple(),
+        groupby=GroupBy("", []),
+        priorities=[],
     ), True
 
     # Convenience.
@@ -226,7 +226,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         except (ValueError, AssertionError):
             logit.error(f"Invalid label specification <{labels[0]}>")
             return err_resp
-    groupby = GroupBy(order=tuple(clean_order), label=label_name)
+    groupby = GroupBy(order=list(clean_order), label=label_name)
     del order, clean_order, label_name
 
     # -------------------------------------------------------------------------

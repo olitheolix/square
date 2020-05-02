@@ -1,7 +1,6 @@
 import pathlib
 from typing import (
-    Any, Collection, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple,
-    Union,
+    Any, Collection, Dict, List, NamedTuple, Optional, Set, Tuple, Union,
 )
 
 from pydantic import BaseModel
@@ -152,15 +151,15 @@ class DeploymentPlanMeta(NamedTuple):
 # -----------------------------------------------------------------------------
 class Selectors(NamedTuple):
     """Comprises all the filters to select manifests."""
-    kinds: Set[str]
-    namespaces: Optional[Iterable[str]]
-    labels: Optional[Set[Tuple[str, str]]]
+    kinds: Set[str] = set(DEFAULT_PRIORITIES)
+    namespaces: Optional[List[str]] = None
+    labels: Optional[Set[Tuple[str, str]]] = set()
 
 
 class GroupBy(NamedTuple):
     """Define how to organise downloaded manifest on the files system."""
-    label: str                  # "app"
-    order: Iterable[str]        # ["ns", "label=app", kind"]
+    label: str = ""             # "app"
+    order: List[str] = []       # ["ns", "label=app", kind"]
 
 
 class Config(NamedTuple):
@@ -175,15 +174,13 @@ class Config(NamedTuple):
     kube_ctx: Optional[str]
 
     # Only operate on resources that match the selectors.
-    selectors: Selectors = Selectors(kinds=set(DEFAULT_PRIORITIES),
-                                     namespaces=None,
-                                     labels=set())
+    selectors: Selectors = Selectors()
 
     # Sort the manifest in this order, or alphabetically at the end if not in the list.
-    priorities: Collection[str] = tuple(DEFAULT_PRIORITIES)
+    priorities: List[str] = list(DEFAULT_PRIORITIES)
 
     # How to structure the folder directory when syncing manifests.
-    groupby: GroupBy = GroupBy("", tuple())
+    groupby: GroupBy = GroupBy()
 
     # Define which fields to skip for which resource.
     filters: dict = {}

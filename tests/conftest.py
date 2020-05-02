@@ -58,7 +58,7 @@ def config(k8sconfig, tmp_path):
             namespaces=['default'],
             labels={("app", "demo")},
         ),
-        groupby=GroupBy("", tuple()),
+        groupby=GroupBy(label="", order=tuple()),
         priorities=DEFAULT_PRIORITIES
     )
     yield cfg
