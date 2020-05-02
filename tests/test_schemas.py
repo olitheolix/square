@@ -43,3 +43,73 @@ class TestMainGet:
             ]},
             "status",
         ]
+
+    def test_merge(self):
+        defaults = square.schemas.default()
+        assert square.schemas.merge(defaults, []) == defaults
+
+        expected = [
+            # Default schema.
+            {"foo": ["bar"]},
+            {"metadata": [
+                {"annotations": [
+                    "deployment.kubernetes.io/revision",
+                    "kubectl.kubernetes.io/last-applied-configuration",
+                    "kubernetes.io/change-cause",
+                ]},
+                "creationTimestamp",
+                "generation",
+                "resourceVersion",
+                "selfLink",
+                "uid",
+            ]},
+            "status",
+        ]
+        src = [{"foo": ["bar"]}]
+        assert square.schemas.merge(defaults, src) == expected
+
+        expected = [
+            {"metadata": [
+                {"annotations": [
+                    "deployment.kubernetes.io/revision",
+                    "kubectl.kubernetes.io/last-applied-configuration",
+                    "kubernetes.io/change-cause",
+                    "orig-annot",
+                ]},
+                "creationTimestamp",
+                "generation",
+                "orig-meta",
+                "resourceVersion",
+                "selfLink",
+                "uid",
+            ]},
+            "status",
+        ]
+        src = [
+            {"metadata": [
+                {"annotations": ["orig-annot"]},
+                "orig-meta",
+            ]},
+        ]
+        assert square.schemas.merge(defaults, src) == expected
+
+        expected = [
+            {"metadata": [
+                {"annotations": [
+                    "deployment.kubernetes.io/revision",
+                    "kubectl.kubernetes.io/last-applied-configuration",
+                    "kubernetes.io/change-cause",
+                ]},
+                "creationTimestamp",
+                "generation",
+                "orig-meta",
+                "resourceVersion",
+                "selfLink",
+                "uid",
+            ]},
+            "status",
+        ]
+        src = [
+            {"metadata": ["orig-meta"]},
+        ]
+        assert square.schemas.merge(defaults, src) == expected
