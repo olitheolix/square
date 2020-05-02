@@ -116,10 +116,9 @@ class TestMain:
         cfg, err = main.compile_config(param)
         assert not err
 
-        assert cfg.folder == Filepath("./")
+        assert cfg.folder == param.config.parent.absolute()
         assert cfg.kubeconfig == Filepath("/some/where")
         assert cfg.kubecontext is None
-        assert cfg.folder == Filepath("./")
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
         assert cfg.selectors.namespaces == []
