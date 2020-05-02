@@ -721,7 +721,7 @@ class TestManifestValidation:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        (out, removed), err = manio.strip(k8sconfig, manifest, filters)
+        out, removed, err = manio.strip(k8sconfig, manifest, filters)
         assert (out, removed, err) == (manifest, {}, False)
         assert isinstance(out, dotdict.DotDict)
         del manifest
@@ -746,7 +746,7 @@ class TestManifestValidation:
             },
             "spec": "spec",
         }
-        (out, removed), err = manio.strip(k8sconfig, manifest, filters)
+        out, removed, err = manio.strip(k8sconfig, manifest, filters)
         assert not err
         assert out == expected
         assert removed == {'metadata': {'labels': {'foo': 'remove'}}}
@@ -781,7 +781,7 @@ class TestManifestValidation:
             },
             "spec": "keep",
         }
-        (out, removed), err = manio.strip(k8sconfig, manifest, filters)
+        out, removed, err = manio.strip(k8sconfig, manifest, filters)
         assert not err
         assert out == expected
         assert removed == {
@@ -804,19 +804,19 @@ class TestManifestValidation:
         manifest = copy.deepcopy(expected)
 
         manifest["status"] = "string"
-        (out, removed), err = manio.strip(k8sconfig, manifest, filters)
+        out, removed, err = manio.strip(k8sconfig, manifest, filters)
         assert not err and out == expected and removed == {"status": manifest["status"]}
 
         manifest["status"] = None
-        (out, removed), err = manio.strip(k8sconfig, manifest, filters)
+        out, removed, err = manio.strip(k8sconfig, manifest, filters)
         assert not err and out == expected and removed == {"status": manifest["status"]}
 
         manifest["status"] = ["foo", "bar"]
-        (out, removed), err = manio.strip(k8sconfig, manifest, filters)
+        out, removed, err = manio.strip(k8sconfig, manifest, filters)
         assert not err and out == expected and removed == {"status": manifest["status"]}
 
         manifest["status"] = {"foo", "bar"}
-        (out, removed), err = manio.strip(k8sconfig, manifest, filters)
+        out, removed, err = manio.strip(k8sconfig, manifest, filters)
         assert not err and out == expected and removed == {"status": manifest["status"]}
 
     def test_strip_lists_simple(self, k8sconfig):
@@ -835,7 +835,7 @@ class TestManifestValidation:
             {"nodePort": 1},
             {"nodePort": 3},
         ]
-        (out, removed), err = manio.strip(k8sconfig, manifest, filters)
+        out, removed, err = manio.strip(k8sconfig, manifest, filters)
         assert not err
         assert out == expected
         assert removed == {"spec": {"ports": [{"nodePort": 1}, {"nodePort": 3}]}}
@@ -862,7 +862,7 @@ class TestManifestValidation:
             {"name": "http", "port": 82},
             {"name": "http", "port": 83},
         ]
-        (out, removed), err = manio.strip(k8sconfig, manifest, filters)
+        out, removed, err = manio.strip(k8sconfig, manifest, filters)
         assert not err
         assert out == expected
         assert removed == {"spec": {"ports": [{"nodePort": 1}, {"nodePort": 3}]}}
@@ -881,7 +881,7 @@ class TestManifestValidation:
 
         # Must remove the `metadata.uid` field.
         missing = {"metadata": {"uid": "some-uid"}}
-        assert manio.strip(k8sconfig, manifest, {}) == ((expected, missing), False)
+        assert manio.strip(k8sconfig, manifest, {}) == (expected, missing, False)
 
     def test_strip_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
@@ -890,12 +890,12 @@ class TestManifestValidation:
 
         # Valid K8s version with unknown resource type.
         manifest = {"apiVersion": "v1", "kind": "Unknown"}
-        assert manio.strip(k8sconfig, manifest, filter) == (({}, {}), True)
+        assert manio.strip(k8sconfig, manifest, filter) == ({}, {}, True)
 
         # Invalid K8s version but valid resource type.
         config = k8sconfig._replace(version="unknown")
         manifest = {"apiVersion": "v1", "kind": "TEST"}
-        assert manio.strip(config, manifest, filter) == (({}, {}), True)
+        assert manio.strip(config, manifest, filter) == ({}, {}, True)
 
     def test_strip_namespace(self, k8sconfig):
         """Filter NAMESPACE manifests."""
@@ -905,7 +905,7 @@ class TestManifestValidation:
             "kind": "Namespace",
             "metadata": {"name": "mandatory"},
         }
-        assert manio.strip(k8sconfig, manifest, {}) == ((manifest, {}), False)
+        assert manio.strip(k8sconfig, manifest, {}) == (manifest, {}, False)
         del manifest
 
         # Create invalid manifests that either specify a namespace for a
@@ -922,7 +922,7 @@ class TestManifestValidation:
             }
             if resource(k8sconfig, MetaManifest("", kind, None, ""))[0].namespaced:
                 del manifest["metadata"]["namespace"]
-            assert manio.strip(k8sconfig, manifest, {}) == (({}, {}), True)
+            assert manio.strip(k8sconfig, manifest, {}) == ({}, {}, True)
 
     def test_strip_deployment(self, k8sconfig):
         """Filter DEPLOYMENT manifests."""
@@ -966,7 +966,7 @@ class TestManifestValidation:
             },
             "spec": "some spec",
         }
-        (out, removed), err = manio.strip(k8sconfig, manifest, {})
+        out, removed, err = manio.strip(k8sconfig, manifest, {})
         assert not err
         assert out == expected
         assert removed == {
@@ -989,7 +989,7 @@ class TestManifestValidation:
             "kind": "Deployment",
             "metadata": {"name": "mandatory"},
         }
-        assert manio.strip(k8sconfig, manifest, {}) == (({}, {}), True)
+        assert manio.strip(k8sconfig, manifest, {}) == ({}, {}, True)
 
 
 class TestDiff:
@@ -1856,7 +1856,7 @@ class TestDownloadManifests:
             (l_ns, False),
             (l_dply, False),
         ]
-        expected = {make_meta(_): manio.strip(k8sconfig, _, {})[0][0] for _ in meta}
+        expected = {make_meta(_): manio.strip(k8sconfig, _, {})[0] for _ in meta}
         config.selectors = Selectors({"Namespace", "Deployment", "Unknown"}, [], set())
         ret = manio.download(config, k8sconfig)
         assert ret == (expected, False)
@@ -1900,8 +1900,8 @@ class TestDownloadManifests:
             (l_dply_0, False),
         ]
         expected = {
-            make_meta(meta[0]): manio.strip(k8sconfig, meta[0], {})[0][0],
-            make_meta(meta[2]): manio.strip(k8sconfig, meta[2], {})[0][0],
+            make_meta(meta[0]): manio.strip(k8sconfig, meta[0], {})[0],
+            make_meta(meta[2]): manio.strip(k8sconfig, meta[2], {})[0],
         }
         config.selectors = Selectors({"Namespace", "Deployment"}, ["ns0"], set())
         ret = manio.download(config, k8sconfig)
