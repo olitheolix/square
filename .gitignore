@@ -13,9 +13,10 @@ build/
 dist/
 square.spec
 
-# Personal folders.
+# Personal files and folders.
 manifests/
 personal/
+.square.yaml
 
 # Other.
 delme*
