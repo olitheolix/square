@@ -235,6 +235,10 @@ class TestMain:
                 main.main()
             del args
 
+        # Adjust the vanilla config according to our invocation.
+        config.selectors.labels = {("app", "demo")}
+        config.selectors.namespaces = ["default"]
+
         # Every main function must have been called exactly once.
         m_get.assert_called_once_with(config)
         m_apply.assert_called_once_with(config, "yes")

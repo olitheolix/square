@@ -53,12 +53,8 @@ def config(k8sconfig, tmp_path):
         folder=tmp_path,
         kubeconfig=kubeconf,
         kube_ctx=None,
-        selectors=Selectors(
-            kinds=set(k8sconfig.kinds),
-            namespaces=['default'],
-            labels={("app", "demo")},
-        ),
-        groupby=GroupBy(label="", order=[]),
+        selectors=Selectors(),
+        groupby=GroupBy(),
         priorities=DEFAULT_PRIORITIES
     )
     yield cfg
