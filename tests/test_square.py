@@ -3,6 +3,7 @@ import unittest.mock as mock
 
 import square.k8s as k8s
 import square.manio as manio
+import square.schemas
 import square.square as sq
 import yaml
 from square.dtypes import (
@@ -117,8 +118,47 @@ class TestLoadConfig:
         assert cfg.selectors.namespaces == []
         assert cfg.selectors.labels == {("app", "square"), ("foo", "bar")}
         assert set(cfg.filters.keys()) == {
-            "_common_", "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
+            "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
+
+        # The _common_ filters must have been merged into all filters. Here we
+        # verify it for a Deployment because its filter definition in the
+        # config file was empty, which makes this easy to verify.
+        assert cfg.filters["Deployment"] == square.schemas.default()
+
+    def test_common_filters(self, tmp_path):
+        """Deal with empty or non-existing `_common_` filter."""
+        # ----------------------------------------------------------------------
+        # Empty _common_ filters.
+        # ----------------------------------------------------------------------
+        # Clear the "_common_" filter and save the configuration again.
+        ref = yaml.safe_load(Filepath("resources/sampleconfig.yaml").read_text())
+        ref["filters"]["_common_"].clear()
+        fout = tmp_path / "corrupt.yaml"
+        fout.write_text(yaml.dump(ref))
+
+        # Load the new configuration. This must succeed and the filters must
+        # match the ones defined in the file because there the "_common_"
+        # filter was empty. NOTE: `cfg.filters` must *not* contain the _common_
+        # filter.
+        cfg, err = sq.load_config(fout)
+        del ref["filters"]["_common_"]
+        assert not err and ref["filters"] == cfg.filters
+
+        # ----------------------------------------------------------------------
+        # Missing _common_ filters.
+        # ----------------------------------------------------------------------
+        # Remove the "_common_" filter and save the configuration again.
+        ref = yaml.safe_load(Filepath("resources/sampleconfig.yaml").read_text())
+        del ref["filters"]["_common_"]
+        fout = tmp_path / "corrupt.yaml"
+        fout.write_text(yaml.dump(ref))
+
+        # Load the new configuration. This must succeed and the filters must
+        # match the ones defined in the file because there was no "_common_"
+        # filter to merge.
+        cfg, err = sq.load_config(fout)
+        assert not err and ref["filters"] == cfg.filters
 
     def test_load_config_err(self, tmp_path):
         """Gracefully handle missing file, corrupt content etc."""
