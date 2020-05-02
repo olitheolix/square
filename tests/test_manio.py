@@ -1205,6 +1205,39 @@ class TestYamlManifestIOIntegration:
         (tmp_path / "foo" / "delme.txt").touch()
         assert manio.load(tmp_path, selectors) == (*expected, False)
 
+    def test_load_save_hidden_ok(self, tmp_path):
+        """Basic test that uses the {load,save} convenience functions."""
+        # Generic selector that matches all manifests in this test.
+        priority = ("Deployment", )
+        selectors = Selectors(set(priority), [], set())
+
+        # Create two YAML files, each with multiple manifests.
+        dply = [mk_deploy(f"d_{_}") for _ in range(3)]
+        meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(3)]
+        visible_files = {
+            Filepath("m0.yaml"): [(meta[0], dply[0])],
+        }
+        hidden_files = {
+            Filepath(".hidden-0.yaml"): [(meta[1], dply[1])],
+            Filepath("foo/.hidden-1.yaml"): [(meta[2], dply[2])],
+        }
+        expected = (manio.unpack(visible_files)[0], visible_files)
+        del dply, meta
+
+        # Save the hidden and non-hidden files. The function must accept the
+        # hidden files but silently ignore and not save them.
+        assert manio.save(tmp_path, visible_files, priority) is False
+        assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == {str(tmp_path / "m0.yaml")}
+        assert manio.save(tmp_path, hidden_files, priority) is False
+        assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == set()
+
+        # Write the hidden files with dummy content.
+        for fname, data in hidden_files.items():
+            fname = tmp_path / fname
+            fname.parent.mkdir(parents=True, exist_ok=True)
+            fname.write_text("")
+        assert manio.load(tmp_path, selectors) == ({}, {}, False)
+
     def test_save_delete_stale_yaml(self, tmp_path):
         """`save_file` must remove all excess YAML files."""
         # Generic selector that matches all manifests in this test.
@@ -1271,8 +1304,8 @@ class TestYamlManifestIOIntegration:
         # Input to test function where one "manifest" is garbage that cannot be
         # converted to a YAML string, eg a Python frozenset.
         file_manifests = {
-            "m0.yaml": [(meta[0], "0"), (meta[1], frozenset(("invalid", "input")))],
-            "m1.yaml": [(meta[2], "2")],
+            Filepath("m0.yaml"): [(meta[0], "0"), (meta[1], frozenset(("invalid", "input")))],
+            Filepath("m1.yaml"): [(meta[2], "2")],
         }
 
         # Test function must return with an error.

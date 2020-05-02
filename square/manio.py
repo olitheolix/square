@@ -245,7 +245,7 @@ def unpack(manifests: LocalManifestLists) -> Tuple[ServerManifests, bool]:
         manifests: LocalManifestLists
 
     Returns:
-        ServerManifests: flattened version of `data`.
+        ServerManifests: flattened version of `manifests`.
 
     """
     # Compile a dict that shows which meta manifest was defined in which file.
@@ -782,7 +782,8 @@ def load(folder: Filepath, selectors: Selectors) -> Tuple[
 
     # Compile the list of all YAML files in `folder` but only store their path
     # relative to `folder`.
-    fnames = [_.relative_to(folder) for _ in folder.rglob("*.yaml")]
+    fnames = [(_.relative_to(folder), _.name) for _ in folder.rglob("*.yaml")]
+    fnames = [path for path, name in fnames if not name.startswith(".")]
 
     try:
         # Load the files and abort on error.
@@ -887,6 +888,9 @@ def save(folder: Filepath, manifests: LocalManifestLists,
     # serialisation below.
     out_clean = {k: square.dotdict.undo(v) for k, v in out_nonempty.items()}
     del out_nonempty
+
+    # Ignore all hidden files.
+    out_clean = {k: v for k, v in out_clean.items() if not k.name.startswith(".")}
 
     # Convert all manifest dicts into YAML strings.
     out_final: Dict[Filepath, str] = {}
