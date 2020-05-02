@@ -109,10 +109,9 @@ class TestLoadConfig:
         cfg, err = sq.load_config(fname)
         assert not err and isinstance(cfg, Config)
 
-        assert cfg.folder == Filepath("./")
+        assert cfg.folder == fname.parent.absolute()
         assert cfg.kubeconfig == Filepath("/some/where")
         assert cfg.kubecontext is None
-        assert cfg.folder == Filepath("./")
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
         assert cfg.selectors.namespaces == []
@@ -125,6 +124,33 @@ class TestLoadConfig:
         # verify it for a Deployment because its filter definition in the
         # config file was empty, which makes this easy to verify.
         assert cfg.filters["Deployment"] == square.schemas.default()
+
+        cfg2, err = sq.load_config(str(fname))
+        assert not err and cfg == cfg2
+
+    def test_load_config_folder_paths(self, tmp_path):
+        """The folder paths must always be relative to the config file."""
+        fname = tmp_path / ".square.yaml"
+
+        # The parsed folder must point to "tmp_path".
+        ref = yaml.safe_load(Filepath("resources/sampleconfig.yaml").read_text())
+        fname.write_text(yaml.dump(ref))
+        cfg, err = sq.load_config(fname)
+        assert not err and cfg.folder == tmp_path
+
+        # The parsed folder must point to "tmp_path/folder".
+        ref = yaml.safe_load(Filepath("resources/sampleconfig.yaml").read_text())
+        ref["folder"] = "my-folder"
+        fname.write_text(yaml.dump(ref))
+        cfg, err = sq.load_config(fname)
+        assert not err and cfg.folder == tmp_path / "my-folder"
+
+        # An absolute path must ignore the position of ".square.yaml".
+        ref = yaml.safe_load(Filepath("resources/sampleconfig.yaml").read_text())
+        ref["folder"] = "/absolute/path"
+        fname.write_text(yaml.dump(ref))
+        cfg, err = sq.load_config(fname)
+        assert not err and cfg.folder == Filepath("/absolute/path")
 
     def test_common_filters(self, tmp_path):
         """Deal with empty or non-existing `_common_` filter."""

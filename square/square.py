@@ -24,6 +24,7 @@ logit = logging.getLogger("square")
 def load_config(fname: Filepath) -> Tuple[Config, bool]:
     """Parse the Square configuration file `fname` and return it as a `Config`."""
     err_resp = Config(Filepath(""), kubeconfig=Filepath(""), kubecontext=None), True
+    fname = Filepath(fname)
 
     # Load the configuration file.
     try:
@@ -58,7 +59,7 @@ def load_config(fname: Filepath) -> Tuple[Config, bool]:
 
     # Compile the config file into a `dtypes.Config` tuple.
     config = Config(
-        folder=raw.folder,
+        folder=fname.parent.absolute() / raw.folder,
         kubeconfig=raw.kubeconfig,
         kubecontext=raw.kubecontext,
         priorities=raw.priorities,
