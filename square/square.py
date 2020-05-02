@@ -8,6 +8,7 @@ import jsonpatch
 import pydantic
 import square.k8s as k8s
 import square.manio as manio
+import square.schemas
 import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
@@ -51,13 +52,17 @@ def load_config(fname: Filepath) -> Tuple[Config, bool]:
         logit.error(f"Schema is invalid: {e}")
         return err_resp
 
+    # Remove the "_common_" filter and merge it into all other filters.
+    common = raw.filters.pop("_common_", [])
+    filters = {k: square.schemas.merge(common, v) for k, v in raw.filters.items()}
+
     # Compile the config file into a `dtypes.Config` tuple.
     config = Config(
         folder=raw.folder,
         kubeconfig=raw.kubeconfig,
         kubecontext=raw.kubecontext,
         priorities=raw.priorities,
-        filters=raw.filters,
+        filters=filters,
         selectors=Selectors(
             kinds=set(raw.selectors.kinds),
             namespaces=raw.selectors.namespaces or [],

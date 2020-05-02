@@ -125,7 +125,7 @@ class TestMain:
         assert cfg.selectors.namespaces == []
         assert cfg.selectors.labels == {("app", "square"), ("foo", "bar")}
         assert set(cfg.filters.keys()) == {
-            "_common_", "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
+            "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
 
     def test_compile_config_missing_config_file(self, config):
