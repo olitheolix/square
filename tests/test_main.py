@@ -324,6 +324,16 @@ class TestMain:
         with mock.patch("sys.argv", ["square.py", "get", "deploy"]):
             assert main.main() == 1
 
+    def test_main_create_default_config_file(self, tmp_path):
+        """Create a copy of the default config config in the specified folder."""
+        folder = tmp_path / "folder"
+
+        with mock.patch("sys.argv", ["square.py", "config", "--folder", str(folder)]):
+            assert main.main() == 0
+
+        fname = (folder / ".square.yaml")
+        assert open("resources/sampleconfig.yaml").read() == fname.read_text()
+
     def test_parse_commandline_args_labels_valid(self):
         """The labels must be returned as (name, value) tuples."""
         # No labels.
