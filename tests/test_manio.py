@@ -789,6 +789,90 @@ class TestManifestValidation:
             "status": "remove",
         }
 
+    def test_strip_ambigous_filters(self, k8sconfig):
+        """Must cope with filters that specify the same resource multiple times."""
+        # Define filters for this test.
+        filters = [
+            {"metadata": [
+                # Specify "creationTimestamp" twice. Must behave no different
+                # than if it was specified only once.
+                "creationTimestamp",
+                "creationTimestamp",
+            ]},
+
+            # Reference "status" twice. This must remove the entire "status" field.
+            {"status": [{"foo": ["bar"]}]},
+            "status",
+        ]
+        filters = {"Service": filters}
+
+        # Demo manifest. None of its keys matches the filter and
+        # `strip` must therefore not remove anything.
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {"name": "name", "namespace": "ns"},
+            "spec": "spec",
+        }
+        out, removed, err = manio.strip(k8sconfig, manifest, filters)
+        assert (out, removed, err) == (manifest, {}, False)
+        assert isinstance(out, dotdict.DotDict)
+        del manifest
+
+        # Demo manifest. The "labels.creationTimestamp" matches the filter and
+        # must not survive.
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": "name",
+                "namespace": "ns",
+                "creationTimestamp": "123",
+            },
+            "spec": "spec",
+        }
+        expected = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": "name",
+                "namespace": "ns",
+            },
+            "spec": "spec",
+        }
+        out, removed, err = manio.strip(k8sconfig, manifest, filters)
+        assert not err
+        assert out == expected
+        assert removed == {'metadata': {'creationTimestamp': "123"}}
+        del manifest
+
+        # Valid manifest with a "status" field that must not survive.
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": "mandatory",
+                "namespace": "ns",
+            },
+            "spec": "keep",
+            "status": "remove",
+        }
+        expected = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": "mandatory",
+                "namespace": "ns",
+            },
+            "spec": "keep",
+        }
+        out, removed, err = manio.strip(k8sconfig, manifest, filters)
+        assert not err
+        assert out == expected
+        assert removed == {
+            "status": "remove",
+        }
+
     def test_strip_sub_hierarchies(self, k8sconfig):
         """Remove an entire sub-tree from the manifest."""
         # Remove the "status" key, irrespective of whether it is a string, dict
