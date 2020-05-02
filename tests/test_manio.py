@@ -668,7 +668,7 @@ class TestYamlManifestIO:
         # :: Dict[MetaManifests:YamlDict] -> Dict[Filename:List[(MetaManifest, YamlDict)]]
         updated_manifests, err = manio.sync(
             fdata_meta, server_manifests,
-            Selectors({"Deployment"}, namespaces=None, labels=None),
+            Selectors({"Deployment"}, namespaces=[], labels=None),
             groupby,
         )
         assert err is False
@@ -1377,17 +1377,13 @@ class TestSync:
         }
 
         # ----------------------------------------------------------------------
-        # Special cases: empty list of namespaces and/or resources.
-        # Must do nothing.
+        # Special cases: empty list of resources. Must do nothing.
         # ----------------------------------------------------------------------
         expected = loc_man
-        selectors = Selectors(set(), namespaces=None, labels=None)
-        assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
-
         selectors = Selectors(set(), namespaces=[], labels=None)
         assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
-        selectors = Selectors({"Deployment", "Service"}, namespaces=[], labels=None)
+        selectors = Selectors(set(), namespaces=[], labels=None)
         assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # NOTE: this must *not* sync the Namespace manifest from "ns1" because
@@ -1414,7 +1410,7 @@ class TestSync:
             kinds = set(kinds)
 
             # Implicitly use all namespaces.
-            selectors = Selectors(kinds, namespaces=None, labels=None)
+            selectors = Selectors(kinds, namespaces=[], labels=None)
             assert fun(loc_man, srv_man, selectors, groupby) == expected
 
             # Specify all namespaces explicitly.
@@ -1453,7 +1449,7 @@ class TestSync:
                 (svc_ns1, svc_ns1_man),
             ],
         }, False
-        selectors = Selectors({"Deployment"}, namespaces=None, labels=None)
+        selectors = Selectors({"Deployment"}, namespaces=[], labels=None)
         assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
@@ -1646,7 +1642,7 @@ class TestSync:
 
         """
         # Valid selector for Deployment manifests.
-        selectors = Selectors({"Deployment"}, namespaces=None, labels=None)
+        selectors = Selectors({"Deployment"}, namespaces=[], labels=None)
 
         # Simulate the scenario where the server has a Deployment we lack
         # locally. This will ensure that `sync` will try to create a new file
@@ -1666,7 +1662,7 @@ class TestSync:
         Some other tests, most notably those for the `align` function, rely on this.
         """
         # Fixtures.
-        selectors = Selectors({"ServiceAccount"}, namespaces=None, labels=None)
+        selectors = Selectors({"ServiceAccount"}, namespaces=[], labels=None)
         name = 'demoapp'
 
         # Load the test support file and ensure it contains exactly one manifest.
@@ -1695,7 +1691,7 @@ class TestSync:
 
         """
         # Fixtures.
-        selectors = Selectors({"ServiceAccount"}, namespaces=None, labels=None)
+        selectors = Selectors({"ServiceAccount"}, namespaces=[], labels=None)
 
         # Load and unpack the ServiceAccount manifest. Make two copies so we
         # can create local/cluster manifest as inputs for the `align` function.
@@ -1854,7 +1850,7 @@ class TestDownloadManifests:
         l_dply_1 = {'apiVersion': 'apps/v1', 'kind': 'DeploymentList', "items": [meta[3]]}
 
         # ----------------------------------------------------------------------
-        # Request resources from all namespaces implicitly via namespaces=None
+        # Request resources from all namespaces implicitly via namespaces=[]
         # Must make two calls: one for each kind ("Deployment", "Namespace").
         # Must silently ignore the "Unknown" resource.
         # ----------------------------------------------------------------------

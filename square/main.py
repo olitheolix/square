@@ -168,7 +168,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         folder=Filepath(""),
         kubeconfig=Filepath(""),
         kube_ctx=None,
-        selectors=Selectors(set(), None, None),
+        selectors=Selectors(set(), [], None),
         groupby=GroupBy("", []),
         priorities=[],
     ), True

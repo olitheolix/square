@@ -56,7 +56,7 @@ def load_config(fname: Filepath) -> Tuple[Config, bool]:
         filters=raw.filters,
         selectors=Selectors(
             kinds=set(raw.selectors.kinds),
-            namespaces=None or raw.selectors.namespaces,
+            namespaces=[] or raw.selectors.namespaces,
             labels={(kv.name, kv.value) for kv in raw.selectors.labels},
         )
     )
@@ -554,7 +554,7 @@ def get_resources(cfg: Config) -> bool:
         # at the end of this function, uses it).
         load_selectors = Selectors(kinds=k8sconfig.kinds,
                                    labels=None,
-                                   namespaces=None)
+                                   namespaces=[])
 
         # Load manifests from local files.
         _, local, err = manio.load(cfg.folder, load_selectors)
