@@ -436,8 +436,8 @@ def diff(config: Config,
     """
     # Clean up the input manifests because we do not want to diff, for instance,
     # the `status` fields.
-    (srv, _), err1 = strip(k8sconfig, server, config.filters)
-    (loc, _), err2 = strip(k8sconfig, local, config.filters)
+    srv, _, err1 = strip(k8sconfig, server, config.filters)
+    loc, _, err2 = strip(k8sconfig, local, config.filters)
     if err1 or err2:
         return ("", True)
 
@@ -457,7 +457,7 @@ def strip(
     k8sconfig: K8sConfig,
     manifest: dict,
     manifest_filters: Dict[str, list],
-) -> Tuple[Tuple[DotDict, dict], bool]:
+) -> Tuple[DotDict, dict, bool]:
     """Strip `manifest` according to the filters in `square.schemas`.
 
     Inputs:
@@ -467,11 +467,11 @@ def strip(
             See tests for examples
 
     Returns:
-        dict: the removed keys.
+        dict, dict: (stripped manifest, removed keys).
 
     """
     # Convenience: default return value if an error occurs.
-    ret_err: Tuple[Tuple[DotDict, dict], bool] = ((square.dotdict.make({}), {}), True)
+    ret_err: Tuple[DotDict, dict, bool] = (square.dotdict.make({}), {}, True)
 
     # Parse the manifest.
     try:
@@ -537,7 +537,7 @@ def strip(
     # Remove the keys from the `manifest` according to `filters`.
     manifest = copy.deepcopy(manifest)
     removed = _update(filters, manifest)
-    return ((square.dotdict.make(manifest), removed), False)
+    return (square.dotdict.make(manifest), removed, False)
 
 
 def align_serviceaccount(
@@ -953,14 +953,14 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[ServerManifests, boo
                        for k, man in manifests.items()}
 
                 # Ensure `strip` worked for every manifest.
-                err = any((v[1] for v in ret.values()))
+                err = any((v[2] for v in ret.values()))
                 assert not err
 
                 # Unpack the stripped manifests from the `strip` response.
                 # The "if v[0] is not None" is to satisfy MyPy - we already
                 # know they are not None or otherwise the previous assert would
                 # have failed.
-                manifests = {k: v[0][0] for k, v in ret.items() if v[0][0] is not None}
+                manifests = {k: v[0] for k, v in ret.items() if v[0] is not None}
             except AssertionError:
                 # Return nothing, even if we had downloaded other kinds already.
                 return ({}, True)
