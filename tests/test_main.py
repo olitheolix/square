@@ -150,7 +150,7 @@ class TestMain:
                 folder=Filepath(""),
                 kubeconfig=Filepath(""),
                 kube_ctx=None,
-                selectors=Selectors(set(), [], None),
+                selectors=Selectors(set(), [], set()),
                 groupby=GroupBy("", []),
                 priorities=[],
             ), True)
@@ -163,7 +163,7 @@ class TestMain:
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kube_ctx=None,
-            selectors=Selectors(set(), [], None),
+            selectors=Selectors(set(), [], set()),
             groupby=GroupBy("", []),
             priorities=[],
         ), True
@@ -411,7 +411,7 @@ class TestMain:
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kube_ctx=None,
-            selectors=Selectors(set(), [], None),
+            selectors=Selectors(set(), [], set()),
             groupby=GroupBy("", []),
             priorities=[],
         )

@@ -665,7 +665,7 @@ class TestYamlManifestIO:
         # :: Dict[MetaManifests:YamlDict] -> Dict[Filename:List[(MetaManifest, YamlDict)]]
         updated_manifests, err = manio.sync(
             fdata_meta, server_manifests,
-            Selectors({"Deployment"}, namespaces=[], labels=None),
+            Selectors({"Deployment"}, namespaces=[], labels=set()),
             groupby,
         )
         assert err is False
@@ -1377,15 +1377,15 @@ class TestSync:
         # Special cases: empty list of resources. Must do nothing.
         # ----------------------------------------------------------------------
         expected = loc_man
-        selectors = Selectors(set(), namespaces=[], labels=None)
+        selectors = Selectors(set(), namespaces=[], labels=set())
         assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
-        selectors = Selectors(set(), namespaces=[], labels=None)
+        selectors = Selectors(set(), namespaces=[], labels=set())
         assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # NOTE: this must *not* sync the Namespace manifest from "ns1" because
         # it was not an explicitly specified resource.
-        selectors = Selectors(set(), namespaces=["ns1"], labels=None)
+        selectors = Selectors(set(), namespaces=["ns1"], labels=set())
         assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # ----------------------------------------------------------------------
@@ -1407,12 +1407,12 @@ class TestSync:
             kinds = set(kinds)
 
             # Implicitly use all namespaces.
-            selectors = Selectors(kinds, namespaces=[], labels=None)
+            selectors = Selectors(kinds, namespaces=[], labels=set())
             assert fun(loc_man, srv_man, selectors, groupby) == expected
 
             # Specify all namespaces explicitly.
             for ns in itertools.permutations(["ns0", "ns1"]):
-                selectors = Selectors(kinds, namespaces=ns, labels=None)
+                selectors = Selectors(kinds, namespaces=ns, labels=set())
                 assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
@@ -1430,7 +1430,7 @@ class TestSync:
         }, False
         for kinds in itertools.permutations(["Deployment", "Service"]):
             kinds = set(kinds)
-            selectors = Selectors(kinds, namespaces=["ns0"], labels=None)
+            selectors = Selectors(kinds, namespaces=["ns0"], labels=set())
             assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
@@ -1446,7 +1446,7 @@ class TestSync:
                 (svc_ns1, svc_ns1_man),
             ],
         }, False
-        selectors = Selectors({"Deployment"}, namespaces=[], labels=None)
+        selectors = Selectors({"Deployment"}, namespaces=[], labels=set())
         assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
@@ -1462,7 +1462,7 @@ class TestSync:
                 (svc_ns1, svc_ns1_man),
             ],
         }, False
-        selectors = Selectors({"Deployment"}, namespaces=["ns0"], labels=None)
+        selectors = Selectors({"Deployment"}, namespaces=["ns0"], labels=set())
         assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
@@ -1478,7 +1478,7 @@ class TestSync:
                 (svc_ns1, modify(svc_ns1_man)),
             ],
         }, False
-        selectors = Selectors({"Service"}, namespaces=["ns1"], labels=None)
+        selectors = Selectors({"Service"}, namespaces=["ns1"], labels=set())
         assert fun(loc_man, srv_man, selectors, groupby) == expected
 
     @mock.patch.object(manio, "filename_for_manifest")
@@ -1541,7 +1541,7 @@ class TestSync:
             "catchall.yaml": [(meta_1[6], man_1[6]), (meta_2[7], man_2[7]),
                               (meta_1[8], man_1[8])],
         }, False
-        selectors = Selectors(kinds, namespaces, labels=None)
+        selectors = Selectors(kinds, namespaces, labels=set())
         assert manio.sync(loc_man, srv_man, selectors, groupby) == expected
 
     def test_sync_catch_all_files(self):
@@ -1628,7 +1628,7 @@ class TestSync:
                 (meta_2[3], man_2[3]),
             ],
         }, False
-        selectors = Selectors(kinds, namespaces, labels=None)
+        selectors = Selectors(kinds, namespaces, labels=set())
         assert manio.sync(loc_man, srv_man, selectors, groupby) == expected
 
     def test_sync_filename_err(self, k8sconfig):
@@ -1639,7 +1639,7 @@ class TestSync:
 
         """
         # Valid selector for Deployment manifests.
-        selectors = Selectors({"Deployment"}, namespaces=[], labels=None)
+        selectors = Selectors({"Deployment"}, namespaces=[], labels=set())
 
         # Simulate the scenario where the server has a Deployment we lack
         # locally. This will ensure that `sync` will try to create a new file
@@ -1659,7 +1659,7 @@ class TestSync:
         Some other tests, most notably those for the `align` function, rely on this.
         """
         # Fixtures.
-        selectors = Selectors({"ServiceAccount"}, namespaces=[], labels=None)
+        selectors = Selectors({"ServiceAccount"}, namespaces=[], labels=set())
         name = 'demoapp'
 
         # Load the test support file and ensure it contains exactly one manifest.
@@ -1688,7 +1688,7 @@ class TestSync:
 
         """
         # Fixtures.
-        selectors = Selectors({"ServiceAccount"}, namespaces=[], labels=None)
+        selectors = Selectors({"ServiceAccount"}, namespaces=[], labels=set())
 
         # Load and unpack the ServiceAccount manifest. Make two copies so we
         # can create local/cluster manifest as inputs for the `align` function.
@@ -1857,7 +1857,7 @@ class TestDownloadManifests:
             (l_dply, False),
         ]
         expected = {make_meta(_): manio.strip(k8sconfig, _, {})[0][0] for _ in meta}
-        config.selectors = Selectors({"Namespace", "Deployment", "Unknown"}, [], None)
+        config.selectors = Selectors({"Namespace", "Deployment", "Unknown"}, [], set())
         ret = manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_args_list == [
@@ -1878,7 +1878,7 @@ class TestDownloadManifests:
             (l_ns_1, False),
             (l_dply_1, False),
         ]
-        config.selectors = Selectors({"Namespace", "Deployment"}, ["ns0", "ns1"], None)
+        config.selectors = Selectors({"Namespace", "Deployment"}, ["ns0", "ns1"], set())
         ret = manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_args_list == [
@@ -1903,7 +1903,7 @@ class TestDownloadManifests:
             make_meta(meta[0]): manio.strip(k8sconfig, meta[0], {})[0][0],
             make_meta(meta[2]): manio.strip(k8sconfig, meta[2], {})[0][0],
         }
-        config.selectors = Selectors({"Namespace", "Deployment"}, ["ns0"], None)
+        config.selectors = Selectors({"Namespace", "Deployment"}, ["ns0"], set())
         ret = manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_args_list == [
@@ -1929,7 +1929,7 @@ class TestDownloadManifests:
         res_deploy, err2 = resource(k8sconfig, MetaManifest("", "Deployment", None, ""))
         assert not err1 and not err2
 
-        config.selectors = Selectors({"Namespace", "Deployment"}, [], None)
+        config.selectors = Selectors({"Namespace", "Deployment"}, [], set())
 
         # Run test function and verify it returns an error and no data, despite
         # a successful `NamespaceList` download.

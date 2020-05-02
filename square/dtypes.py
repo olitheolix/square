@@ -166,7 +166,7 @@ class Selectors:
     """Comprises all the filters to select manifests."""
     kinds: Set[str] = _factory(set(DEFAULT_PRIORITIES))
     namespaces: List[str] = _factory([])
-    labels: Optional[Set[Tuple[str, str]]] = _factory(set())
+    labels: Set[Tuple[str, str]] = _factory(set())
 
 
 @dataclass

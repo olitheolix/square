@@ -813,8 +813,7 @@ class TestMainOptions:
         # `manio.load` must have been called with a wildcard selector to ensure
         # it loads _all_ resources from the local files, even if we want to
         # sync only a subset.
-        load_selectors = Selectors(kinds=k8sconfig.kinds,
-                                   labels=None, namespaces=[])
+        load_selectors = Selectors(kinds=k8sconfig.kinds, labels=set(), namespaces=[])
 
         # Call test function and verify it passed the correct arguments.
         assert sq.get_resources(config) is False

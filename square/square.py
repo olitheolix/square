@@ -552,9 +552,7 @@ def get_resources(cfg: Config) -> bool:
         # write the new ones. This logic will ensure we never have stale manifests
         # (see `manio.save_files` for details and how `manio.save`, which we call
         # at the end of this function, uses it).
-        load_selectors = Selectors(kinds=k8sconfig.kinds,
-                                   labels=None,
-                                   namespaces=[])
+        load_selectors = Selectors(kinds=k8sconfig.kinds, labels=set(), namespaces=[])
 
         # Load manifests from local files.
         _, local, err = manio.load(cfg.folder, load_selectors)
