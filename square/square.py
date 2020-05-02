@@ -11,7 +11,7 @@ import square.manio as manio
 import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
-    Config, ConfigFile, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
+    Config, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
     DeploymentPlanMeta, Filepath, JsonPatch, K8sConfig, MetaManifest,
     Selectors, ServerManifests,
 )
@@ -40,10 +40,14 @@ def load_config(fname: Filepath) -> Tuple[Config, bool]:
         logit.error(msg)
         return err_resp
 
+    if not isinstance(raw, dict):
+        logit.error(f"Config file <{fname}> has invalid structure")
+        return err_resp
+
     # Parse the configuration into `ConfigFile` structure.
     try:
-        raw = ConfigFile.parse_obj(raw)
-    except pydantic.ValidationError as e:
+        raw = Config(**raw)
+    except (pydantic.ValidationError, TypeError) as e:
         logit.error(f"Schema is invalid: {e}")
         return err_resp
 
@@ -57,7 +61,7 @@ def load_config(fname: Filepath) -> Tuple[Config, bool]:
         selectors=Selectors(
             kinds=set(raw.selectors.kinds),
             namespaces=raw.selectors.namespaces or [],
-            labels={(kv.name, kv.value) for kv in raw.selectors.labels},
+            labels={(k, v) for k, v in raw.selectors.labels},
         )
     )
     return config, False

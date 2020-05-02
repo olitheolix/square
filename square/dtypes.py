@@ -200,6 +200,8 @@ class Config:
     # Define which fields to skip for which resource.
     filters: Dict[str, List[Union[str, dict]]] = _factory({})
 
+    version: str = ""
+
 
 # -----------------------------------------------------------------------------
 #                               Configuration File

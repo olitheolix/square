@@ -4,6 +4,7 @@ import unittest.mock as mock
 import square.k8s as k8s
 import square.manio as manio
 import square.square as sq
+import yaml
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
     DeploymentPlan, Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest,
@@ -137,10 +138,26 @@ class TestLoadConfig:
         _, err = sq.load_config(fname)
         assert err
 
-        # Does not match the definition of `dtypes.ConfigFile`.
+        # Does not match the definition of `dtypes.Config`.
+        fname = tmp_path / "invalid-pydantic-schema.yaml"
+        fname.write_text("foo: bar")
+        _, err = sq.load_config(fname)
+        assert err
+
+        # YAML file is valid but not a map. This special case is important
+        # because the test function will expand the content as **kwargs.
         fname = tmp_path / "invalid-pydantic-schema.yaml"
         fname.write_text("")
         _, err = sq.load_config(fname)
+        assert err
+
+        # Load the sample configuration and corrupt the label selector. Instead
+        # of a list of 2-tuples we make it a list of 3-tuples.
+        cfg = yaml.safe_load(Filepath("resources/sampleconfig.yaml").read_text())
+        cfg["selectors"]["labels"] = [["foo", "bar", "foobar"]]
+        fout = tmp_path / "corrupt.yaml"
+        fout.write_text(yaml.dump(cfg))
+        _, err = sq.load_config(fout)
         assert err
 
 
