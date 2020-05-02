@@ -167,7 +167,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     err_resp = Config(
         folder=Filepath(""),
         kubeconfig=Filepath(""),
-        kube_ctx=None,
+        kubecontext=None,
         selectors=Selectors(set(), namespaces=[], labels=set()),
         groupby=GroupBy("", []),
         priorities=[],
@@ -235,7 +235,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     cfg = Config(
         folder=folder,
         kubeconfig=kubeconfig,
-        kube_ctx=p.ctx,
+        kubecontext=p.ctx,
         selectors=selectors,
         groupby=groupby,
         priorities=p.priorities,
@@ -288,7 +288,7 @@ def apply_plan(cfg: Config, confirm_string: Optional[str]) -> bool:
 def sanitise_resource_kinds(cfg: Config) -> Tuple[Config, bool]:
     """Populate the `Selector.kinds` with those the user specified on the commandline."""
     # Create a K8sConfig instance because it will contain all the info we need.
-    k8sconfig, err = square.k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
+    k8sconfig, err = square.k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
     if err:
         return (cfg, True)
 

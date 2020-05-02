@@ -304,7 +304,7 @@ class TestMainPlan:
         config = Config(
             folder=tmp_path / "backup",
             groupby=GroupBy(label="app", order=[]),
-            kube_ctx=None,
+            kubecontext=None,
             kubeconfig=Filepath("/tmp/kubeconfig-kind.yaml"),
             priorities=priorities,
             selectors=Selectors(

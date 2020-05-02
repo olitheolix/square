@@ -22,7 +22,7 @@ logit = logging.getLogger("square")
 
 def load_config(fname: Filepath) -> Tuple[Config, bool]:
     """Parse the Square configuration file `fname` and return it as a `Config`."""
-    err_resp = Config(folder=Filepath(""), kubeconfig=Filepath(""), kube_ctx=None), True
+    err_resp = Config(Filepath(""), kubeconfig=Filepath(""), kubecontext=None), True
 
     # Load the configuration file.
     try:
@@ -51,7 +51,7 @@ def load_config(fname: Filepath) -> Tuple[Config, bool]:
     config = Config(
         folder=raw.folder,
         kubeconfig=raw.kubeconfig,
-        kube_ctx=raw.kubecontext,
+        kubecontext=raw.kubecontext,
         priorities=raw.priorities,
         filters=raw.filters,
         selectors=Selectors(
@@ -474,7 +474,7 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     """
     try:
         # Create properly configured Requests session to talk to K8s API.
-        k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
+        k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
         assert not err
 
         # Create the missing resources.
@@ -514,7 +514,7 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
     """
     try:
         # Create properly configured Requests session to talk to K8s API.
-        k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
+        k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
         assert not err
 
         # Load manifests from local files.
@@ -543,7 +543,7 @@ def get_resources(cfg: Config) -> bool:
     """Download all K8s manifests and merge them into local files."""
     try:
         # Create properly configured Requests session to talk to K8s API.
-        k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kube_ctx)
+        k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
         assert not err
 
         # Use a wildcard Selector to ensure `manio.load` will read _all_ local

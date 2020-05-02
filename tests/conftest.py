@@ -52,7 +52,7 @@ def config(k8sconfig, tmp_path):
     cfg = Config(
         folder=tmp_path,
         kubeconfig=kubeconf,
-        kube_ctx=None,
+        kubecontext=None,
         selectors=Selectors(),
         groupby=GroupBy(),
         priorities=DEFAULT_PRIORITIES

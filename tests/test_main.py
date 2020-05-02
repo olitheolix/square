@@ -30,7 +30,7 @@ def dummy_command_param(cfg: Config):
         labels=cfg.selectors.labels,
         namespaces=cfg.selectors.namespaces,
         kubeconfig=cfg.kubeconfig,
-        ctx=cfg.kube_ctx,
+        ctx=cfg.kubecontext,
         groupby=None,
         priorities=cfg.priorities,
         config="",
@@ -47,7 +47,7 @@ class TestResourceCleanup:
         cfg = Config(
             folder=pathlib.Path('/tmp'),
             kubeconfig="",
-            kube_ctx=None,
+            kubecontext=None,
             selectors=Selectors(
                 kinds={"svc", 'DEPLOYMENT', "Secret"},
                 namespaces=['default'],
@@ -73,7 +73,7 @@ class TestResourceCleanup:
         cfg = Config(
             folder=pathlib.Path('/tmp'),
             kubeconfig=Filepath("/does/not/exist"),
-            kube_ctx=None,
+            kubecontext=None,
             selectors=Selectors(
                 kinds={"svc", 'DEPLOYMENT', "Secret"},
                 namespaces=['default'],
@@ -118,7 +118,7 @@ class TestMain:
 
         assert cfg.folder == Filepath("./")
         assert cfg.kubeconfig == Filepath("/some/where")
-        assert cfg.kube_ctx is None
+        assert cfg.kubecontext is None
         assert cfg.folder == Filepath("./")
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
@@ -149,7 +149,7 @@ class TestMain:
             Config(
                 folder=Filepath(""),
                 kubeconfig=Filepath(""),
-                kube_ctx=None,
+                kubecontext=None,
                 selectors=Selectors(set(), [], set()),
                 groupby=GroupBy("", []),
                 priorities=[],
@@ -162,7 +162,7 @@ class TestMain:
         err_resp = Config(
             folder=Filepath(""),
             kubeconfig=Filepath(""),
-            kube_ctx=None,
+            kubecontext=None,
             selectors=Selectors(set(), [], set()),
             groupby=GroupBy("", []),
             priorities=[],
@@ -414,7 +414,7 @@ class TestMain:
         expected = Config(
             folder=Filepath(""),
             kubeconfig=Filepath(""),
-            kube_ctx=None,
+            kubecontext=None,
             selectors=Selectors(set(), [], set()),
             groupby=GroupBy("", []),
             priorities=[],
