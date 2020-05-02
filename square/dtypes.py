@@ -152,7 +152,7 @@ class DeploymentPlanMeta(NamedTuple):
 class Selectors(NamedTuple):
     """Comprises all the filters to select manifests."""
     kinds: Set[str] = set(DEFAULT_PRIORITIES)
-    namespaces: Optional[List[str]] = None
+    namespaces: List[str] = []
     labels: Optional[Set[Tuple[str, str]]] = set()
 
 

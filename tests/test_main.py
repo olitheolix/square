@@ -150,9 +150,9 @@ class TestMain:
                 folder=Filepath(""),
                 kubeconfig=Filepath(""),
                 kube_ctx=None,
-                selectors=Selectors(set(), None, None),
-                groupby=GroupBy("", tuple()),
-                priorities=tuple(),
+                selectors=Selectors(set(), [], None),
+                groupby=GroupBy("", []),
+                priorities=[],
             ), True)
 
     def test_compile_hierarchy_ok(self, config):
@@ -163,9 +163,9 @@ class TestMain:
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kube_ctx=None,
-            selectors=Selectors(set(), None, None),
-            groupby=GroupBy("", tuple()),
-            priorities=tuple(),
+            selectors=Selectors(set(), [], None),
+            groupby=GroupBy("", []),
+            priorities=[],
         ), True
 
         # ----------------------------------------------------------------------
@@ -175,7 +175,7 @@ class TestMain:
             param.parser = cmd
             ret, err = main.compile_config(param)
             assert not err
-            assert ret.groupby == GroupBy(order=tuple(), label="")
+            assert ret.groupby == GroupBy(label="", order=[])
             del cmd, ret, err
 
         # ----------------------------------------------------------------------
@@ -185,8 +185,7 @@ class TestMain:
         param.groupby = ("ns", "kind", "label=app", "ns")
         ret, err = main.compile_config(param)
         assert not err
-        assert ret.groupby == GroupBy(
-            order=("ns", "kind", "label", "ns"), label="app")
+        assert ret.groupby == GroupBy(label="app", order=["ns", "kind", "label", "ns"])
 
         # ----------------------------------------------------------------------
         # User defined hierarchy with invalid labels.
@@ -373,7 +372,7 @@ class TestMain:
 
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.groupby == GroupBy(label="", order=tuple())
+        assert cfg.groupby == GroupBy(label="", order=[])
 
         # ----------------------------------------------------------------------
         # User defined file system hierarchy.
@@ -385,7 +384,7 @@ class TestMain:
 
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.groupby == GroupBy(label="", order=("ns", "kind"))
+        assert cfg.groupby == GroupBy(label="", order=["ns", "kind"])
 
         # ----------------------------------------------------------------------
         # Include a label into the hierarchy and use "ns" twice.
@@ -397,7 +396,7 @@ class TestMain:
 
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.groupby == GroupBy(label="foo", order=("ns", "label", "ns"))
+        assert cfg.groupby == GroupBy(label="foo", order=["ns", "label", "ns"])
 
         # ----------------------------------------------------------------------
         # The label resource, unlike "ns" or "kind", can only be specified
@@ -412,9 +411,9 @@ class TestMain:
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kube_ctx=None,
-            selectors=Selectors(set(), None, None),
-            groupby=GroupBy("", tuple()),
-            priorities=tuple(),
+            selectors=Selectors(set(), [], None),
+            groupby=GroupBy("", []),
+            priorities=[],
         )
         assert main.compile_config(param) == (expected, True)
 

@@ -99,7 +99,7 @@ def select(manifest: dict, selectors: Selectors) -> bool:
 
     # Include the resource if it is a) namespaced b) we have namespace
     # selectors and c) the resource matches one of them.
-    if ns and selectors.namespaces is not None and ns not in selectors.namespaces:
+    if ns and selectors.namespaces and ns not in selectors.namespaces:
         logit.debug(f"Namespace {ns} does not match selector {selectors.namespaces}")
         return False
 
@@ -922,7 +922,7 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[ServerManifests, boo
 
     # Ensure `namespaces` is always a list to avoid special casing below.
     all_namespaces: Iterable[Optional[str]]
-    if config.selectors.namespaces is None:
+    if not config.selectors.namespaces:
         all_namespaces = [None]
     else:
         all_namespaces = config.selectors.namespaces
