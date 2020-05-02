@@ -56,7 +56,7 @@ def load_config(fname: Filepath) -> Tuple[Config, bool]:
         filters=raw.filters,
         selectors=Selectors(
             kinds=set(raw.selectors.kinds),
-            namespaces=[] or raw.selectors.namespaces,
+            namespaces=raw.selectors.namespaces or [],
             labels={(kv.name, kv.value) for kv in raw.selectors.labels},
         )
     )

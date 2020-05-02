@@ -113,7 +113,7 @@ class TestLoadConfig:
         assert cfg.folder == Filepath("./")
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
-        assert cfg.selectors.namespaces is None
+        assert cfg.selectors.namespaces == []
         assert cfg.selectors.labels == {("app", "square"), ("foo", "bar")}
         assert set(cfg.filters.keys()) == {
             "_common_", "Service", "ClusterRole", "ClusterRoleBinding",

@@ -46,14 +46,14 @@ class TestResourceCleanup:
         # Use specified a valid set of `selectors.kinds` using various spellings.
         cfg = Config(
             folder=pathlib.Path('/tmp'),
-            kubeconfig=None,
+            kubeconfig="",
             kube_ctx=None,
             selectors=Selectors(
                 kinds={"svc", 'DEPLOYMENT', "Secret"},
                 namespaces=['default'],
                 labels={("app", "morty"), ("foo", "bar")},
             ),
-            groupby=GroupBy("", tuple()),
+            groupby=GroupBy("", []),
             priorities=("Namespace", "Deployment"),
         )
 
@@ -122,7 +122,7 @@ class TestMain:
         assert cfg.folder == Filepath("./")
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
-        assert cfg.selectors.namespaces is None
+        assert cfg.selectors.namespaces == []
         assert cfg.selectors.labels == {("app", "square"), ("foo", "bar")}
         assert set(cfg.filters.keys()) == {
             "_common_", "Service", "ClusterRole", "ClusterRoleBinding",

@@ -1,9 +1,17 @@
 import pathlib
 from typing import (
-    Any, Collection, Dict, List, NamedTuple, Optional, Set, Tuple, Union,
+    TYPE_CHECKING, Any, Collection, Dict, List, NamedTuple, Optional, Set,
+    Tuple, Union,
 )
 
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from dataclasses import dataclass
+else:
+    import dataclasses
+    from pydantic.dataclasses import dataclass
+
 
 # Square will first save/deploy the resources in this list in this order.
 # Afterwards it will move on to all those resources not in this list. The order
@@ -149,20 +157,27 @@ class DeploymentPlanMeta(NamedTuple):
 # -----------------------------------------------------------------------------
 #                             Square Configuration
 # -----------------------------------------------------------------------------
-class Selectors(NamedTuple):
+def _factory(ret):
+    return dataclasses.field(default_factory=lambda: ret)
+
+
+@dataclass
+class Selectors:
     """Comprises all the filters to select manifests."""
-    kinds: Set[str] = set(DEFAULT_PRIORITIES)
-    namespaces: List[str] = []
-    labels: Optional[Set[Tuple[str, str]]] = set()
+    kinds: Set[str] = _factory(set(DEFAULT_PRIORITIES))
+    namespaces: List[str] = _factory([])
+    labels: Optional[Set[Tuple[str, str]]] = _factory(set())
 
 
-class GroupBy(NamedTuple):
+@dataclass
+class GroupBy:
     """Define how to organise downloaded manifest on the files system."""
-    label: str = ""             # "app"
-    order: List[str] = []       # ["ns", "label=app", kind"]
+    label: str = ""                  # "app"
+    order: List[str] = _factory([])  # ["ns", "label=app", kind"]
 
 
-class Config(NamedTuple):
+@dataclass
+class Config:
     """Uniform interface into top level Square API."""
     # Path to local manifests eg "./foo"
     folder: Filepath
@@ -177,13 +192,13 @@ class Config(NamedTuple):
     selectors: Selectors = Selectors()
 
     # Sort the manifest in this order, or alphabetically at the end if not in the list.
-    priorities: List[str] = list(DEFAULT_PRIORITIES)
+    priorities: List[str] = _factory(list(DEFAULT_PRIORITIES))
 
     # How to structure the folder directory when syncing manifests.
     groupby: GroupBy = GroupBy()
 
     # Define which fields to skip for which resource.
-    filters: dict = {}
+    filters: dict = _factory({})
 
 
 # -----------------------------------------------------------------------------
