@@ -26,9 +26,9 @@ class TestLogging:
 class TestBasic:
     def test_config_default(self, tmp_path):
         """Default values for Config."""
-        assert Config(folder=tmp_path, kubeconfig=tmp_path, kube_ctx="ctx") == Config(
+        assert Config(folder=tmp_path, kubeconfig=tmp_path, kubecontext="ctx") == Config(
             folder=tmp_path,
-            kube_ctx="ctx",
+            kubecontext="ctx",
             kubeconfig=tmp_path,
             selectors=Selectors(kinds=set(DEFAULT_PRIORITIES),
                                 namespaces=[],
@@ -109,7 +109,7 @@ class TestLoadConfig:
 
         assert cfg.folder == Filepath("./")
         assert cfg.kubeconfig == Filepath("/some/where")
-        assert cfg.kube_ctx is None
+        assert cfg.kubecontext is None
         assert cfg.folder == Filepath("./")
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)

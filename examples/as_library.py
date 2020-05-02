@@ -11,7 +11,7 @@ def main():
     #                                 Setup
     # ----------------------------------------------------------------------
     # Kubernetes credentials.
-    kubeconfig, kube_ctx = pathlib.Path(os.environ["KUBECONFIG"]), None
+    kubeconfig, kubecontext = pathlib.Path(os.environ["KUBECONFIG"]), None
 
     # Specify the resources to operate on. These ones model the demo setup in
     # the `../integration-test-cluster`.
@@ -32,18 +32,18 @@ def main():
     #          Import resources, create a plan and then apply it
     # ----------------------------------------------------------------------
     # Download the manifests into the `folder` defined earlier.
-    _, err = square.get(kubeconfig, kube_ctx, folder, selectors, groupby)
+    _, err = square.get(kubeconfig, kubecontext, folder, selectors, groupby)
     assert not err
 
     # Compute the plan and show it. It will not show any differences because we
     # planned against the resources we just downloaded.
-    plan, err = square.plan(kubeconfig, kube_ctx, folder, selectors)
+    plan, err = square.plan(kubeconfig, kubecontext, folder, selectors)
     assert not err
     square.show_plan(plan)
 
     # Apply the plan - will not actually do anything in this case, because the
     # plan is empty.
-    _, err = square.apply_plan(kubeconfig, kube_ctx, plan)
+    _, err = square.apply_plan(kubeconfig, kubecontext, plan)
     assert not err
 
 

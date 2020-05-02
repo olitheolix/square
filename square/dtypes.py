@@ -186,7 +186,7 @@ class Config:
     kubeconfig: Filepath
 
     # Kubernetes context (use `None` to use the default).
-    kube_ctx: Optional[str]
+    kubecontext: Optional[str]
 
     # Only operate on resources that match the selectors.
     selectors: Selectors = Selectors()
