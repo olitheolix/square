@@ -109,7 +109,7 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     labels = {(k, v) for k, v in labels.items()}
 
     # Unless the label selector is None, the resource must match it.
-    if selectors.labels is not None:
+    if selectors.labels:
         if not selectors.labels.issubset(labels):
             logit.debug(f"Labels {labels} do not match selector {selectors.labels}")
             return False
