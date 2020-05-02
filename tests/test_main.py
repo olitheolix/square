@@ -467,29 +467,10 @@ class TestMain:
 
     def test_parse_commandline_args_folder(self):
         """Use the correct manifest folder."""
-        # Backup environment variables and set a custom SQUARE_FOLDER value.
-        new_env = os.environ.copy()
-
-        # Populate the environment with a SQUARE_FOLDER.
-        new_env["SQUARE_FOLDER"] = "envvar"
-        with mock.patch.dict("os.environ", values=new_env, clear=True):
-            # Square must use the supplied value and ignore the environment variable.
-            with mock.patch("sys.argv", ["square.py", "get", "svc", "--folder", "/tmp"]):
-                ret = main.parse_commandline_args()
-                assert ret.folder == "/tmp"
-
-            # Square must fall back to SQUARE_FOLDER if it exists.
-            with mock.patch("sys.argv", ["square.py", "get", "svc"]):
-                ret = main.parse_commandline_args()
-                assert ret.folder == "envvar"
-
-        # Square must default to "./" in the absence of "--folder" and SQUARE_FOLDER.
-        # parameters and environment variable.
-        del new_env["SQUARE_FOLDER"]
-        with mock.patch.dict("os.environ", values=new_env, clear=True):
-            with mock.patch("sys.argv", ["square.py", "get", "svc"]):
-                ret = main.parse_commandline_args()
-                assert ret.folder == "./"
+        # Square must default to "./" in the absence of "--folder".
+        with mock.patch("sys.argv", ["square.py", "get", "svc"]):
+            ret = main.parse_commandline_args()
+            assert ret.folder == "./"
 
     def test_user_confirmed(self):
         """Verify user confirmation dialog."""
