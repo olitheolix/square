@@ -83,6 +83,7 @@ class TestMainGet:
             "--folder", str(tmp_path),
             "--groupby", "ns", "label=app", "kind",
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
+            "--labels",
         )
 
         # Temporary folder must be initially empty. After we pulled all
@@ -127,6 +128,7 @@ class TestMainGet:
             "--groupby", "ns", "label=app", "kind",
             "-n", "square-tests-1",
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
+            "--labels",
         )
 
         # Sync Deployments: must create "deployment.yaml".
@@ -187,6 +189,7 @@ class TestMainGet:
         common_args = (
             "--folder", str(tmp_path),
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
+            "--labels", "--groupby"
         )
 
         # ---------------------------------------------------------------------
