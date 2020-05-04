@@ -200,6 +200,25 @@ class TestMain:
             "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
 
+    def test_compile_config_kinds_clear_existing(self, config_args, tmp_path):
+        """Empty list on command line must clear the option."""
+        config, param = config_args
+
+        # The config sample defines a label.
+        cfg, err = main.compile_config(param)
+        assert not err
+        assert cfg.selectors.labels == {("app", "square")}
+        assert cfg.groupby == GroupBy(label="app", order=["ns", "label", "kind"])
+
+        # Pretend the user specified and empty `--labels` and `--groupby`. This
+        # must clear both entries from the default configuration.
+        param.labels = []
+        param.groupby = []
+        cfg, err = main.compile_config(param)
+        assert not err
+        assert cfg.selectors.labels == set()
+        assert cfg.groupby == GroupBy()
+
     def test_compile_config_missing_config_file(self, config_args):
         """Abort if the config file is missing or invalid."""
         config, param = config_args
