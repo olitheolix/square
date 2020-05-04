@@ -16,7 +16,8 @@ from square.dtypes import (
 from .test_helpers import make_manifest
 
 
-def config2cmdlnargs(cfg: Config):
+@pytest.fixture
+def config2cmdlnargs(config):
     """Convert `cfg` back to the command line arguments that would produce it.
 
     There are limits, because not all configuration options are available via
@@ -24,17 +25,19 @@ def config2cmdlnargs(cfg: Config):
     can only be specified directly or in a configuration file.
 
     """
-    return types.SimpleNamespace(
+    config.version, config.filters = "", {}
+
+    return config, types.SimpleNamespace(
         parser="get",
         verbosity=9,
-        folder=cfg.folder,
-        kinds=cfg.selectors.kinds,
-        labels=cfg.selectors.labels,
-        namespaces=cfg.selectors.namespaces,
-        kubeconfig=cfg.kubeconfig,
-        ctx=cfg.kubecontext,
+        folder=config.folder,
+        kinds=config.selectors.kinds,
+        labels=config.selectors.labels,
+        namespaces=config.selectors.namespaces,
+        kubeconfig=config.kubeconfig,
+        ctx=config.kubecontext,
         groupby=["ns", "label=app", "kind"],
-        priorities=cfg.priorities,
+        priorities=config.priorities,
         config="",
     )
 
@@ -90,21 +93,17 @@ class TestResourceCleanup:
 
 
 class TestMain:
-    def test_compile_config_basic(self, config):
+    def test_compile_config_basic(self, config2cmdlnargs):
         """Compile various valid configurations."""
-        # Void the fields that we cannot specify via command line arguments,
-        # most notably the version of the config file and the filters.
-        config.version, config.filters = "", {}
-
         # Verify that our specimen of command line arguments matches
         # `resources/sampleconfig.yaml`.
-        param = config2cmdlnargs(config)
+        config, param = config2cmdlnargs
         assert main.compile_config(param) == (config, False)
 
-    def test_compile_config_kinds(self, config):
+    def test_compile_config_kinds(self, config2cmdlnargs):
         """Parse resource kinds."""
         # Specify `Service` twice.
-        param = config2cmdlnargs(config)
+        config, param = config2cmdlnargs
         param.kinds = ["Service", "Deploy", "Service"]
         cfg, err = main.compile_config(param)
         assert not err
@@ -116,10 +115,10 @@ class TestMain:
         assert not err
         assert cfg.selectors.kinds == set()
 
-    def test_compile_config_kinds_merge_file(self, config):
+    def test_compile_config_kinds_merge_file(self, config2cmdlnargs):
         """Merge configuration from file and command line."""
         # Load everything from file.
-        param = config2cmdlnargs(config)
+        config, param = config2cmdlnargs
         param.config = Filepath("resources/sampleconfig.yaml")
         cfg, err = main.compile_config(param)
         assert not err
@@ -135,17 +134,17 @@ class TestMain:
             "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
 
-    def test_compile_config_missing_config_file(self, config):
+    def test_compile_config_missing_config_file(self, config2cmdlnargs):
         """Abort if the config file is missing or invalid."""
-        param = config2cmdlnargs(config)
+        config, param = config2cmdlnargs
         param.config = Filepath("/does/not/exist.yaml")
         _, err = main.compile_config(param)
         assert err
 
-    def test_compile_config_k8s_credentials(self, config):
+    def test_compile_config_k8s_credentials(self, config2cmdlnargs):
         """Parse K8s credentials."""
         # Must return error without K8s credentials.
-        param = config2cmdlnargs(config)
+        config, param = config2cmdlnargs
         param.kubeconfig /= "does-not-exist"
         assert main.compile_config(param) == (
             Config(
@@ -157,9 +156,9 @@ class TestMain:
                 priorities=[],
             ), True)
 
-    def test_compile_hierarchy_ok(self, config):
+    def test_compile_hierarchy_ok(self, config2cmdlnargs):
         """Parse the `--groupby` argument."""
-        param = config2cmdlnargs(config)
+        config, param = config2cmdlnargs
 
         err_resp = Config(
             folder=Filepath(""),
@@ -209,14 +208,15 @@ class TestMain:
     @mock.patch.object(square, "make_plan")
     @mock.patch.object(main, "apply_plan")
     @mock.patch.object(square.k8s, "cluster_config")
-    def test_main_valid_options(self, m_cluster, m_apply, m_plan, m_get, tmp_path,
-                                config, k8sconfig):
+    def test_main_valid_options(self, m_cluster, m_apply, m_plan, m_get,
+                                tmp_path, config2cmdlnargs, k8sconfig):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
         `main_*` function will be called with the correct parameters.
 
         """
+        config, param = config2cmdlnargs
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
         # Pretend all functions return successfully.
@@ -241,8 +241,6 @@ class TestMain:
         config.selectors.labels = {("app", "demo")}
         config.selectors.namespaces = ["default"]
         config.groupby = GroupBy(label="", order=[])
-        config.version = ""
-        config.filters = {}
 
         # Every main function must have been called exactly once.
         m_get.assert_called_once_with(config)
@@ -303,24 +301,24 @@ class TestMain:
 
     @mock.patch.object(main, "parse_commandline_args")
     @mock.patch.object(k8s, "cluster_config")
-    def test_main_invalid_option_in_main(self, m_cluster, m_cmd, config, k8sconfig):
+    def test_main_invalid_option_in_main(self, m_cluster, m_cmd, k8sconfig, config2cmdlnargs):
         """Simulate an option that `square` does not know about.
 
         This is a somewhat pathological test and exists primarily to close some
         harmless gaps in the unit test coverage.
 
         """
+        config, cmd_args = config2cmdlnargs
+
         # Pretend the call to get K8s credentials succeeded.
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
         # Force a configuration error due to the absence of K8s credentials.
-        cmd_args = config2cmdlnargs(config)
         cmd_args.kubeconfig /= "does-not-exist"
         m_cmd.return_value = cmd_args
         assert main.main() == 1
 
         # Simulate an invalid Square command.
-        cmd_args = config2cmdlnargs(config)
         cmd_args.parser = "invalid"
         m_cmd.return_value = cmd_args
         assert main.main() == 1
