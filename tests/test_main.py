@@ -31,7 +31,7 @@ def dummy_command_param(cfg: Config):
         namespaces=cfg.selectors.namespaces,
         kubeconfig=cfg.kubeconfig,
         ctx=cfg.kubecontext,
-        groupby=None,
+        groupby=["ns", "label=app", "kind"],
         priorities=cfg.priorities,
         config="",
     )
@@ -90,6 +90,12 @@ class TestResourceCleanup:
 class TestMain:
     def test_compile_config_basic(self, config):
         """Compile various valid configurations."""
+        # Void the fields that we cannot specify via command line arguments,
+        # most notably the version of the config file and the filters.
+        config.version, config.filters = "", {}
+
+        # Verify that our specimen of command line arguments matches
+        # `resources/sampleconfig.yaml`.
         param = dummy_command_param(config)
         assert main.compile_config(param) == (config, False)
 
@@ -150,7 +156,7 @@ class TestMain:
             ), True)
 
     def test_compile_hierarchy_ok(self, config):
-        """Parse file system hierarchy."""
+        """Parse the `--groupby` argument."""
         param = dummy_command_param(config)
 
         err_resp = Config(
@@ -169,7 +175,7 @@ class TestMain:
             param.parser = cmd
             ret, err = main.compile_config(param)
             assert not err
-            assert ret.groupby == GroupBy(label="", order=[])
+            assert ret.groupby == GroupBy(label="app", order=["ns", "label", "kind"])
             del cmd, ret, err
 
         # ----------------------------------------------------------------------
@@ -232,6 +238,9 @@ class TestMain:
         # Adjust the vanilla config according to our invocation.
         config.selectors.labels = {("app", "demo")}
         config.selectors.namespaces = ["default"]
+        config.groupby = GroupBy(label="", order=[])
+        config.version = ""
+        config.filters = {}
 
         # Every main function must have been called exactly once.
         m_get.assert_called_once_with(config)

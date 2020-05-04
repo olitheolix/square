@@ -3,7 +3,6 @@ import unittest.mock as mock
 import pytest
 import square.dtypes
 import square.square
-from square.dtypes import DEFAULT_PRIORITIES, Config, GroupBy, Selectors
 
 from .test_helpers import k8s_apis
 
@@ -46,15 +45,22 @@ def k8sconfig():
 
 @pytest.fixture
 def config(k8sconfig, tmp_path):
-    kubeconf = (tmp_path / "kubeconf")
-    kubeconf.write_text("")
+    """Return a valid and fully populated `Config` structure.
 
-    cfg = Config(
-        folder=tmp_path,
-        kubeconfig=kubeconf,
-        kubecontext=None,
-        selectors=Selectors(),
-        groupby=GroupBy(),
-        priorities=DEFAULT_PRIORITIES
-    )
+    The data in the structure matches `resources/sampleconfig.yaml` except for
+    the `kubeconfig` file. That one is different and points to an actually
+    (dummy) file in a temporary folder for this test.
+
+    """
+    # Load the sample configuration.
+    cfg, err = square.square.load_config("resources/sampleconfig.yaml")
+    assert not err
+
+    # Point the folder and kubeconfig to temporary versions.
+    cfg.folder = tmp_path
+    cfg.kubeconfig = (tmp_path / "kubeconf")
+
+    # Ensure the dummy kubeconfig file exists.
+    cfg.kubeconfig.write_text("")
+
     yield cfg
