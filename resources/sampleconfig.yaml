@@ -63,7 +63,11 @@ selectors:
   namespaces: []
   labels:
     - [app, square]
-    - [foo, bar]
+
+# GET will create a folder hierachy by name, app label and resource kind.
+groupby:
+  label: app
+  order: [ns, label, kind]
 
 filters:
   _common_:
