@@ -2,6 +2,7 @@ import os
 import pathlib
 import types
 import unittest.mock as mock
+from typing import Any, Tuple
 
 import pytest
 import square.k8s as k8s
@@ -17,12 +18,14 @@ from .test_helpers import make_manifest
 
 
 @pytest.fixture
-def config_args(config):
-    """Convert `cfg` back to the command line arguments that would produce it.
+def config_args(config) -> Tuple[Config, Any]:
+    """Return a valid `Config` structure and associated `argparse` namespace.
 
-    There are limits, because not all configuration options are available via
-    the command line. The notable exceptions are `version` and `filters`, which
-    can only be specified directly or in a configuration file.
+    The purpose of this fixture is to supply a valid non-trivial configuration,
+    as well as the command line arguments (ie `main.parise_commandline_args`
+    return value) that would produce it.
+
+    This removes a lot of boiler plate in the tests.
 
     """
     config.version, config.filters = "", {}
