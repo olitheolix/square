@@ -185,27 +185,10 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         cfg, err = square.square.load_config(p.config)
         return err_resp if err else (cfg, False)
 
-    # Abort without credentials.
-    kubeconfig = Filepath(p.kubeconfig)
-    if not kubeconfig.exists():
-        logit.error(f"Cannot find Kubernetes config file <{kubeconfig}>")
-        return err_resp
-
-    # Remove duplicates but retain the original order of "p.kinds". This is
-    # a "trick" that will only work in Python 3.7+ which guarantees a stable
-    # insertion order for dictionaries (but not sets).
-    p.kinds = set(dict.fromkeys(p.kinds))
-
-    # Folder must be `Filepath` object.
-    folder = Filepath(p.folder)
-
-    # Specify the selectors (see definition of `dtypes.Selectors`).
-    selectors = Selectors(p.kinds, p.namespaces, set(p.labels))
-
     # ------------------------------------------------------------------------
-    # Unpack the folder hierarchy. For example:
-    # From: `--groupby ns kind label=app` ->
-    # To  : GroupBy(order=["ns", "kind", "label"], label="app")
+    # GroupBy (determines the folder hierarchy that GET will create).
+    # In : `--groupby ns kind label=app`
+    # Out: GroupBy(order=["ns", "kind", "label"], label="app")
     # ------------------------------------------------------------------------
     # Unpack the ordering and replace all `label=*` with `label`.
     order = getattr(p, "groupby", None) or []
@@ -232,6 +215,26 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
             return err_resp
     groupby = GroupBy(order=list(clean_order), label=label_name)
     del order, clean_order, label_name
+
+    # ------------------------------------------------------------------------
+    # Verify inputs.
+    # ------------------------------------------------------------------------
+    # Abort without credentials.
+    kubeconfig = Filepath(p.kubeconfig)
+    if not kubeconfig.exists():
+        logit.error(f"Cannot find Kubernetes config file <{kubeconfig}>")
+        return err_resp
+
+    # Remove duplicates but retain the original order of "p.kinds". This is
+    # a "trick" that will only work in Python 3.7+ which guarantees a stable
+    # insertion order for dictionaries (but not sets).
+    p.kinds = set(dict.fromkeys(p.kinds))
+
+    # Folder must be `Filepath` object.
+    folder = Filepath(p.folder)
+
+    # Specify the selectors (see definition of `dtypes.Selectors`).
+    selectors = Selectors(p.kinds, p.namespaces, set(p.labels))
 
     # -------------------------------------------------------------------------
     # Assemble the full configuration and return it.
