@@ -192,21 +192,23 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # Out: GroupBy(order=["ns", "kind", "label"], label="app")
     # ------------------------------------------------------------------------
     # Unpack the ordering and replace all `label=*` with `label`.
-    if getattr(p, "groupby", None) is None:
+    # NOTE: `p.groups` does not necessarily exist because the option only makes
+    #        sense for eg `square GET` and is thus not implemented for `square apply`.
+    order = getattr(p, "groupby", None)
+    if order is None:
         groupby = cfg.groupby
     else:
-        order = getattr(p, "groupby", None) or []
         clean_order = [_ if not _.startswith("label") else "label" for _ in order]
         if not set(clean_order).issubset({"ns", "kind", "label"}):
-            logit.error(f"Invalid resource names in <{order}>")
+            logit.error(f"Invalid definition of `groupby`")
             return err_resp
 
         labels = [_ for _ in order if _.startswith("label")]
         if len(labels) > 1:
-            logit.error("Can only specify one label in file hierarchy")
+            logit.error("Can only specify one `label=<name>` in `--groupby`.")
             return err_resp
 
-        # Unpack the label name if the user specified it as part of `--groupby`.
+        # Unpack the label name from the `--groupby` argument.
         # Example, if user specified `--groupby label=app` then we need to extract
         # the `app` part. This also includes basic sanity checks.
         label_name = ""
@@ -217,6 +219,8 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
             except (ValueError, AssertionError):
                 logit.error(f"Invalid label specification <{labels[0]}>")
                 return err_resp
+
+        # Compile the final `GroupBy` structure.
         groupby = GroupBy(order=list(clean_order), label=label_name)
         del order, clean_order, label_name
 
@@ -227,14 +231,19 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # a "trick" that will only work in Python 3.7+ which guarantees a stable
     # insertion order for dictionaries (but not sets).
     kinds = cfg.selectors.kinds if p.kinds is None else set(dict.fromkeys(p.kinds))
-    namespaces = cfg.selectors.namespaces if p.namespaces is None else p.namespaces
-    labels = cfg.selectors.labels if p.labels is None else set(p.labels)
 
+    # Use the value from the (default) config file unless the user overrode
+    # them on the command line.
     folder = Filepath(p.folder or cfg.folder)
     kubeconfig = Filepath(p.kubeconfig) or Filepath(cfg.kubeconfig)
     kubecontext = p.ctx or cfg.kubecontext
+    namespaces = cfg.selectors.namespaces if p.namespaces is None else p.namespaces
+    sel_labels = cfg.selectors.labels if p.labels is None else set(p.labels)
     priorities = p.priorities or cfg.priorities
-    selectors = Selectors(kinds, namespaces, labels)
+    selectors = Selectors(kinds, namespaces, sel_labels)
+
+    # Use filters from (default) config file because they cannot be specified
+    # on the command line.
     filters = cfg.filters
 
     # ------------------------------------------------------------------------
