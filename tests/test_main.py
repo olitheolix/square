@@ -28,19 +28,19 @@ def config_args(config) -> Tuple[Config, Any]:
     This removes a lot of boiler plate in the tests.
 
     """
-    config.version, config.filters = "", {}
+    config.version = ""
 
     return config, types.SimpleNamespace(
         parser="get",
         verbosity=9,
-        folder=config.folder,
+        folder=None,
         kinds=config.selectors.kinds,
-        labels=config.selectors.labels,
-        namespaces=config.selectors.namespaces,
+        labels=None,
+        namespaces=None,
         kubeconfig=config.kubeconfig,
-        ctx=config.kubecontext,
-        groupby=["ns", "label=app", "kind"],
-        priorities=config.priorities,
+        ctx=None,
+        groupby=None,
+        priorities=None,
         config="",
     )
 
@@ -97,11 +97,18 @@ class TestResourceCleanup:
 
 class TestMain:
     def test_compile_config_basic(self, config_args):
-        """Compile various valid configurations."""
-        # Verify that our specimen of command line arguments matches
-        # `resources/sampleconfig.yaml`.
-        config, param = config_args
-        assert main.compile_config(param) == (config, False)
+        """Verify that our config and command line args fixtures match."""
+        ref_config, param = config_args
+
+        # Convert the parsed command line `param` to a `Config` structure.
+        out, err =  main.compile_config(param)
+        assert not err
+
+        # The parsed `Config` must match our `ref_config` fixture except for
+        # the folder and kubeconfig because the fixture explicitly overrode
+        # those to point to a temporary location.
+        out.folder, out.kubeconfig = ref_config.folder, ref_config.kubeconfig
+        assert out == ref_config
 
     def test_compile_config_kinds(self, config_args):
         """Parse resource kinds."""
@@ -118,21 +125,77 @@ class TestMain:
         assert not err
         assert cfg.selectors.kinds == set()
 
-    def test_compile_config_kinds_merge_file(self, config_args):
+    def test_compile_config_kinds_merge_file(self, config, tmp_path):
         """Merge configuration from file and command line."""
-        # Load everything from file.
-        config, param = config_args
+        # Dummy file.
+        kubeconfig_override = tmp_path / "kubeconfig"
+        kubeconfig_override.write_text("")
+
+        # ---------------------------------------------------------------------
+        # Override nothing on the command line except for `kubeconfig` because
+        # it must point to valid file.
+        # ---------------------------------------------------------------------
+        param = types.SimpleNamespace(
+            folder=None,
+            kinds=None,
+            labels=None,
+            namespaces=None,
+            kubeconfig=str(kubeconfig_override),
+            ctx="",
+            groupby=None,
+            priorities=None,
+            config="",
+        )
+
+        # Translate command line arguments into `Config`.
         param.config = Filepath("resources/sampleconfig.yaml")
         cfg, err = main.compile_config(param)
         assert not err
 
-        assert cfg.folder == param.config.parent.absolute()
-        assert cfg.kubeconfig == Filepath("/some/where")
+        assert cfg.folder == Filepath("resources/sampleconfig.yaml").parent.absolute()
+        assert cfg.kubeconfig == kubeconfig_override
         assert cfg.kubecontext is None
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
-        assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
-        assert cfg.selectors.namespaces == []
-        assert cfg.selectors.labels == {("app", "square")}
+        assert cfg.selectors == Selectors(
+            kinds=set(DEFAULT_PRIORITIES),
+            namespaces=[],
+            labels={("app", "square")},
+        )
+        assert cfg.groupby == GroupBy(label="app", order=["ns", "label", "kind"])
+        assert set(cfg.filters.keys()) == {
+            "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
+        }
+
+        # ---------------------------------------------------------------------
+        # Override everything on the command line.
+        # ---------------------------------------------------------------------
+        param = types.SimpleNamespace(
+            folder="folder-override",
+            kinds=["Deployment", "Namespace"],
+            labels=[("app", "square"), ("foo", "bar")],
+            namespaces=["default", "kube-system"],
+            kubeconfig=str(kubeconfig_override),
+            ctx="kubecontext-override",
+            groupby=["kind", "label=foo", "ns"],
+            priorities=["Namespace", "Deployment"],
+            config="",
+        )
+
+        # Translate command line arguments into `Config`.
+        param.config = Filepath("resources/sampleconfig.yaml")
+        cfg, err = main.compile_config(param)
+        assert not err
+
+        assert cfg.folder == Filepath("folder-override")
+        assert cfg.kubeconfig == kubeconfig_override
+        assert cfg.kubecontext == "kubecontext-override"
+        assert cfg.priorities == ["Namespace", "Deployment"]
+        assert cfg.selectors == Selectors(
+            kinds={"Namespace", "Deployment"},
+            namespaces=["default", "kube-system"],
+            labels={("app", "square"), ("foo", "bar")},
+        )
+        assert cfg.groupby == GroupBy(label="foo", order=["kind", "label", "ns"])
         assert set(cfg.filters.keys()) == {
             "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
@@ -240,10 +303,9 @@ class TestMain:
                 main.main()
             del args
 
-        # Adjust the vanilla config according to our invocation.
+        # These two deviate from the values in `resources/sampleconfig.yaml`.
         config.selectors.labels = {("app", "demo")}
         config.selectors.namespaces = ["default"]
-        config.groupby = GroupBy(label="", order=[])
 
         # Every main function must have been called exactly once.
         m_get.assert_called_once_with(config)
@@ -350,7 +412,7 @@ class TestMain:
         # No labels.
         with mock.patch("sys.argv", ["square.py", "get", "all"]):
             ret = main.parse_commandline_args()
-            assert ret.labels == tuple()
+            assert ret.labels is None
 
         # One label.
         with mock.patch("sys.argv", ["square.py", "get", "all", "-l", "foo=bar"]):
@@ -366,10 +428,11 @@ class TestMain:
     def test_parse_commandline_args_priority(self):
         """Custom priorities must override the default."""
         args = ["square.py", "get", "ns"]
+
         # User did not specify a priority.
         with mock.patch("sys.argv", args):
             ret = main.parse_commandline_args()
-            assert ret.priorities == DEFAULT_PRIORITIES
+            assert ret.priorities is None
 
         # User did specify priorities.
         with mock.patch("sys.argv", args + ["--priorities", "foo", "bar"]):
@@ -389,10 +452,6 @@ class TestMain:
         with mock.patch("sys.argv", base_cmd):
             param = main.parse_commandline_args()
             assert param.groupby is None
-
-        cfg, err = main.compile_config(param)
-        assert not err
-        assert cfg.groupby == GroupBy(label="", order=[])
 
         # ----------------------------------------------------------------------
         # User defined file system hierarchy.

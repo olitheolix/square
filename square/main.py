@@ -10,9 +10,7 @@ import colorama
 import square
 import square.square
 from square import __version__
-from square.dtypes import (
-    DEFAULT_PRIORITIES, Config, Filepath, GroupBy, Selectors,
-)
+from square.dtypes import Config, Filepath, GroupBy, Selectors
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
@@ -180,10 +178,13 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # Convenience.
     p = cmdline_param
 
+    sample_fname = Filepath("resources/sampleconfig.yaml")
+
     # Exclusively use the config file if the user specified one.
-    if p.config:
-        cfg, err = square.square.load_config(p.config)
-        return err_resp if err else (cfg, False)
+    cfg_file = p.config or sample_fname
+    cfg, err = square.square.load_config(cfg_file)
+    if err:
+        return err_resp
 
     # ------------------------------------------------------------------------
     # GroupBy (determines the folder hierarchy that GET will create).
@@ -191,50 +192,58 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # Out: GroupBy(order=["ns", "kind", "label"], label="app")
     # ------------------------------------------------------------------------
     # Unpack the ordering and replace all `label=*` with `label`.
-    order = getattr(p, "groupby", None) or []
-    clean_order = [_ if not _.startswith("label") else "label" for _ in order]
-    if not set(clean_order).issubset({"ns", "kind", "label"}):
-        logit.error(f"Invalid resource names in <{order}>")
-        return err_resp
-
-    labels = [_ for _ in order if _.startswith("label")]
-    if len(labels) > 1:
-        logit.error("Can only specify one label in file hierarchy")
-        return err_resp
-
-    # Unpack the label name if the user specified it as part of `--groupby`.
-    # Example, if user specified `--groupby label=app` then we need to extract
-    # the `app` part. This also includes basic sanity checks.
-    label_name = ""
-    if len(labels) == 1:
-        try:
-            _, label_name = labels[0].split("=")
-            assert len(label_name) > 0
-        except (ValueError, AssertionError):
-            logit.error(f"Invalid label specification <{labels[0]}>")
+    if getattr(p, "groupby", None) is None:
+        groupby = cfg.groupby
+    else:
+        order = getattr(p, "groupby", None) or []
+        clean_order = [_ if not _.startswith("label") else "label" for _ in order]
+        if not set(clean_order).issubset({"ns", "kind", "label"}):
+            logit.error(f"Invalid resource names in <{order}>")
             return err_resp
-    groupby = GroupBy(order=list(clean_order), label=label_name)
-    del order, clean_order, label_name
+
+        labels = [_ for _ in order if _.startswith("label")]
+        if len(labels) > 1:
+            logit.error("Can only specify one label in file hierarchy")
+            return err_resp
+
+        # Unpack the label name if the user specified it as part of `--groupby`.
+        # Example, if user specified `--groupby label=app` then we need to extract
+        # the `app` part. This also includes basic sanity checks.
+        label_name = ""
+        if len(labels) == 1:
+            try:
+                _, label_name = labels[0].split("=")
+                assert len(label_name) > 0
+            except (ValueError, AssertionError):
+                logit.error(f"Invalid label specification <{labels[0]}>")
+                return err_resp
+        groupby = GroupBy(order=list(clean_order), label=label_name)
+        del order, clean_order, label_name
+
+    # ------------------------------------------------------------------------
+    # General: folder, kubeconfig, kubecontext, ...
+    # ------------------------------------------------------------------------
+    # Remove duplicates but retain the original order of "p.kinds". This is
+    # a "trick" that will only work in Python 3.7+ which guarantees a stable
+    # insertion order for dictionaries (but not sets).
+    kinds = cfg.selectors.kinds if p.kinds is None else set(dict.fromkeys(p.kinds))
+    namespaces = cfg.selectors.namespaces if p.namespaces is None else p.namespaces
+    labels = cfg.selectors.labels if p.labels is None else set(p.labels)
+
+    folder = Filepath(p.folder or cfg.folder)
+    kubeconfig = Filepath(p.kubeconfig) or Filepath(cfg.kubeconfig)
+    kubecontext = p.ctx or cfg.kubecontext
+    priorities = p.priorities or cfg.priorities
+    selectors = Selectors(kinds, namespaces, labels)
+    filters = cfg.filters
 
     # ------------------------------------------------------------------------
     # Verify inputs.
     # ------------------------------------------------------------------------
     # Abort without credentials.
-    kubeconfig = Filepath(p.kubeconfig)
     if not kubeconfig.exists():
         logit.error(f"Cannot find Kubernetes config file <{kubeconfig}>")
         return err_resp
-
-    # Remove duplicates but retain the original order of "p.kinds". This is
-    # a "trick" that will only work in Python 3.7+ which guarantees a stable
-    # insertion order for dictionaries (but not sets).
-    p.kinds = set(dict.fromkeys(p.kinds))
-
-    # Folder must be `Filepath` object.
-    folder = Filepath(p.folder)
-
-    # Specify the selectors (see definition of `dtypes.Selectors`).
-    selectors = Selectors(p.kinds, p.namespaces, set(p.labels))
 
     # -------------------------------------------------------------------------
     # Assemble the full configuration and return it.
@@ -242,10 +251,11 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     cfg = Config(
         folder=folder,
         kubeconfig=kubeconfig,
-        kubecontext=p.ctx,
+        kubecontext=kubecontext,
         selectors=selectors,
         groupby=groupby,
-        priorities=p.priorities,
+        priorities=priorities,
+        filters=filters,
     )
     return cfg, False
 
