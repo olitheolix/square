@@ -56,17 +56,17 @@ def parse_commandline_args():
     )
     parent.add_argument(
         "-n", "--namespace", type=str, nargs="*",
-        metavar="ns", dest="namespaces", default=[],
+        metavar="ns", dest="namespaces", default=None,
         help="List of namespaces (omit to consider all)",
     )
     parent.add_argument(
         "-l", "--labels", type=_validate_label, nargs="*",
-        metavar="labels", dest="labels", default=tuple(),
+        metavar="labels", dest="labels", default=None,
         help="Only select resources with these labels (eg 'app=foo')",
     )
     parent.add_argument(
         "-p", "--priorities", nargs="*",
-        metavar="priorities", dest="priorities", default=tuple(DEFAULT_PRIORITIES),
+        metavar="priorities", dest="priorities", default=None,
         help="Sort resource in this order when saving and applying",
     )
     parent.add_argument(
