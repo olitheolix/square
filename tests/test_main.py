@@ -16,10 +16,12 @@ from square.dtypes import (
 from .test_helpers import make_manifest
 
 
-def dummy_command_param(cfg: Config):
-    """Helper function: return a valid parsed command line.
+def config2cmdlnargs(cfg: Config):
+    """Convert `cfg` back to the command line arguments that would produce it.
 
-    This is mostly useful for `compile_config` related tests.
+    There are limits, because not all configuration options are available via
+    the command line. The notable exceptions are `version` and `filters`, which
+    can only be specified directly or in a configuration file.
 
     """
     return types.SimpleNamespace(
@@ -96,13 +98,13 @@ class TestMain:
 
         # Verify that our specimen of command line arguments matches
         # `resources/sampleconfig.yaml`.
-        param = dummy_command_param(config)
+        param = config2cmdlnargs(config)
         assert main.compile_config(param) == (config, False)
 
     def test_compile_config_kinds(self, config):
         """Parse resource kinds."""
         # Specify `Service` twice.
-        param = dummy_command_param(config)
+        param = config2cmdlnargs(config)
         param.kinds = ["Service", "Deploy", "Service"]
         cfg, err = main.compile_config(param)
         assert not err
@@ -117,7 +119,7 @@ class TestMain:
     def test_compile_config_kinds_merge_file(self, config):
         """Merge configuration from file and command line."""
         # Load everything from file.
-        param = dummy_command_param(config)
+        param = config2cmdlnargs(config)
         param.config = Filepath("resources/sampleconfig.yaml")
         cfg, err = main.compile_config(param)
         assert not err
@@ -135,7 +137,7 @@ class TestMain:
 
     def test_compile_config_missing_config_file(self, config):
         """Abort if the config file is missing or invalid."""
-        param = dummy_command_param(config)
+        param = config2cmdlnargs(config)
         param.config = Filepath("/does/not/exist.yaml")
         _, err = main.compile_config(param)
         assert err
@@ -143,7 +145,7 @@ class TestMain:
     def test_compile_config_k8s_credentials(self, config):
         """Parse K8s credentials."""
         # Must return error without K8s credentials.
-        param = dummy_command_param(config)
+        param = config2cmdlnargs(config)
         param.kubeconfig /= "does-not-exist"
         assert main.compile_config(param) == (
             Config(
@@ -157,7 +159,7 @@ class TestMain:
 
     def test_compile_hierarchy_ok(self, config):
         """Parse the `--groupby` argument."""
-        param = dummy_command_param(config)
+        param = config2cmdlnargs(config)
 
         err_resp = Config(
             folder=Filepath(""),
@@ -312,13 +314,13 @@ class TestMain:
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
         # Force a configuration error due to the absence of K8s credentials.
-        cmd_args = dummy_command_param(config)
+        cmd_args = config2cmdlnargs(config)
         cmd_args.kubeconfig /= "does-not-exist"
         m_cmd.return_value = cmd_args
         assert main.main() == 1
 
         # Simulate an invalid Square command.
-        cmd_args = dummy_command_param(config)
+        cmd_args = config2cmdlnargs(config)
         cmd_args.parser = "invalid"
         m_cmd.return_value = cmd_args
         assert main.main() == 1
