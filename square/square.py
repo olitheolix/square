@@ -48,29 +48,21 @@ def load_config(fname: Filepath) -> Tuple[Config, bool]:
 
     # Parse the configuration into `ConfigFile` structure.
     try:
-        raw = Config(**raw)
+        cfg = Config(**raw)
     except (pydantic.ValidationError, TypeError) as e:
         logit.error(f"Schema is invalid: {e}")
         return err_resp
 
-    # Remove the "_common_" filter and merge it into all other filters.
-    common = raw.filters.pop("_common_", [])
-    filters = {k: square.schemas.merge(common, v) for k, v in raw.filters.items()}
+    # Remove the "_common_" filter and merge it into all the other filters.
+    common = cfg.filters.pop("_common_", [])
+    cfg.filters = {k: square.schemas.merge(common, v) for k, v in cfg.filters.items()}
 
-    # Compile the config file into a `dtypes.Config` tuple.
-    config = Config(
-        folder=fname.parent.absolute() / raw.folder,
-        kubeconfig=raw.kubeconfig,
-        kubecontext=raw.kubecontext,
-        priorities=raw.priorities,
-        filters=filters,
-        selectors=Selectors(
-            kinds=set(raw.selectors.kinds),
-            namespaces=raw.selectors.namespaces or [],
-            labels={(k, v) for k, v in raw.selectors.labels},
-        )
-    )
-    return config, False
+    # Make the necessary adjustments where the values in the file do not
+    # translate verbatim.
+    cfg.folder = fname.parent.absolute() / cfg.folder
+    cfg.selectors.kinds = set(cfg.selectors.kinds)
+    cfg.selectors.labels = {(k, v) for k, v in cfg.selectors.labels}
+    return cfg, False
 
 
 def make_patch(
