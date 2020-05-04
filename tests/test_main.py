@@ -17,7 +17,7 @@ from .test_helpers import make_manifest
 
 
 @pytest.fixture
-def config2cmdlnargs(config):
+def config_args(config):
     """Convert `cfg` back to the command line arguments that would produce it.
 
     There are limits, because not all configuration options are available via
@@ -93,17 +93,17 @@ class TestResourceCleanup:
 
 
 class TestMain:
-    def test_compile_config_basic(self, config2cmdlnargs):
+    def test_compile_config_basic(self, config_args):
         """Compile various valid configurations."""
         # Verify that our specimen of command line arguments matches
         # `resources/sampleconfig.yaml`.
-        config, param = config2cmdlnargs
+        config, param = config_args
         assert main.compile_config(param) == (config, False)
 
-    def test_compile_config_kinds(self, config2cmdlnargs):
+    def test_compile_config_kinds(self, config_args):
         """Parse resource kinds."""
         # Specify `Service` twice.
-        config, param = config2cmdlnargs
+        config, param = config_args
         param.kinds = ["Service", "Deploy", "Service"]
         cfg, err = main.compile_config(param)
         assert not err
@@ -115,10 +115,10 @@ class TestMain:
         assert not err
         assert cfg.selectors.kinds == set()
 
-    def test_compile_config_kinds_merge_file(self, config2cmdlnargs):
+    def test_compile_config_kinds_merge_file(self, config_args):
         """Merge configuration from file and command line."""
         # Load everything from file.
-        config, param = config2cmdlnargs
+        config, param = config_args
         param.config = Filepath("resources/sampleconfig.yaml")
         cfg, err = main.compile_config(param)
         assert not err
@@ -134,17 +134,17 @@ class TestMain:
             "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
 
-    def test_compile_config_missing_config_file(self, config2cmdlnargs):
+    def test_compile_config_missing_config_file(self, config_args):
         """Abort if the config file is missing or invalid."""
-        config, param = config2cmdlnargs
+        config, param = config_args
         param.config = Filepath("/does/not/exist.yaml")
         _, err = main.compile_config(param)
         assert err
 
-    def test_compile_config_k8s_credentials(self, config2cmdlnargs):
+    def test_compile_config_k8s_credentials(self, config_args):
         """Parse K8s credentials."""
         # Must return error without K8s credentials.
-        config, param = config2cmdlnargs
+        config, param = config_args
         param.kubeconfig /= "does-not-exist"
         assert main.compile_config(param) == (
             Config(
@@ -156,9 +156,9 @@ class TestMain:
                 priorities=[],
             ), True)
 
-    def test_compile_hierarchy_ok(self, config2cmdlnargs):
+    def test_compile_hierarchy_ok(self, config_args):
         """Parse the `--groupby` argument."""
-        config, param = config2cmdlnargs
+        config, param = config_args
 
         err_resp = Config(
             folder=Filepath(""),
@@ -209,14 +209,14 @@ class TestMain:
     @mock.patch.object(main, "apply_plan")
     @mock.patch.object(square.k8s, "cluster_config")
     def test_main_valid_options(self, m_cluster, m_apply, m_plan, m_get,
-                                tmp_path, config2cmdlnargs, k8sconfig):
+                                tmp_path, config_args, k8sconfig):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
         `main_*` function will be called with the correct parameters.
 
         """
-        config, param = config2cmdlnargs
+        config, param = config_args
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
         # Pretend all functions return successfully.
@@ -301,14 +301,14 @@ class TestMain:
 
     @mock.patch.object(main, "parse_commandline_args")
     @mock.patch.object(k8s, "cluster_config")
-    def test_main_invalid_option_in_main(self, m_cluster, m_cmd, k8sconfig, config2cmdlnargs):
+    def test_main_invalid_option_in_main(self, m_cluster, m_cmd, k8sconfig, config_args):
         """Simulate an option that `square` does not know about.
 
         This is a somewhat pathological test and exists primarily to close some
         harmless gaps in the unit test coverage.
 
         """
-        config, cmd_args = config2cmdlnargs
+        config, cmd_args = config_args
 
         # Pretend the call to get K8s credentials succeeded.
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
