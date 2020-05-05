@@ -3,7 +3,7 @@ version: v0.1
 
 kubeconfig: /path/to/kubeconfig # eg "~/.kube/config".
 kubecontext: null
-folder: ./                      # Location of manifests relative to *this* file.
+folder: some/path
 
 
 # -----------------------------------------------------------------------------
