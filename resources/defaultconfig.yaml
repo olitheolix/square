@@ -1,9 +1,9 @@
 # Square configuration Syntax.
-version: v0.1
+version: v1.0
 
-kubeconfig: /some/where
+kubeconfig: /path/to/kubeconfig
 kubecontext: null
-folder: ./
+folder: .
 
 priorities:
   # Custom Resources should come first.

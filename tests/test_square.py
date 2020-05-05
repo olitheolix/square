@@ -110,7 +110,7 @@ class TestLoadConfig:
         assert not err and isinstance(cfg, Config)
 
         assert cfg.folder == fname.parent.absolute()
-        assert cfg.kubeconfig == Filepath("/some/where")
+        assert cfg.kubeconfig == Filepath("/path/to/kubeconfig")
         assert cfg.kubecontext is None
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
