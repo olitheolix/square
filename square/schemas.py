@@ -23,7 +23,7 @@ def valid(filters: List[Union[dict, list, str]]) -> bool:
 
     # Iterate over all fields of all K8s resource type.
     for el in filters:
-        # All filterss must contain only dicts and boolean `False` values.
+        # All entries must be either strings or dicts of lists.
         if isinstance(el, dict):
             if len(el) != 1:
                 logit.error(f"<{el}> must have exactly one key")
