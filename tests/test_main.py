@@ -175,7 +175,7 @@ class TestMain:
         cfg, err = main.compile_config(param)
         assert not err
 
-        assert cfg.folder == param.configfile.parent.absolute()
+        assert cfg.folder == Filepath("tests/support").absolute() / "some/path"
         assert cfg.kubeconfig == kubeconfig_override
         assert cfg.kubecontext is None
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
@@ -236,7 +236,7 @@ class TestMain:
         param.folder = None
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.folder == Filepath("tests/support/config.yaml").parent.absolute()
+        assert cfg.folder == Filepath("tests/support").absolute() / "some/path"
 
         # Config file and "--folder some/where":
         param.configfile = Filepath("tests/support/config.yaml")

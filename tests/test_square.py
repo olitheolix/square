@@ -109,7 +109,7 @@ class TestLoadConfig:
         cfg, err = sq.load_config(fname)
         assert not err and isinstance(cfg, Config)
 
-        assert cfg.folder == fname.parent.absolute()
+        assert cfg.folder == fname.parent.absolute() / "some/path"
         assert cfg.kubeconfig == Filepath("/path/to/kubeconfig")
         assert cfg.kubecontext is None
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
@@ -137,7 +137,7 @@ class TestLoadConfig:
         ref = yaml.safe_load(fname_ref.read_text())
         fname.write_text(yaml.dump(ref))
         cfg, err = sq.load_config(fname)
-        assert not err and cfg.folder == tmp_path
+        assert not err and cfg.folder == tmp_path / "some/path"
 
         # The parsed folder must point to "tmp_path/folder".
         ref = yaml.safe_load(fname_ref.read_text())
