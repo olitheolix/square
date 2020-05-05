@@ -2,7 +2,7 @@ import os
 import pathlib
 import types
 import unittest.mock as mock
-from typing import Any, Tuple
+from typing import Tuple
 
 import pytest
 import square.k8s as k8s
@@ -18,7 +18,7 @@ from .test_helpers import make_manifest
 
 
 @pytest.fixture
-def config_args(tmp_path) -> Tuple[Config, Any]:
+def config_args(tmp_path) -> Tuple[types.SimpleNamespace, Config]:
     """Parsed command line args to produce the default configuration.
 
     The return values are what `parse_commandline_args` would return, as well
@@ -28,7 +28,7 @@ def config_args(tmp_path) -> Tuple[Config, Any]:
 
     """
     # Load the sample configuration.
-    config, err = square.load_config("resources/defaultconfig.yaml")
+    config, err = square.load_config(Filepath("resources/defaultconfig.yaml"))
     assert not err
 
     # Point the folder and kubeconfig to temporary versions.
@@ -61,7 +61,7 @@ def config_args(tmp_path) -> Tuple[Config, Any]:
         priorities=DEFAULT_PRIORITIES,
     )
 
-    return config, params
+    return params, config
 
 
 class TestResourceCleanup:
@@ -117,7 +117,7 @@ class TestResourceCleanup:
 class TestMain:
     def test_compile_config_basic(self, config_args):
         """Verify that our config and command line args fixtures match."""
-        ref_config, param = config_args
+        param, ref_config = config_args
 
         # Convert the parsed command line `param` to a `Config` structure.
         out, err = main.compile_config(param)
@@ -132,7 +132,7 @@ class TestMain:
     def test_compile_config_kinds(self, config_args):
         """Parse resource kinds."""
         # Specify `Service` twice.
-        config, param = config_args
+        param, config = config_args
         param.kinds = ["Service", "Deploy", "Service"]
         cfg, err = main.compile_config(param)
         assert not err
@@ -226,7 +226,7 @@ class TestMain:
 
     def test_compile_config_kinds_clear_existing(self, config_args, tmp_path):
         """Empty list on command line must clear the option."""
-        config, param = config_args
+        param, config = config_args
 
         # Use the test configuration for this test (it has non-zero labels).
         param.config = "tests/support/config.yaml"
@@ -261,14 +261,14 @@ class TestMain:
 
     def test_compile_config_missing_config_file(self, config_args):
         """Abort if the config file is missing or invalid."""
-        config, param = config_args
+        param, config = config_args
         param.config = Filepath("/does/not/exist.yaml")
         _, err = main.compile_config(param)
         assert err
 
     def test_compile_config_missing_k8s_credentials(self, config_args):
         """Gracefully abort if kubeconfig does not exist"""
-        config, param = config_args
+        param, config = config_args
         param.kubeconfig /= "does-not-exist"
         assert main.compile_config(param) == (
             Config(
@@ -282,7 +282,7 @@ class TestMain:
 
     def test_compile_hierarchy_ok(self, config_args):
         """Parse the `--groupby` argument."""
-        config, param = config_args
+        param, config = config_args
 
         err_resp = Config(
             folder=Filepath(""),
@@ -340,7 +340,7 @@ class TestMain:
         `main_*` function will be called with the correct parameters.
 
         """
-        config, param = config_args
+        param, config = config_args
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
         # Pretend all functions return successfully.
@@ -431,19 +431,19 @@ class TestMain:
         harmless gaps in the unit test coverage.
 
         """
-        config, cmd_args = config_args
+        param, config = config_args
 
         # Pretend the call to get K8s credentials succeeded.
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
         # Force a configuration error due to the absence of K8s credentials.
-        cmd_args.kubeconfig /= "does-not-exist"
-        m_cmd.return_value = cmd_args
+        param.kubeconfig /= "does-not-exist"
+        m_cmd.return_value = param
         assert main.main() == 1
 
         # Simulate an invalid Square command.
-        cmd_args.parser = "invalid"
-        m_cmd.return_value = cmd_args
+        param.parser = "invalid"
+        m_cmd.return_value = param
         assert main.main() == 1
 
     @mock.patch.object(square, "k8s")
