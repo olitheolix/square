@@ -58,6 +58,7 @@ def fname_param_config(tmp_path) -> Tuple[Filepath, types.SimpleNamespace, Confi
         parser="get",
         configfile="",
         verbosity=9,
+        info=False,
 
         # Dummy kubeconfig created by the `config` fixture.
         kubeconfig=str(config.kubeconfig),
@@ -438,13 +439,15 @@ class TestMain:
         _, _, config = fname_param_config
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
+        options = ["get", "plan", "apply"]
+
         # Pretend all functions return successfully.
-        m_get.return_value = (None, False)
+        m_get.return_value = False
         m_plan.return_value = (None, False)
-        m_apply.return_value = (None, False)
+        m_apply.return_value = False
 
         # Simulate all input options.
-        for option in ["get", "plan", "apply"]:
+        for option in options:
             args = (
                 "square.py", option, *config.selectors.kinds,
                 "--folder", str(config.folder),
@@ -453,7 +456,7 @@ class TestMain:
                 "--namespace", "default",
             )
             with mock.patch("sys.argv", args):
-                main.main()
+                assert main.main() == 0
             del args
 
         # These two deviate from the values in `tests/support/config.yaml`.
@@ -464,6 +467,34 @@ class TestMain:
         m_get.assert_called_once_with(config)
         m_apply.assert_called_once_with(config, "yes")
         m_plan.assert_called_once_with(config)
+
+        # Repeat the tests but with the "--info" flag. This must not call any
+        # functions.
+        m_get.reset_mock()
+        m_apply.reset_mock()
+        m_plan.reset_mock()
+
+        for option in options:
+            args = (
+                "square.py", option, *config.selectors.kinds,
+                "--folder", str(config.folder),
+                "--kubeconfig", str(config.kubeconfig),
+                "--labels", "app=demo",
+                "--namespace", "default",
+                "--info",
+            )
+            with mock.patch("sys.argv", args):
+                assert main.main() == 0
+            del args
+
+        # These two deviate from the values in `tests/support/config.yaml`.
+        config.selectors.labels = {("app", "demo")}
+        config.selectors.namespaces = ["default"]
+
+        # Every main function must have been called exactly once.
+        assert not m_get.called
+        assert not m_apply.called
+        assert not m_plan.called
 
     def test_main_version(self):
         """Simulate "version" command."""
