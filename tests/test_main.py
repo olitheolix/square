@@ -468,13 +468,13 @@ class TestMain:
         # Pretend the call to get K8s credentials succeeded.
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
-        # Force a configuration error due to the absence of K8s credentials.
-        param.kubeconfig /= "does-not-exist"
+        # Simulate an invalid Square command.
+        param.parser = "invalid"
         m_cmd.return_value = param
         assert main.main() == 1
 
-        # Simulate an invalid Square command.
-        param.parser = "invalid"
+        # Force a configuration error due to the absence of K8s credentials.
+        param.kubeconfig /= "does-not-exist"
         m_cmd.return_value = param
         assert main.main() == 1
 

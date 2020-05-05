@@ -875,10 +875,9 @@ def save(folder: Filepath, manifests: LocalManifestLists,
         None
 
     """
-    # Sort the manifest in each file by priority.
-    out, err = sort_manifests(manifests, priority)
-    if err:
-        return True
+    # Sort the manifest in each file by priority. Ignore the error flag because
+    # `sort_manifests` always succeeds.
+    out, _ = sort_manifests(manifests, priority)
 
     # Ignore all files without manifests, ie empty files.
     out_nonempty = {k: v for k, v in out.items() if len(v) > 0}
