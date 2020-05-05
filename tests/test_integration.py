@@ -84,7 +84,7 @@ class TestMainGet:
             "--groupby", "ns", "label=app", "kind",
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
             "--labels",         # Clear default labels from `config.yaml`.
-            "--namespace",      # Clear default namespaces from `config.yaml`.
+            "--namespaces",     # Clear default namespaces from `config.yaml`.
         )
 
         # Temporary folder must be initially empty. After we pulled all
