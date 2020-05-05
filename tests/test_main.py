@@ -237,9 +237,8 @@ class TestMain:
         _, err = main.compile_config(param)
         assert err
 
-    def test_compile_config_k8s_credentials(self, config_args):
-        """Parse K8s credentials."""
-        # Must return error without K8s credentials.
+    def test_compile_config_missing_k8s_credentials(self, config_args):
+        """Gracefully abort if kubeconfig does not exist"""
         config, param = config_args
         param.kubeconfig /= "does-not-exist"
         assert main.compile_config(param) == (
