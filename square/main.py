@@ -183,7 +183,14 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         # Use the folder the `load_config` function determined.
         folder = cfg.folder
     else:
-        cfg, err = square.square.load_config(Filepath("tests/support/config.yaml"))
+        # If the user did not specify a configuration file, then we look for
+        # ".square.yaml". If that also does not exist then we use the default
+        # configuration.
+        dot_square = Filepath(".square.yaml")
+        default_cfg = Filepath("tests/support/config.yaml")
+        cfg_file = dot_square if dot_square.exists() else default_cfg
+        cfg, err = square.square.load_config(cfg_file)
+        del dot_square, default_cfg
 
         # Use the current working directory as the folder directory because the
         # user did not specify an explicit configuration file which would
