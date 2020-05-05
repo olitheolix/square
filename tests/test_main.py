@@ -628,10 +628,10 @@ class TestMain:
 
     def test_parse_commandline_args_folder(self):
         """Use the correct manifest folder."""
-        # Square must default to "./" in the absence of "--folder".
+        # Folder must be `None` by default. Square will interpolate later.
         with mock.patch("sys.argv", ["square.py", "get", "svc"]):
             ret = main.parse_commandline_args()
-            assert ret.folder == "./"
+            assert ret.folder is None
 
     def test_user_confirmed(self):
         """Verify user confirmation dialog."""
