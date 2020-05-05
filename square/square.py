@@ -321,9 +321,9 @@ def show_plan(plan: Optional[DeploymentPlan]) -> bool:
 
     # Terminal colours for convenience.
     cAdd = colorama.Fore.GREEN
+    cMod = colorama.Fore.YELLOW + colorama.Style.BRIGHT
     cDel = colorama.Fore.RED
-    cMod = colorama.Fore.YELLOW
-    cReset = colorama.Fore.RESET
+    cReset = colorama.Fore.RESET + colorama.Style.RESET_ALL
 
     n_add, n_mod, n_del = 0, 0, 0
 
@@ -374,11 +374,16 @@ def show_plan(plan: Optional[DeploymentPlan]) -> bool:
         print(cDel + f"Delete {name}" + cReset)
         n_del += 1
 
+    # Only use color if a category (ie to ADD, MODIFY or DELETE) is nonzero.
+    cAdd = cAdd if len(plan.create) else colorama.Style.BRIGHT + colorama.Fore.WHITE
+    cMod = cMod if len(plan.patch) else colorama.Style.BRIGHT + colorama.Fore.WHITE
+    cDel = cDel if len(plan.delete) else colorama.Style.BRIGHT + colorama.Fore.WHITE
+
     print("-" * 80)
     print("Plan: " +                         # noqa
-          cAdd + f"{n_add:,} to add, " +     # noqa
-          cMod + f"{n_mod:,} to change, " +  # noqa
-          cDel + f"{n_del:,} to destroy." +  # noqa
+          cReset + cAdd + f"{n_add:,} to add, " +     # noqa
+          cReset + cMod + f"{n_mod:,} to change, " +  # noqa
+          cReset + cDel + f"{n_del:,} to destroy." +  # noqa
           cReset + "\n")
     return False
 
