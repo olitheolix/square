@@ -152,10 +152,10 @@ class TestMain:
 
         # ---------------------------------------------------------------------
         # Override nothing on the command line except for `kubeconfig` because
-        # it must point to valid file.
+        # it must point to a valid file.
         # ---------------------------------------------------------------------
         param = types.SimpleNamespace(
-            configfile=None,    # Use default configuration.
+            configfile=Filepath("tests/support/config.yaml"),
 
             # Must override this and point it to a dummy file or
             # `compile_config` will complain it does not exist.
@@ -175,7 +175,7 @@ class TestMain:
         cfg, err = main.compile_config(param)
         assert not err
 
-        assert cfg.folder == Filepath.cwd()
+        assert cfg.folder == param.configfile.parent.absolute()
         assert cfg.kubeconfig == kubeconfig_override
         assert cfg.kubecontext is None
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
