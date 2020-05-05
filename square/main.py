@@ -29,9 +29,7 @@ def parse_commandline_args():
     ''')
 
     def _validate_label(label: str) -> Tuple[str, ...]:
-        """Convert resource `kind` from aliases to canonical name.
-        For instance, `svc` -> `Service`.
-        """
+        """Unpack the labels: "app=square" -> ("app", "square") """
         pat = re.compile(r"^[a-z0-9][-a-z0-9_.]*=[-A-Za-z0-9_.]*[A-Za-z0-9]$")
         if pat.match(label) is None:
             raise argparse.ArgumentTypeError(label)
@@ -55,12 +53,12 @@ def parse_commandline_args():
     parent.add_argument(
         "-n", "--namespace", type=str, nargs="*",
         metavar="ns", dest="namespaces", default=None,
-        help="List of namespaces (omit to consider all)",
+        help="List of namespaces (omit to select all)",
     )
     parent.add_argument(
         "-l", "--labels", type=_validate_label, nargs="*",
         metavar="labels", dest="labels", default=None,
-        help="Only select resources with these labels (eg 'app=foo')",
+        help="Target only these labels (eg 'app=foo')",
     )
     parent.add_argument(
         "-p", "--priorities", nargs="*",
