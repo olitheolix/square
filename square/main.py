@@ -67,8 +67,7 @@ def parse_commandline_args():
     )
     parent.add_argument(
         "--kubeconfig", type=str, metavar="path",
-        default=os.environ.get("KUBECONFIG", None),
-        help="Location of kubeconfig file (defaults to env KUBECONFIG)",
+        default=None, help="Location of kubeconfig file",
     )
     parent.add_argument(
         "--folder", type=str, metavar="path", default=None,
@@ -189,6 +188,9 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
 
         # Use the folder the `load_config` function determined.
         folder = cfg.folder
+
+        # Look for `--kubeconfig`. Default to the value in config file.
+        kubeconfig = p.kubeconfig if p.kubeconfig else cfg.kubeconfig
     else:
         # If the user did not specify a configuration file, then we look for
         # ".square.yaml". If that also does not exist then we use the default
@@ -204,6 +206,14 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         # user did not specify an explicit configuration file which would
         # contain the desired folder.
         folder = Filepath.cwd()
+
+        # Look for `--kubeconfig`, fall back to KUBECONFIG env var.
+        kubeconfig = p.kubeconfig if p.kubeconfig else os.getenv("KUBECONFIG", None)
+
+        # Abort if neither `--kubeconfig` nor KUBECONFIG env var.
+        if kubeconfig is None:
+            logit.error("Must specify a Kubernetes config file.")
+            return err_resp
     if err:
         return err_resp
 
@@ -255,7 +265,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
 
     # Use the value from the (default) config file unless the user overrode
     # them on the command line.
-    kubeconfig = Filepath(p.kubeconfig) or Filepath(cfg.kubeconfig)
+    kubeconfig = Filepath(kubeconfig)
     kubecontext = p.kubecontext or cfg.kubecontext
     namespaces = cfg.selectors.namespaces if p.namespaces is None else p.namespaces
     sel_labels = cfg.selectors.labels if p.labels is None else set(p.labels)
