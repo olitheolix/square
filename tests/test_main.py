@@ -155,7 +155,7 @@ class TestMain:
         # it must point to valid file.
         # ---------------------------------------------------------------------
         param = types.SimpleNamespace(
-            configfile="",  # File version Cannot be specified on command line.
+            configfile=None,    # Use default configuration.
 
             # Must override this and point it to a dummy file or
             # `compile_config` will complain it does not exist.
@@ -172,11 +172,10 @@ class TestMain:
         )
 
         # Translate command line arguments into `Config`.
-        param.config = Filepath("tests/support/config.yaml")
         cfg, err = main.compile_config(param)
         assert not err
 
-        assert cfg.folder == Filepath("tests/support/config.yaml").parent.absolute()
+        assert cfg.folder == Filepath.cwd()
         assert cfg.kubeconfig == kubeconfig_override
         assert cfg.kubecontext is None
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
@@ -202,15 +201,14 @@ class TestMain:
             kubecontext="kubecontext-override",
             groupby=["kind", "label=foo", "ns"],
             priorities=["Namespace", "Deployment"],
-            configfile="",
+            configfile=Filepath("tests/support/config.yaml"),
         )
 
         # Translate command line arguments into `Config`.
-        param.config = Filepath("tests/support/config.yaml")
         cfg, err = main.compile_config(param)
         assert not err
 
-        assert cfg.folder == Filepath("folder-override")
+        assert cfg.folder == Filepath(param.folder)
         assert cfg.kubeconfig == kubeconfig_override
         assert cfg.kubecontext == "kubecontext-override"
         assert cfg.priorities == ["Namespace", "Deployment"]
@@ -223,6 +221,40 @@ class TestMain:
         assert set(cfg.filters.keys()) == {
             "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
+
+    def test_compile_config_default_folder(self, param_config, tmp_path):
+        """Folder location.
+
+        This is tricky because it depends on whether or not the user specified
+        a config file and whether or not he also specified the "--folder" flag.
+
+        """
+        param, config = param_config
+
+        # Config file and no "--folder":
+        param.configfile = Filepath("tests/support/config.yaml")
+        param.folder = None
+        cfg, err = main.compile_config(param)
+        assert not err
+        assert cfg.folder == Filepath("tests/support/config.yaml").parent.absolute()
+
+        # Config file and "--folder some/where":
+        param.configfile = Filepath("tests/support/config.yaml")
+        param.folder = "some/where"
+        cfg, err = main.compile_config(param)
+        assert not err and cfg.folder == Filepath("some/where")
+
+        # No config file and no "--folder": manfiest folder must be CWD.
+        param.configfile = None
+        param.folder = None
+        cfg, err = main.compile_config(param)
+        assert not err and cfg.folder == Filepath.cwd()
+
+        # No config file and "--folder some/where":
+        param.configfile = None
+        param.folder = "some/where"
+        cfg, err = main.compile_config(param)
+        assert not err and cfg.folder == Filepath("some/where")
 
     def test_compile_config_kinds_clear_existing(self, param_config, tmp_path):
         """Empty list on command line must clear the option."""

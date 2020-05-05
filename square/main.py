@@ -176,13 +176,24 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # Convenience.
     p = cmdline_param
 
-    sample_fname = Filepath("tests/support/config.yaml")
+    # Load the default configuration unless the user specified an explicit one.
+    if p.configfile:
+        cfg, err = square.square.load_config(p.configfile)
 
-    # Exclusively use the config file if the user specified one.
-    cfg_file = p.configfile or sample_fname
-    cfg, err = square.square.load_config(cfg_file)
+        # Use the folder the `load_config` function determined.
+        folder = cfg.folder
+    else:
+        cfg, err = square.square.load_config(Filepath("tests/support/config.yaml"))
+
+        # Use the current working directory as the folder directory because the
+        # user did not specify an explicit configuration file which would
+        # contain the desired folder.
+        folder = Filepath.cwd()
     if err:
         return err_resp
+
+    # Override the folder if user specified "--folder".
+    folder = folder if p.folder is None else p.folder
 
     # ------------------------------------------------------------------------
     # GroupBy (determines the folder hierarchy that GET will create).
@@ -232,7 +243,6 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
 
     # Use the value from the (default) config file unless the user overrode
     # them on the command line.
-    folder = Filepath(p.folder or cfg.folder)
     kubeconfig = Filepath(p.kubeconfig) or Filepath(cfg.kubeconfig)
     kubecontext = p.kubecontext or cfg.kubecontext
     namespaces = cfg.selectors.namespaces if p.namespaces is None else p.namespaces
