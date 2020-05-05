@@ -60,7 +60,7 @@ selectors:
     - Service
     - ServiceAccount
     - StatefulSet
-  namespaces: []
+  namespaces: ["default", "kube-system"]
   labels:
     - [app, square]
 

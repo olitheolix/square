@@ -114,7 +114,7 @@ class TestLoadConfig:
         assert cfg.kubecontext is None
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
-        assert cfg.selectors.namespaces == []
+        assert cfg.selectors.namespaces == ["default", "kube-system"]
         assert cfg.selectors.labels == {("app", "square")}
         assert set(cfg.filters.keys()) == {
             "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"

@@ -45,7 +45,7 @@ def config_args(config) -> Tuple[Config, Any]:
         folder=".",
         kinds=DEFAULT_PRIORITIES,
         labels=[("app", "square")],
-        namespaces=[],
+        namespaces=["default", "kube-system"],
         kubecontext=None,
         groupby=["ns", "label=app", "kind"],
         priorities=DEFAULT_PRIORITIES,
@@ -172,7 +172,7 @@ class TestMain:
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.selectors == Selectors(
             kinds=set(DEFAULT_PRIORITIES),
-            namespaces=[],
+            namespaces=["default", "kube-system"],
             labels={("app", "square")},
         )
         assert cfg.groupby == GroupBy(label="app", order=["ns", "label", "kind"])
