@@ -132,6 +132,12 @@ def parse_commandline_args():
     # Parse the actual arguments.
     param = parser.parse_args()
 
+    # Set `param.kinds` to `None` if the user did not specify any. This works
+    # around a argparse idiosyncrasy where one cannot specify a `None` default
+    # value for an optional list of positional arguments.
+    kinds = getattr(param, "kinds", None)
+    param.kinds = kinds if kinds else None
+
     return param
 
 
@@ -245,10 +251,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # ------------------------------------------------------------------------
     # General: folder, kubeconfig, kubecontext, ...
     # ------------------------------------------------------------------------
-    # Remove duplicates but retain the original order of "p.kinds". This is
-    # a "trick" that will only work in Python 3.7+ which guarantees a stable
-    # insertion order for dictionaries (but not sets).
-    kinds = cfg.selectors.kinds if p.kinds is None else set(dict.fromkeys(p.kinds))
+    kinds = set(p.kinds) if p.kinds else cfg.selectors.kinds
 
     # Use the value from the (default) config file unless the user overrode
     # them on the command line.
