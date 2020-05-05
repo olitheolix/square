@@ -9,6 +9,7 @@ import square.k8s as k8s
 import square.main as main
 import square.manio as manio
 import square.square as square
+import yaml
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
     DeploymentPlan, Filepath, GroupBy, JsonPatch, Selectors,
@@ -18,7 +19,7 @@ from .test_helpers import make_manifest
 
 
 @pytest.fixture
-def param_config(tmp_path) -> Tuple[types.SimpleNamespace, Config]:
+def fname_param_config(tmp_path) -> Tuple[Filepath, types.SimpleNamespace, Config]:
     """Parsed command line args to produce the default configuration.
 
     The return values are what `parse_commandline_args` would return, as well
@@ -27,13 +28,23 @@ def param_config(tmp_path) -> Tuple[types.SimpleNamespace, Config]:
     This removes a lot of boiler plate in the tests.
 
     """
+    # Location of our configuration file and dummy Kubeconfig.
+    fname_square = tmp_path / ".square.yaml"
+    fname_kubeconfig = tmp_path / "kubeconfig-dummyh"
+
+    # Duplicate the default configuration but with the correct kubeconfig.
+    ref = yaml.safe_load(Filepath("resources/defaultconfig.yaml").read_text())
+    assert "kubeconfig" in ref
+    ref["kubeconfig"] = str(fname_kubeconfig.absolute())
+    fname_square.write_text(yaml.dump(ref))
+    del ref
+
     # Load the sample configuration.
-    config, err = square.load_config(Filepath("resources/defaultconfig.yaml"))
+    config, err = square.load_config(fname_square)
     assert not err
 
     # Point the folder and kubeconfig to temporary versions.
     config.folder = tmp_path
-    config.kubeconfig = (tmp_path / "kubeconf")
 
     # Ensure the dummy kubeconfig file exists.
     config.kubeconfig.write_text("")
@@ -49,7 +60,7 @@ def param_config(tmp_path) -> Tuple[types.SimpleNamespace, Config]:
         verbosity=9,
 
         # Dummy kubeconfig created by the `config` fixture.
-        kubeconfig=config.kubeconfig,
+        kubeconfig=str(config.kubeconfig),
 
         # These were not specified on the command line.
         folder=".",
@@ -61,7 +72,7 @@ def param_config(tmp_path) -> Tuple[types.SimpleNamespace, Config]:
         priorities=DEFAULT_PRIORITIES,
     )
 
-    return params, config
+    return fname_square, params, config
 
 
 class TestResourceCleanup:
@@ -115,9 +126,9 @@ class TestResourceCleanup:
 
 
 class TestMain:
-    def test_compile_config_basic(self, param_config):
+    def test_compile_config_basic(self, fname_param_config):
         """Verify that our config and command line args fixtures match."""
-        param, ref_config = param_config
+        _, param, ref_config = fname_param_config
 
         # Convert the parsed command line `param` to a `Config` structure.
         out, err = main.compile_config(param)
@@ -129,10 +140,10 @@ class TestMain:
         out.folder, out.kubeconfig = ref_config.folder, ref_config.kubeconfig
         assert out == ref_config
 
-    def test_compile_config_kinds(self, param_config):
+    def test_compile_config_kinds(self, fname_param_config):
         """Parse resource kinds."""
         # Specify `Service` twice.
-        param, ref_config = param_config
+        _, param, ref_config = fname_param_config
         param.kinds = ["Service", "Deploy", "Service"]
         cfg, err = main.compile_config(param)
         assert not err
@@ -222,14 +233,14 @@ class TestMain:
             "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
 
-    def test_compile_config_default_folder(self, param_config, tmp_path):
+    def test_compile_config_default_folder(self, fname_param_config, tmp_path):
         """Folder location.
 
         This is tricky because it depends on whether or not the user specified
         a config file and whether or not he also specified the "--folder" flag.
 
         """
-        param, config = param_config
+        _, param, _ = fname_param_config
 
         # Config file and no "--folder":
         param.configfile = Filepath("tests/support/config.yaml")
@@ -256,9 +267,61 @@ class TestMain:
         cfg, err = main.compile_config(param)
         assert not err and cfg.folder == Filepath("some/where")
 
-    def test_compile_config_kinds_clear_existing(self, param_config, tmp_path):
+    def test_compile_config_kubeconfig(self, fname_param_config, tmp_path):
+        """Which kubeconfig to use.
+
+        The tricky part here is when to use the KUBECONFIG env var. With
+        Square, it will *only* try to use KUBECONFIG if neither `--config` nor
+        `--kubeconfig` was specified.
+
+        """
+        # Unpack the fixture: path to valid ".square.yaml", command line
+        # parameters and an already parsed `Config`.
+        fname_config, param, ref_config = fname_param_config
+
+        # Create dummy kubeconfig for when we want to simulate `--kubeconfig`.
+        kubeconfig_file = tmp_path / "kubeconfig-commandline"
+        kubeconfig_file.write_text("")
+
+        # Config file and no "--kubeconfig": from config file
+        param.configfile = fname_config
+        param.kubeconfig = None
+        cfg, err = main.compile_config(param)
+        assert cfg.kubeconfig == ref_config.kubeconfig
+        assert not err and cfg.kubeconfig == ref_config.kubeconfig
+
+        # Config file and  "--kubeconfig": --kubeconfig must win.
+        param.configfile = Filepath("tests/support/config.yaml")
+        param.kubeconfig = str(kubeconfig_file)
+        cfg, err = main.compile_config(param)
+        assert not err and cfg.kubeconfig == kubeconfig_file
+
+        # No Config file and  "--kubeconfig": --kubeconfig must win
+        param.configfile = None
+        param.kubeconfig = str(kubeconfig_file)
+        cfg, err = main.compile_config(param)
+        assert not err and cfg.kubeconfig == kubeconfig_file
+
+        # No Config file and no "--kubeconfig": use KUBECONFIG env var.
+        new_env = os.environ.copy()
+        new_env["KUBECONFIG"] = str(kubeconfig_file)
+        with mock.patch.dict("os.environ", values=new_env, clear=True):
+            param.configfile = None
+            param.kubeconfig = None
+            cfg, err = main.compile_config(param)
+            assert not err and cfg.kubeconfig == Filepath(os.getenv("KUBECONFIG"))
+
+        # No Config file, no "--kubeconfig" and no KUBECONFIG env var: error.
+        del new_env["KUBECONFIG"]
+        with mock.patch.dict("os.environ", values=new_env, clear=True):
+            param.configfile = None
+            param.kubeconfig = None
+            _, err = main.compile_config(param)
+            assert err
+
+    def test_compile_config_kinds_clear_existing(self, fname_param_config, tmp_path):
         """Empty list on command line must clear the option."""
-        param, config = param_config
+        _, param, _ = fname_param_config
 
         # Use the test configuration for this test (it has non-zero labels).
         param.configfile = "tests/support/config.yaml"
@@ -291,17 +354,17 @@ class TestMain:
         assert cfg.selectors.namespaces == []
         assert cfg.groupby == GroupBy()
 
-    def test_compile_config_missing_config_file(self, param_config):
+    def test_compile_config_missing_config_file(self, fname_param_config):
         """Abort if the config file is missing or invalid."""
-        param, config = param_config
+        _, param, _ = fname_param_config
         param.configfile = Filepath("/does/not/exist.yaml")
         _, err = main.compile_config(param)
         assert err
 
-    def test_compile_config_missing_k8s_credentials(self, param_config):
+    def test_compile_config_missing_k8s_credentials(self, fname_param_config):
         """Gracefully abort if kubeconfig does not exist"""
-        param, config = param_config
-        param.kubeconfig /= "does-not-exist"
+        _, param, _ = fname_param_config
+        param.kubeconfig += "does-not-exist"
         assert main.compile_config(param) == (
             Config(
                 folder=Filepath(""),
@@ -312,9 +375,9 @@ class TestMain:
                 priorities=[],
             ), True)
 
-    def test_compile_hierarchy_ok(self, param_config):
+    def test_compile_hierarchy_ok(self, fname_param_config):
         """Parse the `--groupby` argument."""
-        param, config = param_config
+        _, param, _ = fname_param_config
 
         err_resp = Config(
             folder=Filepath(""),
@@ -365,14 +428,14 @@ class TestMain:
     @mock.patch.object(main, "apply_plan")
     @mock.patch.object(square.k8s, "cluster_config")
     def test_main_valid_options(self, m_cluster, m_apply, m_plan, m_get,
-                                tmp_path, param_config, k8sconfig):
+                                tmp_path, fname_param_config, k8sconfig):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
         `main_*` function will be called with the correct parameters.
 
         """
-        param, config = param_config
+        _, _, config = fname_param_config
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
         # Pretend all functions return successfully.
@@ -456,14 +519,15 @@ class TestMain:
 
     @mock.patch.object(main, "parse_commandline_args")
     @mock.patch.object(k8s, "cluster_config")
-    def test_main_invalid_option_in_main(self, m_cluster, m_cmd, k8sconfig, param_config):
+    def test_main_invalid_option_in_main(self, m_cluster, m_cmd, k8sconfig,
+                                         fname_param_config):
         """Simulate an option that `square` does not know about.
 
         This is a somewhat pathological test and exists primarily to close some
         harmless gaps in the unit test coverage.
 
         """
-        param, config = param_config
+        _, param, _ = fname_param_config
 
         # Pretend the call to get K8s credentials succeeded.
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
@@ -474,7 +538,7 @@ class TestMain:
         assert main.main() == 1
 
         # Force a configuration error due to the absence of K8s credentials.
-        param.kubeconfig /= "does-not-exist"
+        param.kubeconfig += "does-not-exist"
         m_cmd.return_value = param
         assert main.main() == 1
 
@@ -612,11 +676,6 @@ class TestMain:
                     ["square.py", "get", "svc", "--kubeconfig", "/file"]):
                 ret = main.parse_commandline_args()
                 assert ret.kubeconfig == "/file"
-
-            # Square must fall back to the KUBECONFIG environment variable.
-            with mock.patch("sys.argv", ["square.py", "get", "svc"]):
-                ret = main.parse_commandline_args()
-                assert ret.kubeconfig == "envvar"
 
         # Square must return `None` if there is neither a KUBECONFIG env var
         # nor a user specified argument.
