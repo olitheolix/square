@@ -1,3 +1,4 @@
+import pathlib
 import unittest.mock as mock
 
 import pytest
@@ -11,6 +12,11 @@ def pytest_configure(*args, **kwargs):
     """Pytest calls this hook on startup."""
     # Set log level to DEBUG for all unit tests.
     square.square.setup_logging(9)
+
+    if pathlib.Path(".square.yaml").exists():
+        print("\n--- Found `.square.yaml` in root folder. "
+              "The tests cannot tolerate that. ABORT ---\n")
+        assert False
 
 
 @pytest.fixture
