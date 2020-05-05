@@ -132,17 +132,17 @@ class TestMain:
     def test_compile_config_kinds(self, param_config):
         """Parse resource kinds."""
         # Specify `Service` twice.
-        param, config = param_config
+        param, ref_config = param_config
         param.kinds = ["Service", "Deploy", "Service"]
         cfg, err = main.compile_config(param)
         assert not err
         assert cfg.selectors.kinds == {"Service", "Deploy"}
 
-        # An empty resource list must expand to all supported kinds.
-        param.kinds = []
+        # An empty resource list must use the defaults.
+        param.kinds = None
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.selectors.kinds == set()
+        assert cfg.selectors.kinds == ref_config.selectors.kinds
 
     def test_compile_config_kinds_merge_file(self, config, tmp_path):
         """Merge configuration from file and command line."""
