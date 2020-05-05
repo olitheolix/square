@@ -20,14 +20,14 @@ def pytest_configure(*args, **kwargs):
 
 
 @pytest.fixture
-def kube_creds(request, k8sconfig):
+def kube_creds(request, k8sconfig) -> square.dtypes.K8sConfig:
     with mock.patch.object(square.k8s, "cluster_config") as m:
         m.return_value = (k8sconfig, False)
         yield k8sconfig
 
 
 @pytest.fixture
-def k8sconfig():
+def k8sconfig() -> square.dtypes.K8sConfig:
     # Return a valid K8sConfig with a subsection of API endpoints available in
     # K8s v1.15.
     cfg = square.dtypes.K8sConfig(version="1.15", client="k8s_client")
@@ -50,7 +50,7 @@ def k8sconfig():
 
 
 @pytest.fixture
-def config(k8sconfig, tmp_path):
+def config(k8sconfig, tmp_path) -> square.dtypes.Config:
     """Return a valid and fully populated `Config` structure.
 
     The data in the structure matches `tests/support/config.yaml` except for

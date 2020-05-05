@@ -74,12 +74,12 @@ def parse_commandline_args():
         default=None, help="Location of kubeconfig file",
     )
     parent.add_argument(
-        "--folder", type=str, metavar="path", default=None,
-        help="Manifest folder (defaults to ./)",
-    )
-    parent.add_argument(
         "--kubecontext", type=str, metavar="kubecontext", default=None,
         help="Kubernetes context (defaults to default context)",
+    )
+    parent.add_argument(
+        "--folder", type=str, metavar="path", default=None,
+        help="Manifest folder (defaults to ./)",
     )
 
     # The primary parser for the top level options (eg GET, PATCH, ...).
