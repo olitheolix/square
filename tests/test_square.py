@@ -105,7 +105,7 @@ class TestLoadConfig:
     def test_load_config(self):
         """Load and parse configuration file."""
         # Load the sample that ships with Square.
-        fname = Filepath("resources/sampleconfig.yaml")
+        fname = Filepath("tests/support/config.yaml")
         cfg, err = sq.load_config(fname)
         assert not err and isinstance(cfg, Config)
 
@@ -131,22 +131,23 @@ class TestLoadConfig:
     def test_load_config_folder_paths(self, tmp_path):
         """The folder paths must always be relative to the config file."""
         fname = tmp_path / ".square.yaml"
+        fname_ref = Filepath("tests/support/config.yaml")
 
         # The parsed folder must point to "tmp_path".
-        ref = yaml.safe_load(Filepath("resources/sampleconfig.yaml").read_text())
+        ref = yaml.safe_load(fname_ref.read_text())
         fname.write_text(yaml.dump(ref))
         cfg, err = sq.load_config(fname)
         assert not err and cfg.folder == tmp_path
 
         # The parsed folder must point to "tmp_path/folder".
-        ref = yaml.safe_load(Filepath("resources/sampleconfig.yaml").read_text())
+        ref = yaml.safe_load(fname_ref.read_text())
         ref["folder"] = "my-folder"
         fname.write_text(yaml.dump(ref))
         cfg, err = sq.load_config(fname)
         assert not err and cfg.folder == tmp_path / "my-folder"
 
         # An absolute path must ignore the position of ".square.yaml".
-        ref = yaml.safe_load(Filepath("resources/sampleconfig.yaml").read_text())
+        ref = yaml.safe_load(fname_ref.read_text())
         ref["folder"] = "/absolute/path"
         fname.write_text(yaml.dump(ref))
         cfg, err = sq.load_config(fname)
@@ -154,11 +155,13 @@ class TestLoadConfig:
 
     def test_common_filters(self, tmp_path):
         """Deal with empty or non-existing `_common_` filter."""
+        fname_ref = Filepath("tests/support/config.yaml")
+
         # ----------------------------------------------------------------------
         # Empty _common_ filters.
         # ----------------------------------------------------------------------
         # Clear the "_common_" filter and save the configuration again.
-        ref = yaml.safe_load(Filepath("resources/sampleconfig.yaml").read_text())
+        ref = yaml.safe_load(fname_ref.read_text())
         ref["filters"]["_common_"].clear()
         fout = tmp_path / "corrupt.yaml"
         fout.write_text(yaml.dump(ref))
@@ -175,7 +178,7 @@ class TestLoadConfig:
         # Missing _common_ filters.
         # ----------------------------------------------------------------------
         # Remove the "_common_" filter and save the configuration again.
-        ref = yaml.safe_load(Filepath("resources/sampleconfig.yaml").read_text())
+        ref = yaml.safe_load(fname_ref.read_text())
         del ref["filters"]["_common_"]
         fout = tmp_path / "corrupt.yaml"
         fout.write_text(yaml.dump(ref))
@@ -214,7 +217,7 @@ class TestLoadConfig:
 
         # Load the sample configuration and corrupt the label selector. Instead
         # of a list of 2-tuples we make it a list of 3-tuples.
-        cfg = yaml.safe_load(Filepath("resources/sampleconfig.yaml").read_text())
+        cfg = yaml.safe_load(Filepath("tests/support/config.yaml").read_text())
         cfg["selectors"]["labels"] = [["foo", "bar", "foobar"]]
         fout = tmp_path / "corrupt.yaml"
         fout.write_text(yaml.dump(cfg))

@@ -148,11 +148,11 @@ class TestMain:
         )
 
         # Translate command line arguments into `Config`.
-        param.config = Filepath("resources/sampleconfig.yaml")
+        param.config = Filepath("tests/support/config.yaml")
         cfg, err = main.compile_config(param)
         assert not err
 
-        assert cfg.folder == Filepath("resources/sampleconfig.yaml").parent.absolute()
+        assert cfg.folder == Filepath("tests/support/config.yaml").parent.absolute()
         assert cfg.kubeconfig == kubeconfig_override
         assert cfg.kubecontext is None
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
@@ -182,7 +182,7 @@ class TestMain:
         )
 
         # Translate command line arguments into `Config`.
-        param.config = Filepath("resources/sampleconfig.yaml")
+        param.config = Filepath("tests/support/config.yaml")
         cfg, err = main.compile_config(param)
         assert not err
 
@@ -322,7 +322,7 @@ class TestMain:
                 main.main()
             del args
 
-        # These two deviate from the values in `resources/sampleconfig.yaml`.
+        # These two deviate from the values in `tests/support/config.yaml`.
         config.selectors.labels = {("app", "demo")}
         config.selectors.namespaces = ["default"]
 
@@ -424,7 +424,7 @@ class TestMain:
             assert main.main() == 0
 
         fname = (folder / ".square.yaml")
-        assert open("resources/sampleconfig.yaml").read() == fname.read_text()
+        assert open("tests/support/config.yaml").read() == fname.read_text()
 
     def test_parse_commandline_args_labels_valid(self):
         """The labels must be returned as (name, value) tuples."""
