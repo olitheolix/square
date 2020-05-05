@@ -18,16 +18,26 @@ from .test_helpers import make_manifest
 
 
 @pytest.fixture
-def config_args(config) -> Tuple[Config, Any]:
-    """Return a valid `Config` structure and associated `argparse` namespace.
+def config_args(tmp_path) -> Tuple[Config, Any]:
+    """Parsed command line args to produce the default configuration.
 
-    The purpose of this fixture is to supply a valid non-trivial configuration,
-    as well as the command line arguments (ie `main.parise_commandline_args`
-    return value) that would produce it.
+    The return values are what `parse_commandline_args` would return, as well
+    as what `compile_config` should convert them into.
 
     This removes a lot of boiler plate in the tests.
 
     """
+    # Load the sample configuration.
+    config, err = square.load_config("resources/defaultconfig.yaml")
+    assert not err
+
+    # Point the folder and kubeconfig to temporary versions.
+    config.folder = tmp_path
+    config.kubeconfig = (tmp_path / "kubeconf")
+
+    # Ensure the dummy kubeconfig file exists.
+    config.kubeconfig.write_text("")
+
     # Override the version because this one is difficult (and pointless) to
     # compare in tests.
     config.version = ""
@@ -44,8 +54,8 @@ def config_args(config) -> Tuple[Config, Any]:
         # These were not specified on the command line.
         folder=".",
         kinds=DEFAULT_PRIORITIES,
-        labels=[("app", "square")],
-        namespaces=["default", "kube-system"],
+        labels=[],
+        namespaces=["default"],
         kubecontext=None,
         groupby=["ns", "label=app", "kind"],
         priorities=DEFAULT_PRIORITIES,
@@ -218,19 +228,35 @@ class TestMain:
         """Empty list on command line must clear the option."""
         config, param = config_args
 
-        # The config sample defines a label.
+        # Use the test configuration for this test (it has non-zero labels).
+        param.config = "tests/support/config.yaml"
+
+        # User did not provide `--labels` or `--namespace` option.
+        param.labels = None
+        param.namespaces = None
+
+        # Convert the parsed command line into a `Config` structure.
         cfg, err = main.compile_config(param)
         assert not err
+
+        # The defaults must have taken over because the user did not specify
+        # new labels etc.
         assert cfg.selectors.labels == {("app", "square")}
+        assert cfg.selectors.namespaces == ["default", "kube-system"]
         assert cfg.groupby == GroupBy(label="app", order=["ns", "label", "kind"])
 
-        # Pretend the user specified and empty `--labels` and `--groupby`. This
-        # must clear both entries from the default configuration.
+        # Pretend the user specified and empty `--labels`, `--groupby` and
+        # `--namespaces`. This must clear the respective entries.
         param.labels = []
         param.groupby = []
+        param.namespaces = []
         cfg, err = main.compile_config(param)
         assert not err
+
+        # This time, the user supplied arguments must have cleared the
+        # respective fields.
         assert cfg.selectors.labels == set()
+        assert cfg.selectors.namespaces == []
         assert cfg.groupby == GroupBy()
 
     def test_compile_config_missing_config_file(self, config_args):
