@@ -45,7 +45,7 @@ def param_config(tmp_path) -> Tuple[types.SimpleNamespace, Config]:
     params = types.SimpleNamespace(
         # Not in config file - command line arguments only.
         parser="get",
-        config="",
+        configfile="",
         verbosity=9,
 
         # Dummy kubeconfig created by the `config` fixture.
@@ -155,7 +155,7 @@ class TestMain:
         # it must point to valid file.
         # ---------------------------------------------------------------------
         param = types.SimpleNamespace(
-            config="",          # File version Cannot be specified on command line.
+            configfile="",  # File version Cannot be specified on command line.
 
             # Must override this and point it to a dummy file or
             # `compile_config` will complain it does not exist.
@@ -202,7 +202,7 @@ class TestMain:
             kubecontext="kubecontext-override",
             groupby=["kind", "label=foo", "ns"],
             priorities=["Namespace", "Deployment"],
-            config="",
+            configfile="",
         )
 
         # Translate command line arguments into `Config`.
@@ -229,7 +229,7 @@ class TestMain:
         param, config = param_config
 
         # Use the test configuration for this test (it has non-zero labels).
-        param.config = "tests/support/config.yaml"
+        param.configfile = "tests/support/config.yaml"
 
         # User did not provide `--labels` or `--namespace` option.
         param.labels = None
@@ -262,7 +262,7 @@ class TestMain:
     def test_compile_config_missing_config_file(self, param_config):
         """Abort if the config file is missing or invalid."""
         param, config = param_config
-        param.config = Filepath("/does/not/exist.yaml")
+        param.configfile = Filepath("/does/not/exist.yaml")
         _, err = main.compile_config(param)
         assert err
 

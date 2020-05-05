@@ -47,7 +47,7 @@ def parse_commandline_args():
         help="Log level (-v: WARNING -vv: INFO -vvv: DEBUG)"
     )
     parent.add_argument(
-        "-c", "--config", type=str, default="",
+        "-c", "--config", type=str, default="", dest="configfile",
         help="Read configuration from this file"
     )
     parent.add_argument(
@@ -179,7 +179,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     sample_fname = Filepath("tests/support/config.yaml")
 
     # Exclusively use the config file if the user specified one.
-    cfg_file = p.config or sample_fname
+    cfg_file = p.configfile or sample_fname
     cfg, err = square.square.load_config(cfg_file)
     if err:
         return err_resp
