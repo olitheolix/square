@@ -31,17 +31,23 @@ def config_args(config) -> Tuple[Config, Any]:
     config.version = ""
 
     return config, types.SimpleNamespace(
+        # Not in config file - command line only.
         parser="get",
+        config="",
         verbosity=9,
-        folder=None,
+
+        # From the default configuration.
         kinds=config.selectors.kinds,
+        kubeconfig=config.kubeconfig,
+
+        # These were not specified on the command line.
+        # fixme: ?
+        folder=None,
         labels=None,
         namespaces=None,
-        kubeconfig=config.kubeconfig,
         kubecontext=None,
         groupby=None,
         priorities=None,
-        config="",
     )
 
 
@@ -136,15 +142,20 @@ class TestMain:
         # it must point to valid file.
         # ---------------------------------------------------------------------
         param = types.SimpleNamespace(
+            config="",          # File version Cannot be specified on command line.
+
+            # Must override this and point it to a dummy file or
+            # `compile_config` will complain it does not exist.
+            kubeconfig=str(kubeconfig_override),
+
+            # User did not specify anything else.
+            kubecontext=None,
             folder=None,
+            groupby=None,
             kinds=None,
             labels=None,
             namespaces=None,
-            kubeconfig=str(kubeconfig_override),
-            kubecontext="",
-            groupby=None,
             priorities=None,
-            config="",
         )
 
         # Translate command line arguments into `Config`.
