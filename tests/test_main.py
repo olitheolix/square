@@ -28,27 +28,30 @@ def config_args(config) -> Tuple[Config, Any]:
     This removes a lot of boiler plate in the tests.
 
     """
+    # Override the version because this one is difficult (and pointless) to
+    # compare in tests.
     config.version = ""
 
-    return config, types.SimpleNamespace(
-        # Not in config file - command line only.
+    params = types.SimpleNamespace(
+        # Not in config file - command line arguments only.
         parser="get",
         config="",
         verbosity=9,
 
-        # From the default configuration.
-        kinds=config.selectors.kinds,
+        # Dummy kubeconfig created by the `config` fixture.
         kubeconfig=config.kubeconfig,
 
         # These were not specified on the command line.
-        # fixme: ?
-        folder=None,
-        labels=None,
-        namespaces=None,
+        folder=".",
+        kinds=DEFAULT_PRIORITIES,
+        labels=[("app", "square")],
+        namespaces=[],
         kubecontext=None,
-        groupby=None,
-        priorities=None,
+        groupby=["ns", "label=app", "kind"],
+        priorities=DEFAULT_PRIORITIES,
     )
+
+    return config, params
 
 
 class TestResourceCleanup:
