@@ -47,6 +47,10 @@ def parse_commandline_args():
         help="Log level (-v: WARNING -vv: INFO -vvv: DEBUG)"
     )
     parent.add_argument(
+        "--info", action='store_true',
+        help="Print compiled configuration (useful to debug)"
+    )
+    parent.add_argument(
         "-c", "--config", type=str, default="", dest="configfile",
         help="Read configuration from this file"
     )
@@ -362,6 +366,19 @@ def sanitise_resource_kinds(cfg: Config) -> Tuple[Config, bool]:
     return (cfg, False)
 
 
+def show_info(cfg: Config) -> bool:
+    """Show some info about the configuration that will be used."""
+    sel = cfg.selectors
+
+    print()
+    print(f"Kubeconfig : {cfg.kubeconfig} (Context={cfg.kubecontext})")
+    print("Manifests  :", cfg.folder)
+    print("Namespaces :", sel.namespaces if sel.namespaces else "all")
+    print("Kinds      :", sel.kinds)
+    print("Labels     :", sel.labels)
+    return False
+
+
 def main() -> int:
     param = parse_commandline_args()
     if param.parser == "version":
@@ -389,7 +406,9 @@ def main() -> int:
         return 1
 
     # Do what the user asked us to do.
-    if param.parser == "get":
+    if param.info:
+        err = show_info(cfg)
+    elif param.parser == "get":
         err = square.square.get_resources(cfg)
     elif param.parser == "plan":
         plan, err = square.square.make_plan(cfg)
