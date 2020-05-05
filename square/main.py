@@ -343,7 +343,7 @@ def main() -> int:
     if param.parser == "config":
         fname = Filepath(param.folder) / ".square.yaml"
         fname.parent.mkdir(parents=True, exist_ok=True)
-        fname.write_text(open("tests/support/config.yaml").read())
+        fname.write_text(open("resources/defaultconfig.yaml").read())
         print(
             f"Created configuration file <{fname}>.\n"
             "Please open the file in an editor and adjust the values, most notably "
