@@ -338,10 +338,6 @@ def sanitise_resource_kinds(cfg: Config) -> Tuple[Config, bool]:
     if err:
         return (cfg, True)
 
-    # If the user did not specify any selectors then we assume he wants all resources.
-    if len(cfg.selectors.kinds) == 0:
-        cfg.selectors.kinds.update(k8sconfig.kinds)
-
     # Translate colloquial names to their canonical counterpart if possible.
     # Example: "svc" -> "Service"
     # Do nothing if we do not recognise the name. This can happen because the
