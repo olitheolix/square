@@ -77,7 +77,7 @@ def parse_commandline_args():
         help="Manifest folder (defaults to ./)",
     )
     parent.add_argument(
-        "--context", type=str, metavar="ctx", dest="ctx", default=None,
+        "--kubecontext", type=str, metavar="kubecontext", default=None,
         help="Kubernetes context (defaults to default context)",
     )
 
@@ -236,7 +236,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # them on the command line.
     folder = Filepath(p.folder or cfg.folder)
     kubeconfig = Filepath(p.kubeconfig) or Filepath(cfg.kubeconfig)
-    kubecontext = p.ctx or cfg.kubecontext
+    kubecontext = p.kubecontext or cfg.kubecontext
     namespaces = cfg.selectors.namespaces if p.namespaces is None else p.namespaces
     sel_labels = cfg.selectors.labels if p.labels is None else set(p.labels)
     priorities = p.priorities or cfg.priorities
