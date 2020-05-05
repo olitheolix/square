@@ -1,16 +1,10 @@
 # Square configuration Syntax.
 version: v0.1
 
-kubeconfig: /path/to/kubeconfig # eg "~/.kube/config".
+kubeconfig: /some/where
 kubecontext: null
-folder: ./                      # Location of manifests relative to *this* file.
+folder: ./
 
-
-# -----------------------------------------------------------------------------
-# The order in which to save and apply K8s resources.
-#
-# If Square encounters a resource not on this list it will apply them last.
-# -----------------------------------------------------------------------------
 priorities:
   # Custom Resources should come first.
   - CustomResourceDefinition
@@ -46,11 +40,6 @@ priorities:
   - HorizontalPodAutoscaler
   - Ingress
 
-# -----------------------------------------------------------------------------
-# The resource Square should target.
-# 
-# Square will ignore a resources unless all selectors apply to it.
-# -----------------------------------------------------------------------------
 selectors:
   kinds:
     - ClusterRole
@@ -71,26 +60,15 @@ selectors:
     - Service
     - ServiceAccount
     - StatefulSet
-  namespaces: ["default", "kube-system"]
-  labels:
-    - [app, square]
+  namespaces: ["default"]       # Use empty list to target all namespaces.
+  labels: []                    # Target all labels.
 
-
-# -----------------------------------------------------------------------------
-# The layout of the manifest folder (see `folder` option above).
-# 
 # GET will create a folder hierachy by name, app label and resource kind.
-# -----------------------------------------------------------------------------
 groupby:
   label: app
   order: [ns, label, kind]
 
-
-# -----------------------------------------------------------------------------
-# Define the manifest keys Square should ignore.
-# -----------------------------------------------------------------------------
 filters:
-  # These apply to all manifests.
   _common_:
     - metadata:
       - annotations:
@@ -103,7 +81,6 @@ filters:
       - selfLink
       - uid
     - status
-
   ConfigMap:
     - metadata:
       - annotations

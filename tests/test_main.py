@@ -437,7 +437,7 @@ class TestMain:
             assert main.main() == 0
 
         fname = (folder / ".square.yaml")
-        assert open("tests/support/config.yaml").read() == fname.read_text()
+        assert open("resources/defaultconfig.yaml").read() == fname.read_text()
 
     def test_parse_commandline_args_labels_valid(self):
         """The labels must be returned as (name, value) tuples."""
