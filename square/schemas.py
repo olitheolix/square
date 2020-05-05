@@ -68,11 +68,11 @@ def merge(src: list, dst: list) -> list:
     # Avoid side effects.
     dst = copy.deepcopy(dst)
 
-    def find(data: list, key: str) -> dict:
-        for el in data:
-            if isinstance(el, dict) and set(el.keys()) == {key}:
-                return el
-        assert False, "BUG"
+    def find_dict(data: list, key: str) -> dict:
+        """Find and return the dictionary in `data` that has the `key`."""
+        tmp = [_ for _ in data if isinstance(_, dict) and set(_.keys()) == {key}]
+        assert len(tmp) == 1
+        return tmp[0]
 
     def _update(src, dst):
         # Add all string keys from `src` to `dst` if they are not yet in `dst`.
@@ -87,11 +87,11 @@ def merge(src: list, dst: list) -> list:
         for key in dict_src:
             if key not in dict_dst:
                 # `dst` does not have the dict at all - just copy it.
-                dst.append(find(src, key))
+                dst.append(find_dict(src, key))
             else:
                 # `dst` already has a dict for `key` -> recursively update it.
-                src_val = find(src, key)[key]
-                dst_val = find(dst, key)[key]
+                src_val = find_dict(src, key)[key]
+                dst_val = find_dict(dst, key)[key]
                 _update(src_val, dst_val)
 
         # Sort the list alphabetically (if the entry is a dict then use its one

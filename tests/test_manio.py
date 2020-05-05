@@ -970,16 +970,30 @@ class TestManifestValidation:
     def test_strip_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
         # Minimal valid schema for fake resource kind "TEST".
-        filter = {"1.10": {"TEST": {"metadata": False}}}
+        filters = {"TEST": {"metadata": False}}
 
         # Valid K8s version with unknown resource type.
         manifest = {"apiVersion": "v1", "kind": "Unknown"}
-        assert manio.strip(k8sconfig, manifest, filter) == ({}, {}, True)
+        assert manio.strip(k8sconfig, manifest, filters) == ({}, {}, True)
 
         # Invalid K8s version but valid resource type.
         config = k8sconfig._replace(version="unknown")
         manifest = {"apiVersion": "v1", "kind": "TEST"}
-        assert manio.strip(config, manifest, filter) == ({}, {}, True)
+        assert manio.strip(config, manifest, filters) == ({}, {}, True)
+
+        # Invalid filter definition.
+        config = k8sconfig._replace(version="unknown")
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": "name",
+                "namespace": "ns",
+                "uid": "some-uid"
+            }
+        }
+        filters = {"Service": "should-be-a-list"}
+        assert manio.strip(config, manifest, filters) == ({}, {}, True)
 
     def test_strip_namespace(self, k8sconfig):
         """Filter NAMESPACE manifests."""
