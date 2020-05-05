@@ -38,7 +38,7 @@ def config_args(config) -> Tuple[Config, Any]:
         labels=None,
         namespaces=None,
         kubeconfig=config.kubeconfig,
-        ctx=None,
+        kubecontext=None,
         groupby=None,
         priorities=None,
         config="",
@@ -101,7 +101,7 @@ class TestMain:
         ref_config, param = config_args
 
         # Convert the parsed command line `param` to a `Config` structure.
-        out, err =  main.compile_config(param)
+        out, err = main.compile_config(param)
         assert not err
 
         # The parsed `Config` must match our `ref_config` fixture except for
@@ -141,7 +141,7 @@ class TestMain:
             labels=None,
             namespaces=None,
             kubeconfig=str(kubeconfig_override),
-            ctx="",
+            kubecontext="",
             groupby=None,
             priorities=None,
             config="",
@@ -175,7 +175,7 @@ class TestMain:
             labels=[("app", "square"), ("foo", "bar")],
             namespaces=["default", "kube-system"],
             kubeconfig=str(kubeconfig_override),
-            ctx="kubecontext-override",
+            kubecontext="kubecontext-override",
             groupby=["kind", "label=foo", "ns"],
             priorities=["Namespace", "Deployment"],
             config="",
