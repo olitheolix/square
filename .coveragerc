@@ -3,11 +3,15 @@ branch = True
 
 [report]
 exclude_lines =
+    # Ignore the main entry point.
     if __name__ == .__main__.:
 
+    # dtypes: code only runs during MyPy check.
+    if TYPE_CHECKING:
+
 omit =
-     # Exclude test files from coverage report.
-     test_*
+    # Exclude test files from coverage report.
+    tests/*
 
 [html]
 directory = htmlcov
