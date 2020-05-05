@@ -194,7 +194,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         # ".square.yaml". If that also does not exist then we use the default
         # configuration.
         dot_square = Filepath(".square.yaml")
-        default_cfg = Filepath("tests/support/config.yaml")
+        default_cfg = Filepath("resources/defaultconfig.yaml")
         cfg_file = dot_square if dot_square.exists() else default_cfg
         logit.info(f"Loading configuration file <{cfg_file}>")
         cfg, err = square.square.load_config(cfg_file)
