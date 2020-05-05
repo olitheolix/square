@@ -1221,13 +1221,12 @@ class TestYamlManifestIOIntegration:
             Filepath(".hidden-0.yaml"): [(meta[1], dply[1])],
             Filepath("foo/.hidden-1.yaml"): [(meta[2], dply[2])],
         }
-        expected = (manio.unpack(visible_files)[0], visible_files)
         del dply, meta
 
         # Save the hidden and non-hidden files. The function must accept the
         # hidden files but silently ignore and not save them.
         assert manio.save(tmp_path, visible_files, priority) is False
-        assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == {str(tmp_path / "m0.yaml")}
+        assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == {str(tmp_path / "m0.yaml")}  # noqa
         assert manio.save(tmp_path, hidden_files, priority) is False
         assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == set()
 
@@ -1304,7 +1303,8 @@ class TestYamlManifestIOIntegration:
         # Input to test function where one "manifest" is garbage that cannot be
         # converted to a YAML string, eg a Python frozenset.
         file_manifests = {
-            Filepath("m0.yaml"): [(meta[0], "0"), (meta[1], frozenset(("invalid", "input")))],
+            Filepath("m0.yaml"): [(meta[0], "0"),
+                                  (meta[1], frozenset(("invalid", "input")))],
             Filepath("m1.yaml"): [(meta[2], "2")],
         }
 
