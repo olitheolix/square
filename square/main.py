@@ -178,6 +178,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
 
     # Load the default configuration unless the user specified an explicit one.
     if p.configfile:
+        logit.info(f"Loading configuration file <{p.configfile}>")
         cfg, err = square.square.load_config(p.configfile)
 
         # Use the folder the `load_config` function determined.
@@ -189,6 +190,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         dot_square = Filepath(".square.yaml")
         default_cfg = Filepath("tests/support/config.yaml")
         cfg_file = dot_square if dot_square.exists() else default_cfg
+        logit.info(f"Loading configuration file <{cfg_file}>")
         cfg, err = square.square.load_config(cfg_file)
         del dot_square, default_cfg
 
