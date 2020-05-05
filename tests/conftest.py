@@ -47,13 +47,13 @@ def k8sconfig():
 def config(k8sconfig, tmp_path):
     """Return a valid and fully populated `Config` structure.
 
-    The data in the structure matches `resources/sampleconfig.yaml` except for
+    The data in the structure matches `tests/support/config.yaml` except for
     the `kubeconfig` file. That one is different and points to an actually
     (dummy) file in a temporary folder for this test.
 
     """
     # Load the sample configuration.
-    cfg, err = square.square.load_config("resources/sampleconfig.yaml")
+    cfg, err = square.square.load_config("tests/support/config.yaml")
     assert not err
 
     # Point the folder and kubeconfig to temporary versions.

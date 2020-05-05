@@ -178,7 +178,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # Convenience.
     p = cmdline_param
 
-    sample_fname = Filepath("resources/sampleconfig.yaml")
+    sample_fname = Filepath("tests/support/config.yaml")
 
     # Exclusively use the config file if the user specified one.
     cfg_file = p.config or sample_fname
@@ -345,7 +345,7 @@ def main() -> int:
     if param.parser == "config":
         fname = Filepath(param.folder) / ".square.yaml"
         fname.parent.mkdir(parents=True, exist_ok=True)
-        fname.write_text(open("resources/sampleconfig.yaml").read())
+        fname.write_text(open("tests/support/config.yaml").read())
         print(
             f"Created configuration file <{fname}>.\n"
             "Please open the file in an editor and adjust the values, most notably "
