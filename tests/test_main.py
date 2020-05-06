@@ -2,7 +2,7 @@ import os
 import pathlib
 import types
 import unittest.mock as mock
-from typing import Tuple
+from typing import Generator, Tuple
 
 import pytest
 import square.k8s as k8s
@@ -22,7 +22,8 @@ TEST_CONFIG_FNAME = pathlib.Path(__file__).parent / "support/config.yaml"
 
 
 @pytest.fixture
-def fname_param_config(tmp_path) -> Tuple[Filepath, types.SimpleNamespace, Config]:
+def fname_param_config(tmp_path) -> Generator[
+        Tuple[Filepath, types.SimpleNamespace, Config], None, None]:
     """Parsed command line args to produce the default configuration.
 
     The return values are what `parse_commandline_args` would return, as well

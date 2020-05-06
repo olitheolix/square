@@ -1,9 +1,10 @@
 import pathlib
 import unittest.mock as mock
+from typing import Generator
 
 import pytest
-import square.dtypes
 import square.square
+from square.dtypes import Filepath, K8sConfig
 
 from .test_helpers import k8s_apis
 
@@ -20,17 +21,17 @@ def pytest_configure(*args, **kwargs):
 
 
 @pytest.fixture
-def kube_creds(request, k8sconfig) -> square.dtypes.K8sConfig:
+def kube_creds(request, k8sconfig) -> Generator[K8sConfig, None, None]:
     with mock.patch.object(square.k8s, "cluster_config") as m:
         m.return_value = (k8sconfig, False)
         yield k8sconfig
 
 
 @pytest.fixture
-def k8sconfig() -> square.dtypes.K8sConfig:
+def k8sconfig() -> Generator[K8sConfig, None, None]:
     # Return a valid K8sConfig with a subsection of API endpoints available in
     # K8s v1.15.
-    cfg = square.dtypes.K8sConfig(version="1.15", client="k8s_client")
+    cfg = K8sConfig(version="1.15", client="k8s_client")
 
     # The set of API endpoints we can use in the tests.
     cfg.apis.clear()
@@ -50,7 +51,7 @@ def k8sconfig() -> square.dtypes.K8sConfig:
 
 
 @pytest.fixture
-def config(k8sconfig, tmp_path) -> square.dtypes.Config:
+def config(k8sconfig, tmp_path) -> Generator[square.dtypes.Config, None, None]:
     """Return a valid and fully populated `Config` structure.
 
     The data in the structure matches `tests/support/config.yaml` except for
@@ -59,7 +60,7 @@ def config(k8sconfig, tmp_path) -> square.dtypes.Config:
 
     """
     # Load the sample configuration.
-    cfg, err = square.square.load_config("tests/support/config.yaml")
+    cfg, err = square.square.load_config(Filepath("tests/support/config.yaml"))
     assert not err
 
     # Point the folder and kubeconfig to temporary versions.
