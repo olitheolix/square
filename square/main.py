@@ -10,7 +10,9 @@ import colorama
 import square
 import square.square
 from square import __version__
-from square.dtypes import Config, Filepath, GroupBy, Selectors
+from square.dtypes import (
+    DEFAULT_CONFIG_FILE, Config, Filepath, GroupBy, Selectors,
+)
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
@@ -202,7 +204,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     else:
         # Pick the configuration file, depending on whether the user specified
         # `--no-config`, `--config` and whether a `.square.yaml` file exists.
-        default_cfg = Filepath(__file__).parent.parent / "resources/defaultconfig.yaml"
+        default_cfg = DEFAULT_CONFIG_FILE
         dot_square = Filepath(".square.yaml")
         if p.no_config:
             cfg_file = default_cfg
@@ -394,7 +396,7 @@ def main() -> int:
     if param.parser == "config":
         fname = Filepath(param.folder) / ".square.yaml"
         fname.parent.mkdir(parents=True, exist_ok=True)
-        fname.write_text(open("resources/defaultconfig.yaml").read())
+        fname.write_text(DEFAULT_CONFIG_FILE.read_text())
         print(
             f"Created configuration file <{fname}>.\n"
             "Please open the file in an editor and adjust the values, most notably "
