@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build-linux:
+  linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -18,37 +18,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pipenv pyinstaller
+          pip install pipenv
           pipenv install --system --deploy --dev
       - name: Run Unit Tests
         run: |
           pytest --cov=square
-      - name: Build Binary
-        run: |
-          pyinstaller -n square square/__main__.py
-          pyinstaller --noconfirm square.spec --onefile
 
-  build-linux-docker:
-    runs-on: ubuntu-18.04
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python 3.7
-        uses: actions/setup-python@v1
-        with:
-          python-version: 3.7
-      - name: Build artifact inside Docker image
-        run: |
-          docker build -t "builder:latest" -f Dockerfile .
-          docker create -ti --rm --name tmp builder
-          docker cp tmp:/src/square/dist/square/square ./square
-          docker rm tmp
-      - name: create-artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: square-linux
-          path: square
-
-  build-windows:
+  windows:
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -61,23 +37,14 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pipenv pyinstaller macholib pypiwin32 atomicwrites
+          pip install pipenv macholib pypiwin32 atomicwrites
           pipenv install --system --deploy --dev
       - name: Run Unit Tests
         run: |
           pytest --cov=square --ignore=tests/test_integration.py
-      - name: Build Binary
-        run: |
-          pyinstaller -n square square/__main__.py
-          pyinstaller --noconfirm square.spec --onefile
-      - name: create-artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: square-windows
-          path: dist/square/square.exe
 
 
-  build-macos:
+  macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
@@ -88,17 +55,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pipenv pyinstaller
+          pip install pipenv
           pipenv install --system --deploy --dev
       - name: Run Unit Tests
         run: |
           pytest --cov=square
-      - name: Build Binary
-        run: |
-          pyinstaller -n square square/__main__.py
-          pyinstaller --noconfirm square.spec --onefile
-      - name: create-artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: square-macos
-          path: dist/square/square
