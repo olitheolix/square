@@ -338,19 +338,19 @@ def load_kind_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
     if err:
         return (K8sConfig(), True)
 
-    # Kind/Minikube use client certificates to authenticate. We need to pass
-    # those to the HTTP client of our choice when we create the session.
+    # Kind and Minikube use client certificates to authenticate. We need to
+    # pass those to the HTTP client of our choice when we create the session.
     try:
         client_crt = base64.b64decode(user["client-certificate-data"]).decode()
         client_key = base64.b64decode(user["client-key-data"]).decode()
         client_ca = base64.b64decode(cluster["certificate-authority-data"]).decode()
-        path = pathlib.Path("/tmp/")  # nosec
+        path = Filepath(tempfile.mkdtemp())
         p_client_crt = path / "kind-client.crt"
         p_client_key = path / "kind-client.key"
         p_ca = path / "kind.ca"
-        open(p_client_crt, "w").write(client_crt)
-        open(p_client_key, "w").write(client_key)
-        open(p_ca, "w").write(client_ca)
+        p_client_crt.write_text(client_crt)
+        p_client_key.write_text(client_key)
+        p_ca.write_text(client_ca)
         client_cert = K8sClientCert(crt=p_client_crt, key=p_client_key)
 
         # Return the config data.

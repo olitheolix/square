@@ -788,32 +788,27 @@ class TestK8sKubeconfig:
 
     def test_load_kind_config_ok(self):
         # Load the K8s configuration for a Kind cluster.
-        fname = "tests/support/kubeconf.yaml"
+        fname = Filepath("tests/support/kubeconf.yaml")
 
-        # Verify the expected output.
-        ref = K8sConfig(
-            url="https://localhost:8443",
-            token="",
-            ca_cert=pathlib.Path("/tmp/kind.ca"),
-            client_cert=k8s.K8sClientCert(
-                crt=pathlib.Path("/tmp/kind-client.crt"),
-                key=pathlib.Path("/tmp/kind-client.key"),
-            ),
-            version="",
-            name="kind",
-        )
-        expected = (ref, False)
-
-        assert k8s.load_kind_config(fname, "kind") == expected
+        ret, err = k8s.load_kind_config(fname, "kind")
+        assert not err
+        assert ret.url == "https://localhost:8443"
+        assert ret.token == ""
+        assert ret.version == ""
+        assert ret.name == "kind"
 
         # Function must also accept pathlib.Path instances.
-        assert expected == k8s.load_kind_config(pathlib.Path(fname), "kind")
+        ret, err = k8s.load_kind_config(pathlib.Path(fname), "kind")
+        assert not err
+        assert ret.url == "https://localhost:8443"
+        assert ret.token == ""
+        assert ret.version == ""
+        assert ret.name == "kind"
 
         # Function must have create the credential files.
-        assert expected == k8s.load_kind_config(fname, "kind")
-        assert pathlib.Path("/tmp/kind.ca").exists()
-        assert pathlib.Path("/tmp/kind-client.crt").exists()
-        assert pathlib.Path("/tmp/kind-client.key").exists()
+        assert ret.ca_cert.exists()
+        assert ret.client_cert.crt.exists()
+        assert ret.client_cert.key.exists()
 
         # Try to load a GKE context - must fail.
         assert k8s.load_kind_config(fname, "gke") == (K8sConfig(), True)
