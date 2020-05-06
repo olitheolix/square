@@ -11,8 +11,8 @@ import square.manio as manio
 import square.square as square
 import yaml
 from square.dtypes import (
-    DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, Filepath, GroupBy, JsonPatch, Selectors,
+    DEFAULT_CONFIG_FILE, DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete,
+    DeltaPatch, DeploymentPlan, Filepath, GroupBy, JsonPatch, Selectors,
 )
 
 from .test_helpers import make_manifest
@@ -37,7 +37,7 @@ def fname_param_config(tmp_path) -> Generator[
     fname_kubeconfig = tmp_path / "kubeconfig-dot-square"
 
     # Duplicate the default configuration with the new kubeconfig.
-    ref = yaml.safe_load(Filepath("resources/defaultconfig.yaml").read_text())
+    ref = yaml.safe_load(DEFAULT_CONFIG_FILE.read_text())
     assert "kubeconfig" in ref and "kubecontext" in ref
     ref["kubeconfig"] = str(fname_kubeconfig.absolute())
 
@@ -632,7 +632,7 @@ class TestMain:
             assert main.main() == 0
 
         fname = (folder / ".square.yaml")
-        assert open("resources/defaultconfig.yaml").read() == fname.read_text()
+        assert DEFAULT_CONFIG_FILE.read_text() == fname.read_text()
 
     def test_parse_commandline_args_labels_valid(self):
         """The labels must be returned as (name, value) tuples."""

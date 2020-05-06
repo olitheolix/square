@@ -11,6 +11,11 @@ else:
     from pydantic.dataclasses import dataclass
 
 
+Filepath = pathlib.Path
+
+# Square will source all its default values from this configuration file.
+DEFAULT_CONFIG_FILE = Filepath(__file__).parent.parent / "resources/defaultconfig.yaml"
+
 # Square will first save/deploy the resources in this list in this order.
 # Afterwards it will move on to all those resources not in this list. The order
 # in which it does that is undefined.
@@ -39,8 +44,6 @@ DEFAULT_PRIORITIES = (
     # Other.
     "HorizontalPodAutoscaler", "Ingress",
 )
-
-Filepath = pathlib.Path
 
 
 # -----------------------------------------------------------------------------
