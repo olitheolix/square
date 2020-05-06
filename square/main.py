@@ -2,8 +2,6 @@ import argparse
 import logging
 import os
 import re
-import sys
-import textwrap
 from typing import Optional, Tuple
 
 import colorama
@@ -20,16 +18,6 @@ logit = logging.getLogger("square")
 
 def parse_commandline_args():
     """Return parsed command line."""
-    name = os.path.basename(__file__)
-    description = textwrap.dedent(f'''
-    Manage Kubernetes manifests.
-
-    Examples:
-      {name} get
-      {name} plan
-      {name} apply
-    ''')
-
     def _validate_label(label: str) -> Tuple[str, ...]:
         """Unpack the labels: "app=square" -> ("app", "square") """
         pat = re.compile(r"^[a-z0-9][-a-z0-9_.]*=[-A-Za-z0-9_.]*[A-Za-z0-9]$")
@@ -40,9 +28,9 @@ def parse_commandline_args():
     # A dummy top level parser that will become the parent for all sub-parsers
     # to share all its arguments.
     parent = argparse.ArgumentParser(
-        description=description,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        add_help=False
+        add_help=False,
+        prog="square",
     )
     parent.add_argument(
         "-v", "--verbosity", action="count", default=0,
@@ -89,10 +77,10 @@ def parse_commandline_args():
     )
 
     # The primary parser for the top level options (eg GET, PATCH, ...).
-    parser = argparse.ArgumentParser(add_help=True)
+    parser = argparse.ArgumentParser(add_help=True, prog="square")
     subparsers = parser.add_subparsers(
         help='Mode', dest='parser', metavar="ACTION",
-        title="Operation", required=True
+        title="Operation", required=True,
     )
 
     # Configuration for `kinds` positional arguments. Every sub-parser must
