@@ -11,7 +11,7 @@ jsonpatch = "*"
 pyyaml = "*"
 requests = "*"
 colorlog = "*"
-pydantic = "*"
+v1-5-1 = {git = "https://github.com/samuelcolvin/pydantic.git"}
 
 [dev-packages]
 ipython = "*"
