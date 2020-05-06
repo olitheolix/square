@@ -350,8 +350,9 @@ foo@bar:~$ pyenv local 3.7.4
 foo@bar:~$ pip install pipenv
 
 # Install pyinstaller and run it.
-foo@bar:~$ pipenv install pyinstaller
-foo@bar:~$ pipenv run pyinstaller square/square.py --onefile
+foo@bar:~$ pipenv install pyinstaller==3.6
+foo@bar:~$ pipenv run pyinstaller -n square square/__main__.py
+foo@bar:~$ pipenv run pyinstaller square.spec --onefile
 ```
 
 This should produce the `./dist/square` executable.

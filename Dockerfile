@@ -9,7 +9,7 @@
 FROM centos:7.2.1511 as builder
 
 # Build Python 3.7.2 from source.
-ARG PYTHONVERSION=3.7.2
+ARG PYTHONVERSION=3.7.7
 
 # Dependencies.
 RUN yum update -y
@@ -53,13 +53,16 @@ RUN tar -xzvf Python-$PYTHONVERSION.tgz \
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
 # Install utility packages to build binary programs from Python scripts.
-RUN pip3 install pipenv pyinstaller awscli
+RUN pip3 install pipenv pyinstaller==3.6
 
 # Clone the repo and build the binary.
-RUN git clone https://github.com/olitheolix/square.git --depth=1
+#RUN git clone https://github.com/olitheolix/square.git --depth=1
 WORKDIR /src/square
+COPY Pipfile Pipfile.lock ./
 RUN pipenv install --system --deploy --dev
-RUN pyinstaller square/square.py --onefile
+COPY . /src/square
+RUN pyinstaller -n square square/__main__.py
+RUN pyinstaller --noconfirm square.spec
 
 
 # ------------------------------------------------------------------------------
@@ -68,3 +71,4 @@ RUN pyinstaller square/square.py --onefile
 FROM frolvlad/alpine-glibc
 COPY --from=builder /src/square/dist/square /usr/local/bin
 RUN chmod a+x /usr/local/bin/square
+RUN /usr/local/bin/square -h
