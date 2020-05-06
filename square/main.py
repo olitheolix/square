@@ -429,7 +429,3 @@ def main() -> int:
 
     # Return error code.
     return 1 if err else 0
-
-
-if __name__ == '__main__':
-    sys.exit(main())
