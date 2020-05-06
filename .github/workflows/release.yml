@@ -1,0 +1,144 @@
+name: Square Binaries
+
+on:
+  push:
+    tags: [ "*" ]
+  pull_request:
+    tags: [ "*" ]
+
+jobs:
+  linux:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Build artifact inside Docker image
+        run: |
+          docker build -t "builder:latest" -f Dockerfile .
+          docker create -ti --rm --name tmp builder
+          docker cp tmp:/src/square/dist/square/square ./square
+          docker rm tmp
+      - name: create-artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: square-linux
+          path: square
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
+          architecture: 'x64'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pipenv pyinstaller macholib pypiwin32 atomicwrites
+          pipenv install --system --deploy --dev
+      - name: Build Binary
+        run: |
+          pyinstaller -n square square/__main__.py
+          pyinstaller --noconfirm square.spec --onefile
+      - name: create-artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: square-windows
+          path: dist/square/square.exe
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pipenv pyinstaller
+          pipenv install --system --deploy --dev
+      - name: Build Binary
+        run: |
+          pyinstaller -n square square/__main__.py
+          pyinstaller --noconfirm square.spec --onefile
+      - name: create-artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: square-macos
+          path: dist/square/square
+
+  upload-assets:
+    needs: [linux, macos, windows]
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/download-artifact@master
+        with:
+          name: square-linux
+          path: linux
+      - uses: actions/download-artifact@master
+        with:
+          name: square-macos
+          path: macos
+      - uses: actions/download-artifact@master
+        with:
+          name: square-windows
+          path: windows
+
+      - name: Prepare Binaries
+        run: |
+          mkdir bin
+          mv linux/square bin/square-linux
+          mv macos/square bin/square-macos
+          mv windows/square.exe bin/square-windows
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: true
+
+      - name: Upload Linux
+        id: upload-linux-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: bin/square-linux
+          asset_name: square-linux
+          asset_content_type: application/binary
+
+      - name: Upload MacOS
+        id: upload-macos-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: bin/square-macos
+          asset_name: square-macos
+          asset_content_type: application/binary
+
+      - name: Upload Windows
+        id: upload-windows-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: bin/square-windows
+          asset_name: square-windows
+          asset_content_type: application/binary
