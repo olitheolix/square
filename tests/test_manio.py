@@ -1,8 +1,10 @@
 import copy
 import itertools
 import random
+import sys
 import unittest.mock as mock
 
+import pytest
 import square.dotdict as dotdict
 import square.k8s as k8s
 import square.manio as manio
@@ -1159,6 +1161,7 @@ class TestYamlManifestIOIntegration:
         assert (tmp_path / "nonempty.yaml").exists()
         assert not (tmp_path / "empty.yaml").exists()
 
+    @pytest.mark.skipif(sys.platform.startswith("win"), reason="Windows")
     def test_save_err_permissions(self, tmp_path):
         """Make temp folder readonly and try to save the manifests."""
         file_data = {"m0.yaml": "Some data"}
@@ -1166,6 +1169,7 @@ class TestYamlManifestIOIntegration:
         assert manio.save_files(tmp_path, file_data) is True
         assert not (tmp_path / "m0.yaml").exists()
 
+    @pytest.mark.skipif(sys.platform.startswith("win"), reason="Windows")
     def test_save_remove_stale_err_permissions(self, tmp_path):
         """Place a read-only YAML file into the output folder.
 
