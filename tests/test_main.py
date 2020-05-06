@@ -36,10 +36,14 @@ def fname_param_config(tmp_path) -> Generator[
     fname_square = tmp_path / ".square.yaml"
     fname_kubeconfig = tmp_path / "kubeconfig-dot-square"
 
-    # Duplicate the default configuration but with the correct kubeconfig.
+    # Duplicate the default configuration with the new kubeconfig.
     ref = yaml.safe_load(Filepath("resources/defaultconfig.yaml").read_text())
-    assert "kubeconfig" in ref
+    assert "kubeconfig" in ref and "kubecontext" in ref
     ref["kubeconfig"] = str(fname_kubeconfig.absolute())
+
+    # We will also "abuse" the `kubecontext` field to indicate that this file
+    # is our mock ".square.yaml".
+    ref["kubecontext"] = "dot-square"
     fname_square.write_text(yaml.dump(ref))
     del ref
 
@@ -63,6 +67,7 @@ def fname_param_config(tmp_path) -> Generator[
         configfile="",
         verbosity=9,
         info=False,
+        no_config=False,
 
         # Dummy kubeconfig created by the `config` fixture.
         kubeconfig=str(config.kubeconfig),
@@ -274,6 +279,36 @@ class TestMain:
         param.folder = "some/where"
         cfg, err = main.compile_config(param)
         assert not err and cfg.folder == Filepath("some/where")
+
+    def test_compile_config_dot_square(self, fname_param_config):
+        """Folder location.
+
+        This is tricky because it depends on whether or not the user specified
+        a config file and whether or not he also specified the "--folder" flag.
+
+        """
+        _, param, _ = fname_param_config
+        param.configfile = None
+
+        assert Filepath(".square.yaml").exists()
+
+        # User specified "--no-config": use `.square.yaml` if it exists.
+        param.no_config = False
+        cfg, err = main.compile_config(param)
+        assert not err and cfg.kubecontext == "dot-square"
+
+        # User did not specify "--no-config" and`.square.yaml` exists too. This must
+        # still use the default configuration.
+        param.no_config = True
+        cfg, err = main.compile_config(param)
+        assert not err and cfg.kubecontext is None
+
+        # User did not specify "--no-config": use `.square.yaml` if it exists.
+        Filepath(".square.yaml").rename(".square.yaml.bak")
+        assert not Filepath(".square.yaml").exists()
+        param.no_config = False
+        cfg, err = main.compile_config(param)
+        assert not err and cfg.kubecontext is None
 
     def test_compile_config_kubeconfig(self, fname_param_config, tmp_path):
         """Which kubeconfig to use.

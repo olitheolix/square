@@ -55,6 +55,10 @@ def parse_commandline_args():
         help="Read configuration from this file"
     )
     parent.add_argument(
+        "--no-config", dest="no_config", action="store_true",
+        help="Ignore .square.yaml file"
+    )
+    parent.add_argument(
         "-n", "--namespace", "--namespaces", type=str, nargs="*",
         metavar="ns", dest="namespaces", default=None,
         help="List of namespaces (omit to select all)",
@@ -196,12 +200,14 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         # Look for `--kubeconfig`. Default to the value in config file.
         kubeconfig = p.kubeconfig if p.kubeconfig else cfg.kubeconfig
     else:
-        # If the user did not specify a configuration file, then we look for
-        # ".square.yaml". If that also does not exist then we use the default
-        # configuration.
+        # Pick the configuration file, depending on whether the user specified
+        # `--no-config`, `--config` and whether a `.square.yaml` file exists.
+        default_cfg = Filepath(__file__).parent.parent / "resources/defaultconfig.yaml"
         dot_square = Filepath(".square.yaml")
-        default_cfg = Filepath("resources/defaultconfig.yaml")
-        cfg_file = dot_square if dot_square.exists() else default_cfg
+        if p.no_config:
+            cfg_file = default_cfg
+        else:
+            cfg_file = dot_square if dot_square.exists() else default_cfg
         logit.info(f"Loading configuration file <{cfg_file}>")
         cfg, err = square.square.load_config(cfg_file)
         del dot_square, default_cfg
