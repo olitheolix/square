@@ -17,6 +17,9 @@ from square.dtypes import (
 
 from .test_helpers import make_manifest
 
+# Location of test configuration.
+TEST_CONFIG_FNAME = pathlib.Path(__file__).parent / "support/config.yaml"
+
 
 @pytest.fixture
 def fname_param_config(tmp_path) -> Tuple[Filepath, types.SimpleNamespace, Config]:
@@ -30,7 +33,7 @@ def fname_param_config(tmp_path) -> Tuple[Filepath, types.SimpleNamespace, Confi
     """
     # Location of our configuration file and dummy Kubeconfig.
     fname_square = tmp_path / ".square.yaml"
-    fname_kubeconfig = tmp_path / "kubeconfig-dummyh"
+    fname_kubeconfig = tmp_path / "kubeconfig-dot-square"
 
     # Duplicate the default configuration but with the correct kubeconfig.
     ref = yaml.safe_load(Filepath("resources/defaultconfig.yaml").read_text())
@@ -73,7 +76,10 @@ def fname_param_config(tmp_path) -> Tuple[Filepath, types.SimpleNamespace, Confi
         priorities=DEFAULT_PRIORITIES,
     )
 
-    return fname_square, params, config
+    cwd = pathlib.Path.cwd()
+    os.chdir(tmp_path)
+    yield fname_square, params, config
+    os.chdir(cwd)
 
 
 class TestResourceCleanup:
@@ -234,7 +240,7 @@ class TestMain:
             "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
 
-    def test_compile_config_default_folder(self, fname_param_config, tmp_path):
+    def test_compile_config_default_folder(self, fname_param_config):
         """Folder location.
 
         This is tricky because it depends on whether or not the user specified
@@ -243,15 +249,15 @@ class TestMain:
         """
         _, param, _ = fname_param_config
 
-        # Config file and no "--folder":
-        param.configfile = Filepath("tests/support/config.yaml")
+        # Config file and no "--folder": config file entry wins.
+        param.configfile = str(TEST_CONFIG_FNAME)
         param.folder = None
         cfg, err = main.compile_config(param)
         assert not err
-        assert cfg.folder == Filepath("tests/support").absolute() / "some/path"
+        assert cfg.folder == TEST_CONFIG_FNAME.parent.absolute() / "some/path"
 
-        # Config file and "--folder some/where":
-        param.configfile = Filepath("tests/support/config.yaml")
+        # Config file and "--folder some/where": `--folder` wins.
+        param.configfile = str(TEST_CONFIG_FNAME)
         param.folder = "some/where"
         cfg, err = main.compile_config(param)
         assert not err and cfg.folder == Filepath("some/where")
@@ -262,7 +268,7 @@ class TestMain:
         cfg, err = main.compile_config(param)
         assert not err and cfg.folder == Filepath.cwd()
 
-        # No config file and "--folder some/where":
+        # No config file and "--folder some/where": must point to `some/where`.
         param.configfile = None
         param.folder = "some/where"
         cfg, err = main.compile_config(param)
@@ -292,7 +298,7 @@ class TestMain:
         assert not err and cfg.kubeconfig == ref_config.kubeconfig
 
         # Config file and  "--kubeconfig": --kubeconfig must win.
-        param.configfile = Filepath("tests/support/config.yaml")
+        param.configfile = str(TEST_CONFIG_FNAME)
         param.kubeconfig = str(kubeconfig_file)
         cfg, err = main.compile_config(param)
         assert not err and cfg.kubeconfig == kubeconfig_file
@@ -325,7 +331,7 @@ class TestMain:
         _, param, _ = fname_param_config
 
         # Use the test configuration for this test (it has non-zero labels).
-        param.configfile = "tests/support/config.yaml"
+        param.configfile = str(TEST_CONFIG_FNAME)
 
         # User did not provide `--labels` or `--namespace` option.
         param.labels = None
