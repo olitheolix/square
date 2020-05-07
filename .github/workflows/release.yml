@@ -17,15 +17,19 @@ jobs:
           python-version: 3.7
       - name: Build artifact inside Docker image
         run: |
+          # Build the binary in a container.
           docker build -t "builder:latest" -f Dockerfile .
+
+          # Copy the binary from the container to the host.
+          mkdir bin
           docker create -ti --rm --name tmp builder
-          docker cp tmp:/src/square/dist/square/square ./square
+          docker cp tmp:/src/square/dist/square/square bin/square
           docker rm tmp
       - name: create-artifact
         uses: actions/upload-artifact@v2
         with:
           name: square-linux
-          path: square
+          path: bin/square
 
   windows:
     runs-on: windows-latest
@@ -41,7 +45,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pipenv pyinstaller macholib pypiwin32 atomicwrites
-          pipenv install --system --deploy --dev
+          pipenv install --system
       - name: Build Binary
         run: |
           pyinstaller -n square square/__main__.py
@@ -64,7 +68,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pipenv pyinstaller
-          pipenv install --system --deploy --dev
+          pipenv install --system
       - name: Build Binary
         run: |
           pyinstaller -n square square/__main__.py
