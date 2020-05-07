@@ -23,6 +23,7 @@ jobs:
       - name: Run Unit Tests
         run: |
           pytest --cov=square
+          pipenv run mypy --ignore-missing-imports --allow-redefinition square/*.py
 
   windows:
     runs-on: windows-latest
@@ -43,7 +44,6 @@ jobs:
         run: |
           pytest --cov=square --ignore=tests/test_integration.py
 
-
   macos:
     runs-on: macos-latest
     steps:
@@ -60,3 +60,4 @@ jobs:
       - name: Run Unit Tests
         run: |
           pytest --cov=square
+          pipenv run mypy --ignore-missing-imports --allow-redefinition square/*.py
