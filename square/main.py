@@ -220,6 +220,10 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # Override the folder if user specified "--folder".
     folder = folder if p.folder is None else p.folder
 
+    # Expand the user's home folder, ie if the path contains a "~".
+    folder = Filepath(folder).expanduser()
+    kubeconfig = Filepath(kubeconfig).expanduser()
+
     # ------------------------------------------------------------------------
     # GroupBy (determines the folder hierarchy that GET will create).
     # In : `--groupby ns kind label=app`
