@@ -1,3 +1,4 @@
+import copy
 import os
 import pathlib
 import types
@@ -321,46 +322,108 @@ class TestMain:
         # Unpack the fixture: path to valid ".square.yaml", command line
         # parameters and an already parsed `Config`.
         fname_config, param, ref_config = fname_param_config
+        ref_data = yaml.safe_load(fname_config.read_text())
+
+        cwd = fname_config.parent
+        fname_config_dotsquare = fname_config
+        fname_config_custom = cwd / "customconfig.yaml"
+
+        fname_kubeconfig_dotsquare = cwd / "kubeconfig-dotsquare"
+        fname_kubeconfig_custom = cwd / "kubeconfig-custom"
+        fname_kubeconfig_commandline = cwd / "kubeconfig-commandline"
+        fname_kubeconfig_envvar = cwd / "kubeconfig-envvar"
+
+        def reset():
+            """Reset the files in the temporary folder."""
+            data = copy.deepcopy(ref_data)
+
+            # Write ".square".
+            data["kubeconfig"] = str(fname_kubeconfig_dotsquare)
+            fname_config_dotsquare.write_text(yaml.dump(data))
+
+            # Write "customconfig.yaml"
+            data["kubeconfig"] = str(fname_kubeconfig_custom)
+            fname_config_custom.write_text(yaml.dump(data))
+
+            # Create empty files for all Kubeconfigs.
+            fname_kubeconfig_dotsquare.write_text("")
+            fname_kubeconfig_custom.write_text("")
+            fname_kubeconfig_commandline.write_text("")
+            fname_kubeconfig_envvar.write_text("")
+
+            del data
 
         # Create dummy kubeconfig for when we want to simulate `--kubeconfig`.
         kubeconfig_file = tmp_path / "kubeconfig-commandline"
         kubeconfig_file.write_text("")
 
-        # Config file and no "--kubeconfig": from config file
-        param.configfile = fname_config
-        param.kubeconfig = None
-        cfg, err = main.compile_config(param)
-        assert cfg.kubeconfig == ref_config.kubeconfig
-        assert not err and cfg.kubeconfig == ref_config.kubeconfig
+        for envvar in [True, False]:
+            new_env = os.environ.copy()
+            if envvar:
+                new_env["KUBECONFIG"] = str(fname_kubeconfig_envvar)
+            else:
+                new_env.pop("KUBECONFIG", None)
 
-        # Config file and  "--kubeconfig": --kubeconfig must win.
-        param.configfile = str(TEST_CONFIG_FNAME)
-        param.kubeconfig = str(kubeconfig_file)
-        cfg, err = main.compile_config(param)
-        assert not err and cfg.kubeconfig == kubeconfig_file
+            with mock.patch.dict("os.environ", values=new_env, clear=True):
+                reset()
 
-        # No Config file and  "--kubeconfig": --kubeconfig must win
-        param.configfile = None
-        param.kubeconfig = str(kubeconfig_file)
-        cfg, err = main.compile_config(param)
-        assert not err and cfg.kubeconfig == kubeconfig_file
+                # .square: true, custom: true, --kubeconf: true -> --kubeconf
+                param.configfile = str(fname_config_custom)
+                param.kubeconfig = str(fname_kubeconfig_commandline)
+                cfg, err = main.compile_config(param)
+                assert not err and cfg.kubeconfig == fname_kubeconfig_commandline
 
-        # No Config file and no "--kubeconfig": use KUBECONFIG env var.
-        new_env = os.environ.copy()
-        new_env["KUBECONFIG"] = str(kubeconfig_file)
-        with mock.patch.dict("os.environ", values=new_env, clear=True):
-            param.configfile = None
-            param.kubeconfig = None
-            cfg, err = main.compile_config(param)
-            assert not err and cfg.kubeconfig == Filepath(os.getenv("KUBECONFIG"))
+                # .square: true, custom: true, --kubeconf: false -> custom
+                param.configfile = str(fname_config_custom)
+                param.kubeconfig = None
+                cfg, err = main.compile_config(param)
+                assert not err and cfg.kubeconfig == fname_kubeconfig_custom
 
-        # No Config file, no "--kubeconfig" and no KUBECONFIG env var: error.
-        del new_env["KUBECONFIG"]
-        with mock.patch.dict("os.environ", values=new_env, clear=True):
-            param.configfile = None
-            param.kubeconfig = None
-            _, err = main.compile_config(param)
-            assert err
+                # .square: true, custom: false, --kubeconf: true -> --kubeconf
+                param.configfile = None
+                param.kubeconfig = str(fname_kubeconfig_commandline)
+                cfg, err = main.compile_config(param)
+                assert not err and cfg.kubeconfig == fname_kubeconfig_commandline
+
+                # .square: true, custom: false, --kubeconf: false -> dotsquare
+                param.configfile = None
+                param.kubeconfig = None
+                cfg, err = main.compile_config(param)
+                assert not err and cfg.kubeconfig == fname_kubeconfig_dotsquare
+
+                # ------------------------------------------------------------------
+
+                reset()
+                fname_config_dotsquare.unlink()
+                assert not fname_config_dotsquare.exists()
+
+                # .square: false, custom: true, --kubeconf: true -> --kubeconf
+                param.configfile = str(fname_config_custom)
+                param.kubeconfig = str(fname_kubeconfig_commandline)
+                cfg, err = main.compile_config(param)
+                assert not err and cfg.kubeconfig == fname_kubeconfig_commandline
+
+                # .square: false, custom: true, --kubeconf: false -> custom
+                param.configfile = str(fname_config_custom)
+                param.kubeconfig = None
+                cfg, err = main.compile_config(param)
+                assert not err and cfg.kubeconfig == fname_kubeconfig_custom
+
+                # .square: false, custom: false, --kubeconf: true -> --kubeconf
+                param.configfile = None
+                param.kubeconfig = str(fname_kubeconfig_commandline)
+                cfg, err = main.compile_config(param)
+                assert not err and cfg.kubeconfig == fname_kubeconfig_commandline
+
+                # .square: false, custom: false, --kubeconf: false -> env var.
+                param.configfile = None
+                param.kubeconfig = None
+                cfg, err = main.compile_config(param)
+
+                if envvar:
+                    assert not err and cfg.kubeconfig == Filepath(os.getenv("KUBECONFIG"))
+                else:
+                    assert err
 
     def test_compile_config_kinds_clear_existing(self, fname_param_config, tmp_path):
         """Empty list on command line must clear the option."""
