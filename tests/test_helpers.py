@@ -442,16 +442,16 @@ def make_manifest(kind: str, namespace: str, name: str,
         'metadata': {
             'name': name,
             'labels': labels,
-            'foo': 'bar',
         },
         'spec': {
             'finalizers': ['kubernetes']
         },
-        'status': {
-            'some': 'status',
-        },
         'garbage': 'more garbage',
     }
+
+    # Do not include an empty label dict.
+    if not labels:
+        del manifest["metadata"]["labels"]
 
     # Only create namespace entry if one was specified.
     if namespace is not None:

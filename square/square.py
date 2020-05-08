@@ -97,32 +97,30 @@ def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
 def make_patch(
         config: Config,
         k8sconfig: K8sConfig,
-        local: ServerManifests,
-        server: ServerManifests) -> Tuple[JsonPatch, bool]:
+        local: dict,
+        server: dict) -> Tuple[JsonPatch, bool]:
     """Return JSON patch to transition `server` to `local`.
 
     Inputs:
         config: Square configuration.
         k8sconfig: K8sConfig
-        local: LocalManifests
-            Usually the dictionary keys returned by `load_manifest`.
-        server: ServerManifests
-            Usually the dictionary keys returned by `manio.download`.
+        local: dict
+            Usually on fo the dict manifests returned by `load_manifest`.
+        server: dict
+            Usually on fo the dict manifests returned by `manio.download`.
 
     Returns:
         Patch: the JSON patch and human readable diff in a `Patch` tuple.
 
     """
-    # Reduce local and server manifests to salient fields (ie apiVersion, kind,
-    # metadata and spec). Abort on error.
-    loc, _, err1 = manio.strip(k8sconfig, local, config.filters)
-    srv, _, err2 = manio.strip(k8sconfig, server, config.filters)
-    if err1 or err2 or loc is None or srv is None:
-        return (JsonPatch("", []), True)
+    # Convenience.
+    loc, srv = local, server
+    meta = manio.make_meta(local)
 
     # Log the manifest info for which we will try to compute a patch.
-    man_id = f"{loc.kind.upper()}: {loc.metadata.name}/{loc.metadata.name}"
+    man_id = f"{meta.kind}: {meta.namespace}/{meta.name}"
     logit.debug(f"Making patch for {man_id}")
+    del meta
 
     # Sanity checks: abort if the manifests do not specify the same resource.
     try:
@@ -266,14 +264,38 @@ def compile_plan(
     """
     err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
+    # Apply the filters to all local and server manifests before we compute patches.
+    server = {
+        k: manio.strip(k8sconfig, v, config.filters)
+        for k, v in server.items()
+    }
+    local = {
+        k: manio.strip(k8sconfig, v, config.filters)
+        for k, v in local.items()
+    }
+
+    # Abort if any of the manifests could not be stripped.
+    err_srv = {_[2] for _ in server.values()}
+    err_loc = {_[2] for _ in local.values()}
+    if True in err_srv or True in err_loc:
+        logit.error("Could not strip all manifests.")
+        return err_resp
+
+    # Unpack the stripped manifests (`manio.strip` returned a tuple with three
+    # entries, and here we unpack the first one because it is the stripped manifest).
+    server = {k: square.dotdict.undo(v[0]) for k, v in server.items()}
+    local = {k: square.dotdict.undo(v[0]) for k, v in local.items()}
+
     # Replace the API group of the local resource with the one K8s prefers.
     local, err = preferred_api(k8sconfig, local)
     if err:
+        logit.error("Could not determine the preferred APIs for all manifests.")
         return err_resp
 
     # Partition the set of meta manifests into create/delete/patch groups.
     plan, err = partition_manifests(local, server)
     if err or not plan:
+        logit.error("Could not partition the manifests for the plan.")
         return err_resp
 
     # Sanity check: the resources to patch *must* exist in both local and
@@ -288,6 +310,7 @@ def compile_plan(
         # is how the POST request to create a resource works in K8s.
         resource, err = k8s.resource(k8sconfig, delta._replace(name=""))
         if err or not resource:
+            logit.error("Could not determine the K8s resource URL")
             return err_resp
         create.append(DeltaCreate(delta, resource.url, local[delta]))
 
@@ -304,6 +327,7 @@ def compile_plan(
         # Resource URL.
         resource, err = k8s.resource(k8sconfig, meta)
         if err or not resource:
+            logit.error("Could not determine the K8s resource URL")
             return err_resp
 
         # Compile the Delta and add it to the list.
@@ -317,12 +341,14 @@ def compile_plan(
         # Compute textual diff (only useful for the user to study the diff).
         diff_str, err = manio.diff(config, k8sconfig, local[meta], server[meta])
         if err or diff_str is None:
+            logit.error(f"Could not compute the diff for <{meta}>.")
             return err_resp
 
         # Compute the JSON patch that will change the K8s state to match the
         # one in the local files.
         patch, err = make_patch(config, k8sconfig, local[meta], server[meta])
         if err or patch is None:
+            logit.error(f"Could not compute the patch for <{meta}>")
             return err_resp
 
         # Append the patch to the list of patches, unless it is empty.

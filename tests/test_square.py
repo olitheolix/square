@@ -542,17 +542,8 @@ class TestPlan:
         """Verify error cases with invalid or incompatible manifests."""
         err_resp = (JsonPatch("", []), True)
 
-        # Create two valid manifests, then stunt one in such a way that
-        # `manio.strip` will reject it.
         kind, namespace, name = "Deployment", "namespace", "name"
         valid = make_manifest(kind, namespace, name)
-        invalid = make_manifest(kind, namespace, name)
-        del invalid["kind"]
-
-        # Must handle errors from `manio.strip`.
-        assert sq.make_patch(config, k8sconfig, valid, invalid) == err_resp
-        assert sq.make_patch(config, k8sconfig, invalid, valid) == err_resp
-        assert sq.make_patch(config, k8sconfig, invalid, invalid) == err_resp
 
         # Must handle `resource` errors.
         with mock.patch.object(sq.k8s, "resource") as m_url:
@@ -658,7 +649,7 @@ class TestPlan:
         assert err and ret == plan
 
     def test_compile_plan_create_delete_ok(self, config, k8sconfig):
-        """Test a plan that creates and deletes resource, but not patches any.
+        """Test a plan that creates and deletes resource, but not patch any.
 
         To do this, the local and server resources are all distinct. As a
         result, the returned plan must dictate that all local resources shall
@@ -711,18 +702,20 @@ class TestPlan:
                 DeltaDelete(meta[4], res[4].url + "/" + meta[4].name, del_opts),
             ],
         )
-        ret = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
-        assert ret == (expected, False)
+        ret, err = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
+        assert ret.create == expected.create
+        assert (ret, err) == (expected, False)
 
     @mock.patch.object(sq, "partition_manifests")
     @mock.patch.object(sq, "preferred_api")
     def test_compile_plan_create_delete_err(self, m_api, m_part, config, k8sconfig):
-        """Simulate `resource` errors"""
+        """Simulate `resource` errors."""
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
         # Valid ManifestMeta and dummy manifest dict.
-        meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
-        man = {meta: None}
+        man = make_manifest("Deployment", "ns", "name")
+        meta = manio.make_meta(man)
+        man = {meta: man}
 
         # Pretend we only have to "create" resources, and then trigger the
         # `resource` error in its code path.
@@ -732,6 +725,7 @@ class TestPlan:
         )
         m_api.side_effect = lambda _, data: (data, False)
 
+        # We must not be able to compile a plan because of the `resource` error.
         with mock.patch.object(sq.k8s, "resource") as m_url:
             m_url.return_value = (None, True)
             assert sq.compile_plan(config, k8sconfig, man, man) == err_resp
@@ -886,6 +880,29 @@ class TestPlan:
         m_plan.return_value = ("some string", False)
         m_apply.return_value = (None, True)
         assert sq.compile_plan(config, k8sconfig, loc_man, srv_man) == err_resp
+
+    def test_compile_plan_err_strip(self, config, k8sconfig):
+        """Abort if any of the manifests cannot be stripped."""
+        err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
+
+        # Create two valid `ServerManifests`, then stunt one in such a way that
+        # `manio.strip` will reject it.
+        man_valid = make_manifest("Deployment", "namespace", "name")
+        man_error = make_manifest("Deployment", "namespace", "name")
+        meta_valid = manio.make_meta(man_valid)
+        meta_error = manio.make_meta(man_error)
+
+        # Stunt one manifest.
+        del man_error["kind"]
+
+        # Compile to `ServerManifest` types.
+        valid = {meta_valid: man_valid}
+        error = {meta_error: man_error}
+
+        # Must handle errors from `manio.strip`.
+        assert sq.compile_plan(config, k8sconfig, valid, error) == err_resp
+        assert sq.compile_plan(config, k8sconfig, error, valid) == err_resp
+        assert sq.compile_plan(config, k8sconfig, error, error) == err_resp
 
 
 class TestMainOptions:

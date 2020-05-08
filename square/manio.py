@@ -13,8 +13,8 @@ import square.schemas
 import yaml
 import yaml.scanner
 from square.dtypes import (
-    Config, Filepath, GroupBy, K8sConfig, LocalManifestLists, LocalManifests,
-    MetaManifest, Selectors, ServerManifests,
+    Config, Filepath, GroupBy, K8sConfig, LocalManifestLists, MetaManifest,
+    Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -419,9 +419,9 @@ def filename_for_manifest(
 
 def diff(config: Config,
          k8sconfig: K8sConfig,
-         local: LocalManifests,
-         server: ServerManifests) -> Tuple[str, bool]:
-    """Return the human readable diff between the `local` and `server`.
+         local: dict,
+         server: dict) -> Tuple[str, bool]:
+    """Return the human readable diff between the `local` and `server` manifest.
 
     The diff shows the necessary changes to transition the `server` manifest
     into the state of the `local` manifest.
@@ -439,17 +439,9 @@ def diff(config: Config,
         produce it.
 
     """
-    # Clean up the input manifests because we do not want to diff, for instance,
-    # the `status` fields.
-    srv, _, err1 = strip(k8sconfig, server, config.filters)
-    loc, _, err2 = strip(k8sconfig, local, config.filters)
-    if err1 or err2:
-        return ("", True)
-
-    # Undo the DotDicts. This is a precaution because the YAML parser can
-    # otherwise not dump the manifests.
-    srv = square.dotdict.undo(srv)
-    loc = square.dotdict.undo(loc)
+    # Precaution: undo the DotDicts to ensure the YAML parse will accept them.
+    srv = square.dotdict.undo(server)
+    loc = square.dotdict.undo(local)
     srv_lines = yaml.dump(srv, default_flow_style=False).splitlines()
     loc_lines = yaml.dump(loc, default_flow_style=False).splitlines()
 
@@ -958,7 +950,7 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[ServerManifests, boo
                 manifests, err = unpack_list(manifest_list, config.selectors)
                 assert not err and manifests is not None
 
-                # Drop all manifest fields except "apiVersion", "metadata" and "spec".
+                # Strip off the fields defined in `config.filters`.
                 ret = {k: strip(k8sconfig, man, config.filters)
                        for k, man in manifests.items()}
 
