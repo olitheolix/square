@@ -350,24 +350,26 @@ def apply_plan(cfg: Config, confirm_string: Optional[str]) -> bool:
     return False
 
 
-def sanitise_resource_kinds(cfg: Config) -> Tuple[Config, bool]:
-    """Populate the `Selector.kinds` with those the user specified on the commandline."""
+def expand_all_kinds(cfg: Config) -> Tuple[Config, bool]:
+    """Replace an empty `cfg.selector.kinds` with all available resources.
+
+    Does nothing if `cfg.selectors.kinds` is non-empty.
+
+    """
+    # Do nothing if the user specified at least on resource type.
+    if len(cfg.selectors.kinds) > 0:
+        return cfg, False
+
     # Create a K8sConfig instance because it will contain all the info we need.
     k8sconfig, err = square.k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
     if err:
         return (cfg, True)
 
-    # Translate colloquial names to their canonical counterpart if possible.
-    # Example: "svc" -> "Service"
-    # Do nothing if we do not recognise the name. This can happen because the
-    # user made a typo, or the resource is a custom resource that is not yet
-    # known. Since we cannot distinguish them, we allow typos and then ignore
-    # the resource during the get/plan/apply cycle.
-    kinds = {k8sconfig.short2kind.get(_.lower(), _) for _ in cfg.selectors.kinds}
-
-    # Replace the (possibly) colloquial names with their correct K8s kinds.
+    # Replace the empty resource list with all kinds that K8s has to offer and
+    # that Square can manage (ie all kinds with the correct set of verbs to
+    # create, delete, get, and patch).
     cfg.selectors.kinds.clear()
-    cfg.selectors.kinds.update(kinds)
+    cfg.selectors.kinds.update(k8sconfig.kinds)
     return (cfg, False)
 
 
@@ -409,7 +411,7 @@ def main() -> int:
 
     # Create Square configuration from command line arguments.
     cfg, err1 = compile_config(param)
-    cfg, err2 = sanitise_resource_kinds(cfg)
+    cfg, err2 = expand_all_kinds(cfg)
     if err1 or err2:
         return 1
 
