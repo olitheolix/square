@@ -1,8 +1,9 @@
+# Create a Github Release and associated binaries.
 name: Square Binaries
 
 on:
   push:
-    branches: [ "*" ]
+    tags: [ "*" ]
 
 jobs:
   linux:
@@ -74,3 +75,87 @@ jobs:
         with:
           name: square-darwin-amd64
           path: dist/square
+
+  upload-assets:
+    needs: [linux, macos, windows]
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/download-artifact@master
+        with:
+          name: square-linux-amd64
+          path: linux
+      - uses: actions/download-artifact@master
+        with:
+          name: square-darwin-amd64
+          path: macos
+      - uses: actions/download-artifact@master
+        with:
+          name: square-windows-amd64
+          path: windows
+
+      # Extract branch & tag name. This is from
+      # https://github.community/t5/GitHub-Actions/How-to-get-just-the-tag-name/td-p/31595/page/2
+      - name: Branch name
+        id: branch_name
+        run: |
+          echo ::set-output name=SOURCE_NAME::${GITHUB_REF#refs/*/}
+          echo ::set-output name=SOURCE_BRANCH::${GITHUB_REF#refs/heads/}
+          echo ::set-output name=SOURCE_TAG::${GITHUB_REF#refs/tags/}
+
+      - name: Prepare Binaries
+        run: |
+          ls -al
+          ls -R
+          mkdir bin
+          mv linux/square bin/square-linux-amd64
+          mv macos/square bin/square-darwin-amd64
+          mv windows/square.exe bin/square-windows-amd64.exe
+          ls -R
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Linux
+        id: upload-linux-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: bin/square-linux-amd64
+          asset_name: square-${{ steps.branch_name.outputs.SOURCE_TAG }}-linux-amd64
+          asset_content_type: application/binary
+
+      - name: Upload MacOS
+        id: upload-macos-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: bin/square-darwin-amd64
+          asset_name: square-${{ steps.branch_name.outputs.SOURCE_TAG }}-darwin-amd64
+          asset_content_type: application/binary
+
+      - name: Upload Windows
+        id: upload-windows-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: bin/square-windows-amd64.exe
+          asset_name: square-${{ steps.branch_name.outputs.SOURCE_TAG }}-windows-amd64.exe
+          asset_content_type: application/binary
