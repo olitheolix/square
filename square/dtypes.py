@@ -109,8 +109,8 @@ class K8sConfig(NamedTuple):
     short2kind: Dict[str, str] = {}
 
     # The set of supported K8s resource kinds, eg {"Deployment", "Service"}.
-    # NOTE: these are the `manifest.kind` spellings. "Deployment" is a kind
-    # whereas "deployment" or "Deployments" are not.
+    # NOTE: these are the `manifest.kind` spellings. "Deployment" is a valid
+    # K8s resource kind, whereas "deployment" or "Deployments" are not.
     kinds: Set[str] = set()
 
 
