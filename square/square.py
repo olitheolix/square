@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 from types import SimpleNamespace
@@ -63,6 +64,33 @@ def load_config(fname: Filepath) -> Tuple[Config, bool]:
     cfg.selectors.kinds = set(cfg.selectors.kinds)
     cfg.selectors.labels = {(k, v) for k, v in cfg.selectors.labels}
     return cfg, False
+
+
+def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
+    """Convert `cfg.Selectors.kind` and `cfg.priorities` to their canonical names.
+
+    Example: "svc" -> "Service" or "ns" -> "Namespace".
+
+    Silently ignore unknown resource kinds. This is necessary because the user
+    may have specified a custom resource that does not (yet) exist. Since we cannot
+    distinguish them from typos, we allow unknown resource kinds but
+    get/plan/apply cycles will ignore them.
+
+    """
+    # Avoid side effects to the original `cfg`.
+    cfg = copy.deepcopy(cfg)
+
+    # Translate the possibly colloquial names to their canonical K8s names. Use
+    # the original name if we cannot find the canonical name.
+    kinds = {k8sconfig.short2kind.get(_.lower(), _) for _ in cfg.selectors.kinds}
+    priorities = [k8sconfig.short2kind.get(_.lower(), _) for _ in cfg.priorities]
+
+    # Return a copy of `cfg` with the translated resource kinds.
+    cfg.selectors.kinds.clear()
+    cfg.selectors.kinds.update(kinds)
+    cfg.priorities.clear()
+    cfg.priorities.extend(priorities)
+    return cfg
 
 
 def make_patch(
@@ -484,6 +512,9 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
         k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
         assert not err
 
+        # Convert "Selectors.kinds" to their canonical names.
+        cfg = translate_resource_kinds(cfg, k8sconfig)
+
         # Create the missing resources.
         for data_c in plan.create:
             print(f"Creating {data_c.meta.kind.upper()} "
@@ -524,6 +555,9 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
         assert not err
 
+        # Convert "Selectors.kinds" to their canonical names.
+        cfg = translate_resource_kinds(cfg, k8sconfig)
+
         # Load manifests from local files.
         local, _, err = manio.load(cfg.folder, cfg.selectors)
         assert not err
@@ -552,6 +586,9 @@ def get_resources(cfg: Config) -> bool:
         # Create properly configured Requests session to talk to K8s API.
         k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
         assert not err
+
+        # Convert "Selectors.kinds" to their canonical names.
+        cfg = translate_resource_kinds(cfg, k8sconfig)
 
         # Use a wildcard Selector to ensure `manio.load` will read _all_ local
         # manifests. This will allow `manio.sync` to modify the ones specified by

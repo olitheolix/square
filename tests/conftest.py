@@ -42,6 +42,8 @@ def k8sconfig() -> Generator[K8sConfig, None, None]:
     cfg.short2kind["service"] = "Service"
     cfg.short2kind["svc"] = "Service"
     cfg.short2kind["secret"] = "Secret"
+    cfg.short2kind["ns"] = "Namespace"
+    cfg.short2kind["namespace"] = "Namespace"
 
     # The set of canonical K8s resources we support.
     cfg.kinds.update({_ for _ in cfg.short2kind.values()})

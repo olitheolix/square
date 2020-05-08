@@ -386,12 +386,14 @@ def show_info(cfg: Config) -> bool:
 
 def main() -> int:
     param = parse_commandline_args()
+
+    # Print version information and quit.
     if param.parser == "version":
         print(__version__)
         return 0
 
+    # Create a default ".square.yaml" in the current folder and quit.
     if param.parser == "config":
-        # Create a default ".square.yaml" in the current folder.
         fname = Filepath(param.folder or ".") / ".square.yaml"
         fname.parent.mkdir(parents=True, exist_ok=True)
         fname.write_text(DEFAULT_CONFIG_FILE.read_text())

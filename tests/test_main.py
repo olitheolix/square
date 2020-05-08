@@ -95,7 +95,7 @@ class TestResourceCleanup:
         """Must expand the short names if possible, and leave as is otherwise."""
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
-        # Use specified a valid set of `selectors.kinds` using various spellings.
+        # Declare `selectors.kinds` with various resource spellings.
         cfg = Config(
             folder=pathlib.Path('/tmp'),
             kubeconfig="",
