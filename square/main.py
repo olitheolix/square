@@ -176,7 +176,6 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
 
     # Convenience.
     p = cmdline_param
-    print(p)
 
     # Load the default configuration unless the user specified an explicit one.
     if p.configfile:
@@ -278,7 +277,6 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     namespaces = cfg.selectors.namespaces if p.namespaces is None else p.namespaces
     sel_labels = cfg.selectors.labels if p.labels is None else p.labels
     priorities = p.priorities or cfg.priorities
-    print(sel_labels)
     selectors = Selectors(kinds, namespaces, sel_labels)
 
     # Use filters from (default) config file because they cannot be specified
