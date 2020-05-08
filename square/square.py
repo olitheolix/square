@@ -1,6 +1,7 @@
 import copy
 import json
 import logging
+from collections import Counter
 from types import SimpleNamespace
 from typing import Collection, Optional, Set, Tuple
 
@@ -496,6 +497,66 @@ def setup_logging(log_level: int) -> None:
     logit.info(f"Set log level to {level}")
 
 
+def sort_plan(cfg: Config, plan: DeploymentPlan) -> Tuple[DeploymentPlan, bool]:
+    """Return a copy of the `plan` where the entries are sorted by priority.
+
+    For example, if `cfg.priorities = ["Namespace", "Deployment"]` then
+    `plan.create` will first list all Namespace resources, then "Deployment"
+    resources, then everything else. The same applies to `plan.delete` except
+    the list will be reversed, ie the top entries are the ones missing from
+    `cfg.priorities`, followed by "Deployments", followed by "Namespaces".
+
+    """
+    # Return with an error if the entries in `cfg.priorities` are not unique.
+    if len(set(cfg.priorities)) < len(cfg.priorities):
+        duplicates = {k for k, v in Counter(cfg.priorities).items() if v > 1}
+        logit.error(f"Found duplicates in the priorities: {duplicates}")
+        return plan, True
+
+    # -------------------------------------------------------------------------
+    # The algorithm proceeds as follows: assign in `cfg.priorities` a value
+    # (resources with a higher value have a lower priority). Then it will
+    # prefix the tuples in `plan.{create,delete}` with the priority ID and sort
+    # the new list. This will ensure the all resources appear in the order
+    # defined in `cfg.priorities`. Resources with the same priority will be
+    # sorted by MetaManifest, which means sorted by namespace, the name.
+    # -------------------------------------------------------------------------
+
+    # All unknown resource kinds will have this priority, which is larger (ie
+    # less important) than all the resource kinds that are in `cfg.priorities`.
+    max_id = len(cfg.priorities)
+
+    # Assign each resource kind a number in order of priority.
+    priority_id = {name: idx for idx, name in enumerate(cfg.priorities)}
+
+    # Assign all resource kinds that exist in `plan.{create,delete}` a priority
+    # number that is larger than all other numbers in that list. This will
+    # ensure they come last when we sort.
+    missing_create = {_.meta.kind for _ in plan.create if _.meta.kind not in priority_id}
+    priority_id.update({kind: max_id for kind in missing_create})
+    missing_delete = {_.meta.kind for _ in plan.delete if _.meta.kind not in priority_id}
+    priority_id.update({kind: max_id for kind in missing_delete})
+
+    # Sort the patches by priority ID and MetaManifest.
+    create = [(priority_id[_.meta.kind], _) for _ in plan.create]
+    create.sort(key=lambda _: _[:2])
+
+    # Repeat for the patches that will delete resources but reverse the final
+    # list. This will ensure we remove resources in the reverse order in which
+    # we would create them.
+    delete = [(priority_id[_.meta.kind], _) for _ in plan.delete]
+    delete.sort(key=lambda _: _[:2])
+    delete.reverse()
+
+    # Assemble the final deployment plan and return it.
+    out = DeploymentPlan(
+        create=[_[1] for _ in create],
+        patch=list(plan.patch),
+        delete=[_[1] for _ in delete],
+    )
+    return out, False
+
+
 def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     """Update K8s resources according to the `plan`.
 
@@ -508,6 +569,10 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
 
     """
     try:
+        # Sort the plan according to `cfg.priority`.
+        plan, err = sort_plan(cfg, plan)
+        assert not err
+
         # Create properly configured Requests session to talk to K8s API.
         k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
         assert not err

@@ -1,4 +1,5 @@
 import copy
+import random
 import sys
 import unittest.mock as mock
 
@@ -546,6 +547,98 @@ class TestPlan:
         valid_b = make_manifest(kind, namespace, "foo")
         assert sq.make_patch(config, k8sconfig, valid_a, valid_b) == err_resp
 
+    def test_sort_plan(self, config):
+        # Dummy MetaManifests that we will use in our test plan.
+        meta_ns0 = MetaManifest('v1', 'Namespace', None, 'ns0')
+        meta_ns1 = MetaManifest('v1', 'Namespace', None, 'ns1')
+        meta_svc0 = MetaManifest('v1', 'Service', "ns0", 'svc0')
+        meta_svc1 = MetaManifest('v1', 'Service', "ns1", 'svc1')
+        meta_dpl0 = MetaManifest('apps/v1', 'Deployment', 'ns0', 'deploy_0')
+        meta_dpl1 = MetaManifest('apps/v1', 'Deployment', 'ns1', 'deploy_1')
+
+        expected = DeploymentPlan(
+            create=[
+                DeltaCreate(meta_ns0, None, None),
+                DeltaCreate(meta_ns1, None, None),
+                DeltaCreate(meta_svc0, None, None),
+                DeltaCreate(meta_svc1, None, None),
+                DeltaCreate(meta_dpl0, None, None),
+                DeltaCreate(meta_dpl1, None, None),
+            ],
+            patch=[
+                DeltaCreate(meta_ns0, None, None),
+                DeltaCreate(meta_ns1, None, None),
+                DeltaCreate(meta_svc0, None, None),
+                DeltaCreate(meta_svc1, None, None),
+                DeltaCreate(meta_dpl0, None, None),
+                DeltaCreate(meta_dpl1, None, None),
+            ],
+            delete=[
+                DeltaCreate(meta_dpl1, None, None),
+                DeltaCreate(meta_dpl0, None, None),
+                DeltaCreate(meta_svc1, None, None),
+                DeltaCreate(meta_svc0, None, None),
+                DeltaCreate(meta_ns1, None, None),
+                DeltaCreate(meta_ns0, None, None),
+            ],
+        )
+
+        config.priorities = ["Namespace", "Service", "Deployment"]
+        plan = copy.deepcopy(expected)
+        for i in range(10):
+            random.shuffle(plan.create)
+            random.shuffle(plan.patch)
+            random.shuffle(plan.delete)
+            ret, err = sq.sort_plan(config, plan)
+            assert not err
+            assert ret.create == expected.create
+            assert ret.delete == expected.delete
+            assert ret.patch == plan.patch
+
+        # Service must be last because it is not in the priority list.
+        expected = DeploymentPlan(
+            create=[
+                DeltaCreate(meta_ns0, None, None),
+                DeltaCreate(meta_ns1, None, None),
+                DeltaCreate(meta_dpl0, None, None),
+                DeltaCreate(meta_svc1, None, None),
+            ],
+            patch=[
+                DeltaCreate(meta_ns0, None, None),
+                DeltaCreate(meta_ns1, None, None),
+                DeltaCreate(meta_svc0, None, None),
+                DeltaCreate(meta_svc1, None, None),
+                DeltaCreate(meta_dpl0, None, None),
+                DeltaCreate(meta_dpl1, None, None),
+            ],
+            delete=[
+                DeltaCreate(meta_svc0, None, None),
+                DeltaCreate(meta_dpl1, None, None),
+                DeltaCreate(meta_ns1, None, None),
+                DeltaCreate(meta_ns0, None, None),
+            ],
+        )
+        config.priorities = ["Namespace", "Deployment"]
+        plan = copy.deepcopy(expected)
+        for i in range(10):
+            random.shuffle(plan.create)
+            random.shuffle(plan.patch)
+            random.shuffle(plan.delete)
+            ret, err = sq.sort_plan(config, plan)
+            assert not err
+            assert ret.create == expected.create
+            assert ret.delete == expected.delete
+            assert ret.patch == plan.patch
+
+    def test_sort_plan_err(self, config):
+        """Do not sort anything unless all `priorities` are unique."""
+        # The "Namespace" resource is listed twice - error.
+        config.priorities = ["Namespace", "Service", "Namespace"]
+
+        plan = DeploymentPlan(create=[], patch=[], delete=[])
+        ret, err = sq.sort_plan(config, plan)
+        assert err and ret == plan
+
     def test_compile_plan_create_delete_ok(self, config, k8sconfig):
         """Test a plan that creates and deletes resource, but not patches any.
 
@@ -565,8 +658,8 @@ class TestPlan:
             MetaManifest('apps/v1', 'Deployment', 'ns2', 'res_2'),
         ]
 
-        # Determine the K8sResource for all involved resources. Also verify the
-        # resources all specify valid API groups.
+        # Determine the K8sResource for all involved resources. Also verify
+        # that all resources specify a valid API group.
         res = [resource(k8sconfig, _._replace(name="")) for _ in meta]
         assert not any([_[1] for _ in res])
         res = [_[0] for _ in res]
