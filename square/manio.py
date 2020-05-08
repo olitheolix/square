@@ -62,6 +62,11 @@ def select(manifest: dict, selectors: Selectors) -> bool:
         logit.error(f"BUG: selector must specify a `kind`: {selectors}")
         return False
 
+    # Split all labels into tuples: "foo=bar" -> ("foo", "bar").
+    # Sanity check: hard abort if the labels do not split.
+    label_selectors = {tuple(_.split("=")) for _ in selectors.labels}
+    assert all([len(_) == 2 for _ in label_selectors])
+
     # Unpack the resource's kind and labels.
     kind = manifest.get("kind", None)
     labels = manifest.get("metadata", {}).get("labels", {})
@@ -108,9 +113,9 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     # labels or not.
     labels = {(k, v) for k, v in labels.items()}
 
-    # The resource must match the label selectors, if we have any such selectors.
-    if selectors.labels:
-        if not selectors.labels.issubset(labels):
+    # The resource must match the label selectors unless we have no such selectors.
+    if label_selectors:
+        if not label_selectors.issubset(labels):
             logit.debug(f"Labels {labels} do not match selector {selectors.labels}")
             return False
 

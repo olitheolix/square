@@ -314,7 +314,7 @@ class TestMainPlan:
             selectors=Selectors(
                 kinds=set(priorities),
                 namespaces=[namespace],
-                labels={("app", "test-workflow")}),
+                labels=["app=test-workflow"]),
         )
 
         # ---------------------------------------------------------------------

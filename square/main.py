@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os
-import re
 from typing import Optional, Tuple
 
 import colorama
@@ -18,12 +17,11 @@ logit = logging.getLogger("square")
 
 def parse_commandline_args():
     """Return parsed command line."""
-    def _validate_label(label: str) -> Tuple[str, ...]:
-        """Unpack the labels: "app=square" -> ("app", "square") """
-        pat = re.compile(r"^[a-z0-9][-a-z0-9_.]*=[-A-Za-z0-9_.]*[A-Za-z0-9]$")
-        if pat.match(label) is None:
+    def _validate_label(label: str) -> str:
+        """Sanity check the label"""
+        if not square.square.valid_label(label):
             raise argparse.ArgumentTypeError(label)
-        return tuple(label.split("="))
+        return label
 
     # A dummy top level parser that will become the parent for all sub-parsers
     # to share all its arguments.
@@ -171,13 +169,14 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         folder=Filepath(""),
         kubeconfig=Filepath(""),
         kubecontext=None,
-        selectors=Selectors(set(), namespaces=[], labels=set()),
+        selectors=Selectors(set(), namespaces=[], labels=[]),
         groupby=GroupBy("", []),
         priorities=[],
     ), True
 
     # Convenience.
     p = cmdline_param
+    print(p)
 
     # Load the default configuration unless the user specified an explicit one.
     if p.configfile:
@@ -277,8 +276,9 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     kubeconfig = Filepath(kubeconfig)
     kubecontext = p.kubecontext or cfg.kubecontext
     namespaces = cfg.selectors.namespaces if p.namespaces is None else p.namespaces
-    sel_labels = cfg.selectors.labels if p.labels is None else set(p.labels)
+    sel_labels = cfg.selectors.labels if p.labels is None else p.labels
     priorities = p.priorities or cfg.priorities
+    print(sel_labels)
     selectors = Selectors(kinds, namespaces, sel_labels)
 
     # Use filters from (default) config file because they cannot be specified
