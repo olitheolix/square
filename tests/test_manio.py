@@ -1113,20 +1113,6 @@ class TestDiff:
         assert "-  name: name1" in diff_str
         assert "+  name: name2" in diff_str
 
-    def test_diff_err(self, config, k8sconfig):
-        """Diff two valid manifests and verify the output."""
-        # Create two valid manifests, then stunt one in such a way that
-        # `essential` will reject it.
-        valid = make_manifest("Deployment", "namespace", "name1")
-        invalid = make_manifest("Deployment", "namespace", "name2")
-        del invalid["kind"]
-
-        # Test function must return with an error, irrespective of which
-        # manifest was invalid.
-        assert manio.diff(config, k8sconfig, valid, invalid) == ("", True)
-        assert manio.diff(config, k8sconfig, invalid, valid) == ("", True)
-        assert manio.diff(config, k8sconfig, invalid, invalid) == ("", True)
-
 
 class TestYamlManifestIOIntegration:
     """These integration tests all write files to temporary folders."""
