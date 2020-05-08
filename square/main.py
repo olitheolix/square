@@ -207,7 +207,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         if cfg_file == default_cfg:
             kubeconfig = p.kubeconfig or os.getenv("KUBECONFIG", "")
         else:
-            kubeconfig = p.kubeconfig or str(cfg.kubeconfig) or os.getenv("KUBECONFIG", "")
+            kubeconfig = p.kubeconfig or str(cfg.kubeconfig) or os.getenv("KUBECONFIG", "")  # noqa
         del dot_square, default_cfg
 
         # Use the current working directory as the folder directory because the
@@ -391,7 +391,8 @@ def main() -> int:
         return 0
 
     if param.parser == "config":
-        fname = Filepath(param.folder) / ".square.yaml"
+        # Create a default ".square.yaml" in the current folder.
+        fname = Filepath(param.folder or ".") / ".square.yaml"
         fname.parent.mkdir(parents=True, exist_ok=True)
         fname.write_text(DEFAULT_CONFIG_FILE.read_text())
         print(
