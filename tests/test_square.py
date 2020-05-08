@@ -101,6 +101,36 @@ class TestBasic:
         )
         assert sq.show_plan(plan) is False
 
+    def test_translate_resource_kinds(self, k8sconfig):
+        """Translate various spellings in `selectors.kinds`"""
+        cfg = Config(
+            folder=Filepath('/tmp'),
+            kubeconfig="",
+            kubecontext=None,
+            selectors=Selectors(
+                kinds={"svc", 'DEPLOYMENT', "Secret"},
+                namespaces=['default'],
+                labels={("app", "morty"), ("foo", "bar")},
+            ),
+            groupby=GroupBy("", []),
+            priorities=["ns", "DEPLOYMENT"],
+        )
+
+        # Convert the resource names to their correct K8s kind.
+        ret = sq.translate_resource_kinds(cfg, k8sconfig)
+        assert ret.selectors.kinds == {"Service", "Deployment", "Secret"}
+        assert ret.priorities == ["Namespace", "Deployment"]
+
+        # Add two invalid resource names. This must succeed but return the
+        # resource names without having changed them.
+        cfg.selectors.kinds.clear()
+        cfg.selectors.kinds.update({"invalid", "k8s-resource-kind"})
+        cfg.priorities.clear()
+        cfg.priorities.extend(["invalid", "k8s-resource-kind"])
+        ret = sq.translate_resource_kinds(cfg, k8sconfig)
+        assert ret.selectors.kinds == {"invalid", "k8s-resource-kind"}
+        assert ret.priorities == ["invalid", "k8s-resource-kind"]
+
 
 class TestLoadConfig:
     def test_load_config(self):
@@ -752,7 +782,7 @@ class TestMainOptions:
     @mock.patch.object(k8s, "patch")
     @mock.patch.object(k8s, "delete")
     def test_apply_plan(self, m_delete, m_apply, m_post, config, kube_creds):
-        """Simulate a successful resource update (add, patch delete).
+        """Simulate a successful resource update (add, patch, delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
         calls, and verify that all the necessary calls are made.
