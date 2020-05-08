@@ -1,6 +1,7 @@
 import copy
 import json
 import logging
+import re
 from collections import Counter
 from types import SimpleNamespace
 from typing import Collection, Optional, Set, Tuple
@@ -63,7 +64,6 @@ def load_config(fname: Filepath) -> Tuple[Config, bool]:
     # translate verbatim.
     cfg.folder = fname.parent.absolute() / cfg.folder
     cfg.selectors.kinds = set(cfg.selectors.kinds)
-    cfg.selectors.labels = {(k, v) for k, v in cfg.selectors.labels}
     return cfg, False
 
 
@@ -557,6 +557,12 @@ def sort_plan(cfg: Config, plan: DeploymentPlan) -> Tuple[DeploymentPlan, bool]:
     return out, False
 
 
+def valid_label(label: str) -> bool:
+    """Return `True` if `label` is K8s and Square compatible."""
+    pat = re.compile(r"^[a-z0-9][-a-z0-9_.]*=[-A-Za-z0-9_.]*[A-Za-z0-9]$")
+    return pat.match(label) is not None
+
+
 def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     """Update K8s resources according to the `plan`.
 
@@ -568,6 +574,11 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
         None
 
     """
+    # Sanity check labels.
+    if not all([valid_label(_) for _ in cfg.selectors.labels]):
+        logit.error(f"Invalid labels: {cfg.selectors.labels}")
+        return True
+
     try:
         # Sort the plan according to `cfg.priority`.
         plan, err = sort_plan(cfg, plan)
@@ -615,6 +626,11 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         Deployment plan.
 
     """
+    # Sanity check labels.
+    if not all([valid_label(_) for _ in cfg.selectors.labels]):
+        logit.error(f"Invalid labels: {cfg.selectors.labels}")
+        return DeploymentPlan(tuple(), tuple(), tuple()), True
+
     try:
         # Create properly configured Requests session to talk to K8s API.
         k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
@@ -647,6 +663,11 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
 
 def get_resources(cfg: Config) -> bool:
     """Download all K8s manifests and merge them into local files."""
+    # Sanity check labels.
+    if not all([valid_label(_) for _ in cfg.selectors.labels]):
+        logit.error(f"Invalid labels: {cfg.selectors.labels}")
+        return True
+
     try:
         # Create properly configured Requests session to talk to K8s API.
         k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
@@ -661,7 +682,7 @@ def get_resources(cfg: Config) -> bool:
         # write the new ones. This logic will ensure we never have stale manifests
         # (see `manio.save_files` for details and how `manio.save`, which we call
         # at the end of this function, uses it).
-        load_selectors = Selectors(kinds=k8sconfig.kinds, labels=set(), namespaces=[])
+        load_selectors = Selectors(kinds=k8sconfig.kinds, labels=[], namespaces=[])
 
         # Load manifests from local files.
         _, local, err = manio.load(cfg.folder, load_selectors)

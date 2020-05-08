@@ -104,7 +104,7 @@ class TestResourceCleanup:
             selectors=Selectors(
                 kinds=set(),
                 namespaces=['default'],
-                labels={("app", "morty"), ("foo", "bar")},
+                labels=["app=morty", "foo=bar"],
             ),
             groupby=GroupBy("", []),
             priorities=("Namespace", "Deployment"),
@@ -121,7 +121,7 @@ class TestResourceCleanup:
             selectors=Selectors(
                 kinds={"svc", "Deployment"},
                 namespaces=['default'],
-                labels={("app", "morty"), ("foo", "bar")},
+                labels=["app=morty", "foo=bar"],
             ),
             groupby=GroupBy("", []),
             priorities=("Namespace", "Deployment"),
@@ -140,7 +140,7 @@ class TestResourceCleanup:
             selectors=Selectors(
                 kinds=set(),
                 namespaces=['default'],
-                labels={("app", "morty"), ("foo", "bar")},
+                labels=["app=morty", "foo=bar"],
             ),
             groupby=GroupBy("", tuple()),
             priorities=("Namespace", "Deployment"),
@@ -218,7 +218,7 @@ class TestMain:
         assert cfg.selectors == Selectors(
             kinds=set(DEFAULT_PRIORITIES),
             namespaces=["default", "kube-system"],
-            labels={("app", "square")},
+            labels=["app=square"],
         )
         assert cfg.groupby == GroupBy(label="app", order=["ns", "label", "kind"])
         assert set(cfg.filters.keys()) == {
@@ -231,7 +231,7 @@ class TestMain:
         param = types.SimpleNamespace(
             folder="folder-override",
             kinds=["Deployment", "Namespace"],
-            labels=[("app", "square"), ("foo", "bar")],
+            labels=["app=square", "foo=bar"],
             namespaces=["default", "kube-system"],
             kubeconfig=str(kubeconfig_override),
             kubecontext="kubecontext-override",
@@ -251,7 +251,7 @@ class TestMain:
         assert cfg.selectors == Selectors(
             kinds={"Namespace", "Deployment"},
             namespaces=["default", "kube-system"],
-            labels={("app", "square"), ("foo", "bar")},
+            labels=["app=square", "foo=bar"],
         )
         assert cfg.groupby == GroupBy(label="foo", order=["kind", "label", "ns"])
         assert set(cfg.filters.keys()) == {
@@ -453,7 +453,7 @@ class TestMain:
 
         # The defaults must have taken over because the user did not specify
         # new labels etc.
-        assert cfg.selectors.labels == {("app", "square")}
+        assert cfg.selectors.labels == ["app=square"]
         assert cfg.selectors.namespaces == ["default", "kube-system"]
         assert cfg.groupby == GroupBy(label="app", order=["ns", "label", "kind"])
 
@@ -467,7 +467,7 @@ class TestMain:
 
         # This time, the user supplied arguments must have cleared the
         # respective fields.
-        assert cfg.selectors.labels == set()
+        assert cfg.selectors.labels == []
         assert cfg.selectors.namespaces == []
         assert cfg.groupby == GroupBy()
 
@@ -487,7 +487,7 @@ class TestMain:
                 folder=Filepath(""),
                 kubeconfig=Filepath(""),
                 kubecontext=None,
-                selectors=Selectors(set(), [], set()),
+                selectors=Selectors(set(), [], []),
                 groupby=GroupBy("", []),
                 priorities=[],
             ), True)
@@ -500,7 +500,7 @@ class TestMain:
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kubecontext=None,
-            selectors=Selectors(set(), [], set()),
+            selectors=Selectors(set(), [], []),
             groupby=GroupBy("", []),
             priorities=[],
         ), True
@@ -576,7 +576,7 @@ class TestMain:
             del args
 
         # These two deviate from the values in `tests/support/config.yaml`.
-        config.selectors.labels = {("app", "demo")}
+        config.selectors.labels = ["app=demo"]
         config.selectors.namespaces = ["default"]
 
         # Every main function must have been called exactly once.
@@ -604,7 +604,7 @@ class TestMain:
             del args
 
         # These two deviate from the values in `tests/support/config.yaml`.
-        config.selectors.labels = {("app", "demo")}
+        config.selectors.labels = ["app=demo"]
         config.selectors.namespaces = ["default"]
 
         # Every main function must have been called exactly once.
@@ -718,13 +718,13 @@ class TestMain:
         # One label.
         with mock.patch("sys.argv", ["square.py", "get", "all", "-l", "foo=bar"]):
             ret = main.parse_commandline_args()
-            assert ret.labels == [("foo", "bar")]
+            assert ret.labels == ["foo=bar"]
 
         # Two labels.
         with mock.patch("sys.argv",
                         ["square.py", "get", "all", "-l", "foo=bar", "x=y"]):
             ret = main.parse_commandline_args()
-            assert ret.labels == [("foo", "bar"), ("x", "y")]
+            assert ret.labels == ["foo=bar", "x=y"]
 
     def test_parse_commandline_args_priority(self):
         """Custom priorities must override the default."""
@@ -791,7 +791,7 @@ class TestMain:
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kubecontext=None,
-            selectors=Selectors(set(), [], set()),
+            selectors=Selectors(set(), [], []),
             groupby=GroupBy("", []),
             priorities=[],
         )

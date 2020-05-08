@@ -111,7 +111,7 @@ class TestBasic:
             selectors=Selectors(
                 kinds={"svc", 'DEPLOYMENT', "Secret"},
                 namespaces=['default'],
-                labels={("app", "morty"), ("foo", "bar")},
+                labels=["app=morty", "foo=bar"],
             ),
             groupby=GroupBy("", []),
             priorities=["ns", "DEPLOYMENT"],
@@ -132,6 +132,24 @@ class TestBasic:
         assert ret.selectors.kinds == {"invalid", "k8s-resource-kind"}
         assert ret.priorities == ["invalid", "k8s-resource-kind"]
 
+    def test_sanity_check_labels(self, config):
+        """Main entry point functions must abort if any labels are invalid."""
+        # Dummy plan.
+        plan = DeploymentPlan(tuple(), tuple(), tuple())
+
+        # Test a variety of invalid labels.
+        invalid_labels = [
+            ["foo=bar=invalid"],
+            ["is=valid", "not==valid"],
+            [""],
+            ["foo=bar", ""],
+        ]
+        for labels in invalid_labels:
+            config.selectors.labels = labels
+            assert sq.get_resources(config) is True
+            assert sq.apply_plan(config, plan) is True
+            assert sq.make_plan(config) == (plan, True)
+
 
 class TestLoadConfig:
     def test_load_config(self):
@@ -147,7 +165,7 @@ class TestLoadConfig:
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
         assert cfg.selectors.namespaces == ["default", "kube-system"]
-        assert cfg.selectors.labels == {("app", "square")}
+        assert cfg.selectors.labels == ["app=square"]
         assert set(cfg.filters.keys()) == {
             "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
@@ -1020,7 +1038,7 @@ class TestMainOptions:
         # `manio.load` must have been called with a wildcard selector to ensure
         # it loads _all_ resources from the local files, even if we want to
         # sync only a subset.
-        load_selectors = Selectors(kinds=k8sconfig.kinds, labels=set(), namespaces=[])
+        load_selectors = Selectors(kinds=k8sconfig.kinds, labels=[], namespaces=[])
 
         # Call test function and verify it passed the correct arguments.
         assert sq.get_resources(config) is False

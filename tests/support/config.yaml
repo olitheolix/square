@@ -73,7 +73,7 @@ selectors:
     - StatefulSet
   namespaces: ["default", "kube-system"]
   labels:
-    - [app, square]
+    - app=square
 
 
 # -----------------------------------------------------------------------------
