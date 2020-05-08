@@ -1,10 +1,59 @@
 # Square configuration Syntax.
 version: v1.0
 
+# Kubernetes credentials.
 kubeconfig: /path/to/kubeconfig
 kubecontext: null
+
+# Where Square will read and write manifests.
 folder: .
 
+
+# -----------------------------------------------------------------------------
+# Square will only target resources that match *all* the selectors below.
+# -----------------------------------------------------------------------------
+selectors:
+  # Target these resource kinds.
+  kinds:
+    - ClusterRole
+    - ClusterRoleBinding
+    - ConfigMap
+    - CronJob
+    - CustomResourceDefinition
+    - DaemonSet
+    - Deployment
+    - HorizontalPodAutoscaler
+    - Ingress
+    - Namespace
+    - PersistentVolumeClaim
+    - PodDisruptionBudget
+    - Role
+    - RoleBinding
+    - Secret
+    - Service
+    - ServiceAccount
+    - StatefulSet
+
+  # Target these namespaces. Leave empty to target all.
+  namespaces: ["default"]
+
+  # Example: ["app=square", "foo=bar"]. Leave empty to ignore.
+  labels: []
+
+
+# -----------------------------------------------------------------------------
+# Define the folder hierarchy that `square get` should create.
+# -----------------------------------------------------------------------------
+groupby:
+  label: app
+  order: [ns, label, kind]
+
+
+# -----------------------------------------------------------------------------
+# Square will create resources in this order, and delete them in reverse order.
+# This list need not be comprehensive. If Square encounters a resource not
+# listed here, then it will create them last and delete them first.
+# -----------------------------------------------------------------------------
 priorities:
   # Custom Resources should come first.
   - CustomResourceDefinition
@@ -40,35 +89,13 @@ priorities:
   - HorizontalPodAutoscaler
   - Ingress
 
-selectors:
-  kinds:
-    - ClusterRole
-    - ClusterRoleBinding
-    - ConfigMap
-    - CronJob
-    - CustomResourceDefinition
-    - DaemonSet
-    - Deployment
-    - HorizontalPodAutoscaler
-    - Ingress
-    - Namespace
-    - PersistentVolumeClaim
-    - PodDisruptionBudget
-    - Role
-    - RoleBinding
-    - Secret
-    - Service
-    - ServiceAccount
-    - StatefulSet
-  namespaces: ["default"]       # Use empty list to target all namespaces.
-  labels: []                    # Target all labels.
 
-# GET will create a folder hierachy by name, app label and resource kind.
-groupby:
-  label: app
-  order: [ns, label, kind]
-
+# -----------------------------------------------------------------------------
+# Square will omit all keys defined here in a plan and patches. It will also
+# skip them it creates a new resource.
+# -----------------------------------------------------------------------------
 filters:
+  # --- These will be inserted into all resource types to reduce boiler plate. ---
   _common_:
     - metadata:
       - annotations:
@@ -81,17 +108,22 @@ filters:
       - selfLink
       - uid
     - status
+
+  # --- Individual resource types. ---
   ConfigMap:
     - metadata:
       - annotations
       - control-plane.alpha.kubernetes.io/leader
+
   Deployment: []
+
   HorizontalPodAutoscaler:
     - metadata:
       - annotations:
         - autoscaling.alpha.kubernetes.io/conditions
         - autoscaling.alpha.kubernetes.io/current-metrics
         - control-plane.alpha.kubernetes.io/leader
+
   Service:
     - spec:
       - ports:
