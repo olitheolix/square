@@ -6,6 +6,9 @@ exclude_lines =
     # Ignore the main entry point.
     if __name__ == .__main__.:
 
+    # Only runs inside a PyInstaller bundle.
+    _MEIPASS
+
     # dtypes: code only runs during MyPy check.
     if TYPE_CHECKING:
 
