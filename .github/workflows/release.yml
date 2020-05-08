@@ -1,0 +1,76 @@
+name: Square Binaries
+
+on:
+  push:
+    branches: [ "*" ]
+
+jobs:
+  linux:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Build artifact inside Docker image
+        run: |
+          # Build the binary in a container.
+          docker build -t "builder:latest" -f Dockerfile .
+
+          # Copy the binary from the container to the host.
+          mkdir bin
+          docker create -ti --rm --name tmp builder
+          docker cp tmp:/src/square/dist/square bin/square
+          docker rm tmp
+      - name: create-artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: square-linux-amd64
+          path: bin/square
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
+          architecture: 'x64'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pipenv pyinstaller==3.6 macholib pypiwin32 atomicwrites
+          pipenv install --system
+      - name: Build Binary
+        run: |
+          pyinstaller square.spec --clean
+      - name: create-artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: square-windows-amd64
+          path: dist/square.exe
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pipenv pyinstaller==3.6
+          pipenv install --system
+      - name: Build Binary
+        run: |
+          pyinstaller square.spec --clean
+      - name: create-artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: square-darwin-amd64
+          path: dist/square
