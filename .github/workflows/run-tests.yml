@@ -1,4 +1,4 @@
-name: Square
+name: build
 
 on:
   push:
