@@ -715,6 +715,19 @@ class TestK8sKubeconfig:
             name="",
         )
 
+    @mock.patch.object(k8s, "load_auto_config")
+    @mock.patch.object(k8s, "version")
+    @mock.patch.object(k8s, "compile_api_endpoints")
+    def test_cluster_config(self, m_compile_endpoints, m_version, m_load_auto, k8sconfig):
+        kubeconfig = Filepath("kubeconfig")
+        kubecontext = False
+
+        m_load_auto.return_value = (k8sconfig, False)
+        m_version.return_value = (k8sconfig, False)
+        m_compile_endpoints.return_value = False
+
+        assert k8s.cluster_config(kubeconfig, kubecontext) == (k8sconfig, False)
+
     @mock.patch.object(k8s, "load_incluster_config")
     @mock.patch.object(k8s, "load_minikube_config")
     @mock.patch.object(k8s, "load_kind_config")
