@@ -1,5 +1,5 @@
 # Create a Github Release and associated binaries.
-name: Square Binaries
+name: release
 
 on:
   push:
