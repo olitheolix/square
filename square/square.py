@@ -266,12 +266,12 @@ def compile_plan(
 
     # Apply the filters to all local and server manifests before we compute patches.
     server = {
-        k: manio.strip(k8sconfig, v, config.filters)
-        for k, v in server.items()
+        meta: manio.strip(k8sconfig, man, config.filters)
+        for meta, man in server.items()
     }
     local = {
-        k: manio.strip(k8sconfig, v, config.filters)
-        for k, v in local.items()
+        meta: manio.strip(k8sconfig, man, config.filters)
+        for meta, man in local.items()
     }
 
     # Abort if any of the manifests could not be stripped.
@@ -294,7 +294,7 @@ def compile_plan(
 
     # Partition the set of meta manifests into create/delete/patch groups.
     plan, err = partition_manifests(local, server)
-    if err or not plan:
+    if err:
         logit.error("Could not partition the manifests for the plan.")
         return err_resp
 
@@ -303,32 +303,35 @@ def compile_plan(
     assert set(plan.patch).issubset(set(local.keys()))
     assert set(plan.patch).issubset(set(server.keys()))
 
-    # Compile the Deltas to create the missing resources.
-    create = []
-    for delta in plan.create:
-        # We only need the resource and namespace, not its name, because that
-        # is how the POST request to create a resource works in K8s.
-        resource, err = k8s.resource(k8sconfig, delta._replace(name=""))
-        if err or not resource:
-            logit.error("Could not determine the K8s resource URL")
-            return err_resp
-        create.append(DeltaCreate(delta, resource.url, local[delta]))
-
-    # Compile the Deltas to delete the excess resources. Every DELETE request
-    # will have to pass along a `DeleteOptions` manifest (see below).
+    # For later: every DELETE request will have to pass along a `DeleteOptions`
+    # manifest (see below).
     del_opts = {
         "apiVersion": "v1",
         "kind": "DeleteOptions",
         "gracePeriodSeconds": 0,
         "orphanDependents": False,
     }
+
+    # Compile the Deltas to create the missing resources.
+    create = []
+    for delta in plan.create:
+        # We only need the resource and namespace, not its name, because that
+        # is how the POST request to create a resource works in K8s.
+        # Ignore the error flag because the `strip` function we used above
+        # already ensured the resource exists.
+        resource, err = k8s.resource(k8sconfig, delta._replace(name=""))
+        assert not err
+
+        # Compile the Delta and add it to the list.
+        create.append(DeltaCreate(delta, resource.url, local[delta]))
+
+    # Compile the Deltas to delete the excess resources.
     delete = []
     for meta in plan.delete:
-        # Resource URL.
+        # Resource URL. Ignore the error flag because the `strip` function
+        # above already called `k8s.resource` and would have aborted on error.
         resource, err = k8s.resource(k8sconfig, meta)
-        if err or not resource:
-            logit.error("Could not determine the K8s resource URL")
-            return err_resp
+        assert not err
 
         # Compile the Delta and add it to the list.
         delete.append(DeltaDelete(meta, resource.url, del_opts.copy()))
