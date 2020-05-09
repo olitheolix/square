@@ -15,6 +15,9 @@ exclude_lines =
 omit =
     # Exclude test files from coverage report.
     tests/*
+    delme*
+    square/__main__.py
+    runme.py
 
 [html]
 directory = htmlcov
