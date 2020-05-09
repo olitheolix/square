@@ -550,7 +550,7 @@ def align_serviceaccount(
     namespace.
 
     This makes it difficult to manage service accounts with Square because the
-    token is not known in advance. Once would have to
+    token is not known in advance. One would have to
 
         square apply; square plan; square get serviceaccount
 
@@ -559,8 +559,8 @@ def align_serviceaccount(
 
     To avoid this problem, this function will read the token secret that K8s
     added (contained in `server_manifest`) and insert it into the
-    `local_manifest`. This will ensure that that Square can create a plan that
-    will not touch the token secret.
+    `local_manifest`. This will ensure that Square creates a plan that
+    leaves the token secret alone.
 
     Inputs:
         local_manifests: manifests from local files that the plan will use.
