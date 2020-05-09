@@ -4,14 +4,13 @@ FROM python:3.7.7-slim
 RUN apt update && apt install -y git
 RUN pip install pipenv pip --upgrade
 
+# Clone the repository.
+RUN git clone https://github.com/olitheolix/square.git --depth=1 /square
+WORKDIR /square
+
 # Install the dependencies for Square.
-COPY Pipfile Pipfile.lock ./
 RUN pipenv install --system
 
-# Copy Square into the container.
-WORKDIR /square
-COPY . square/
-
 # Allow convenient execution of Square in Docker.
-ENTRYPOINT ["python", "square/runme.py"]
+ENTRYPOINT ["python", "runme.py"]
 CMD ["-h"]
