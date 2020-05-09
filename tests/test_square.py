@@ -866,7 +866,7 @@ class TestPlan:
         # definition differs. This will ensure a non-empty patch in the plan.
         loc_man = srv_man = {meta: make_manifest("Namespace", None, "ns1")}
 
-        # Simulate an error in `compile_plan`.
+        # Simulate an error in `partition_manifests`.
         m_part.return_value = (None, True)
         assert sq.compile_plan(config, k8sconfig, loc_man, srv_man) == err_resp
 
