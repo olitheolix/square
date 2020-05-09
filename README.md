@@ -6,29 +6,60 @@
 [![](https://img.shields.io/badge/status-prod-green.svg)]()
 
 
-Declarative state management of a Kubernetes cluster.
+*Square* is to Kubernetes what Terraform is to Cloud: match the cluster state
+to what the local manifests dictate.
 
-*Square* is to Kubernetes management what Terraform is to Cloud management.
+Square is completely stateless. Unlike other tools, it does not create
+resources like ConfigMaps or inject special annotations to track state. The
+local manifests are all there is.
 
 # Installation
-You can install *Square* in any Python 3.7+ environment with:
-
+Grab a [binary release](https://github.com/olitheolix/square/releases) or
+install it into a Python 3.7 environment with `pip install kubernetes-square
+--upgrade`.
 ```console
-foo@bar:~$ pip install kubernetes-square
 foo@bar:~$ square version
 0.22.3
 ```
 
-Some pre-built binaries are available on the [Release
-page](https://github.com/olitheolix/square/releases), or you can
-[build your own](Building-A-Binary) for any version.
+You may also use a pre-built Docker image:
+```console
+foo@bar:~$ docker run -ti --rm olitheolix/square:v0.22.3 version
+0.22.3
+```
+
+# Usage
+A sensible first step is to create the `.square.yaml` file with `square config`
+and edit it. The only two really important fields are `kubeconfig` and
+`folder`, which denote the location of `kubeconfig` and where to store the
+manifests. You may also want to update `selectors.kinds`, `selectors.labels`
+and `selectors.namespaces` to target specific resource types with specific
+labels in specific namespaces. All other options have sensible defaults.
+
+The `.square.yaml` file is optional. All options in that file, except
+`filters`, can be passed via command line arguments.
+
+After that, the typical workflow to manage the resources specified in
+`.square.yaml` is:
+
+```console
+# Import resources from cluster (if you want to).
+square get
+
+# Show the deployment plan.
+square plan
+
+# Show the deployment plan and apply it.
+square apply
+```
 
 ## Supported Clusters And Versions
-*Square* supports standard configurations for Minikube, EKS and GKE. All tests
-assume a `v1.13` cluster but we have successfully used it with all cluster
-versions from `v1.9` to `v1.14`.
+*Square* supports Minikube, Kubernete in Docker (KinD), EKS and GKE. Any
+cluster version `v1.11+` should work.
 
 # Examples
+These example assume that you have *no* `.square.yaml`.
+
 *Square* will use the `KUBECONFIG` environment variable to locate the
 Kubernetes credentials. Alternatively, you can specify the credentials with the
 `--kubeconfig` and `--context` arguments.
@@ -66,21 +97,21 @@ all non-namespaced resources like `ClusterRole` or `ClusterRoleBinding`.
 
 The file names, as well as the manifest order inside those files are
 irrelevant. *Square* will always compile them into a flat list internally. As
-such, you are free to rename the files, or distribute their content across
-multiple files. You can still use `square get ...` afterwards and *Square* will
-update the right resources in the right files. If it finds a resource on the
-server that is not yet defined in any of the files it will create the
-corresponding file.
+such, you are free to rename the files, or move manifests across to different
+files. You can still use `square get ...` afterwards and *Square* will update
+the right resources in the right files. If it finds a resource on the server
+that is not yet defined in any of the files it will create the corresponding
+file.
 
 ### Group By Label
 *Square* can also use _one_ resource label and make it part of the manifests
-foldershierarchy. Here is an example for the [integration test
+folder hierarchy. Here is the [integration test
 cluster](integration-test-cluster):
 
 ```console
 foo@bar:~$ kubectl apply -f integration-test-cluster/test-resources.yaml
 ...
-foo@bar:~$ square get all --groupby ns label=app kind --folder manifests/
+foo@bar:~$ square get --groupby ns label=app kind --folder manifests/
 foo@bar:~$ tree manifests
 manifests/
 ├── default
@@ -137,12 +168,12 @@ manifests/
         └── serviceaccount.yaml
 ```
 
-In this case, *Square* co-located all those resources that exist inside the
-same namespace *and* have the same value for their `app` label. It put resources
-without an `app` label into the catch-all folder `_other` and non-namespaced
-resources into the `_global_` folder.
+As you can see, *Square* co-located all resources that are in the same
+namespace *and* have the same `app` label. Resources without an `app` label it
+put into the catch-all folder `_other` and non-namespaced resources into the
+`_global_` folder.
 
-## Create The Update Plan
+## Create A Plan
 Following on with the example, the local files and the cluster state
 are now in sync:
 
@@ -153,7 +184,7 @@ Plan: 0 to add, 0 to change, 0 to destroy.
 ```
 
 To make this more interesting, add a label to the _Namespace_ manifest in
-`square-tests/demoapp/namespace.yaml`. It should something like this:
+`square-tests/demoapp/namespace.yaml`. It should look something like this:
 ```yaml
 apiVersion: v1
 kind: Namespace
@@ -186,8 +217,8 @@ Plan: 0 to add, 1 to change, 0 to destroy.
 ```
 
 This will show the difference in standard `diff` format. In words: *Square*
-would patch the `default` namespace to bring the K8s cluster back into sync
-with the local files. Let's apply the plan to do just that:
+would patch the `default` namespace to bring the K8s cluster into the state
+prescribed by the local manifests. Let's apply the plan to do just that:
 
 ```console
 foo@bar:~$ square apply ns
@@ -212,10 +243,10 @@ foo@bar:~$ square plan ns
 Plan: 0 to add, 0 to change, 0 to destroy.
 ```
 
-*Square* will first print the same diff we saw earlier already, followed by the
-JSON patch it sent to K8s to update the _Namespace_ resource.
+*Square* will first print the  *diff* we saw earlier already, followed by the
+JSON patch it sent to K8s to update the _Namespace_.
 
-Use *kubectl* to ensure the patch worked and the name space now has a `foo:bar` label.
+Use *kubectl* to ensure the patch worked and the Namespace now has a `foo:bar` label.
 
 ```console
 foo@bar:~$ kubectl describe ns default
@@ -231,9 +262,9 @@ No resource limits.
 ```
 
 ## Apply The Plan To Create and Destroy Resources
-The `apply` operation we just saw is also the tool to create and delete
-resources. To add a new one, simply add its manifest to `manifests/` (create a
-new file or add it to an existing one). Then use *Square* to patch it.
+The `apply` operation we just saw will also create and delete resources as
+necessary. To add a new resource, simply add its manifest to `manifests/`. It
+does not matter if it is in a new file or added to an existing one.
 
 For instance, to deploy the latest *Square* image from
 [Dockerhub](https://hub.docker.com/r/olitheolix/square), download the [example
@@ -339,52 +370,31 @@ NAME                     READY   STATUS    RESTARTS   AGE
 square-b6bc65f6d-2xmzm   1/1     Running   0          37s
 ```
 
-# Building A Binary
-Build a shared library version of Python version with `pyenv`:
-
-```console
-# Build a new Python distribution with shared libraries.
-foo@bar:~$ pipenv --rm
-foo@bar:~$ env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.4
-foo@bar:~$ pyenv local 3.7.4
-foo@bar:~$ pip install pipenv
-
-# Install pyinstaller and run it.
-foo@bar:~$ pipenv install pyinstaller==3.6
-foo@bar:~$ pipenv run pyinstaller -n square square/__main__.py
-foo@bar:~$ pipenv run pyinstaller square.spec --onefile
-```
-
-This should produce the `./dist/square` executable.
-
-
 # Deploy On A Cluster
 *Square* does not require anything installed on your cluster to work. However,
 it will require the appropriate RBACs if you want to run it in a Pod. The
-[examples folder](examples) contains an example on how to deploy the
+[examples folder](examples) contains an example of how to deploy the
 [official Docker image](https://hub.docker.com/r/olitheolix/square).
 
 This can be useful for automation tasks. For instance, you may want to
-track configuration drift of your cluster over time.
+track the configuration drift in your cluster over time.
 
 # Use It As A Library
 You can also use *Square* as a library in your own projects. See
 [here](examples/as_library.py) for an example.
 
 # Automated Tests
-*Square* ships with a comprehensive set of unit test as well as a small set of
-integration tests.
+*Square* ships with a comprehensive set of unit tests:
 
     pipenv run pytest
 
-This will automatically run the integration tests as well if you have started
-the [KIND](https://github.com/bsycorp/kind) cluster with these commands first:
+To also pick up the integration tests you need to first start the
+[KinD](https://github.com/bsycorp/kind) cluster:
 
     cd integration-test-cluster
     ./start_cluster.sh
 
-NOTE: currently, CI runs the unit tests only.
+NOTE: the Github Actions CI only runs the unit tests.
 
 # Development Status
-We have been using *Square* for our production workloads for some time now and
-deem it stable.
+We have been using *Square* in production for months and deem it stable.
