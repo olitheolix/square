@@ -1,6 +1,6 @@
 from . import square
 
-__version__ = '0.23.0'
+__version__ = '0.23.1'
 
 # Expose the main functions of Square directly for convenience.
 get = square.get_resources
