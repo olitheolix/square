@@ -126,5 +126,7 @@ filters:
 
   Service:
     - spec:
+      - clusterIP
       - ports:
         - nodePort
+      - sessionAffinity
