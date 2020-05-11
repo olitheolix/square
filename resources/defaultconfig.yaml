@@ -58,7 +58,7 @@ priorities:
   # Custom Resources should come first.
   - CustomResourceDefinition
 
-  # Commone non-namespaced resources.
+  # Common non-namespaced resources.
   - ClusterRole
   - ClusterRoleBinding
 
