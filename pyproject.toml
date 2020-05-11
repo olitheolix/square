@@ -6,6 +6,8 @@ authors = ["Oliver Nagy <olitheolix@gmail.com>"]
 packages = [
     { include = "square" },
 ]
+include = ["resources/defaultconfig.yaml"]
+
 
 [tool.poetry.dependencies]
 colorama = "^0.4.1"
