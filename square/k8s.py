@@ -229,10 +229,10 @@ def load_eks_config(
         return (K8sConfig(), True)
 
     # Convert a None value (valid value in YAML) to an empty list of env vars.
-    env_kubeconf = env_kubeconf if env_kubeconf is not None else []
+    env_kubeconf = env_kubeconf if env_kubeconf else []
 
     # Save the certificate to a temporary file. This is only necessary because
-    # the requests library will need a path to the CA file - unfortunately, we
+    # the Requests library will need a path to the CA file - unfortunately, we
     # cannot just pass it the content.
     _, tmp = tempfile.mkstemp(text=False)
     ssl_ca_cert = Filepath(tmp)
