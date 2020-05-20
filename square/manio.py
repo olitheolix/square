@@ -596,7 +596,7 @@ def align_serviceaccount(
         )
 
         """
-        # Do nothing if the ServiceAccount has not "secrets" - should be impossible.
+        # Do nothing if the ServiceAccount has no "secrets" - should be impossible.
         try:
             secrets_dict = manifests[meta]["secrets"]
         except KeyError:
