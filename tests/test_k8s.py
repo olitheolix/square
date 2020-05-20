@@ -675,7 +675,7 @@ class TestUrlPathBuilder:
             url=f"{config.url}/apis/mycrd.com/v1",
         )
 
-        # Verify default resource versions for a Deployment.. This is specific
+        # Verify default resource versions for a Deployment. This is specific
         # to Kubernetes 1.15.
         assert config.apis[("Deployment", "")].apiVersion == "apps/v1"
 

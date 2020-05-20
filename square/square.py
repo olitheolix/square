@@ -224,7 +224,7 @@ def preferred_api(k8sconfig: K8sConfig,
             logit.critical(f"BUG: resource <{meta}> should have been valid")
             return {}, True
 
-        # Log a warning if the manifests uses an outdated API group.
+        # Log a warning if the manifest uses an outdated API group.
         if meta.apiVersion != res.apiVersion:
             logit.warning(
                 f"Switching <{res.kind} {meta.namespace}/{meta.name}>"
