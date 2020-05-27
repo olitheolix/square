@@ -941,9 +941,15 @@ class TestK8sKubeconfig:
 
         # Pretend that `aws-iam-authenticator` returned an invalid YAML.
         m_run.side_effect = None
-
         invalid_yaml = "invalid :: - yaml".encode("utf8")
         m_run.return_value = types.SimpleNamespace(stdout=invalid_yaml)
+        assert k8s.load_eks_config(fname, "eks") == err_resp
+
+        # Pretend that `aws-iam-authenticator` ran without error but
+        # returned an empty string. This typically happens if the AWS config
+        # files do not exist for the selected AWS profile.
+        m_run.side_effect = None
+        m_run.return_value = types.SimpleNamespace(stdout=b"")
         assert k8s.load_eks_config(fname, "eks") == err_resp
 
     def test_wrong_conf(self):
