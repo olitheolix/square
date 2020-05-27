@@ -255,6 +255,9 @@ def load_eks_config(
     except (KeyError, yaml.YAMLError):
         logit.error(f"Token manifest from <{cmd}> is corrupt")
         return (K8sConfig(), True)
+    except TypeError:
+        logit.error(f"The YAML token produced by <{cmd}> is corrupt")
+        return (K8sConfig(), True)
 
     # Return the config data.
     logit.info("Assuming EKS cluster.")
