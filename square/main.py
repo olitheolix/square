@@ -241,7 +241,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     else:
         clean_order = [_ if not _.startswith("label") else "label" for _ in order]
         if not set(clean_order).issubset({"ns", "kind", "label"}):
-            logit.error(f"Invalid definition of `groupby`")
+            logit.error("Invalid definition of `groupby`")
             return err_resp
 
         labels = [_ for _ in order if _.startswith("label")]
