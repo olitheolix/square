@@ -177,7 +177,7 @@ def load_gke_config(
         token = cred.token
 
     # Return the config data.
-    logit.info(f"Assuming GKE cluster.")
+    logit.info("Assuming GKE cluster.")
     return K8sConfig(
         url=cluster["server"],
         token=token,
@@ -257,7 +257,7 @@ def load_eks_config(
         return (K8sConfig(), True)
 
     # Return the config data.
-    logit.info(f"Assuming EKS cluster.")
+    logit.info("Assuming EKS cluster.")
     return K8sConfig(
         url=cluster["server"],
         token=token,
@@ -298,7 +298,7 @@ def load_minikube_config(fname: Filepath,
         )
 
         # Return the config data.
-        logit.info(f"Assuming Minikube cluster.")
+        logit.info("Assuming Minikube cluster.")
         return K8sConfig(
             url=cluster["server"],
             token="",
@@ -354,7 +354,7 @@ def load_kind_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
         client_cert = K8sClientCert(crt=p_client_crt, key=p_client_key)
 
         # Return the config data.
-        logit.debug(f"Assuming Minikube/Kind cluster.")
+        logit.debug("Assuming Minikube/Kind cluster.")
         return K8sConfig(
             url=cluster["server"],
             token="",

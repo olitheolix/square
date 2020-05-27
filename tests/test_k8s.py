@@ -32,13 +32,13 @@ class TestK8sDeleteGetPatchPost:
         # With access token.
         config = k8sconfig._replace(token="token")
         sess = k8s.session(config)
-        assert sess.headers["authorization"] == f"Bearer token"
+        assert sess.headers["authorization"] == "Bearer token"
 
         # With access token and client certificate.
         ccert = k8s.K8sClientCert(crt="foo", key="bar")
         config = k8sconfig._replace(token="token", client_cert=ccert)
         sess = k8s.session(config)
-        assert sess.headers["authorization"] == f"Bearer token"
+        assert sess.headers["authorization"] == "Bearer token"
         assert sess.cert == ("foo", "bar")
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
@@ -707,7 +707,7 @@ class TestK8sKubeconfig:
         ret, err = k8s.load_incluster_config(fname_token, fname_cert)
         assert not err
         assert ret == K8sConfig(
-            url=f'https://1.2.3.4',
+            url='https://1.2.3.4',
             token="token",
             ca_cert=fname_cert,
             client_cert=None,
