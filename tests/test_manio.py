@@ -559,8 +559,8 @@ class TestYamlManifestIO:
         selectors = Selectors({"Deployment"}, [], [])
 
         # Construct manifests like `load_files` would return them.
-        fdata_test_in = {"m0.yaml": "invalid :: - yaml"}
-        assert manio.parse(fdata_test_in, selectors) == ({}, True)
+        for data in ["scanner error :: - yaml", ": parser error -"]:
+            assert manio.parse({"m0.yaml": data}, selectors) == ({}, True)
 
         # Corrupt manifests (can happen when files are read from local YAML
         # files that are not actually K8s manifests). This one looks valid

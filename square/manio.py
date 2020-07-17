@@ -203,7 +203,7 @@ def parse(
         # Decode the YAML documents in the current file.
         try:
             manifests = list(yaml.safe_load_all(yaml_str))
-        except yaml.scanner.ScannerError as err:
+        except (yaml.parser.ParserError, yaml.scanner.ScannerError) as err:
             logit.error(
                 f"Cannot YAML parse <{fname}>"
                 f" - {err.problem} - Line {err.problem_mark.line}"
