@@ -10,6 +10,7 @@ import warnings
 from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
 
+import backoff
 import google.auth
 import google.auth.transport.requests
 import requests
@@ -549,12 +550,40 @@ def request(
         (dict, int): the JSON response and the HTTP status code.
 
     """
+    # Define the maximum number of tries and exceptions we want to retry on.
+    max_tries = 21
+    web_exceptions = (requests.exceptions.RequestException, )
+
+    def on_backoff(details):
+        """Log a warning whenever we retry."""
+        tries = details["tries"]
+        logit.warning(f"Backing off on {url} (Attempt {tries}/{max_tries-1})")
+
+    """
+    Use linear backoff. The backoff is not exponential because the most
+    prevalent use case for this backoff we have seen so far is to wait for
+    new resource endpoints to become available. These may take a few seconds,
+    or tens of seconds to do so. If we used an exponential strategy we may
+    end up waiting for a very long time for no good reason. The time between
+    backoffs is fairly large to avoid hammering the API. Jitter is disabled
+    because the irregular intervals are irritating in an interactive tool.
+    """
+    @backoff.on_exception(backoff.constant, web_exceptions,
+                          max_tries=max_tries,
+                          interval=3,
+                          max_time=5,
+                          on_backoff=on_backoff,
+                          logger=None,
+                          jitter=None,
+                          )
+    def _call(*args, **kwargs):
+        return client.request(method, url, json=payload, headers=headers, timeout=30)
+
+    # Make the web request via our backoff/retry handler.
     try:
-        ret = client.request(method, url, json=payload, headers=headers, timeout=30)
-    except requests.exceptions.ConnectionError as err:
-        method = err.request.method
-        url = err.request.url
-        logit.error(f"Connection error: {method} {url}")
+        ret = _call()
+    except web_exceptions as err:
+        logit.error(f"{err} ({method} {url})")
         return ({}, True)
 
     try:
