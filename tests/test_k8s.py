@@ -2,6 +2,8 @@ import json
 import os
 import pathlib
 import random
+import sys
+import time
 import types
 import unittest.mock as mock
 
@@ -19,6 +21,12 @@ from .test_helpers import kind_available
 def m_requests(request):
     with requests_mock.Mocker() as m:
         yield m
+
+
+@pytest.fixture
+def nosleep():
+    with mock.patch.object(time, "sleep") as m_sleep:
+        yield m_sleep
 
 
 class TestK8sDeleteGetPatchPost:
@@ -96,7 +104,7 @@ class TestK8sDeleteGetPatchPost:
         assert ret == ({}, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    def test_request_connection_err(self, method, m_requests):
+    def test_request_connection_err(self, method, m_requests, nosleep):
         """Simulate an unsuccessful K8s response for GET request."""
         # Dummies for K8s API URL and `requests` session.
         url = 'http://examples.com/'
@@ -112,6 +120,42 @@ class TestK8sDeleteGetPatchPost:
         m_requests.request(method, url, exc=exc)
         ret = k8s.request(client, method, url, None, None)
         assert ret == ({}, True)
+
+    @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
+    def test_request_retries(self, nosleep, method):
+        """Simulate various error scenarios and verify the backoff."""
+        # Dummies for K8s API URL and `requests` session.
+        url = 'http://localhost:12345/'
+        client = k8s.requests.Session()
+
+        # Test function must not return a response but indicate an error.
+        ret = k8s.request(client, method, url, None, None)
+        assert ret == ({}, True)
+
+        # Windows is different. No idea why but it refuses to connect more than
+        # three times. Mac and Linux behave as expected.
+        if sys.platform.startswith("win"):
+            assert nosleep.call_count == 3
+        else:
+            assert nosleep.call_count == 20
+
+    @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
+    def test_request_invalid(self, nosleep, method):
+        """Simulate various error scenarios and verify the backoff."""
+        # Dummies for K8s API URL and `requests` session.
+        url = 'http://localhost:12345/'
+        client = k8s.requests.Session()
+
+        urls = [
+            "localhost",        # missing schema like "http://"
+            "httpinvalid://localhost",
+            "http://localhost-does-not-exist",
+        ]
+
+        # Test function must not return a response but indicate an error.
+        for url in urls:
+            ret = k8s.request(client, method, url, None, None)
+            assert ret == ({}, True)
 
     @mock.patch.object(k8s, "request")
     def test_delete_get_patch_post_ok(self, m_req):
