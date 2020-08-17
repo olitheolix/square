@@ -6,7 +6,7 @@ set -e
 #                            Bootstrap Kind Cluster
 # ------------------------------------------------------------------------------
 # Start the KIND container.
-docker run -dit --privileged -p 8443:8443 -p 10080:10080 bsycorp/kind:latest-1.15
+docker run -dit --privileged -p 8443:8443 -p 10080:10080 bsycorp/kind:latest-1.16
 
 # Wait until the KIND cluster is operational.
 printf "\n\n### Booting KIND Cluster: "
