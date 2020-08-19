@@ -65,8 +65,8 @@ class K8sClientCert(NamedTuple):
 class MetaManifest(NamedTuple):
     """Minimum amount of information to uniquely identify a K8s resource.
 
-    The primary purpose of this tuple is as to provide an immutable UUID that
-    we can use as keys in dictionaries or entries in a set.
+    The primary purpose of this tuple is to provide an immutable UUID that
+    we can use as keys in dictionaries and sets.
 
     """
     apiVersion: str
@@ -81,7 +81,7 @@ class K8sResource(NamedTuple):
     kind: str         # "Deployment" (as specified in manifest)
     name: str         # "deployment" (usually lower case version of above)
     namespaced: bool  # Whether or not the resource is namespaced.
-    url: str          # API endpoint, eg "k8s-host.com//api/v1/pods".
+    url: str          # API endpoint, eg "k8s-host.com/api/v1/pods".
 
 
 class K8sConfig(NamedTuple):
