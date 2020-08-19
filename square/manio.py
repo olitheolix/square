@@ -13,8 +13,8 @@ import square.schemas
 import yaml
 import yaml.scanner
 from square.dtypes import (
-    Config, Filepath, GroupBy, K8sConfig, LocalManifestLists, MetaManifest,
-    Selectors, ServerManifests,
+    Config, Filepath, GroupBy, K8sConfig, K8sResource, LocalManifestLists,
+    MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -970,3 +970,28 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[ServerManifests, boo
                 # Copy the manifests into the output dictionary.
                 server_manifests.update(manifests)
     return (server_manifests, False)
+
+
+def download_single(k8sconfig: K8sConfig,
+                    resource: K8sResource) -> Tuple[MetaManifest, dict, bool]:
+    """Similar to `download(...)` but only for a single Kubernetes `resource`.
+
+    Inputs:
+        k8sconfig: K8sConfig
+        resource: K8sResource
+
+    Returns:
+        MetaManifest, manifest: the K8s (meta)manifest.
+
+    """
+    try:
+        # Download the resource.
+        manifest, err = square.k8s.get(k8sconfig.client, resource.url)
+        assert not err
+
+        manifest, _, err = strip(k8sconfig, manifest, {})
+        assert not err
+    except AssertionError:
+        return (MetaManifest("", "", "", ""), {}, True)
+
+    return (make_meta(manifest), manifest, False)
