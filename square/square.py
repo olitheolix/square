@@ -4,7 +4,7 @@ import logging
 import re
 from collections import Counter
 from types import SimpleNamespace
-from typing import Collection, Optional, Set, Tuple
+from typing import Collection, List, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
@@ -190,53 +190,75 @@ def partition_manifests(
     return (plan, False)
 
 
-def preferred_api(k8sconfig: K8sConfig,
-                  local: ServerManifests) -> Tuple[ServerManifests, bool]:
-    """Return a new version of `local` where all APIs point to the preferred group.
+def match_api_version(
+        k8sconfig: K8sConfig,
+        local: ServerManifests,
+        server: ServerManifests) -> Tuple[ServerManifests, bool]:
+    """Fetch the manifests from the endpoints defined in the local manifest.
 
-    Example:
-      in = {
-        MetaManifest(apiVersion='extensions/v1beta1', kind='Ingress', ...): {
-          'apiVersion': 'networking.k8s.io/v1beta1',
-          ...
-        }
-      }
-      out = {
-        MetaManifest(apiVersion='networking.k8s.io/v1beta1', kind='Ingress', ...): {
-          'apiVersion': 'networking.k8s.io/v1beta1',
-          ...
-        }
-      }
+    If a local manifest uses a different value for `apiVersion` then we need to
+    re-fetch those manifests from K8s via that endpoint. This function does
+    just that.
+
+    This function returns `server` verbatim if there is no overlap with
+    `server` and `local`.
+
+    Inputs:
+        config: Square configuration.
+        k8sconfig: K8sConfig
+        local: ServerManifests
+            Should be output from `load_manifest` or `load`.
+        server: ServerManifests
+            Should be output from `manio.download`.
+
+    Returns:
+        `server` but possibly with some entries re-fetched from the same K8s
+        endpoint that the equivalent resource in `local` specifies.
 
     """
-    # Check the API version in each MetaManifest and update it to the preferred
-    # version in both the MetaManifest and the associated K8s YAML manifest.
-    out = {}
-    for meta, manifest in local.items():
-        # The current `meta` can be outdated but must still be a valid resource
-        # in the current cluster.
-        if k8s.resource(k8sconfig, meta)[1]:
-            return {}, True
+    # Avoid side effects.
+    server = copy.deepcopy(server)
 
-        # Get the canonical resource description.
-        res, err = k8s.resource(k8sconfig, meta._replace(apiVersion=""))
-        if err:
-            logit.critical(f"BUG: resource <{meta}> should have been valid")
-            return {}, True
+    # Find the resources that exist in local manifests and on K8s. The
+    # resources are identical if their MetaManifest are identical save for the
+    # `apiVersion` field.
+    mm_loc = {meta._replace(apiVersion=""): meta for meta in local}
+    mm_srv = {meta._replace(apiVersion=""): meta for meta in server}
+    meta_overlap = set(mm_loc.keys()) & set(mm_srv.keys())
 
-        # Log a warning if the manifest uses an outdated API group.
-        if meta.apiVersion != res.apiVersion:
-            logit.warning(
-                f"Switching <{res.kind} {meta.namespace}/{meta.name}>"
-                f" from <{meta.apiVersion}> to <{res.apiVersion}>"
-                " - Please update your manifests."
-            )
+    # Iterate over all the resources that exist on both the server and locally,
+    # even though they may use different API versions.
+    to_download: List[MetaManifest] = []
+    for meta in meta_overlap:
+        # Lookup the full MetaManifest for the local and server resource.
+        # NOTE: meta_{loc,srv} are identical except possibly for the `apiVersion` field.
+        meta_loc = mm_loc[meta]
+        meta_srv = mm_srv[meta]
 
-            # Update the API version for the resource to whatever K8s prefers.
-            meta = meta._replace(apiVersion=res.apiVersion)
-            manifest["apiVersion"] = meta.apiVersion
-        out[meta] = manifest
-    return out, False
+        # Do nothing if the `apiVersions` match because we can already compute a
+        # plan for it. However, if the `apiVersions` differ then we will
+        # replace entry in `server` with the one fetched from the correct K8s
+        # endpoint (see next section).
+        if meta_loc != meta_srv:
+            del server[meta_srv]
+            to_download.append(meta_loc)
+            logit.warning(f"Fetching non-default <{meta_loc._replace(name='')}>")
+
+    # Re-fetch the resources we already got but this time from the correct endpoint.
+    for meta in to_download:
+        # Construct the correct K8sResource.
+        resource, err = square.k8s.resource(k8sconfig, meta)
+        assert not err
+
+        # Download all resources of the current kind.
+        meta, manifest, err = manio.download_single(k8sconfig, resource)
+        assert not err
+
+        # Add the resource to the `server` dict. This will have been one of
+        # those we deleted a few lines earlier.
+        server[meta] = manifest
+
+    return server, False
 
 
 def compile_plan(
@@ -264,6 +286,15 @@ def compile_plan(
     """
     err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
+    # Abort unless all local manifests reference valid K8s resource kinds.
+    if any([k8s.resource(k8sconfig, meta)[1] for meta in local]):
+        return err_resp
+
+    # Replace the server resources fetched from the K8s preferred endpoint with
+    # those fetched from the endpoint used by the local manifest.
+    server, err = match_api_version(k8sconfig, local, server)
+    assert not err
+
     # Apply the filters to all local and server manifests before we compute patches.
     server = {
         meta: manio.strip(k8sconfig, man, config.filters)
@@ -285,12 +316,6 @@ def compile_plan(
     # `manio.strip`).
     server = {k: square.dotdict.undo(v[0]) for k, v in server.items()}
     local = {k: square.dotdict.undo(v[0]) for k, v in local.items()}
-
-    # Replace the API group of the local resource with the one K8s prefers.
-    local, err = preferred_api(k8sconfig, local)
-    if err:
-        logit.error("Could not determine the preferred APIs for all manifests.")
-        return err_resp
 
     # Partition the set of meta manifests into create/delete/patch groups.
     plan, err = partition_manifests(local, server)

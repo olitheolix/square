@@ -458,53 +458,181 @@ class TestPatchK8s:
         assert sq.make_patch(config, k8sconfig, loc, srv) == (JsonPatch("", []), True)
 
 
+class TestMatchApiVersions:
+    @mock.patch.object(square.manio, "download_single")
+    def test_match_api_version_basic(self, m_fetch, k8sconfig):
+        """Define tow resources and verify the test function downloads the one
+        where the `apiVersion` does not match.
+
+        """
+        # Create local and server manifests. Both specify the same two resources
+        # but the Deployment uses different `apiVersions`.
+        meta_deploy_loc = MetaManifest("extensions/v1beta1", "Deployment", "ns", "name")
+        meta_deploy_srv = MetaManifest("apps/v1", "Deployment", "ns", "name")
+        local = {
+            MetaManifest("v1", "Namespace", None, "ns1"): {"ns-loc"},
+            meta_deploy_loc: {"dply-loc"},
+        }
+        server_in = {
+            MetaManifest("v1", "Namespace", None, "ns1"): {"ns-srv"},
+            meta_deploy_srv: {"orig-srv"},
+        }
+
+        # Mock the resource download to supply it from the correct API endpoint.
+        resource, err = square.k8s.resource(k8sconfig, meta_deploy_loc)
+        assert not err
+        m_fetch.return_value = (meta_deploy_loc, {"new-srv"}, False)
+        del err
+
+        # Test function must have re-downloaded the Deployment from the
+        # `extensions/v1beta1` endpoint.
+        srv, err = square.square.match_api_version(k8sconfig, local, server_in)
+        assert not err and srv == {
+            MetaManifest("v1", "Namespace", None, "ns1"): {"ns-srv"},
+            MetaManifest("extensions/v1beta1", "Deployment", "ns", "name"): {"new-srv"},
+        }
+
+        # Must have downloaded the deployments.
+        m_fetch.assert_called_once_with(k8sconfig, resource)
+
+    @mock.patch.object(square.manio, "download_single")
+    def test_match_api_version_namespace(self, m_fetch, k8sconfig):
+        """Define a set of resources and verify the function downloads the ones
+        where the `apiVersion` fields do not match.
+
+        """
+        # Create local and server manifests. Both specify the same two resources
+        # but the Deployment uses different `apiVersions`.
+        local = {
+            MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy-1"},
+            MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy-2"},
+        }
+        server_in = {
+            # Same as in `local`
+            MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy-1"},
+
+            # Different than in `local`.
+            MetaManifest("apps/v1beta1", "Deployment", "name", "ns2"): {"deploy-2"},
+        }
+
+        # Mock the resource download to supply it from the correct API endpoint.
+        meta = MetaManifest("apps/v1beta2", "Deployment", "name", "ns2")
+        assert meta in local
+        resource, err = square.k8s.resource(k8sconfig, meta)
+        assert not err
+        m_fetch.return_value = (meta, {"new-deploy-2"}, False)
+        del err
+
+        # Test function must have re-downloaded the Deployment from the
+        # `extensions/v1beta1` endpoint.
+        srv, err = square.square.match_api_version(k8sconfig, local, server_in)
+        assert not err and srv == {
+            MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy-1"},
+            MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"new-deploy-2"},
+        }
+
+        # Must have downloaded the deployments.
+        m_fetch.assert_called_once_with(k8sconfig, resource)
+
+    @mock.patch.object(square.manio, "download_single")
+    def test_match_api_version_multi(self, m_fetch, k8sconfig):
+        """Mix multiple deployments, some of which need re-downloading."""
+        # Create local and server manifests. Both specify the same two resources
+        # but the Deployment uses different `apiVersions`.
+        local_in = {
+            # These two exist on server as well (same API version).
+            MetaManifest("apps/v1", "Deployment", "ns", "name-1"): {"loc-deploy-1"},
+            MetaManifest("apps/v1beta1", "Deployment", "ns", "name-2"): {"loc-deploy-2"},
+
+            # Also exists on server but with different version.
+            MetaManifest("apps/v1beta1", "Deployment", "ns", "name-3"): {"loc-deploy-3"},
+        }
+        server_in = {
+            # These two exist locally as well (same API version).
+            MetaManifest("apps/v1", "Deployment", "ns", "name-1"): {"srv-deploy-1"},
+            MetaManifest("apps/v1beta1", "Deployment", "ns", "name-2"): {"srv-deploy-2"},
+
+            # Also exists locally but with different version.
+            MetaManifest("apps/v1beta2", "Deployment", "ns", "name-3"): {"loc-deploy-3"},
+        }
+
+        # Mock the resource download to supply it from the correct API endpoint.
+        meta = MetaManifest("apps/v1beta1", "Deployment", "ns", "name-3")
+        resource, err = square.k8s.resource(k8sconfig, meta)
+        assert not err
+        m_fetch.return_value = (meta, {"new-deploy-3"}, False)
+        del err
+
+        # Test function must have re-downloaded the Deployment "name-3" from the
+        # `apps/v1beta1` endpoint because that is what the local manifest uses.
+        srv, err = square.square.match_api_version(k8sconfig, local_in, server_in)
+        assert not err and srv == {
+            MetaManifest("apps/v1", "Deployment", "ns", "name-1"): {"srv-deploy-1"},
+            MetaManifest("apps/v1beta1", "Deployment", "ns", "name-2"): {"srv-deploy-2"},
+
+            # This must have been downloaded.
+            MetaManifest("apps/v1beta1", "Deployment", "ns", "name-3"): {"new-deploy-3"},
+        }
+
+        # Must have downloaded exactly one deployment, namely `name-3`.
+        m_fetch.assert_called_once_with(k8sconfig, resource)
+
+    @mock.patch.object(square.manio, "download_single")
+    def test_match_api_version_nothing_to_do(self, m_fetch, k8sconfig):
+        """Test various cases where the function must not do anything.
+
+        There are two cases where it must not download a resource form K8s again:
+          1) Local/Server use identical API endpoints the resource.
+          2) Resource exists either on server or locally but not both.
+
+        """
+        fun = square.square.match_api_version
+
+        # Must not have downloaded anything.
+        srv, err = fun(k8sconfig, {}, {})
+        assert not err and srv == {}
+        assert not m_fetch.called
+
+        # Local and server manifests are identical - must not synchronise anything.
+        local_in = {
+            MetaManifest("v1", "Namespace", None, "ns1"): {"ns-loc"},
+            MetaManifest("apps/v1", "Deployment", "ns", "name"): {"dply-loc"},
+        }
+        srv, err = fun(k8sconfig, local_in, local_in)
+        assert not err and srv == local_in
+        assert not m_fetch.called
+
+        # Local- and server manifests have identical Service resource but two
+        # completely different deployments. Must not sync anything because the
+        # deployments are actually different resources.
+        local_in = {
+            MetaManifest("v1", "Service", "svc-name", "ns1"): {"ns-loc"},
+            MetaManifest("apps/v1", "Deployment", "ns", "foo"): {"dply-loc"},
+        }
+        server_in = {
+            MetaManifest("v1", "Service", "svc-name", "ns1"): {"ns-srv"},
+            MetaManifest("extensions/v1beta1", "Deployment", "ns", "bar"): {"orig-srv"},
+        }
+        srv, err = fun(k8sconfig, local_in, server_in)
+        assert not err and srv == server_in
+        assert not m_fetch.called
+
+        # Local- and server manifests have matching Deployments in two
+        # different namespaces.
+        local_in = {
+            MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy-1"},
+            MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy-2"},
+        }
+        server_in = {
+            MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy-1"},
+            MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy-2"},
+        }
+        srv, err = fun(k8sconfig, local_in, server_in)
+        assert not err and srv == server_in
+        assert not m_fetch.called
+
+
 class TestPlan:
-    def test_preferred_api(self, k8sconfig):
-        """Convert resources to preferred API groups."""
-        # Define a namespaces with an Ingress. The Ingress uses the legacy API group.
-        meta = [
-            MetaManifest("v1", "Namespace", None, "ns1"),
-            MetaManifest("networking.k8s.io/v1beta1", "Ingress", "ns", "name"),
-            MetaManifest("extensions/v1beta1", "Ingress", "ns", "name"),
-        ]
-
-        # Create dummy manifests to go along with the MetaManifests.
-        ref = [make_manifest(_.kind, _.namespace, _.name) for _ in meta]
-
-        # Local and server manifests are identical. The plan must therefore
-        # only nominate patches but nothing to create or delete.
-        src = {
-            # Namspace.
-            meta[0]: ref[0],
-
-            # Ingress in "networking.k8s.io/v1beta1".
-            meta[1]: ref[1],
-        }
-        expected = {
-            # Namespace (same as in `src`).
-            meta[0]: ref[0],
-
-            # Must have changed Ingress to "extensions/v1beta".
-            meta[2]: ref[2],
-        }
-
-        assert sq.preferred_api(k8sconfig, src) == (expected, False)
-
-    def test_preferred_api_err(self, k8sconfig):
-        """Gracefully abort for unknown APIs."""
-        # Define an invalid resource and create a dummy manifest to go along
-        # with it.
-        meta = MetaManifest("invalid", "Namespace", None, "ns1")
-        manifest = make_manifest(meta.kind, meta.namespace, meta.name)
-
-        # Function must return an error because the resource is invalid.
-        assert sq.preferred_api(k8sconfig, {meta: manifest}) == ({}, True)
-
-        # Simulate an error in the second call to Urlpath.
-        with mock.patch.object(sq.k8s, "resource") as m_url:
-            m_url.side_effect = [(None, False), ({}, True)]
-            assert sq.preferred_api(k8sconfig, {meta: manifest}) == ({}, True)
-
     def test_make_patch_ok(self, config, k8sconfig):
         """Compute patch between two manifests.
 
@@ -705,9 +833,8 @@ class TestPlan:
         assert ret.create == expected.create
         assert (ret, err) == (expected, False)
 
-    @mock.patch.object(sq, "partition_manifests")
-    @mock.patch.object(sq, "preferred_api")
-    def test_compile_plan_create_delete_err(self, m_api, m_part, config, k8sconfig):
+    @mock.patch.object(sq, "match_api_version")
+    def test_compile_plan_create_delete_err(self, m_part, config, k8sconfig):
         """Simulate `resource` errors."""
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
@@ -722,7 +849,6 @@ class TestPlan:
             DeploymentPlan(create=[meta], patch=[], delete=[]),
             False,
         )
-        m_api.side_effect = lambda _, data: (data, False)
 
         # We must not be able to compile a plan because of the `resource` error.
         with mock.patch.object(sq.k8s, "resource") as m_url:
@@ -755,39 +881,6 @@ class TestPlan:
 
         expected = DeploymentPlan(create=[], patch=[], delete=[])
         assert sq.compile_plan(config, k8sconfig, src, src) == (expected, False)
-
-    def test_compile_plan_patch_no_diff_except_api_group(self, config, k8sconfig):
-        """Test a plan that patches no resources.
-
-        The local and server manifests are identical except for the API
-        version. The plan must still be empty because Square adapts the local
-        manifests to the default API group.
-
-        """
-        # Define a namespaces with an Ingress. The Ingress uses the legacy API group.
-        meta = [
-            MetaManifest("v1", "Namespace", None, "ns1"),
-            MetaManifest("networking.k8s.io/v1beta1", "Ingress", "ns", "name"),
-            MetaManifest("extensions/v1beta1", "Ingress", "ns", "name"),
-        ]
-
-        # Create dummy manifests to go along with the MetaManifests.
-        mani = [make_manifest(_.kind, _.namespace, _.name) for _ in meta]
-
-        # Local and server manifests are identical. The plan must therefore
-        # only nominate patches but nothing to create or delete.
-        loc_man = {
-            meta[0]: make_manifest("Namespace", None, mani[0]),
-            meta[1]: make_manifest("Ingress", "ns1", mani[1]),
-        }
-        srv_man = {
-            meta[0]: make_manifest("Namespace", None, mani[0]),
-            meta[2]: make_manifest("Ingress", "ns1", mani[2]),
-        }
-
-        expected = DeploymentPlan(create=[], patch=[], delete=[])
-        ret = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
-        assert ret == (expected, False)
 
     def test_compile_plan_invalid_api_version(self, config, k8sconfig):
         """Test a plan that patches no resources.
