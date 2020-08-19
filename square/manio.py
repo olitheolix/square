@@ -155,7 +155,7 @@ def unpack_list(manifest_list: dict,
         logit.error(f"Kind {kind} is not a list")
         return ({}, True)
 
-    # Strip of the "List".
+    # Strip off the "List" suffix from eg "DeploymentList".
     kind = kind[:-4]
 
     # Convenience.
@@ -934,14 +934,14 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[ServerManifests, boo
         for kind in sorted(config.selectors.kinds):
             # Get the K8s URL for the current resource kind. Ignore this
             # resource if K8s does not know about it. The reason for that could
-            # by a typo or that it is a custom resource that does not (yet) exist.
+            # be a typo or that it is a Custom Resource that does not (yet) exist.
             resource, err = square.k8s.resource(k8sconfig, MetaManifest("", kind, namespace, ""))  # noqa
             if err:
                 logit.warning(f"Skipping unknown resource <{kind}>")
                 continue
 
             try:
-                # Download the resource list from K8s.
+                # Download the resource manifests for the current `kind` from K8s.
                 manifest_list, err = square.k8s.get(k8sconfig.client, resource.url)
                 assert not err and manifest_list is not None
 
@@ -958,10 +958,10 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[ServerManifests, boo
                 err = any((v[2] for v in ret.values()))
                 assert not err
 
-                # Unpack the stripped manifests from the `strip` response.
-                # The "if v[0] is not None" is to satisfy MyPy - we already
-                # know they are not None or otherwise the previous assert would
-                # have failed.
+                # Unpack the stripped manifests from the `strip` response. The
+                # "if v[0] is not None" statement exists to satisfy MyPy - we
+                # already know they are not None or otherwise the previous
+                # assert would have failed.
                 manifests = {k: v[0] for k, v in ret.items() if v[0] is not None}
             except AssertionError:
                 # Return nothing, even if we had downloaded other kinds already.

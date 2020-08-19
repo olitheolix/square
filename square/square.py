@@ -244,7 +244,7 @@ def compile_plan(
         k8sconfig: K8sConfig,
         local: ServerManifests,
         server: ServerManifests) -> Tuple[DeploymentPlan, bool]:
-    """Return the `DeploymentPlan` to transition K8s to state of `local`.
+    """Return the `DeploymentPlan` to transition K8s to the `local` state.
 
     The deployment plan is a named tuple. It specifies which resources to
     create, patch and delete to ensure that the state of K8s matches that
@@ -281,8 +281,8 @@ def compile_plan(
         logit.error("Could not strip all manifests.")
         return err_resp
 
-    # Unpack the stripped manifests (`manio.strip` returned a tuple with three
-    # entries, and here we unpack the first one because it is the stripped manifest).
+    # Unpack the stripped manifests (first element in the tuple returned from
+    # `manio.strip`).
     server = {k: square.dotdict.undo(v[0]) for k, v in server.items()}
     local = {k: square.dotdict.undo(v[0]) for k, v in local.items()}
 

@@ -688,8 +688,7 @@ class TestPlan:
             "orphanDependents": False,
         }
 
-        # Resources from local files must be created, resources on server must
-        # be deleted.
+        # Resources declared in local files must be created and server resources deleted.
         expected = DeploymentPlan(
             create=[
                 DeltaCreate(meta[0], res[0].url, loc_man[meta[0]]),
@@ -717,7 +716,7 @@ class TestPlan:
         meta = manio.make_meta(man)
         man = {meta: man}
 
-        # Pretend we only have to "create" resources, and then trigger the
+        # Pretend we only have to "create" resources and then trigger the
         # `resource` error in its code path.
         m_part.return_value = (
             DeploymentPlan(create=[meta], patch=[], delete=[]),
@@ -741,13 +740,7 @@ class TestPlan:
             assert sq.compile_plan(config, k8sconfig, man, man) == err_resp
 
     def test_compile_plan_patch_no_diff(self, config, k8sconfig):
-        """Test a plan that patches no resources.
-
-        To do this, the local and server resources are identical. As a
-        result, the returned plan must nominate all manifests for patching, and
-        none to create and delete.
-
-        """
+        """The plan must be empty if the local and server manifests are too."""
         # Define two namespaces with 1 deployment in each.
         meta = [
             MetaManifest('v1', 'Namespace', None, 'ns1'),
@@ -834,7 +827,7 @@ class TestPlan:
         loc_man[meta]["metadata"]["labels"] = {"foo": "foo"}
         srv_man[meta]["metadata"]["labels"] = {"bar": "bar"}
 
-        # Compute the JSON patch and textual diff to populated the expected
+        # Compute the JSON patch and textual diff to populate the expected
         # output structure below.
         patch, err = sq.make_patch(config, k8sconfig, loc_man[meta], srv_man[meta])
         assert not err
