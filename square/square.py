@@ -242,7 +242,10 @@ def match_api_version(
         if meta_loc != meta_srv:
             del server[meta_srv]
             to_download.append(meta_loc)
-            logit.warning(f"Fetching non-default <{meta_loc._replace(name='')}>")
+            logit.warning(
+                f"Using non-default {meta.kind.upper()} endpoint "
+                f"<{meta_loc.apiVersion}>"
+            )
 
     # Re-fetch the resources we already got but this time from the correct endpoint.
     for meta in to_download:

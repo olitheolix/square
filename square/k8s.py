@@ -907,7 +907,7 @@ def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
 
         # Log the available options. Mark the one Square chose with a "*".
         tmp = [_ if _ != version else f"*{_}*" for _ in all_apis]
-        logit.info(f"Ambiguous <{kind}> endpoints: {tmp}")
+        logit.info(f"Ambiguous {kind.upper()} endpoints: {tmp}")
 
     # Compile the set of all resource kinds that this Kubernetes cluster supports.
     for kind, _ in k8sconfig.apis:
