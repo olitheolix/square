@@ -892,7 +892,6 @@ def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
         # simply to look for one that is neither alpha nor beta. In Kubernetes
         # v1.15 this resolves almost all disputes.
         all_apis = list(sorted([_.apiVersion for _ in resources]))
-        logit.info(f"Ambiguous <{kind}> endpoints: {all_apis}")
 
         # Remove all alpha/beta resources.
         prod_apis = [_ for _ in all_apis if not ("alpha" in _ or "beta" in _)]
@@ -905,6 +904,10 @@ def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
         apis.sort()
         version = apis.pop()
         k8sconfig.apis[(kind, "")] = [_ for _ in resources if _.apiVersion == version][0]
+
+        # Log the available options. Mark the one Square chose with a "*".
+        tmp = [_ if _ != version else f"*{_}*" for _ in all_apis]
+        logit.info(f"Ambiguous <{kind}> endpoints: {tmp}")
 
     # Compile the set of all resource kinds that this Kubernetes cluster supports.
     for kind, _ in k8sconfig.apis:
