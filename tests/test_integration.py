@@ -1,3 +1,4 @@
+import copy
 import pathlib
 import time
 import unittest.mock as mock
@@ -373,3 +374,120 @@ class TestMainPlan:
         plan_4, err = square.square.make_plan(config)
         assert not err
         assert plan_4.create == plan_4.patch == plan_4.delete == []
+
+    def test_nondefault_resources(self, tmp_path):
+        """Manage an `autoscaling/v1` and `autoscaling/v2beta` at the same time.
+
+        This test is designed to verify that Square will interrogate the
+        correct K8s endpoint versions to compute the plan for a resource.
+
+        """
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        config = Config(
+            folder=tmp_path,
+            groupby=GroupBy(label="app", order=[]),
+            kubecontext=None,
+            kubeconfig=Filepath("/tmp/kubeconfig-kind.yaml"),
+            selectors=Selectors(
+                kinds={"Namespace", "HorizontalPodAutoscaler"},
+                namespaces=["test-hpa"],
+                labels=[]),
+        )
+
+        # Copy the manifest with the namespace and the two HPAs to the temporary path.
+        manifests = list(yaml.safe_load_all(open("tests/support/k8s-test-hpa.yaml")))
+        man_path = tmp_path / "manifest.yaml"
+        man_path.write_text(yaml.dump_all(manifests))
+        assert len(manifests) == 3
+
+        # ---------------------------------------------------------------------
+        # Deploy the resources: one namespace with two HPAs in it. On will be
+        # deployed via `autoscaling/v1` the other via `autoscaling/v2beta2`.
+        # ---------------------------------------------------------------------
+        sh.kubectl("apply", "--kubeconfig", config.kubeconfig,
+                   "-f", str(man_path))
+
+        # ---------------------------------------------------------------------
+        # The plan must be empty because Square must have interrogated the
+        # correct API endpoints for each HPA.
+        # ---------------------------------------------------------------------
+        plan_1, err = square.square.make_plan(config)
+        assert not err
+        assert plan_1.create == plan_1.patch == plan_1.delete == []
+        del plan_1
+
+        # ---------------------------------------------------------------------
+        # Modify the v2beta2 HPA manifest and verify that Square now wants to
+        # patch that resource.
+        # ---------------------------------------------------------------------
+        # Make a change to the manifest and save it.
+        tmp_manifests = copy.deepcopy(manifests)
+        assert tmp_manifests[2]["apiVersion"] == "autoscaling/v2beta2"
+        tmp_manifests[2]["spec"]["metrics"][0]["external"]["metric"]["name"] = "foo"
+        man_path.write_text(yaml.dump_all(tmp_manifests))
+
+        # The plan must report one patch.
+        plan_2, err = square.square.make_plan(config)
+        assert not err
+        assert plan_2.create == plan_2.delete == [] and len(plan_2.patch) == 1
+        assert plan_2.patch[0].meta.name == "hpav2beta2"
+        assert plan_2.patch[0].meta.apiVersion == "autoscaling/v2beta2"
+        del plan_2
+
+        # ---------------------------------------------------------------------
+        # Delete both HPAs with Square.
+        # ---------------------------------------------------------------------
+        # Keep only the namespace manifest and save the file.
+        tmp_manifests = copy.deepcopy(manifests[:1])
+        man_path.write_text(yaml.dump_all(tmp_manifests))
+
+        # Square must now want to delete both HPAs.
+        plan_3, err = square.square.make_plan(config)
+        assert not err
+        assert plan_3.create == plan_3.patch == [] and len(plan_3.delete) == 2
+        assert {_.meta.name for _ in plan_3.delete} == {"hpav1", "hpav2beta2"}
+        assert not square.square.apply_plan(config, plan_3)
+        del plan_3
+
+        # ---------------------------------------------------------------------
+        # Re-create both HPAs with Square.
+        # ---------------------------------------------------------------------
+        # Restore the original manifest file.
+        man_path.write_text(yaml.dump_all(manifests))
+
+        # Create a plan. That plan must want to restore both HPAs.
+        plan_4, err = square.square.make_plan(config)
+        assert not err
+        assert plan_4.delete == plan_4.patch == [] and len(plan_4.create) == 2
+        assert {_.meta.name for _ in plan_4.create} == {"hpav1", "hpav2beta2"}
+        assert {_.meta.apiVersion for _ in plan_4.create} == {
+            "autoscaling/v1", "autoscaling/v2beta2"
+        }
+        assert not square.square.apply_plan(config, plan_4)
+        del plan_4
+
+        # Apply the plan.
+        plan_5, err = square.square.make_plan(config)
+        assert not err
+        assert plan_5.create == plan_5.patch == plan_5.delete == []
+        del plan_5
+
+        # ---------------------------------------------------------------------
+        # Verify that a change in the `apiVersion` would mean a patch.
+        # ---------------------------------------------------------------------
+        # Manually change the API version of one of the HPAs.
+        tmp_manifests = copy.deepcopy(manifests)
+        del manifests
+        assert tmp_manifests[1]["apiVersion"] == "autoscaling/v1"
+        tmp_manifests[1]["apiVersion"] = "autoscaling/v2beta2"
+        man_path.write_text(yaml.dump_all(tmp_manifests))
+
+        # Square must now produce a single non-empty patch.
+        plan_6, err = square.square.make_plan(config)
+        assert not err
+        assert plan_6.delete == plan_6.create == [] and len(plan_6.patch) == 1
+        assert plan_6.patch[0].meta.name == "hpav1"
+        assert plan_6.patch[0].meta.apiVersion == "autoscaling/v2beta2"

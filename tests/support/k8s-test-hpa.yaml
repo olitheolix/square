@@ -1,0 +1,62 @@
+# This namespace will hold an HPA beta resource that does not match the
+# preferred API reported by K8s. The primary purpose of this resource is to test
+# custom `apiVersion` in the manifest.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: test-hpa
+  labels:
+    app: test-hpa
+spec:
+  finalizers:
+  - kubernetes
+
+---
+
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  labels:
+    app: hpav1
+  name: hpav1
+  namespace: test-hpa
+spec:
+  maxReplicas: 200
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sts-eu
+  targetCPUUtilizationPercentage: 45
+
+---
+
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  labels:
+    app: hpav2beta2
+  name: hpav2beta2
+  namespace: test-hpa
+spec:
+  maxReplicas: 10
+  metrics:
+  - external:
+      metric:
+        name: metricname
+      target:
+        type: Value
+        value: 1k
+    type: External
+  - resource:
+      name: cpu
+      target:
+        averageUtilization: 80
+        type: Utilization
+    type: Resource
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hpav2beta2
