@@ -52,6 +52,7 @@ def default():
                 "deployment.kubernetes.io/revision",
                 "kubectl.kubernetes.io/last-applied-configuration",
                 "kubernetes.io/change-cause",
+                "autoscaling.alpha.kubernetes.io/conditions",
             ]},
             "creationTimestamp",
             "generation",
