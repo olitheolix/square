@@ -1118,14 +1118,16 @@ class TestMainOptions:
 
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
+    @mock.patch.object(sq, "match_api_version")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
-    def test_get_resources(self, m_save, m_sync, m_down, m_load, kube_creds, config):
+    def test_get_resources(self, m_save, m_sync, m_mapi, m_down,
+                           m_load, kube_creds, config):
         """Basic test.
 
-        This function does hardly anything to begin with, so we will merely
-        verify it calls the correct functions with the correct arguments and
-        handles errors.
+        The `get_resource` function is more of a linear script than anything
+        else. We merely need to verify it calls the correct functions with the
+        correct arguments and aborts if any errors occur.
 
         """
         k8sconfig: K8sConfig = kube_creds
@@ -1133,8 +1135,9 @@ class TestMainOptions:
         # Simulate successful responses from the two auxiliary functions.
         # The `load` function must return empty dicts to ensure the error
         # conditions are properly coded.
-        m_load.return_value = ("local", {}, False)
+        m_load.return_value = ("local_meta", "local_path", False)
         m_down.return_value = ("server", False)
+        m_mapi.return_value = ("matched", False)
         m_sync.return_value = ("synced", False)
         m_save.return_value = False
 
@@ -1147,7 +1150,9 @@ class TestMainOptions:
         assert sq.get_resources(config) is False
         m_load.assert_called_once_with(config.folder, load_selectors)
         m_down.assert_called_once_with(config, k8sconfig)
-        m_sync.assert_called_once_with({}, "server", config.selectors, config.groupby)
+        m_mapi.assert_called_once_with(k8sconfig, "local_meta", "server")
+        m_sync.assert_called_once_with("local_path", "matched",
+                                       config.selectors, config.groupby)
         m_save.assert_called_once_with(config.folder, "synced", config.priorities)
 
         # Simulate an error with `manio.save`.
