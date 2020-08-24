@@ -562,7 +562,6 @@ class TestUrlPathBuilder:
         assert k8s.compile_api_endpoints(k8sconfig) is True
 
         # Sample return value for `https://k8s.com/apis`
-        # Regenerate it with `kubectl get --raw https://localhost:8443/apis`.
         fake_api = json.loads(open("support/apis-v1-15.json").read())
 
         # Pretend to be the K8s API and return the requested data from our

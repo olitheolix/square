@@ -742,16 +742,21 @@ def get_resources(cfg: Config) -> bool:
         load_selectors = Selectors(kinds=k8sconfig.kinds, labels=[], namespaces=[])
 
         # Load manifests from local files.
-        _, local, err = manio.load(cfg.folder, load_selectors)
+        local_meta, local_path, err = manio.load(cfg.folder, load_selectors)
         assert not err
 
         # Download manifests from K8s.
         server, err = manio.download(cfg, k8sconfig)
         assert not err
 
+        # Replace the server resources fetched from K8s' preferred endpoint with
+        # the one from the endpoint referenced in the local manifest.
+        server, err = match_api_version(k8sconfig, local_meta, server)
+        assert not err
+
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see `manio.save` in the next step.
-        synced_manifests, err = manio.sync(local, server, cfg.selectors, cfg.groupby)
+        synced_manifests, err = manio.sync(local_path, server, cfg.selectors, cfg.groupby)
         assert not err
 
         # Write the new manifest files.

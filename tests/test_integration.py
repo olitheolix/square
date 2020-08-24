@@ -269,6 +269,48 @@ class TestMainGet:
             square.main.main()
         assert len(list(tmp_path.rglob("*.yaml"))) == 0
 
+    def test_nonpreferred_api(self, tmp_path):
+        """Sync `autoscaling/v1` and `autoscaling/v2beta` at the same time.
+
+        This test is designed to verify that Square will interrogate the
+        correct K8s endpoint versions to download the manifest.
+
+        """
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        config = Config(
+            folder=tmp_path,
+            groupby=GroupBy(label="app", order=[]),
+            kubecontext=None,
+            kubeconfig=Filepath("/tmp/kubeconfig-kind.yaml"),
+            selectors=Selectors(
+                kinds={"Namespace", "HorizontalPodAutoscaler"},
+                namespaces=["test-hpa"],
+                labels=[]),
+        )
+
+        # Copy the manifest with the namespace and the two HPAs to the temporary path.
+        manifests = list(yaml.safe_load_all(open("tests/support/k8s-test-hpa.yaml")))
+        man_path = tmp_path / "manifest.yaml"
+        man_path.write_text(yaml.dump_all(manifests))
+        assert len(manifests) == 3
+
+        # ---------------------------------------------------------------------
+        # Deploy the resources: one namespace with two HPAs in it. On will be
+        # deployed via `autoscaling/v1` the other via `autoscaling/v2beta2`.
+        # ---------------------------------------------------------------------
+        sh.kubectl("apply", "--kubeconfig", config.kubeconfig,
+                   "-f", str(man_path))
+
+        # ---------------------------------------------------------------------
+        # Sync all manifests. This must do nothing. In particular, it must not
+        # change the `apiVersion` of either HPA.
+        # ---------------------------------------------------------------------
+        assert not square.square.get_resources(config)
+        assert list(yaml.safe_load_all(man_path.read_text())) == manifests
+
 
 @pytest.mark.skipif(not kind_available(), reason="No Minikube")
 class TestMainPlan:
@@ -480,7 +522,6 @@ class TestMainPlan:
         # ---------------------------------------------------------------------
         # Manually change the API version of one of the HPAs.
         tmp_manifests = copy.deepcopy(manifests)
-        del manifests
         assert tmp_manifests[1]["apiVersion"] == "autoscaling/v1"
         tmp_manifests[1]["apiVersion"] = "autoscaling/v2beta2"
         man_path.write_text(yaml.dump_all(tmp_manifests))
