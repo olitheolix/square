@@ -852,8 +852,8 @@ def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
     #   K(*, kind='StatefulSet', name='statefulsets', namespaced=True, url='apis/apps/v1')
     #  ],
     #  ('apps', 'apps/v1beta1', 'apis/apps/v1beta1')': [
-    #    K(..., kind='Deployment', name='deployments', namespaced=True, url=...),
-    #    K(..., kind='StatefulSet', name='statefulsets', namespaced=True, url=...)
+    #   K(..., kind='Deployment', name='deployments', namespaced=True, url=...),
+    #   K(..., kind='StatefulSet', name='statefulsets', namespaced=True, url=...)
     #  ],
     # }
     group_urls: Dict[Tuple[str, str, str], List[K8sResource]] = {}

@@ -325,7 +325,7 @@ class TestUrlPathBuilder:
     def test_resource_service(self, integrationtest, k8sconfig):
         """Verify with a Service resource.
 
-        NOTE: this test is tailored to Kubernetes v1.15.
+        NOTE: this test is tailored to Kubernetes v1.16.
 
         """
         # Fixtures.
@@ -373,12 +373,12 @@ class TestUrlPathBuilder:
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     def test_resource_statefulset(self, integrationtest, k8sconfig):
-        """Verify with a StatefulSet resource.
+        """Verify with a HorizontalPodAutoscaler resource.
 
         This resource is available under three different API endpoints
-        (v1beta1, v1beta2 and v1).
+        (v1, v2beta1 and v2beta2).
 
-        NOTE: this test is tailored to Kubernetes v1.15.
+        NOTE: this test is tailored to Kubernetes v1.16.
 
         """
         config = self.k8sconfig(integrationtest, k8sconfig)
@@ -389,50 +389,55 @@ class TestUrlPathBuilder:
         # K8sResource element will contain.
         api_versions = [
             # We expect to get the version we asked for.
-            ("apps/v1", "apps/v1"),
-            ("apps/v1beta1", "apps/v1beta1"),
-            ("apps/v1beta2", "apps/v1beta2"),
+            ("autoscaling/v1", "autoscaling/v1"),
+            ("autoscaling/v2beta1", "autoscaling/v2beta1"),
+            ("autoscaling/v2beta2", "autoscaling/v2beta2"),
 
             # Function must automatically determine the latest version of the resource.
-            ("", "apps/v1"),
+            ("", "autoscaling/v1"),
         ]
 
+        # Convenience.
+        kind = "HorizontalPodAutoscaler"
+        name = kind.lower() + "s"
+
         for src, expected in api_versions:
+            print(src)
             # A particular StatefulSet in a particular namespace.
-            res, err = k8s.resource(config, MM(src, "StatefulSet", "ns", "name"))
+            res, err = k8s.resource(config, MM(src, kind, "ns", "name"))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected,
-                kind="StatefulSet",
-                name="statefulsets",
+                kind=kind,
+                name=name,
                 namespaced=True,
-                url=f"{config.url}/apis/{expected}/namespaces/ns/statefulsets/name",
+                url=f"{config.url}/apis/{expected}/namespaces/ns/{name}/name",
             )
 
             # All StatefulSets in all namespaces.
-            res, err = k8s.resource(config, MM(src, "StatefulSet", None, None))
+            res, err = k8s.resource(config, MM(src, kind, None, None))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected,
-                kind="StatefulSet",
-                name="statefulsets",
+                kind=kind,
+                name=name,
                 namespaced=True,
-                url=f"{config.url}/apis/{expected}/statefulsets",
+                url=f"{config.url}/apis/{expected}/{name}",
             )
 
             # All StatefulSets in a particular namespace.
-            res, err = k8s.resource(config, MM(src, "StatefulSet", "ns", ""))
+            res, err = k8s.resource(config, MM(src, kind, "ns", ""))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected,
-                kind="StatefulSet",
-                name="statefulsets",
+                kind=kind,
+                name=name,
                 namespaced=True,
-                url=f"{config.url}/apis/{expected}/namespaces/ns/statefulsets",
+                url=f"{config.url}/apis/{expected}/namespaces/ns/{name}",
             )
 
             # A particular StatefulSet in all namespaces -> Invalid.
-            assert k8s.resource(config, MM(src, "StatefulSet", None, "name")) == err_resp
+            assert k8s.resource(config, MM(src, kind, None, "name")) == err_resp
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     def test_resource_namespace(self, integrationtest, k8sconfig):
@@ -481,7 +486,7 @@ class TestUrlPathBuilder:
     def test_resource_clusterrole(self, integrationtest, k8sconfig):
         """Verify with a ClusterRole resource.
 
-        NOTE: this test is tailored to Kubernetes v1.15.
+        NOTE: this test is tailored to Kubernetes v1.16.
 
         """
         # Fixtures.
@@ -557,6 +562,7 @@ class TestUrlPathBuilder:
         assert k8s.compile_api_endpoints(k8sconfig) is True
 
         # Sample return value for `https://k8s.com/apis`
+        # Regenerate it with `kubectl get --raw https://localhost:8443/apis`.
         fake_api = json.loads(open("support/apis-v1-15.json").read())
 
         # Pretend to be the K8s API and return the requested data from our
@@ -646,17 +652,15 @@ class TestUrlPathBuilder:
 
         # Sanity check.
         kinds = {
-            # Standard resources that a v1.15 Kubernetes cluster always has.
+            # Standard resources that a v1.16 Kubernetes cluster always has.
             ('ClusterRole', 'rbac.authorization.k8s.io/v1'),
             ('ClusterRole', 'rbac.authorization.k8s.io/v1beta1'),
             ('ConfigMap', 'v1'),
             ('DaemonSet', 'apps/v1'),
-            ('DaemonSet', 'apps/v1beta2'),
-            ('DaemonSet', 'extensions/v1beta1'),
             ('Deployment', 'apps/v1'),
-            ('Deployment', 'apps/v1beta1'),
-            ('Deployment', 'apps/v1beta2'),
-            ('Deployment', 'extensions/v1beta1'),
+            ('HorizontalPodAutoscaler', 'autoscaling/v1'),
+            ('HorizontalPodAutoscaler', 'autoscaling/v2beta1'),
+            ('HorizontalPodAutoscaler', 'autoscaling/v2beta2'),
             ('Pod', 'v1'),
             ('Service', 'v1'),
             ('ServiceAccount', 'v1'),
@@ -674,6 +678,28 @@ class TestUrlPathBuilder:
             namespaced=False,
             url=f"{config.url}/api/v1",
         )
+        hpa = "HorizontalPodAutoscaler"
+        assert config.apis[(hpa, "autoscaling/v1")] == K8sResource(
+            apiVersion="autoscaling/v1",
+            kind="HorizontalPodAutoscaler",
+            name="horizontalpodautoscalers",
+            namespaced=True,
+            url=f"{config.url}/apis/autoscaling/v1",
+        )
+        assert config.apis[(hpa, "autoscaling/v2beta1")] == K8sResource(
+            apiVersion="autoscaling/v2beta1",
+            kind="HorizontalPodAutoscaler",
+            name="horizontalpodautoscalers",
+            namespaced=True,
+            url=f"{config.url}/apis/autoscaling/v2beta1",
+        )
+        assert config.apis[(hpa, "autoscaling/v2beta2")] == K8sResource(
+            apiVersion="autoscaling/v2beta2",
+            kind="HorizontalPodAutoscaler",
+            name="horizontalpodautoscalers",
+            namespaced=True,
+            url=f"{config.url}/apis/autoscaling/v2beta2",
+        )
         assert config.apis[("Pod", "v1")] == K8sResource(
             apiVersion="v1",
             kind="Pod",
@@ -687,20 +713,6 @@ class TestUrlPathBuilder:
             name="deployments",
             namespaced=True,
             url=f"{config.url}/apis/apps/v1",
-        )
-        assert config.apis[("Deployment", "apps/v1beta1")] == K8sResource(
-            apiVersion="apps/v1beta1",
-            kind="Deployment",
-            name="deployments",
-            namespaced=True,
-            url=f"{config.url}/apis/apps/v1beta1",
-        )
-        assert config.apis[("Ingress", "extensions/v1beta1")] == K8sResource(
-            apiVersion="extensions/v1beta1",
-            kind="Ingress",
-            name="ingresses",
-            namespaced=True,
-            url=f"{config.url}/apis/extensions/v1beta1",
         )
         assert config.apis[("Ingress", "networking.k8s.io/v1beta1")] == K8sResource(
             apiVersion="networking.k8s.io/v1beta1",
@@ -720,10 +732,10 @@ class TestUrlPathBuilder:
         )
 
         # Verify default resource versions for a Deployment. This is specific
-        # to Kubernetes 1.15.
+        # to Kubernetes 1.16.
         assert config.apis[("Deployment", "")].apiVersion == "apps/v1"
 
-        # Ingress are still in beta in v1.15. However, they exist as both
+        # Ingress are still in beta in v1.16. However, they exist as both
         # `networking.k8s.io/v1beta1` and `extensions/v1beta1`. In that case,
         # the function would just return the last one in alphabetical order.
         assert config.apis[("Ingress", "")].apiVersion == "extensions/v1beta1"
