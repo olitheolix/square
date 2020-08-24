@@ -55,5 +55,4 @@ done
 set -e
 printf "done\n"
 
-
 printf "\n\n### KIND cluster now fully deployed (KUBECONF=$KUBECONFIG)\n"
