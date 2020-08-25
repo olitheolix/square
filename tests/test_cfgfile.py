@@ -1,6 +1,6 @@
 import sys
 
-import square.schemas as schemas
+import square.cfgfile as cfgfile
 import yaml
 from square.dtypes import DEFAULT_PRIORITIES, Config, Filepath
 
@@ -10,7 +10,7 @@ class TestLoadConfig:
         """Load and parse configuration file."""
         # Load the sample that ships with Square.
         fname = Filepath("tests/support/config.yaml")
-        cfg, err = schemas.load_config(fname)
+        cfg, err = cfgfile.load_config(fname)
         assert not err and isinstance(cfg, Config)
 
         assert cfg.folder == fname.parent.absolute() / "some/path"
@@ -27,9 +27,9 @@ class TestLoadConfig:
         # The _common_ filters must have been merged into all filters. Here we
         # verify it for a Deployment because its filter definition in the
         # config file was empty, which makes this easy to verify.
-        assert cfg.filters["Deployment"] == schemas.default()
+        assert cfg.filters["Deployment"] == cfgfile.default()
 
-        cfg2, err = schemas.load_config(str(fname))
+        cfg2, err = cfgfile.load_config(str(fname))
         assert not err and cfg == cfg2
 
     def test_load_config_folder_paths(self, tmp_path):
@@ -40,14 +40,14 @@ class TestLoadConfig:
         # The parsed folder must point to "tmp_path".
         ref = yaml.safe_load(fname_ref.read_text())
         fname.write_text(yaml.dump(ref))
-        cfg, err = schemas.load_config(fname)
+        cfg, err = cfgfile.load_config(fname)
         assert not err and cfg.folder == tmp_path / "some/path"
 
         # The parsed folder must point to "tmp_path/folder".
         ref = yaml.safe_load(fname_ref.read_text())
         ref["folder"] = "my-folder"
         fname.write_text(yaml.dump(ref))
-        cfg, err = schemas.load_config(fname)
+        cfg, err = cfgfile.load_config(fname)
         assert not err and cfg.folder == tmp_path / "my-folder"
 
         # An absolute path must ignore the position of ".square.yaml".
@@ -56,7 +56,7 @@ class TestLoadConfig:
             ref = yaml.safe_load(fname_ref.read_text())
             ref["folder"] = "/absolute/path"
             fname.write_text(yaml.dump(ref))
-            cfg, err = schemas.load_config(fname)
+            cfg, err = cfgfile.load_config(fname)
             assert not err and cfg.folder == Filepath("/absolute/path")
 
     def test_common_filters(self, tmp_path):
@@ -76,7 +76,7 @@ class TestLoadConfig:
         # match the ones defined in the file because there the "_common_"
         # filter was empty. NOTE: `cfg.filters` must *not* contain the _common_
         # filter.
-        cfg, err = schemas.load_config(fout)
+        cfg, err = cfgfile.load_config(fout)
         del ref["filters"]["_common_"]
         assert not err and ref["filters"] == cfg.filters
 
@@ -92,33 +92,33 @@ class TestLoadConfig:
         # Load the new configuration. This must succeed and the filters must
         # match the ones defined in the file because there was no "_common_"
         # filter to merge.
-        cfg, err = schemas.load_config(fout)
+        cfg, err = cfgfile.load_config(fout)
         assert not err and ref["filters"] == cfg.filters
 
     def test_load_config_err(self, tmp_path):
         """Gracefully handle missing file, corrupt content etc."""
         # Must gracefully handle a corrupt configuration file.
         fname = tmp_path / "does-not-exist.yaml"
-        _, err = schemas.load_config(fname)
+        _, err = cfgfile.load_config(fname)
         assert err
 
         # YAML error.
         fname = tmp_path / "corrupt-yaml.yaml"
         fname.write_text("[foo")
-        _, err = schemas.load_config(fname)
+        _, err = cfgfile.load_config(fname)
         assert err
 
         # Does not match the definition of `dtypes.Config`.
         fname = tmp_path / "invalid-pydantic-schema.yaml"
         fname.write_text("foo: bar")
-        _, err = schemas.load_config(fname)
+        _, err = cfgfile.load_config(fname)
         assert err
 
         # YAML file is valid but not a map. This special case is important
         # because the test function will expand the content as **kwargs.
         fname = tmp_path / "invalid-pydantic-schema.yaml"
         fname.write_text("")
-        _, err = schemas.load_config(fname)
+        _, err = cfgfile.load_config(fname)
         assert err
 
         # Load the sample configuration and corrupt the label selector. Instead
@@ -127,38 +127,38 @@ class TestLoadConfig:
         cfg["selectors"]["labels"] = [["foo", "bar", "foobar"]]
         fout = tmp_path / "corrupt.yaml"
         fout.write_text(yaml.dump(cfg))
-        _, err = schemas.load_config(fout)
+        _, err = cfgfile.load_config(fout)
         assert err
 
 
 class TestMainGet:
     def test_sane_filter(self):
         # Must be list.
-        assert schemas.valid([]) is True
-        assert schemas.valid({}) is False
+        assert cfgfile.valid([]) is True
+        assert cfgfile.valid({}) is False
 
         # List must not contain empty strings.
-        assert schemas.valid([""]) is False
-        assert schemas.valid(["foo"]) is True
+        assert cfgfile.valid([""]) is False
+        assert cfgfile.valid(["foo"]) is True
 
         # Dictionaries must have exactly one key.
-        assert schemas.valid([{}]) is False
-        assert schemas.valid([{"foo": "foo"}]) is False
-        assert schemas.valid([{"foo": ["foo"]}]) is True
-        assert schemas.valid([{"foo": "foo", "bar": "bar"}]) is False
+        assert cfgfile.valid([{}]) is False
+        assert cfgfile.valid([{"foo": "foo"}]) is False
+        assert cfgfile.valid([{"foo": ["foo"]}]) is True
+        assert cfgfile.valid([{"foo": "foo", "bar": "bar"}]) is False
 
         # List must only contain dictionaries and strings.
-        assert schemas.valid(["foo"]) is True
-        assert schemas.valid(["foo", {"bar": ["y"]}]) is True
-        assert schemas.valid(["foo", None]) is False
+        assert cfgfile.valid(["foo"]) is True
+        assert cfgfile.valid(["foo", {"bar": ["y"]}]) is True
+        assert cfgfile.valid(["foo", None]) is False
 
         # Nested cases:
-        assert schemas.valid(["foo", {"bar": ["bar"]}]) is True
-        assert schemas.valid(["foo", {"bar": [{"x": ["x"]}]}]) is True
-        assert schemas.valid(["foo", {"bar": [{"x": "x"}]}]) is False
+        assert cfgfile.valid(["foo", {"bar": ["bar"]}]) is True
+        assert cfgfile.valid(["foo", {"bar": [{"x": ["x"]}]}]) is True
+        assert cfgfile.valid(["foo", {"bar": [{"x": "x"}]}]) is False
 
     def test_default_filters(self):
-        assert schemas.default() == [
+        assert cfgfile.default() == [
             {"metadata": [
                 {"annotations": [
                     "deployment.kubernetes.io/revision",
@@ -176,8 +176,8 @@ class TestMainGet:
         ]
 
     def test_merge(self):
-        defaults = schemas.default()
-        assert schemas.merge(defaults, []) == defaults
+        defaults = cfgfile.default()
+        assert cfgfile.merge(defaults, []) == defaults
 
         expected = [
             # Default schema.
@@ -198,7 +198,7 @@ class TestMainGet:
             "status",
         ]
         src = [{"foo": ["bar"]}]
-        assert schemas.merge(defaults, src) == expected
+        assert cfgfile.merge(defaults, src) == expected
 
         expected = [
             {"metadata": [
@@ -224,7 +224,7 @@ class TestMainGet:
                 "orig-meta",
             ]},
         ]
-        assert schemas.merge(defaults, src) == expected
+        assert cfgfile.merge(defaults, src) == expected
 
         expected = [
             {"metadata": [
@@ -246,4 +246,4 @@ class TestMainGet:
         src = [
             {"metadata": ["orig-meta"]},
         ]
-        assert schemas.merge(defaults, src) == expected
+        assert cfgfile.merge(defaults, src) == expected

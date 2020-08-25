@@ -9,7 +9,7 @@ import pytest
 import square.k8s as k8s
 import square.main as main
 import square.manio as manio
-import square.schemas as schemas
+import square.cfgfile as cfgfile
 import square.square as square
 import yaml
 from square.dtypes import (
@@ -50,7 +50,7 @@ def fname_param_config(tmp_path) -> Generator[
     del ref
 
     # Load the sample configuration.
-    config, err = schemas.load_config(fname_square)
+    config, err = cfgfile.load_config(fname_square)
     assert not err
 
     # Point the folder and kubeconfig to temporary versions.
