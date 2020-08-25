@@ -7,9 +7,9 @@ from typing import Collection, List, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
+import square.dotdict as dotdict
 import square.k8s as k8s
 import square.manio as manio
-import square.schemas
 import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
@@ -205,7 +205,7 @@ def match_api_version(
     # Re-fetch the resources we already got but this time from the correct endpoint.
     for meta in to_download:
         # Construct the correct K8sResource.
-        resource, err = square.k8s.resource(k8sconfig, meta)
+        resource, err = k8s.resource(k8sconfig, meta)
         assert not err
 
         # Download all resources of the current kind.
@@ -272,8 +272,8 @@ def compile_plan(
 
     # Unpack the stripped manifests (first element in the tuple returned from
     # `manio.strip`).
-    server = {k: square.dotdict.undo(v[0]) for k, v in server.items()}
-    local = {k: square.dotdict.undo(v[0]) for k, v in local.items()}
+    server = {k: dotdict.undo(v[0]) for k, v in server.items()}
+    local = {k: dotdict.undo(v[0]) for k, v in local.items()}
 
     # Partition the set of meta manifests into create/delete/patch groups.
     plan, err = partition_manifests(local, server)

@@ -7,9 +7,9 @@ from typing import (
     Collection, DefaultDict, Dict, Iterable, List, Optional, Tuple,
 )
 
+import square.cfgfile
 import square.dotdict
 import square.k8s
-import square.schemas
 import yaml
 import yaml.scanner
 from square.dtypes import (
@@ -455,7 +455,7 @@ def strip(
     manifest: dict,
     manifest_filters: Dict[str, list],
 ) -> Tuple[DotDict, dict, bool]:
-    """Strip `manifest` according to the filters in `square.schemas`.
+    """Strip `manifest` according to the filters in `square.cfgfile`.
 
     Inputs:
         k8sconfig: K8sConfig
@@ -529,8 +529,8 @@ def strip(
         return {k: v for k, v in removed.items() if v != {}}
 
     # Get the filters for the current resource. Use the default one if none exists.
-    filters = manifest_filters.get(manifest["kind"], square.schemas.default())
-    if not square.schemas.valid(filters):
+    filters = manifest_filters.get(manifest["kind"], square.cfgfile.default())
+    if not square.cfgfile.valid(filters):
         return ret_err
 
     # Remove the keys from the `manifest` according to `filters`.
