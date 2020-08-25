@@ -49,26 +49,6 @@ def valid(filters: List[Union[dict, list, str]]) -> bool:
     return True
 
 
-def default():
-    """Return a default set of filters that should be applicable to all resources."""
-    return [
-        {"metadata": [
-            {"annotations": [
-                "deployment.kubernetes.io/revision",
-                "kubectl.kubernetes.io/last-applied-configuration",
-                "kubernetes.io/change-cause",
-                "autoscaling.alpha.kubernetes.io/conditions",
-            ]},
-            "creationTimestamp",
-            "generation",
-            "resourceVersion",
-            "selfLink",
-            "uid",
-        ]},
-        "status",
-    ]
-
-
 def merge(src: list, dst: list) -> list:
     """Merge `src` into `dst` and return a copy of `dst`."""
     # Avoid side effects.
