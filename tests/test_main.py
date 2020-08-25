@@ -6,15 +6,16 @@ import unittest.mock as mock
 from typing import Generator, Tuple
 
 import pytest
+import square.cfgfile as cfgfile
 import square.k8s as k8s
 import square.main as main
 import square.manio as manio
-import square.cfgfile as cfgfile
 import square.square as square
 import yaml
+from square import DEFAULT_CONFIG_FILE
 from square.dtypes import (
-    DEFAULT_CONFIG_FILE, DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete,
-    DeltaPatch, DeploymentPlan, Filepath, GroupBy, JsonPatch, Selectors,
+    DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
+    DeploymentPlan, Filepath, GroupBy, JsonPatch, Selectors,
 )
 
 from .test_helpers import make_manifest
