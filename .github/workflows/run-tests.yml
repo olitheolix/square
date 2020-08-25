@@ -20,6 +20,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install pipenv codecov
           pipenv install --system --deploy --dev
+
+          mkdir $HOME/bin
+          curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.5/bin/linux/amd64/kubectl
+          chmod +x ./kubectl
+          mv ./kubectl $HOME/bin/
+
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.8.1/kind-linux-amd64
+          chmod +x ./kind
+          mv ./kind $HOME/bin/
+
+          cd ./integration-test-cluster
+          ./start_cluster.sh
+          cd ..
       - name: Run Unit Tests
         run: |
           pytest --cov=square --cov-report=xml
