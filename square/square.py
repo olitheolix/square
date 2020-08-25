@@ -3,12 +3,10 @@ import json
 import logging
 import re
 from collections import Counter
-from types import SimpleNamespace
 from typing import Collection, List, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
-import pydantic
 import square.k8s as k8s
 import square.manio as manio
 import square.schemas
@@ -16,55 +14,12 @@ import yaml
 from colorlog import ColoredFormatter
 from square.dtypes import (
     Config, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    DeploymentPlanMeta, Filepath, JsonPatch, K8sConfig, MetaManifest,
-    Selectors, ServerManifests,
+    DeploymentPlanMeta, JsonPatch, K8sConfig, MetaManifest, Selectors,
+    ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
-
-
-def load_config(fname: Filepath) -> Tuple[Config, bool]:
-    """Parse the Square configuration file `fname` and return it as a `Config`."""
-    err_resp = Config(Filepath(""), kubeconfig=Filepath(""), kubecontext=None), True
-    fname = Filepath(fname)
-
-    # Load the configuration file.
-    try:
-        raw = yaml.safe_load(Filepath(fname).read_text())
-    except FileNotFoundError as e:
-        logit.error(f"Cannot load config file <{fname}>: {e.args[1]}")
-        return err_resp
-    except yaml.YAMLError as exc:
-        msg = f"Could not parse YAML file {fname}"
-
-        # Special case: parser supplied location information.
-        mark = getattr(exc, "problem_mark", SimpleNamespace(line=-1, column=-1))
-        line, col = (mark.line + 1, mark.column + 1)
-        msg = f"YAML format error in {fname}: Line {line} Column {col}"
-        logit.error(msg)
-        return err_resp
-
-    if not isinstance(raw, dict):
-        logit.error(f"Config file <{fname}> has invalid structure")
-        return err_resp
-
-    # Parse the configuration into `ConfigFile` structure.
-    try:
-        cfg = Config(**raw)
-    except (pydantic.ValidationError, TypeError) as e:
-        logit.error(f"Schema is invalid: {e}")
-        return err_resp
-
-    # Remove the "_common_" filter and merge it into all the other filters.
-    common = cfg.filters.pop("_common_", [])
-    cfg.filters = {k: square.schemas.merge(common, v) for k, v in cfg.filters.items()}
-
-    # Make the necessary adjustments where the values in the file do not
-    # translate verbatim.
-    cfg.folder = fname.parent.absolute() / cfg.folder
-    cfg.selectors.kinds = set(cfg.selectors.kinds)
-    return cfg, False
 
 
 def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
