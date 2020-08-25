@@ -180,9 +180,9 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # Load the default configuration unless the user specified an explicit one.
     if p.configfile:
         logit.info(f"Loading configuration file <{p.configfile}>")
-        cfg, err = square.cfgfile.load_config(p.configfile)
+        cfg, err = square.cfgfile.load(p.configfile)
 
-        # Use the folder the `load_config` function determined.
+        # Use the folder the `load()` function determined.
         folder = cfg.folder
 
         # Look for `--kubeconfig`. Default to the value in config file.
@@ -198,7 +198,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
             cfg_file = dot_square if dot_square.exists() else default_cfg
 
         logit.info(f"Loading configuration file <{cfg_file}>")
-        cfg, err = square.cfgfile.load_config(cfg_file)
+        cfg, err = square.cfgfile.load(cfg_file)
 
         # Determine which Kubeconfig to use. The order is: `--kubeconfig`,
         # `--config`, `.square`, `KUBECONFIG` environment variable.

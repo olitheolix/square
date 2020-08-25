@@ -50,7 +50,7 @@ def fname_param_config(tmp_path) -> Generator[
     del ref
 
     # Load the sample configuration.
-    config, err = cfgfile.load_config(fname_square)
+    config, err = cfgfile.load(fname_square)
     assert not err
 
     # Point the folder and kubeconfig to temporary versions.
