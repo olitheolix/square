@@ -10,7 +10,7 @@ import square.cfgfile as cfgfile
 import square.k8s as k8s
 import square.main as main
 import square.manio as manio
-import square.square as square
+import square.square as sq
 import yaml
 from square import DEFAULT_CONFIG_FILE
 from square.dtypes import (
@@ -92,7 +92,7 @@ def fname_param_config(tmp_path) -> Generator[
 
 
 class TestResourceCleanup:
-    @mock.patch.object(square.k8s, "cluster_config")
+    @mock.patch.object(sq.k8s, "cluster_config")
     def test_expand_all_kinds(self, m_cluster, k8sconfig):
         """Must expand the short names if possible, and leave as is otherwise."""
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
@@ -542,10 +542,10 @@ class TestMain:
         param.groupby = ("ns", "unknown")
         assert main.compile_config(param) == err_resp
 
-    @mock.patch.object(square, "get_resources")
-    @mock.patch.object(square, "make_plan")
+    @mock.patch.object(sq, "get_resources")
+    @mock.patch.object(sq, "make_plan")
     @mock.patch.object(main, "apply_plan")
-    @mock.patch.object(square.k8s, "cluster_config")
+    @mock.patch.object(sq.k8s, "cluster_config")
     def test_main_valid_options(self, m_cluster, m_apply, m_plan, m_get,
                                 tmp_path, fname_param_config, k8sconfig):
         """Simulate sane program invocation.
@@ -619,7 +619,7 @@ class TestMain:
         with mock.patch("sys.argv", ("square.py", "version")):
             assert main.main() == 0
 
-    @mock.patch.object(square, "k8s")
+    @mock.patch.object(sq, "k8s")
     def test_main_invalid_option(self, m_k8s):
         """Simulate a missing or unknown option.
 
@@ -638,10 +638,10 @@ class TestMain:
                 main.main()
             assert err.value.code == 2
 
-    @mock.patch.object(square, "k8s")
-    @mock.patch.object(square, "get_resources")
-    @mock.patch.object(square, "make_plan")
-    @mock.patch.object(square, "apply_plan")
+    @mock.patch.object(sq, "k8s")
+    @mock.patch.object(sq, "get_resources")
+    @mock.patch.object(sq, "make_plan")
+    @mock.patch.object(sq, "apply_plan")
     def test_main_nonzero_exit_on_error(self, m_apply, m_plan, m_get, m_k8s, k8sconfig):
         """Simulate sane program invocation.
 
@@ -691,7 +691,7 @@ class TestMain:
         m_cmd.return_value = param
         assert main.main() == 1
 
-    @mock.patch.object(square, "k8s")
+    @mock.patch.object(sq, "k8s")
     def test_main_version_error(self, m_k8s):
         """Program must abort if it cannot get the version from K8s."""
         # Mock all calls to the K8s API.
@@ -863,8 +863,8 @@ class TestMain:
 
 
 class TestApplyPlan:
-    @mock.patch.object(square, "make_plan")
-    @mock.patch.object(square, "apply_plan")
+    @mock.patch.object(sq, "make_plan")
+    @mock.patch.object(sq, "apply_plan")
     def test_apply_plan(self, m_apply, m_plan, config):
         """Simulate a successful resource update (add, patch delete).
 
