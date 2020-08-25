@@ -1,5 +1,4 @@
 import pathlib
-import sys
 from typing import (
     TYPE_CHECKING, Any, Collection, Dict, List, NamedTuple, Optional, Set,
     Tuple, Union,
@@ -13,16 +12,6 @@ else:
 
 # All files in Square have this type.
 Filepath = pathlib.Path
-
-# Determine the base folder. This is usually the folder of this very file, but
-# will be different if we run inside a bundle produced by PyInstaller.
-if getattr(sys, '_MEIPASS', None):
-    BASE_DIR = Filepath(getattr(sys, '_MEIPASS'))
-else:
-    BASE_DIR = Filepath(__file__).parent.parent
-
-# Square will source all its default values from this configuration file.
-DEFAULT_CONFIG_FILE = BASE_DIR / "resources/defaultconfig.yaml"
 
 # Square will first save/deploy the resources in this list in this order.
 # Afterwards it will move on to all those resources not in this list. The order
