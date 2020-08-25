@@ -63,7 +63,7 @@ def config(k8sconfig, tmp_path) -> Generator[square.dtypes.Config, None, None]:
 
     """
     # Load the sample configuration.
-    cfg, err = square.cfgfile.load_config(Filepath("tests/support/config.yaml"))
+    cfg, err = square.cfgfile.load(Filepath("tests/support/config.yaml"))
     assert not err
 
     # Point the folder and kubeconfig to temporary versions.
