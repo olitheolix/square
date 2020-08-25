@@ -288,7 +288,8 @@ class TestMainGet:
             selectors=Selectors(
                 kinds={"Namespace", "HorizontalPodAutoscaler"},
                 namespaces=["test-hpa"],
-                labels=[]),
+                labels=[],
+            ),
         )
 
         # Copy the manifest with the namespace and the two HPAs to the temporary path.
