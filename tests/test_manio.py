@@ -953,8 +953,13 @@ class TestManifestValidation:
         assert out == expected
         assert removed == {"spec": {"ports": [{"nodePort": 1}, {"nodePort": 3}]}}
 
-    def test_strip_missing_schema(self, k8sconfig):
-        """Remove default fields like `metadata.uid` in the absence of a filter."""
+    def test_strip_default_filters(self, k8sconfig):
+        """Must fall back to default filters unless otherwise specified.
+
+        Here we expect the function to strip out the `metadata.uid` because it
+        is part of the default filters (see `square/resources/defaultconfig.yaml`).
+
+        """
         manifest = {
             "apiVersion": "v1",
             "kind": "Service",

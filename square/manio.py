@@ -528,8 +528,19 @@ def strip(
         # Remove all empty sub-dictionaries from `removed`.
         return {k: v for k, v in removed.items() if v != {}}
 
-    # Get the filters for the current resource. Use the default one if none exists.
-    filters = manifest_filters.get(manifest["kind"], square.cfgfile.default())
+    # Look up the filters for the current resource in the following order:
+    # 1) Supplied `filters`
+    # 2) Square default filters for this resource `kind`.
+    # 3) Square default filters that apply to all resource kinds.
+    # Pick the first one that matches.
+    kind = manifest["kind"]
+    filters = manifest_filters.get(
+        kind,
+        square.DEFAULT_CONFIG.filters.get(
+            kind,
+            square.DEFAULT_CONFIG.filters["_common_"]
+        )
+    )
     if not square.cfgfile.valid(filters):
         return ret_err
 
