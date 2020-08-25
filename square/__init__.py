@@ -2,6 +2,7 @@ import pathlib
 import sys
 
 from . import square
+from .cfgfile import load
 
 __version__ = '0.23.3'
 
@@ -17,8 +18,9 @@ else:
     BASE_DIR = pathlib.Path(__file__).parent.parent
 
 # Square will source all its default values from this configuration file.
-DEFAULT_CONFIG_FILE = BASE_DIR / "resources/defaultconfig.yaml"
-
+DEFAULT_CONFIG_FILE = BASE_DIR / "resources" / "defaultconfig.yaml"
+DEFAULT_CONFIG, err = load(DEFAULT_CONFIG_FILE)
+assert not err
 
 # ---------------------------------------------------------------------------
 # Expose the primary API of Square for convenience.

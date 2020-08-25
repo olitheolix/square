@@ -6,6 +6,7 @@ import unittest.mock as mock
 from typing import Generator, Tuple
 
 import pytest
+import square
 import square.cfgfile as cfgfile
 import square.k8s as k8s
 import square.main as main
@@ -153,6 +154,18 @@ class TestResourceCleanup:
 
 
 class TestMain:
+    def test_boostrap(self):
+        """Verify the constants created during package import."""
+        assert hasattr(square, "get")
+        assert hasattr(square, "plan")
+        assert hasattr(square, "apply_plan")
+        assert hasattr(square, "show_plan")
+
+        # Must have loaded the configuration file.
+        cfg, err = cfgfile.load(DEFAULT_CONFIG_FILE)
+        assert not err
+        assert square.DEFAULT_CONFIG == cfg
+
     def test_compile_config_basic(self, fname_param_config):
         """Verify that our config and command line args fixtures match."""
         _, param, ref_config = fname_param_config
