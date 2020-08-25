@@ -156,7 +156,6 @@ class TestMainGet:
         assert cfgfile.merge(defaults, []) == defaults
 
         expected = [
-            # Default schema.
             {"foo": ["bar"]},
             {"metadata": [
                 {"annotations": [

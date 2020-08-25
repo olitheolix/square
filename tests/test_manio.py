@@ -696,7 +696,7 @@ class TestYamlManifestIO:
 
 class TestManifestValidation:
     def test_strip_generic(self, k8sconfig):
-        """Create a complete fake schema to test all options.
+        """Create a completely fake filter set to test all options.
 
         This test has nothing to do with real world manifests. Its only purpose
         is to validate the algorithm that strips the manifests.
@@ -976,7 +976,7 @@ class TestManifestValidation:
 
     def test_strip_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
-        # Minimal valid schema for fake resource kind "TEST".
+        # Minimally valid filters for fake resource kind "TEST".
         filters = {"TEST": {"metadata": False}}
 
         # Valid K8s version with unknown resource type.
