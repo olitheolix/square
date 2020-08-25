@@ -159,10 +159,10 @@ class TestMainGet:
             {"foo": ["bar"]},
             {"metadata": [
                 {"annotations": [
+                    "autoscaling.alpha.kubernetes.io/conditions",
                     "deployment.kubernetes.io/revision",
                     "kubectl.kubernetes.io/last-applied-configuration",
                     "kubernetes.io/change-cause",
-                    "autoscaling.alpha.kubernetes.io/conditions",
                 ]},
                 "creationTimestamp",
                 "generation",
@@ -204,10 +204,10 @@ class TestMainGet:
         expected = [
             {"metadata": [
                 {"annotations": [
+                    "autoscaling.alpha.kubernetes.io/conditions",
                     "deployment.kubernetes.io/revision",
                     "kubectl.kubernetes.io/last-applied-configuration",
                     "kubernetes.io/change-cause",
-                    "autoscaling.alpha.kubernetes.io/conditions",
                 ]},
                 "creationTimestamp",
                 "generation",
