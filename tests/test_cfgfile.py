@@ -21,7 +21,7 @@ class TestLoadConfig:
         assert cfg.selectors.namespaces == ["default", "kube-system"]
         assert cfg.selectors.labels == ["app=square"]
         assert set(cfg.filters.keys()) == {
-            "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
+            "_common_", "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
 
         # The _common_ filters must have been merged into all filters. Here we
@@ -74,10 +74,8 @@ class TestLoadConfig:
 
         # Load the new configuration. This must succeed and the filters must
         # match the ones defined in the file because there the "_common_"
-        # filter was empty. NOTE: `cfg.filters` must *not* contain the _common_
-        # filter.
+        # filter was empty.
         cfg, err = cfgfile.load(fout)
-        del ref["filters"]["_common_"]
         assert not err and ref["filters"] == cfg.filters
 
         # ----------------------------------------------------------------------
@@ -86,13 +84,15 @@ class TestLoadConfig:
         # Remove the "_common_" filter and save the configuration again.
         ref = yaml.safe_load(fname_ref.read_text())
         del ref["filters"]["_common_"]
-        fout = tmp_path / "corrupt.yaml"
+        fout = tmp_path / "valid.yaml"
         fout.write_text(yaml.dump(ref))
 
         # Load the new configuration. This must succeed and the filters must
         # match the ones defined in the file because there was no "_common_"
         # filter to merge.
         cfg, err = cfgfile.load(fout)
+        assert cfg.filters["_common_"] == []
+        del cfg.filters["_common_"]
         assert not err and ref["filters"] == cfg.filters
 
     def test_load_err(self, tmp_path):

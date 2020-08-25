@@ -237,7 +237,7 @@ class TestMain:
         )
         assert cfg.groupby == GroupBy(label="app", order=["ns", "label", "kind"])
         assert set(cfg.filters.keys()) == {
-            "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
+            "_common_", "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
 
         # ---------------------------------------------------------------------
@@ -270,7 +270,7 @@ class TestMain:
         )
         assert cfg.groupby == GroupBy(label="foo", order=["kind", "label", "ns"])
         assert set(cfg.filters.keys()) == {
-            "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
+            "_common_", "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
 
     def test_compile_config_default_folder(self, fname_param_config):

@@ -143,6 +143,7 @@ def load(fname: Filepath) -> Tuple[Config, bool]:
     # Remove the "_common_" filter and merge it into all the other filters.
     common = cfg.filters.pop("_common_", [])
     cfg.filters = {k: merge(common, v) for k, v in cfg.filters.items()}
+    cfg.filters["_common_"] = common
 
     # Make the necessary adjustments where the values in the file do not
     # translate verbatim.
