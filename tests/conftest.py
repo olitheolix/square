@@ -58,7 +58,7 @@ def config(k8sconfig, tmp_path) -> Generator[square.dtypes.Config, None, None]:
     """Return a valid and fully populated `Config` structure.
 
     The data in the structure matches `tests/support/config.yaml` except for
-    the `kubeconfig` file. That one is different and points to an actually
+    the `kubeconfig` file. That one is different and points to an actual
     (dummy) file in a temporary folder for this test.
 
     """
