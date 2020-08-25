@@ -1,34 +1,164 @@
-import square.schemas
+import sys
+
+import square.schemas as schemas
+import yaml
+from square.dtypes import DEFAULT_PRIORITIES, Config, Filepath
+
+
+class TestLoadConfig:
+    def test_load_config(self):
+        """Load and parse configuration file."""
+        # Load the sample that ships with Square.
+        fname = Filepath("tests/support/config.yaml")
+        cfg, err = schemas.load_config(fname)
+        assert not err and isinstance(cfg, Config)
+
+        assert cfg.folder == fname.parent.absolute() / "some/path"
+        assert cfg.kubeconfig == Filepath("/path/to/kubeconfig")
+        assert cfg.kubecontext is None
+        assert cfg.priorities == list(DEFAULT_PRIORITIES)
+        assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
+        assert cfg.selectors.namespaces == ["default", "kube-system"]
+        assert cfg.selectors.labels == ["app=square"]
+        assert set(cfg.filters.keys()) == {
+            "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
+        }
+
+        # The _common_ filters must have been merged into all filters. Here we
+        # verify it for a Deployment because its filter definition in the
+        # config file was empty, which makes this easy to verify.
+        assert cfg.filters["Deployment"] == schemas.default()
+
+        cfg2, err = schemas.load_config(str(fname))
+        assert not err and cfg == cfg2
+
+    def test_load_config_folder_paths(self, tmp_path):
+        """The folder paths must always be relative to the config file."""
+        fname = tmp_path / ".square.yaml"
+        fname_ref = Filepath("tests/support/config.yaml")
+
+        # The parsed folder must point to "tmp_path".
+        ref = yaml.safe_load(fname_ref.read_text())
+        fname.write_text(yaml.dump(ref))
+        cfg, err = schemas.load_config(fname)
+        assert not err and cfg.folder == tmp_path / "some/path"
+
+        # The parsed folder must point to "tmp_path/folder".
+        ref = yaml.safe_load(fname_ref.read_text())
+        ref["folder"] = "my-folder"
+        fname.write_text(yaml.dump(ref))
+        cfg, err = schemas.load_config(fname)
+        assert not err and cfg.folder == tmp_path / "my-folder"
+
+        # An absolute path must ignore the position of ".square.yaml".
+        # No idea how to handle this on Windows.
+        if not sys.platform.startswith("win"):
+            ref = yaml.safe_load(fname_ref.read_text())
+            ref["folder"] = "/absolute/path"
+            fname.write_text(yaml.dump(ref))
+            cfg, err = schemas.load_config(fname)
+            assert not err and cfg.folder == Filepath("/absolute/path")
+
+    def test_common_filters(self, tmp_path):
+        """Deal with empty or non-existing `_common_` filter."""
+        fname_ref = Filepath("tests/support/config.yaml")
+
+        # ----------------------------------------------------------------------
+        # Empty _common_ filters.
+        # ----------------------------------------------------------------------
+        # Clear the "_common_" filter and save the configuration again.
+        ref = yaml.safe_load(fname_ref.read_text())
+        ref["filters"]["_common_"].clear()
+        fout = tmp_path / "corrupt.yaml"
+        fout.write_text(yaml.dump(ref))
+
+        # Load the new configuration. This must succeed and the filters must
+        # match the ones defined in the file because there the "_common_"
+        # filter was empty. NOTE: `cfg.filters` must *not* contain the _common_
+        # filter.
+        cfg, err = schemas.load_config(fout)
+        del ref["filters"]["_common_"]
+        assert not err and ref["filters"] == cfg.filters
+
+        # ----------------------------------------------------------------------
+        # Missing _common_ filters.
+        # ----------------------------------------------------------------------
+        # Remove the "_common_" filter and save the configuration again.
+        ref = yaml.safe_load(fname_ref.read_text())
+        del ref["filters"]["_common_"]
+        fout = tmp_path / "corrupt.yaml"
+        fout.write_text(yaml.dump(ref))
+
+        # Load the new configuration. This must succeed and the filters must
+        # match the ones defined in the file because there was no "_common_"
+        # filter to merge.
+        cfg, err = schemas.load_config(fout)
+        assert not err and ref["filters"] == cfg.filters
+
+    def test_load_config_err(self, tmp_path):
+        """Gracefully handle missing file, corrupt content etc."""
+        # Must gracefully handle a corrupt configuration file.
+        fname = tmp_path / "does-not-exist.yaml"
+        _, err = schemas.load_config(fname)
+        assert err
+
+        # YAML error.
+        fname = tmp_path / "corrupt-yaml.yaml"
+        fname.write_text("[foo")
+        _, err = schemas.load_config(fname)
+        assert err
+
+        # Does not match the definition of `dtypes.Config`.
+        fname = tmp_path / "invalid-pydantic-schema.yaml"
+        fname.write_text("foo: bar")
+        _, err = schemas.load_config(fname)
+        assert err
+
+        # YAML file is valid but not a map. This special case is important
+        # because the test function will expand the content as **kwargs.
+        fname = tmp_path / "invalid-pydantic-schema.yaml"
+        fname.write_text("")
+        _, err = schemas.load_config(fname)
+        assert err
+
+        # Load the sample configuration and corrupt the label selector. Instead
+        # of a list of 2-tuples we make it a list of 3-tuples.
+        cfg = yaml.safe_load(Filepath("tests/support/config.yaml").read_text())
+        cfg["selectors"]["labels"] = [["foo", "bar", "foobar"]]
+        fout = tmp_path / "corrupt.yaml"
+        fout.write_text(yaml.dump(cfg))
+        _, err = schemas.load_config(fout)
+        assert err
 
 
 class TestMainGet:
     def test_sane_filter(self):
         # Must be list.
-        assert square.schemas.valid([]) is True
-        assert square.schemas.valid({}) is False
+        assert schemas.valid([]) is True
+        assert schemas.valid({}) is False
 
         # List must not contain empty strings.
-        assert square.schemas.valid([""]) is False
-        assert square.schemas.valid(["foo"]) is True
+        assert schemas.valid([""]) is False
+        assert schemas.valid(["foo"]) is True
 
         # Dictionaries must have exactly one key.
-        assert square.schemas.valid([{}]) is False
-        assert square.schemas.valid([{"foo": "foo"}]) is False
-        assert square.schemas.valid([{"foo": ["foo"]}]) is True
-        assert square.schemas.valid([{"foo": "foo", "bar": "bar"}]) is False
+        assert schemas.valid([{}]) is False
+        assert schemas.valid([{"foo": "foo"}]) is False
+        assert schemas.valid([{"foo": ["foo"]}]) is True
+        assert schemas.valid([{"foo": "foo", "bar": "bar"}]) is False
 
         # List must only contain dictionaries and strings.
-        assert square.schemas.valid(["foo"]) is True
-        assert square.schemas.valid(["foo", {"bar": ["y"]}]) is True
-        assert square.schemas.valid(["foo", None]) is False
+        assert schemas.valid(["foo"]) is True
+        assert schemas.valid(["foo", {"bar": ["y"]}]) is True
+        assert schemas.valid(["foo", None]) is False
 
         # Nested cases:
-        assert square.schemas.valid(["foo", {"bar": ["bar"]}]) is True
-        assert square.schemas.valid(["foo", {"bar": [{"x": ["x"]}]}]) is True
-        assert square.schemas.valid(["foo", {"bar": [{"x": "x"}]}]) is False
+        assert schemas.valid(["foo", {"bar": ["bar"]}]) is True
+        assert schemas.valid(["foo", {"bar": [{"x": ["x"]}]}]) is True
+        assert schemas.valid(["foo", {"bar": [{"x": "x"}]}]) is False
 
     def test_default_filters(self):
-        assert square.schemas.default() == [
+        assert schemas.default() == [
             {"metadata": [
                 {"annotations": [
                     "deployment.kubernetes.io/revision",
@@ -46,8 +176,8 @@ class TestMainGet:
         ]
 
     def test_merge(self):
-        defaults = square.schemas.default()
-        assert square.schemas.merge(defaults, []) == defaults
+        defaults = schemas.default()
+        assert schemas.merge(defaults, []) == defaults
 
         expected = [
             # Default schema.
@@ -68,7 +198,7 @@ class TestMainGet:
             "status",
         ]
         src = [{"foo": ["bar"]}]
-        assert square.schemas.merge(defaults, src) == expected
+        assert schemas.merge(defaults, src) == expected
 
         expected = [
             {"metadata": [
@@ -94,7 +224,7 @@ class TestMainGet:
                 "orig-meta",
             ]},
         ]
-        assert square.schemas.merge(defaults, src) == expected
+        assert schemas.merge(defaults, src) == expected
 
         expected = [
             {"metadata": [
@@ -116,4 +246,4 @@ class TestMainGet:
         src = [
             {"metadata": ["orig-meta"]},
         ]
-        assert square.schemas.merge(defaults, src) == expected
+        assert schemas.merge(defaults, src) == expected

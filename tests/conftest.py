@@ -3,6 +3,7 @@ import unittest.mock as mock
 from typing import Generator
 
 import pytest
+import square.schemas
 import square.square
 from square.dtypes import Filepath, K8sConfig
 
@@ -62,7 +63,7 @@ def config(k8sconfig, tmp_path) -> Generator[square.dtypes.Config, None, None]:
 
     """
     # Load the sample configuration.
-    cfg, err = square.square.load_config(Filepath("tests/support/config.yaml"))
+    cfg, err = square.schemas.load_config(Filepath("tests/support/config.yaml"))
     assert not err
 
     # Point the folder and kubeconfig to temporary versions.

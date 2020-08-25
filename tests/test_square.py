@@ -1,13 +1,11 @@
 import copy
 import random
-import sys
 import unittest.mock as mock
 
 import square.k8s as k8s
 import square.manio as manio
 import square.schemas
 import square.square as sq
-import yaml
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
     DeploymentPlan, Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest,
@@ -149,132 +147,6 @@ class TestBasic:
             assert sq.get_resources(config) is True
             assert sq.apply_plan(config, plan) is True
             assert sq.make_plan(config) == (plan, True)
-
-
-class TestLoadConfig:
-    def test_load_config(self):
-        """Load and parse configuration file."""
-        # Load the sample that ships with Square.
-        fname = Filepath("tests/support/config.yaml")
-        cfg, err = sq.load_config(fname)
-        assert not err and isinstance(cfg, Config)
-
-        assert cfg.folder == fname.parent.absolute() / "some/path"
-        assert cfg.kubeconfig == Filepath("/path/to/kubeconfig")
-        assert cfg.kubecontext is None
-        assert cfg.priorities == list(DEFAULT_PRIORITIES)
-        assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
-        assert cfg.selectors.namespaces == ["default", "kube-system"]
-        assert cfg.selectors.labels == ["app=square"]
-        assert set(cfg.filters.keys()) == {
-            "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
-        }
-
-        # The _common_ filters must have been merged into all filters. Here we
-        # verify it for a Deployment because its filter definition in the
-        # config file was empty, which makes this easy to verify.
-        assert cfg.filters["Deployment"] == square.schemas.default()
-
-        cfg2, err = sq.load_config(str(fname))
-        assert not err and cfg == cfg2
-
-    def test_load_config_folder_paths(self, tmp_path):
-        """The folder paths must always be relative to the config file."""
-        fname = tmp_path / ".square.yaml"
-        fname_ref = Filepath("tests/support/config.yaml")
-
-        # The parsed folder must point to "tmp_path".
-        ref = yaml.safe_load(fname_ref.read_text())
-        fname.write_text(yaml.dump(ref))
-        cfg, err = sq.load_config(fname)
-        assert not err and cfg.folder == tmp_path / "some/path"
-
-        # The parsed folder must point to "tmp_path/folder".
-        ref = yaml.safe_load(fname_ref.read_text())
-        ref["folder"] = "my-folder"
-        fname.write_text(yaml.dump(ref))
-        cfg, err = sq.load_config(fname)
-        assert not err and cfg.folder == tmp_path / "my-folder"
-
-        # An absolute path must ignore the position of ".square.yaml".
-        # No idea how to handle this on Windows.
-        if not sys.platform.startswith("win"):
-            ref = yaml.safe_load(fname_ref.read_text())
-            ref["folder"] = "/absolute/path"
-            fname.write_text(yaml.dump(ref))
-            cfg, err = sq.load_config(fname)
-            assert not err and cfg.folder == Filepath("/absolute/path")
-
-    def test_common_filters(self, tmp_path):
-        """Deal with empty or non-existing `_common_` filter."""
-        fname_ref = Filepath("tests/support/config.yaml")
-
-        # ----------------------------------------------------------------------
-        # Empty _common_ filters.
-        # ----------------------------------------------------------------------
-        # Clear the "_common_" filter and save the configuration again.
-        ref = yaml.safe_load(fname_ref.read_text())
-        ref["filters"]["_common_"].clear()
-        fout = tmp_path / "corrupt.yaml"
-        fout.write_text(yaml.dump(ref))
-
-        # Load the new configuration. This must succeed and the filters must
-        # match the ones defined in the file because there the "_common_"
-        # filter was empty. NOTE: `cfg.filters` must *not* contain the _common_
-        # filter.
-        cfg, err = sq.load_config(fout)
-        del ref["filters"]["_common_"]
-        assert not err and ref["filters"] == cfg.filters
-
-        # ----------------------------------------------------------------------
-        # Missing _common_ filters.
-        # ----------------------------------------------------------------------
-        # Remove the "_common_" filter and save the configuration again.
-        ref = yaml.safe_load(fname_ref.read_text())
-        del ref["filters"]["_common_"]
-        fout = tmp_path / "corrupt.yaml"
-        fout.write_text(yaml.dump(ref))
-
-        # Load the new configuration. This must succeed and the filters must
-        # match the ones defined in the file because there was no "_common_"
-        # filter to merge.
-        cfg, err = sq.load_config(fout)
-        assert not err and ref["filters"] == cfg.filters
-
-    def test_load_config_err(self, tmp_path):
-        """Gracefully handle missing file, corrupt content etc."""
-        # Must gracefully handle a corrupt configuration file.
-        fname = tmp_path / "does-not-exist.yaml"
-        _, err = sq.load_config(fname)
-        assert err
-
-        # YAML error.
-        fname = tmp_path / "corrupt-yaml.yaml"
-        fname.write_text("[foo")
-        _, err = sq.load_config(fname)
-        assert err
-
-        # Does not match the definition of `dtypes.Config`.
-        fname = tmp_path / "invalid-pydantic-schema.yaml"
-        fname.write_text("foo: bar")
-        _, err = sq.load_config(fname)
-        assert err
-
-        # YAML file is valid but not a map. This special case is important
-        # because the test function will expand the content as **kwargs.
-        fname = tmp_path / "invalid-pydantic-schema.yaml"
-        fname.write_text("")
-        _, err = sq.load_config(fname)
-        assert err
-
-        # Load the sample configuration and corrupt the label selector. Instead
-        # of a list of 2-tuples we make it a list of 3-tuples.
-        cfg = yaml.safe_load(Filepath("tests/support/config.yaml").read_text())
-        cfg["selectors"]["labels"] = [["foo", "bar", "foobar"]]
-        fout = tmp_path / "corrupt.yaml"
-        fout.write_text(yaml.dump(cfg))
-        _, err = sq.load_config(fout)
-        assert err
 
 
 class TestPartition:
