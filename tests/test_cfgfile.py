@@ -1,5 +1,7 @@
+import copy
 import sys
 
+import square
 import square.cfgfile as cfgfile
 import yaml
 from square.dtypes import DEFAULT_PRIORITIES, Config, Filepath
@@ -23,14 +25,6 @@ class TestLoadConfig:
         assert set(cfg.filters.keys()) == {
             "_common_", "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
-
-        # The _common_ filters must have been merged into all filters. Here we
-        # verify it for a Deployment because its filter definition in the
-        # config file was empty, which makes this easy to verify.
-        assert cfg.filters["Deployment"] == cfgfile.default()
-
-        cfg2, err = cfgfile.load(str(fname))
-        assert not err and cfg == cfg2
 
     def test_load_folder_paths(self, tmp_path):
         """The folder paths must always be relative to the config file."""
@@ -157,26 +151,8 @@ class TestMainGet:
         assert cfgfile.valid(["foo", {"bar": [{"x": ["x"]}]}]) is True
         assert cfgfile.valid(["foo", {"bar": [{"x": "x"}]}]) is False
 
-    def test_default_filters(self):
-        assert cfgfile.default() == [
-            {"metadata": [
-                {"annotations": [
-                    "deployment.kubernetes.io/revision",
-                    "kubectl.kubernetes.io/last-applied-configuration",
-                    "kubernetes.io/change-cause",
-                    "autoscaling.alpha.kubernetes.io/conditions",
-                ]},
-                "creationTimestamp",
-                "generation",
-                "resourceVersion",
-                "selfLink",
-                "uid",
-            ]},
-            "status",
-        ]
-
     def test_merge(self):
-        defaults = cfgfile.default()
+        defaults = copy.deepcopy(square.DEFAULT_CONFIG.filters["_common_"])
         assert cfgfile.merge(defaults, []) == defaults
 
         expected = [
