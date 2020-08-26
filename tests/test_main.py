@@ -45,9 +45,12 @@ def fname_param_config(tmp_path) -> Generator[
     assert "kubeconfig" in ref and "kubecontext" in ref
     ref["kubeconfig"] = str(fname_kubeconfig.absolute())
 
-    # We will also "abuse" the `kubecontext` field to indicate that this file
-    # is our mock ".square.yaml".
+    # We will "abuse" the `kubecontext` field to indicate that this is our mock
+    # ".square.yaml". We will also replace the default path with a custom one
+    # to avoid an ambiguity with the default value of "." for the folder.
     ref["kubecontext"] = "dot-square"
+    assert ref["folder"] == "."
+    ref["folder"] = "foo/bar"
     fname_square.write_text(yaml.dump(ref))
     del ref
 
@@ -299,7 +302,7 @@ class TestMain:
         param.configfile = None
         param.folder = None
         cfg, err = main.compile_config(param)
-        assert not err and cfg.folder == Filepath.cwd()
+        assert not err and cfg.folder == Filepath.cwd() / "foo" / "bar"
 
         # No config file and "--folder some/where": must point to `some/where`.
         param.configfile = None
