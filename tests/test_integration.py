@@ -22,7 +22,7 @@ except sh.CommandNotFound:
     kubectl = None
 
 
-@pytest.mark.skipif(not kind_available(), reason="No Minikube")
+@pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestBasic:
     def test_cluster_config(self):
         """Basic success/failure test for K8s configuration."""
@@ -44,7 +44,7 @@ class TestBasic:
             assert fun(fname, None) == (K8sConfig(), True)
 
 
-@pytest.mark.skipif(not kind_available(), reason="No Minikube")
+@pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestMainGet:
     def setup_method(self):
         cur_path = pathlib.Path(__file__).parent.parent
@@ -313,7 +313,7 @@ class TestMainGet:
         assert list(yaml.safe_load_all(man_path.read_text())) == manifests
 
 
-@pytest.mark.skipif(not kind_available(), reason="No Minikube")
+@pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestMainPlan:
     def test_main_plan(self, tmp_path):
         """PLAN all cluster resources."""

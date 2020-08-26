@@ -1,17 +1,27 @@
+# The `sh` library does not exist for Windows.
+try:
+    import sh
+except ImportError:
+    sh = None
+
 from typing import Any, Dict
 
-import requests
 from square.dtypes import K8sConfig, K8sResource
 
 
 def kind_available():
-    """Return True if KIND cluster is available."""
-    try:
-        resp = requests.get("http://localhost:10080/kubernetes-ready")
-    except requests.ConnectionError:
+    """Return `True` if we have an integration test cluster available."""
+    if not sh:
+        # We probably run on Windows - no integration test cluster.
         return False
-    else:
-        return resp.status_code == 200
+
+    # Query the version of the integration test cluster. If that works we have
+    # a cluster that the tests can use, otherwise not.
+    try:
+        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "version")
+    except (ImportError, sh.CommandNotFound, sh.ErrorReturnCode_1):
+        return False
+    return True
 
 
 def k8s_apis(config: K8sConfig):

@@ -2,49 +2,38 @@
 
 set -e
 
+KUBECONFIG=/tmp/kubeconfig-kind.yaml
+
 # ------------------------------------------------------------------------------
 #                            Bootstrap Kind Cluster
 # ------------------------------------------------------------------------------
-# Start the KIND container.
-docker run -dit --privileged -p 8443:8443 -p 10080:10080 bsycorp/kind:latest-1.16
+KINDCONFIG=/tmp/kind-config.yaml
 
-# Wait until the KIND cluster is operational.
-printf "\n\n### Booting KIND Cluster: "
-set +e
-while true; do
-    printf "."
-    sleep 1
+# Create a KinD configuration file.
+cat << EOF > $KINDCONFIG
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  image: kindest/node:v1.16.4@sha256:b91a2c2317a000f3a783489dfb755064177dbc3a0b2f4147d50f04825d016f55
+EOF
 
-    # KIND provides an HTTP endpoint to ascertain whether or not it is ready yet.
-    HEADER=`curl -i http://localhost:10080/kubernetes-ready 2>/dev/null | head -n 1 | tr -d '\r'`
-    if [ "$HEADER" == "HTTP/1.1 200 OK" ]; then break; fi
-done
-set -e
-printf "done\n"
-
-# ------------------------------------------------------------------------------
-#                              Download Kubeconfig
-# ------------------------------------------------------------------------------
-# Download the Kubeconfig file into the /tmp folder. Once again, KIND provides
-# an HTTP endpoint to get it.
-KUBECONFIG=/tmp/kubeconfig-kind.yaml
-printf "### Downloading Kubeconfig to $KUBECONFIG: "
-curl http://localhost:10080/config >$KUBECONFIG 2>/dev/null
-printf "done\n"
-
+# Create cluster, then delete its config file.
+kind create cluster --config $KINDCONFIG --kubeconfig $KUBECONFIG
+rm $KINDCONFIG
 
 # ------------------------------------------------------------------------------
 #                          Deploy The Demo Resources
 # ------------------------------------------------------------------------------
-printf "### Deploy demo resources:\n"
+printf "### Deploy test resources into the cluster:\n"
 set +e
 
-# Apply the resource manifests until KIND accepts it. This may take a few
-# iterations because KIND, despite claiming it was ready earlier, often does not
-# accept the manifests straight away.
+# Apply the resource manifests until KinD accepts all of them. This may take a
+# few iterations because some resources, in particular CRDs, may require some
+# time to boot before they expose their new API endpoints.
 while true; do
     # Deploy the manifests.
-    kubectl --kubeconfig $KUBECONFIG --context kind apply -f ./
+    kubectl --kubeconfig $KUBECONFIG apply -f ./
 
     # Exit this loop if deployment succeeded. If not, then KIND is not yet ready
     # and we will try again shortly.
