@@ -187,7 +187,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         kubeconfig = p.kubeconfig or cfg.kubeconfig
     else:
         # Pick the configuration file, depending on whether the user specified
-        # `--no-config`, `--config` and whether a `.square.yaml` file exists.
+        # `--no-config`, or `--config` and whether or not `.square.yaml` exists.
         default_cfg = DEFAULT_CONFIG_FILE
         dot_square = Filepath(".square.yaml")
         if p.no_config:
@@ -211,7 +211,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         # contain the desired folder.
         folder = Filepath.cwd()
 
-        # Abort if neither `--kubeconfig` nor KUBECONFIG env var.
+        # Abort if neither `--kubeconfig` nor the KUBECONFIG environment variable exist.
         if not kubeconfig:
             logit.error("Must specify a Kubernetes config file.")
             return err_resp

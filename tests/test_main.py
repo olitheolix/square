@@ -295,7 +295,7 @@ class TestMain:
         cfg, err = main.compile_config(param)
         assert not err and cfg.folder == Filepath("some/where")
 
-        # No config file and no "--folder": manfiest folder must be CWD.
+        # No config file and no "--folder": manifest folder must be CWD.
         param.configfile = None
         param.folder = None
         cfg, err = main.compile_config(param)
