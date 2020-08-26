@@ -164,9 +164,11 @@ class TestMain:
         assert hasattr(square, "apply_plan")
         assert hasattr(square, "show_plan")
 
-        # Must have loaded the configuration file.
+        # Must have loaded the default configuration file but wiped the
+        # namespace selector.
         cfg, err = cfgfile.load(DEFAULT_CONFIG_FILE)
         assert not err
+        cfg.selectors.namespaces.clear()
         assert square.DEFAULT_CONFIG == cfg
 
     def test_compile_config_basic(self, fname_param_config):
