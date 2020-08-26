@@ -1,6 +1,6 @@
 [![](https://img.shields.io/badge/license-Apache%202-blue.svg)]()
 [![](https://img.shields.io/badge/python-3.7+-blue.svg)]()
-[![](https://img.shields.io/badge/latest-v0.23.3-blue.svg)]()
+[![](https://img.shields.io/badge/latest-v0.24.0-blue.svg)]()
 [![](https://github.com/olitheolix/square/workflows/build/badge.svg)]()
 [![](https://img.shields.io/codecov/c/github/olitheolix/square.svg?style=flat)]()
 [![](https://img.shields.io/badge/status-prod-green.svg)]()
@@ -19,13 +19,13 @@ install it into a Python 3.7 environment with `pip install kubernetes-square
 --upgrade`.
 ```console
 foo@bar:~$ square version
-0.23.3
+0.24.0
 ```
 
 You may also use a pre-built Docker image:
 ```console
-foo@bar:~$ docker run -ti --rm olitheolix/square:v0.23.3 version
-0.23.3
+foo@bar:~$ docker run -ti --rm olitheolix/square:v0.24.0 version
+0.24.0
 ```
 
 # Usage
