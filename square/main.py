@@ -180,9 +180,6 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         logit.info(f"Loading configuration file <{p.configfile}>")
         cfg, err = square.cfgfile.load(p.configfile)
 
-        # Use the folder the `load()` function determined.
-        folder = cfg.folder
-
         # Look for `--kubeconfig`. Default to the value in config file.
         kubeconfig = p.kubeconfig or cfg.kubeconfig
     else:
@@ -190,6 +187,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         # `--no-config`, or `--config` and whether or not `.square.yaml` exists.
         default_cfg = DEFAULT_CONFIG_FILE
         dot_square = Filepath(".square.yaml")
+
         if p.no_config:
             cfg_file = default_cfg
         else:
@@ -202,14 +200,11 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         # `--config`, `.square`, `KUBECONFIG` environment variable.
         if cfg_file == default_cfg:
             kubeconfig = p.kubeconfig or os.getenv("KUBECONFIG", "")
+            cfg.folder = Filepath.cwd()
         else:
             kubeconfig = p.kubeconfig or str(cfg.kubeconfig) or os.getenv("KUBECONFIG", "")  # noqa
-        del dot_square, default_cfg
 
-        # Use the current working directory as the folder directory because the
-        # user did not specify an explicit configuration file which would
-        # contain the desired folder.
-        folder = Filepath.cwd()
+        del dot_square, default_cfg
 
         # Abort if neither `--kubeconfig` nor the KUBECONFIG environment variable exist.
         if not kubeconfig:
@@ -219,7 +214,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         return err_resp
 
     # Override the folder if user specified "--folder".
-    folder = folder if p.folder is None else p.folder
+    folder = cfg.folder if p.folder is None else p.folder
 
     # Expand the user's home folder, ie if the path contains a "~".
     folder = Filepath(folder).expanduser()
