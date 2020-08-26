@@ -17,9 +17,13 @@ if getattr(sys, '_MEIPASS', None):
 else:
     BASE_DIR = pathlib.Path(__file__).parent.parent
 
-# Square will source all its default values from this configuration file.
+# Square will source all its default values from this configuration file. The
+# only exceptions are the namespaces. By default, Square will target all the
+# namespaces whereas the specimen only declares "default" unless the user
+# explicitly says otherwise via the command line arguments or ".square.yaml".
 DEFAULT_CONFIG_FILE = BASE_DIR / "resources" / "defaultconfig.yaml"
 DEFAULT_CONFIG, err = load(DEFAULT_CONFIG_FILE)
+DEFAULT_CONFIG.selectors.namespaces.clear()
 assert not err
 
 # ---------------------------------------------------------------------------
