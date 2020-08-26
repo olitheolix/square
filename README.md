@@ -54,7 +54,7 @@ square apply
 ```
 
 ## Supported Clusters And Versions
-*Square* supports Minikube, Kubernete in Docker (KinD), EKS and GKE. Any
+*Square* supports Minikube, Kubernetes in Docker (KinD), EKS and GKE. Any
 cluster version `v1.11+` should work.
 
 # Examples
@@ -388,8 +388,9 @@ You can also use *Square* as a library in your own projects. See
 
     pipenv run pytest
 
-To also pick up the integration tests you need to first start the
-[KinD](https://github.com/bsycorp/kind) cluster:
+To also pick up the integration tests you need to first download the [KinD
+binary](https://github.com/kubernetes-sigs/kind/releases) for your platform and
+put it in your path. Then start the integration test cluster with:
 
     cd integration-test-cluster
     ./start_cluster.sh
