@@ -180,11 +180,11 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         logit.info(f"Loading configuration file <{p.configfile}>")
         cfg, err = square.cfgfile.load(p.configfile)
 
-        # Look for `--kubeconfig`. Default to the value in config file.
+        # Look for `--kubeconfig`. Defaults to the value in config file.
         kubeconfig = p.kubeconfig or cfg.kubeconfig
     else:
-        # Pick the configuration file, depending on whether the user specified
-        # `--no-config`, or `--config` and whether or not `.square.yaml` exists.
+        # Pick the configuration file. Depends on whether the user specified
+        # `--no-config`, `--config` and if `.square.yaml` exists.
         default_cfg = DEFAULT_CONFIG_FILE
         dot_square = Filepath(".square.yaml")
 
