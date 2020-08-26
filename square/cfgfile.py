@@ -125,8 +125,9 @@ def load(fname: Filepath) -> Tuple[Config, bool]:
     cfg.filters = {k: merge(common, v) for k, v in cfg.filters.items()}
     cfg.filters["_common_"] = common
 
-    # Make the necessary adjustments where the values in the file do not
-    # translate verbatim.
+    # Ensure the path is an absolute path.
     cfg.folder = fname.parent.absolute() / cfg.folder
+
+    # Convert the list to a set. No functional reason.
     cfg.selectors.kinds = set(cfg.selectors.kinds)
     return cfg, False
