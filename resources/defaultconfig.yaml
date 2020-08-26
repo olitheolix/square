@@ -1,4 +1,4 @@
-# Square configuration Syntax.
+# Square configuration syntax.
 version: v1.0
 
 # Kubernetes credentials.
@@ -51,21 +51,21 @@ groupby:
 
 # -----------------------------------------------------------------------------
 # Square will create resources in this order, and delete them in reverse order.
-# This list need not be comprehensive. If Square encounters a resource not
-# listed here, then it will create them last and delete them first.
+# This list need not be complete. If Square encounters an unlisted resource it
+# is tantamount to adding that resource to the end of that list.
 # -----------------------------------------------------------------------------
 priorities:
-  # Custom Resources should come first.
+  # Custom Resources come first.
   - CustomResourceDefinition
 
   # Common non-namespaced resources.
   - ClusterRole
   - ClusterRoleBinding
 
-  # Namespaces must come before any namespaced resources,
+  # Namespaces must come before any namespaced resources.
   - Namespace
 
-  # Configuration and PVC before Deployments & friends use them.
+  # Configuration and PVC before Deployments & friends that may use them.
   - ConfigMap
   - PersistentVolumeClaim
   - Secret
@@ -75,17 +75,17 @@ priorities:
   - RoleBinding
   - ServiceAccount
 
-  # Define Services before creating Deployments & friends.
+  # Define Services before Deployments & friends.
   - PodDisruptionBudget
   - Service
 
-  # Everything that will spawn pods.
+  # Resources that will spawn pods.
   - CronJob
   - DaemonSet
   - Deployment
   - StatefulSet
 
-  # Other.
+  # Everything else.
   - HorizontalPodAutoscaler
   - Ingress
 
