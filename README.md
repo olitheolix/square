@@ -395,7 +395,6 @@ put it in your path. Then start the integration test cluster with:
     cd integration-test-cluster
     ./start_cluster.sh
 
-NOTE: the Github Actions CI only runs the unit tests.
 
 # Development Status
 We have been using *Square* in production for months and deem it stable.
