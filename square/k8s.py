@@ -572,7 +572,7 @@ def request(
     @backoff.on_exception(backoff.constant, web_exceptions,
                           max_tries=max_tries,
                           interval=3,
-                          max_time=5,
+                          max_time=20,
                           on_backoff=on_backoff,
                           logger=None,
                           jitter=None,
