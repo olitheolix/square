@@ -15,6 +15,7 @@ import google.auth
 import google.auth.transport.requests
 import requests
 import yaml
+
 from square.dtypes import (
     Filepath, K8sClientCert, K8sConfig, K8sResource, MetaManifest,
 )

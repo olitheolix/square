@@ -7,11 +7,12 @@ from typing import Collection, List, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
+import yaml
+from colorlog import ColoredFormatter
+
 import square.dotdict as dotdict
 import square.k8s as k8s
 import square.manio as manio
-import yaml
-from colorlog import ColoredFormatter
 from square.dtypes import (
     Config, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
     DeploymentPlanMeta, JsonPatch, K8sConfig, MetaManifest, Selectors,

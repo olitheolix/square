@@ -1,9 +1,10 @@
 import copy
 import sys
 
+import yaml
+
 import square
 import square.cfgfile as cfgfile
-import yaml
 from square.dtypes import DEFAULT_PRIORITIES, Config, Filepath
 
 
