@@ -4,6 +4,7 @@ import os
 from typing import Optional, Tuple
 
 import colorama
+
 import square
 import square.square
 from square import DEFAULT_CONFIG_FILE, __version__

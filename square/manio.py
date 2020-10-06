@@ -7,11 +7,12 @@ from typing import (
     Collection, DefaultDict, Dict, Iterable, List, Optional, Tuple,
 )
 
+import yaml
+import yaml.scanner
+
 import square.cfgfile
 import square.dotdict
 import square.k8s
-import yaml
-import yaml.scanner
 from square.dtypes import (
     Config, Filepath, GroupBy, K8sConfig, K8sResource, LocalManifestLists,
     MetaManifest, Selectors, ServerManifests,

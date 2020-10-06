@@ -5,10 +5,11 @@ import sys
 import unittest.mock as mock
 
 import pytest
+import yaml
+
 import square.dotdict as dotdict
 import square.k8s as k8s
 import square.manio as manio
-import yaml
 from square.dtypes import Filepath, GroupBy, MetaManifest, Selectors
 from square.k8s import resource
 

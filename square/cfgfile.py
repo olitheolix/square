@@ -14,6 +14,7 @@ from typing import List, Tuple, Union
 
 import pydantic
 import yaml
+
 from square.dtypes import Config, Filepath
 
 # Convenience.

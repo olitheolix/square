@@ -5,10 +5,11 @@ import unittest.mock as mock
 
 import pytest
 import sh
+import yaml
+
 import square.k8s
 import square.main
 import square.manio as manio
-import yaml
 from square.dtypes import Config, Filepath, GroupBy, K8sConfig, Selectors
 
 from .test_helpers import kind_available

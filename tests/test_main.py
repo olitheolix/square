@@ -6,13 +6,14 @@ import unittest.mock as mock
 from typing import Generator, Tuple
 
 import pytest
+import yaml
+
 import square
 import square.cfgfile as cfgfile
 import square.k8s as k8s
 import square.main as main
 import square.manio as manio
 import square.square as sq
-import yaml
 from square import DEFAULT_CONFIG_FILE
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,

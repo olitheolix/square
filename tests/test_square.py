@@ -2,9 +2,9 @@ import copy
 import random
 import unittest.mock as mock
 
+import square.cfgfile
 import square.k8s as k8s
 import square.manio as manio
-import square.cfgfile
 import square.square as sq
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,

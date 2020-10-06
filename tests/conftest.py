@@ -3,6 +3,7 @@ import unittest.mock as mock
 from typing import Generator
 
 import pytest
+
 import square.cfgfile
 import square.square
 from square.dtypes import Filepath, K8sConfig

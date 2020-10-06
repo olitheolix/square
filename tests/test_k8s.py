@@ -9,9 +9,10 @@ import unittest.mock as mock
 
 import pytest
 import requests_mock
+import yaml
+
 import square.k8s as k8s
 import square.square
-import yaml
 from square.dtypes import Filepath, K8sConfig, K8sResource, MetaManifest
 
 from .test_helpers import kind_available

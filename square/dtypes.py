@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from dataclasses import dataclass
 else:
     import dataclasses
+
     from pydantic.dataclasses import dataclass
 
 # All files in Square have this type.
