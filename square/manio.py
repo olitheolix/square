@@ -766,7 +766,7 @@ def load_files(
 
 
 def load(folder: Filepath, selectors: Selectors) -> Tuple[
-        ServerManifests, LocalManifestLists, bool]:
+         ServerManifests, LocalManifestLists, bool]:
     """Recursively load all "*.yaml" files under `folder`.
 
     Ignores all files not ending in ".yaml". Also removes all manifests that do
