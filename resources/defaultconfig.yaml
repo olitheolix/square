@@ -105,6 +105,7 @@ filters:
         - kubernetes.io/change-cause
       - creationTimestamp
       - generation
+      - managedFields
       - resourceVersion
       - selfLink
       - uid
