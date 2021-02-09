@@ -3,19 +3,18 @@
 [![](https://img.shields.io/badge/latest-v0.24.1-blue.svg)]()
 [![](https://github.com/olitheolix/square/workflows/build/badge.svg)]()
 [![](https://img.shields.io/codecov/c/github/olitheolix/square.svg?style=flat)]()
-[![](https://img.shields.io/badge/status-prod-green.svg)]()
 
 
 *Square* is to Kubernetes what Terraform is to Cloud: match the cluster state
 to what the local manifests dictate.
 
-Square is completely stateless. Unlike other tools, it does not create
-resources like ConfigMaps or inject special annotations to track state. The
-local manifests are all there is.
+Square is completely stateless. Unlike other tools it does not create resources
+like ConfigMaps or inject special annotations to track state - the local
+manifests are all there is.
 
 # Installation
 Grab a [binary release](https://github.com/olitheolix/square/releases) or
-install it into a Python 3.7 environment with `pip install kubernetes-square
+install it into a Python 3.7+ environment with `pip install kubernetes-square
 --upgrade`.
 ```console
 foo@bar:~$ square version
@@ -394,7 +393,3 @@ put it in your path. Then start the integration test cluster with:
 
     cd integration-test-cluster
     ./start_cluster.sh
-
-
-# Development Status
-We have been using *Square* in production for months and deem it stable.
