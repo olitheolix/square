@@ -278,7 +278,7 @@ class TestMainGet:
 
         """
         # Only show INFO and above or otherwise this test will produce a
-        # humongous amount of logs from all the K8s calls.
+        # humongous amount of useless logs from all the K8s calls.
         square.square.setup_logging(2)
 
         config = Config(
