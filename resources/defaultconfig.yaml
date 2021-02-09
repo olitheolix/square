@@ -34,10 +34,10 @@ selectors:
     - ServiceAccount
     - StatefulSet
 
-  # Target these namespaces. Leave empty to target all.
+  # Target these namespaces. Use an empty list to target all.
   namespaces: ["default"]
 
-  # Example: ["app=square", "foo=bar"]. Leave empty to ignore.
+  # Example: ["app=square", "foo=bar"]. Use an empty list to ignore labels.
   labels: []
 
 
@@ -50,12 +50,12 @@ groupby:
 
 
 # -----------------------------------------------------------------------------
-# Square will create resources in this order, and delete them in reverse order.
-# This list need not be complete. If Square encounters an unlisted resource it
-# is tantamount to adding that resource to the end of that list.
+# Square will create resources in this order and delete them in reverse order.
+# This list need not be complete. Square will treat all unlisted resource as
+# if they had been added at the end of that list.
 # -----------------------------------------------------------------------------
 priorities:
-  # Custom Resources come first.
+  # Custom resources come first.
   - CustomResourceDefinition
 
   # Common non-namespaced resources.
@@ -91,8 +91,8 @@ priorities:
 
 
 # -----------------------------------------------------------------------------
-# Square will omit all keys defined here in a plan and patches. It will also
-# skip them it creates a new resource.
+# Square will omit all manifest keys defined here in its plan and patches. It
+# will also skip those keys if it creates a new resource.
 # -----------------------------------------------------------------------------
 filters:
   # --- These will be inserted into all resource types to reduce boiler plate. ---
@@ -105,6 +105,7 @@ filters:
         - kubernetes.io/change-cause
       - creationTimestamp
       - generation
+      - managedFields
       - resourceVersion
       - selfLink
       - uid

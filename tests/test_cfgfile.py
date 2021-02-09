@@ -156,6 +156,9 @@ class TestMainGet:
         defaults = copy.deepcopy(square.DEFAULT_CONFIG.filters["_common_"])
         assert cfgfile.merge(defaults, []) == defaults
 
+        # Merge a simple custom filter `custom` into the default exclusion filter
+        # definition.
+        custom = [{"foo": ["bar"]}]
         expected = [
             {"foo": ["bar"]},
             {"metadata": [
@@ -167,15 +170,22 @@ class TestMainGet:
                 ]},
                 "creationTimestamp",
                 "generation",
+                "managedFields",
                 "resourceVersion",
                 "selfLink",
                 "uid",
             ]},
             "status",
         ]
-        src = [{"foo": ["bar"]}]
-        assert cfgfile.merge(defaults, src) == expected
+        assert cfgfile.merge(defaults, custom) == expected
 
+        # Repeat the test but with a more complex `custom` filter.
+        custom = [
+            {"metadata": [
+                {"annotations": ["orig-annot"]},
+                "orig-meta",
+            ]},
+        ]
         expected = [
             {"metadata": [
                 {"annotations": [
@@ -187,6 +197,7 @@ class TestMainGet:
                 ]},
                 "creationTimestamp",
                 "generation",
+                "managedFields",
                 "orig-meta",
                 "resourceVersion",
                 "selfLink",
@@ -194,14 +205,13 @@ class TestMainGet:
             ]},
             "status",
         ]
-        src = [
-            {"metadata": [
-                {"annotations": ["orig-annot"]},
-                "orig-meta",
-            ]},
-        ]
-        assert cfgfile.merge(defaults, src) == expected
+        assert cfgfile.merge(defaults, custom) == expected
 
+        # Another one, this time a bit simpler than the previous one because
+        # the `custom` filter for `metadata` just contains a list of strings.
+        custom = [
+            {"metadata": ["orig-meta"]},
+        ]
         expected = [
             {"metadata": [
                 {"annotations": [
@@ -212,6 +222,7 @@ class TestMainGet:
                 ]},
                 "creationTimestamp",
                 "generation",
+                "managedFields",
                 "orig-meta",
                 "resourceVersion",
                 "selfLink",
@@ -219,7 +230,4 @@ class TestMainGet:
             ]},
             "status",
         ]
-        src = [
-            {"metadata": ["orig-meta"]},
-        ]
-        assert cfgfile.merge(defaults, src) == expected
+        assert cfgfile.merge(defaults, custom) == expected
