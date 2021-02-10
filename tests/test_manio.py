@@ -575,6 +575,21 @@ class TestYamlManifestIO:
         fdata_test_in = {"m0.yaml": yaml.safe_dump(not_a_k8s_manifest)}
         assert manio.parse(fdata_test_in, selectors) == ({}, True)
 
+    def test_parse_worker(self):
+        """Load valid and invalid YAML strings with `_parse_worker` helper."""
+        fun = manio._parse_worker
+
+        # Construct manifests like `load_files` would return them.
+        for data in ["scanner error :: - yaml", ": parser error -"]:
+            assert fun("m0.yaml", data) == ([], True)
+
+        # Must return the manifest if the source string was valid.
+        valid_yaml = {
+            'apiVersion': 'v1',
+            'kind': 'Deployment',
+        }
+        assert fun("m0.yaml", yaml.safe_dump(valid_yaml)) == ([valid_yaml], False)
+
     def test_unpack_ok(self):
         """Test function must remove the filename dimension.
 

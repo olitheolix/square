@@ -2,6 +2,7 @@ import collections
 import copy
 import difflib
 import logging
+import multiprocessing
 import pathlib
 from typing import (
     Collection, DefaultDict, Dict, Iterable, List, Optional, Tuple,
@@ -192,6 +193,22 @@ def unpack_list(manifest_list: dict,
     return (manifests, False)
 
 
+def _parse_worker(fname: Filepath,
+                  yaml_str: str) -> Tuple[Collection[dict], bool]:
+    logit.debug(f"Parsing <{fname}>")
+
+    # Decode the YAML documents in the current file.
+    try:
+        manifests = list(yaml.load_all(yaml_str, Loader=Loader))
+        return manifests, False
+    except (yaml.parser.ParserError, yaml.scanner.ScannerError) as err:
+        logit.error(
+            f"Cannot YAML parse <{fname}>"
+            f" - {err.problem} - Line {err.problem_mark.line}"
+        )
+        return ([], True)
+
+
 def parse(
         file_yaml: Dict[Filepath, str],
         selectors: Selectors) -> Tuple[LocalManifestLists, bool]:
@@ -212,36 +229,36 @@ def parse(
     # The output dict will have a list of tuples.
     out: LocalManifestLists = {}
 
-    # Parse the YAML documents from every file.
-    for fname, yaml_str in file_yaml.items():
-        logit.debug(f"Parsing <{fname}>")
+    # Parse the YAML documents from every file. Use a process pool to speed up
+    # the process.
+    with multiprocessing.Pool() as pool:
+        # Compile the arguments for the worker processes that we will use to
+        # load the YAML files.
+        funargs = sorted(file_yaml.items())
+        fnames = sorted(list(file_yaml))
 
-        # Decode the YAML documents in the current file.
-        try:
-            manifests = list(yaml.load_all(yaml_str, Loader=Loader))
-        except (yaml.parser.ParserError, yaml.scanner.ScannerError) as err:
-            logit.error(
-                f"Cannot YAML parse <{fname}>"
-                f" - {err.problem} - Line {err.problem_mark.line}"
-            )
-            return ({}, True)
+        # Parse the YAMLs in a process pool.
+        ret: Collection[Tuple[MetaManifest, dict]]
+        for fname, (manifests, err) in zip(fnames, pool.starmap(_parse_worker, funargs)):
+            if err:
+                return ({}, err)
 
-        # Remove all empty manifests. This typically happens when the YAML
-        # file ends with a "---" string.
-        manifests = [_ for _ in manifests if _ is not None]
+            # Remove all empty manifests. This typically happens when the YAML
+            # file ends with a "---" string.
+            manifests = [_ for _ in manifests if _ is not None]
 
-        # Retain only those manifests that satisfy the selectors.
-        manifests = [_ for _ in manifests if select(_, selectors)]
+            # Retain only those manifests that satisfy the selectors.
+            manifests = [_ for _ in manifests if select(_, selectors)]
 
-        # Convert List[manifest] into List[(MetaManifest, manifest)].
-        # Abort if `make_meta` throws a KeyError which happens if `file_yaml`
-        # does not actually contain a Kubernetes manifest but some other
-        # (valid) YAML.
-        try:
-            out[fname] = [(make_meta(_), _) for _ in manifests]
-        except KeyError:
-            logit.error(f"{file_yaml} does not look like a K8s manifest file.")
-            return {}, True
+            # Convert List[manifest] into List[(MetaManifest, manifest)].
+            # Abort if `make_meta` throws a KeyError which happens if `file_yaml`
+            # does not actually contain a Kubernetes manifest but some other
+            # (valid) YAML.
+            try:
+                out[fname] = [(make_meta(_), _) for _ in manifests]
+            except KeyError:
+                logit.error(f"{file_yaml} does not look like a K8s manifest file.")
+                return {}, True
 
     # Drop all files without manifests.
     out = {k: v for k, v in out.items() if len(v) > 0}
