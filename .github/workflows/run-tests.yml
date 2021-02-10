@@ -33,10 +33,17 @@ jobs:
           cd ./integration-test-cluster
           ./start_cluster.sh
           cd ..
-      - name: Run Unit Tests
-        run: |
-          pytest --cov=square --cov-report=xml
-          pipenv run mypy --ignore-missing-imports --allow-redefinition square/*.py
+
+      - name: Tests - Linting
+        run: isort --check-only ./
+
+      # Break if coverage drops below 100%.
+      - name: Tests - Unit and Integration
+        run: pytest --cov=square --cov-report=term-missing --cov-report=xml --cov-fail-under=100
+
+      - name: Tests - Static analysis
+        run: pipenv run mypy --ignore-missing-imports --allow-redefinition square/*.py
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
