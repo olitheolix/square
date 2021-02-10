@@ -3,8 +3,8 @@ branch = True
 
 [report]
 exclude_lines =
-    # Ignore the main entry point.
-    if __name__ == .__main__.:
+    # Ignore all lines with this comment string.
+    codecov-skip
 
     # Only runs inside a PyInstaller bundle.
     _MEIPASS
