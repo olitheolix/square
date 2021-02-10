@@ -6,7 +6,7 @@
 
 # Unit tests.
 htmlcov/
-.coverage
+.coverage*
 
 # Binaries.
 build/
