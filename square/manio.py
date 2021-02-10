@@ -7,7 +7,6 @@ from typing import (
     Collection, DefaultDict, Dict, Iterable, List, Optional, Tuple,
 )
 
-import yaml
 import yaml.scanner
 
 import square.cfgfile
@@ -21,6 +20,22 @@ from square.dtypes import (
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
 DotDict = square.dotdict.DotDict
+
+
+# Use the fast CSafeLoader/CSafeDumper from the LibYAML C library if they are
+# available on the host, otherwise fall back to the slow Python loader/dumper.
+# NOTE: this import is excluded from the coverage report since it is difficult
+#       to write a meaningful test around a library import that may or may not
+#       exist on the host. I deem this acceptable in this case because it is a
+#       widely used snipped devoid of logic.
+try:                                 # codecov-skip
+    from yaml import (  # type: ignore
+        CSafeDumper as Dumper, CSafeLoader as Loader,
+    )
+    logit.debug("Using LibYAML C library")
+except ImportError:                  # codecov-skip
+    from yaml import Dumper, Loader  # type: ignore
+    logit.debug("Using Python YAML library")
 
 
 def make_meta(manifest: dict) -> MetaManifest:
@@ -203,7 +218,7 @@ def parse(
 
         # Decode the YAML documents in the current file.
         try:
-            manifests = list(yaml.safe_load_all(yaml_str))
+            manifests = list(yaml.load_all(yaml_str, Loader=Loader))
         except (yaml.parser.ParserError, yaml.scanner.ScannerError) as err:
             logit.error(
                 f"Cannot YAML parse <{fname}>"
@@ -443,8 +458,8 @@ def diff(config: Config,
     # Precaution: undo the DotDicts to ensure the YAML parse will accept them.
     srv = square.dotdict.undo(server)
     loc = square.dotdict.undo(local)
-    srv_lines = yaml.dump(srv, default_flow_style=False).splitlines()
-    loc_lines = yaml.dump(loc, default_flow_style=False).splitlines()
+    srv_lines = yaml.dump(srv, default_flow_style=False, Dumper=Dumper).splitlines()
+    loc_lines = yaml.dump(loc, default_flow_style=False, Dumper=Dumper).splitlines()
 
     # Compute and return the lines of the diff.
     diff_lines = difflib.unified_diff(srv_lines, loc_lines, lineterm='')
@@ -904,7 +919,8 @@ def save(folder: Filepath, manifests: LocalManifestLists,
     out_final: Dict[Filepath, str] = {}
     try:
         for fname, v in out_clean.items():
-            out_final[fname] = yaml.safe_dump_all(v, default_flow_style=False)
+            out_final[fname] = yaml.dump_all(v, default_flow_style=False,
+                                             Dumper=Dumper)
     except yaml.YAMLError as e:
         logit.error(
             f"YAML error. Cannot create <{fname}>: {e.args[0]} <{str(e.args[1])}>"
