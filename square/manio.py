@@ -28,11 +28,13 @@ DotDict = square.dotdict.DotDict
 #       to write a meaningful test around a library import that may or may not
 #       exist on the host. I deem this acceptable in this case because it is a
 #       widely used snipped devoid of logic.
-try:                            # codecov-skip
-    from yaml import CSafeDumper as Dumper, CSafeLoader as Loader
+try:                                 # codecov-skip
+    from yaml import (  # type: ignore
+        CSafeDumper as Dumper, CSafeLoader as Loader,
+    )
     logit.debug("Using LibYAML C library")
-except ImportError:             # codecov-skip
-    from yaml import Dumper, Loader
+except ImportError:                  # codecov-skip
+    from yaml import Dumper, Loader  # type: ignore
     logit.debug("Using Python YAML library")
 
 
