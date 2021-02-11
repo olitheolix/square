@@ -571,9 +571,43 @@ def sort_plan(cfg: Config, plan: DeploymentPlan) -> Tuple[DeploymentPlan, bool]:
 
 
 def valid_label(label: str) -> bool:
-    """Return `True` if `label` is K8s and Square compatible."""
-    pat = re.compile(r"^[a-z0-9][-a-z0-9_.]*=[-A-Za-z0-9_.]*[A-Za-z0-9]$")
-    return pat.match(label) is not None
+    """Return `True` if `label` is K8s and Square compatible.
+
+    The `label` contains both key and value, eg `dh/app=morty`.
+
+    """
+    # K8s uses this regex to validate the three individual label components
+    # `name`, `part` and `suffix`.
+    # Example: "name=part/suffix" -> ("name", "part", "value").
+    pat = re.compile(r'^([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$')
+
+    try:
+        # Split `app=part/file` into (`app`, `part/value`).
+        assert label.count("=") == 1
+        name, tmp = label.split("=")
+
+        # Split on the "/"
+        # "part/value" -> ("part", "value")
+        # "value" -> ("", "value")
+        part, _, value = tmp.rpartition("/")
+        del label, _
+
+        # If the label contains a "/" then validate its "part" component.
+        assert len(name) > 0
+        if "/" in tmp:
+            assert len(part) > 0 and pat.match(part)
+
+        # All components must be at most 64 characters long.
+        assert max(len(name), len(part), len(value)) < 64
+
+        # Validate the label and value.
+        assert pat.match(name)
+        assert pat.match(value)
+
+        # The label is valid.
+        return True
+    except AssertionError:
+        return False
 
 
 def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
