@@ -132,6 +132,9 @@ class TestBasic:
 
     def test_valid_label(self):
         """Test label values (not their key names)."""
+        # A specific example of a valid label that trigger a bug once.
+        assert sq.valid_label("dh/repo=pd-devops-charts")
+
         # Valid specimen.
         valid = ["foo", "foo/bar", "f/oo", "tags.datadoghq.com/service"]
 
@@ -144,8 +147,8 @@ class TestBasic:
             "foo//bar", "/bar", "foo/", "tags.datadoghq.com/",
         ]
 
-        valid = [f"name={_}" for _ in valid]
-        invalid = [f"name={_}" for _ in invalid]
+        valid = [f"{_}=value" for _ in valid]
+        invalid = [f"{_}=value" for _ in invalid]
 
         for name in valid:
             assert sq.valid_label(name)

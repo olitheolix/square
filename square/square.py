@@ -584,18 +584,18 @@ def valid_label(label: str) -> bool:
     try:
         # Split `app=part/file` into (`app`, `part/value`).
         assert label.count("=") == 1
-        name, tmp = label.split("=")
+        tmp, value = label.split("=")
 
         # Split on the "/"
         # "part/value" -> ("part", "value")
         # "value" -> ("", "value")
-        part, _, value = tmp.rpartition("/")
+        part, _, name = tmp.rpartition("/")
         del label, _
 
         # If the label contains a "/" then validate its "part" component.
         assert len(name) > 0
         if "/" in tmp:
-            assert len(part) > 0 and pat.match(part)
+            assert pat.match(part)
 
         # All components must be at most 64 characters long.
         assert max(len(name), len(part), len(value)) < 64
