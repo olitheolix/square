@@ -130,6 +130,29 @@ class TestBasic:
         assert ret.selectors.kinds == {"invalid", "k8s-resource-kind"}
         assert ret.priorities == ["invalid", "k8s-resource-kind"]
 
+    def test_valid_label(self):
+        """Test label values (not their key names)."""
+        # Valid specimen.
+        valid = ["foo", "foo/bar", "f/oo", "tags.datadoghq.com/service"]
+
+        # Invalid specimen.
+        invalid = [
+            "fo o/valid", "f*o/valid", "foo-/valid", "-foo/valid",
+            ".foo/valid", "foo./valid", "_foo/valid", "foo_/valid",
+            "./valid", "-/valid", "_/valid", "b ar/valid",
+            "foo /bar", "foo/ bar", "foo / bar", "foo/bar/foobar",
+            "foo//bar", "/bar", "foo/", "tags.datadoghq.com/",
+        ]
+
+        valid = [f"name={_}" for _ in valid]
+        invalid = [f"name={_}" for _ in invalid]
+
+        for name in valid:
+            assert sq.valid_label(name)
+
+        for name in invalid:
+            assert not sq.valid_label(name)
+
     def test_sanity_check_labels(self, config):
         """Main entry point functions must abort if any labels are invalid."""
         # Dummy plan.
