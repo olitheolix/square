@@ -822,7 +822,7 @@ class TestMain:
         """Must abort on invalid labels."""
         invalid_labels = (
             "foo", "foo=", "=foo", "foo=bar=foobar", "foo==bar",
-            "fo/o=bar",
+            "foo=ba/r",
         )
         for label in invalid_labels:
             with mock.patch("sys.argv", ["square.py", "get", "all", "-l", label]):
