@@ -198,7 +198,7 @@ def match_api_version(
         if meta_loc != meta_srv:
             del server[meta_srv]
             to_download.append(meta_loc)
-            logit.warning(
+            logit.info(
                 f"Using non-default {meta.kind.upper()} endpoint "
                 f"<{meta_loc.apiVersion}>"
             )
