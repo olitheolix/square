@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import backoff
 import google.auth
+import google.auth.exceptions
 import google.auth.transport.requests
 import requests
 import yaml
@@ -172,11 +173,15 @@ def load_gke_config(
     ssl_ca_cert.write_bytes(ssl_ca_cert_data)
 
     with warnings.catch_warnings(record=disable_warnings):
-        cred, project_id = google.auth.default(
-            scopes=['https://www.googleapis.com/auth/cloud-platform']
-        )
-        cred.refresh(google.auth.transport.requests.Request())
-        token = cred.token
+        try:
+            cred, project_id = google.auth.default(
+                scopes=['https://www.googleapis.com/auth/cloud-platform']
+            )
+            cred.refresh(google.auth.transport.requests.Request())
+            token = cred.token
+        except google.auth.exceptions.DefaultCredentialsError as e:
+            logit.error(str(e))
+            return (K8sConfig(), True)
 
     # Return the config data.
     logit.info("Assuming GKE cluster.")
