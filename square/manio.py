@@ -209,9 +209,8 @@ def _parse_worker(fname: Filepath,
         return ([], True)
 
 
-def parse(
-        file_yaml: Dict[Filepath, str],
-        selectors: Selectors) -> Tuple[LocalManifestLists, bool]:
+def parse(file_yaml: Dict[Filepath, str],
+          selectors: Selectors) -> Tuple[LocalManifestLists, bool]:
     """Parse all YAML strings from `file_yaml` into `LocalManifestLists`.
 
     Exclude all manifests that do not satisfy the `selectors`.

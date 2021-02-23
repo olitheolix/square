@@ -84,7 +84,7 @@ class K8sConfig(NamedTuple):
     ca_cert: Filepath = Filepath()
     client_cert: Optional[K8sClientCert] = None
 
-    # Request session.
+    # A persistent session from the "requests" library for this cluster.
     client: Any = None
 
     # Kubernetes version and name.
