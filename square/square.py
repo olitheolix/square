@@ -626,41 +626,46 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
         logit.error(f"Invalid labels: {cfg.selectors.labels}")
         return True
 
-    try:
-        # Sort the plan according to `cfg.priority`.
-        plan, err = sort_plan(cfg, plan)
-        assert not err
+    # Sort the plan according to `cfg.priority`.
+    plan, plan_err = sort_plan(cfg, plan)
 
-        # Create properly configured Requests session to talk to K8s API.
-        k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
-        assert not err
+    # Create properly configured "Requests" session to talk to the K8s API.
+    k8sconfig, k8s_err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
 
-        # Convert "Selectors.kinds" to their canonical names.
-        cfg = translate_resource_kinds(cfg, k8sconfig)
-
-        # Create the missing resources.
-        for data_c in plan.create:
-            print(f"Creating {data_c.meta.kind.upper()} "
-                  f"{data_c.meta.namespace}/{data_c.meta.name}")
-            _, err = k8s.post(k8sconfig.client, data_c.url, data_c.manifest)
-            assert not err
-
-        # Patch the server resources.
-        patches = [(_.meta, _.patch) for _ in plan.patch if len(_.patch.ops) > 0]
-        for meta, patch in patches:
-            print(f"Patching {meta.kind.upper()} "
-                  f"{meta.namespace}/{meta.name}")
-            _, err = k8s.patch(k8sconfig.client, patch.url, patch.ops)
-            assert not err
-
-        # Delete the excess resources.
-        for data_d in plan.delete:
-            print(f"Deleting {data_d.meta.kind.upper()} "
-                  f"{data_d.meta.namespace}/{data_d.meta.name}")
-            _, err = k8s.delete(k8sconfig.client, data_d.url, data_d.manifest)
-            assert not err
-    except AssertionError:
+    # Abort if we could not get the plan or establish the K8s session.
+    if plan_err or k8s_err:
         return True
+
+    # Convert "Selectors.kinds" to their canonical names.
+    cfg = translate_resource_kinds(cfg, k8sconfig)
+
+    # Create the missing resources. Abort on first error.
+    for data_c in plan.create:
+        msg_res = f"{data_c.meta.kind.upper()} {data_c.meta.namespace}/{data_c.meta.name}"
+        print(f"Creating {msg_res}")
+        _, err = k8s.post(k8sconfig.client, data_c.url, data_c.manifest)
+        if err:
+            logit.error(f"Could not patch {msg_res}")
+            return True
+
+    # Patch the server resources. Abort on first error.
+    patches = [(_.meta, _.patch) for _ in plan.patch if len(_.patch.ops) > 0]
+    for meta, patch in patches:
+        msg_res = f"{meta.kind.upper()} {meta.namespace}/{meta.name}"
+        print(f"Patching {msg_res}")
+        _, err = k8s.patch(k8sconfig.client, patch.url, patch.ops)
+        if err:
+            logit.error(f"Could not patch {msg_res}")
+            return True
+
+    # Delete the excess resources. Abort on first error.
+    for data_d in plan.delete:
+        msg_res = f"{data_d.meta.kind.upper()} {data_d.meta.namespace}/{data_d.meta.name}"
+        print(f"Deleting {msg_res}")
+        _, err = k8s.delete(k8sconfig.client, data_d.url, data_d.manifest)
+        if err:
+            logit.error(f"Could not patch {msg_res}")
+            return True
 
     # All good.
     return False

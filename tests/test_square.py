@@ -971,6 +971,11 @@ class TestMainOptions:
         m_post.return_value = (None, True)
         assert sq.apply_plan(config, plan) is True
 
+        # Make `sort_plan` fail.
+        with mock.patch.object(sq, "sort_plan") as m_sort:
+            m_sort.return_value = [], True
+            assert sq.apply_plan(config, plan) is True
+
     @mock.patch.object(manio, "load")
     @mock.patch.object(manio, "download")
     @mock.patch.object(manio, "align_serviceaccount")
