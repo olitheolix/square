@@ -931,6 +931,10 @@ class TestK8sKubeconfig:
         # Try to load a Minikube context - must fail.
         assert k8s.load_gke_config(fname, "minikube") == (K8sConfig(), True)
 
+        # Pretend the Google client threw an exception.
+        m_google.side_effect = k8s.google.auth.exceptions.DefaultCredentialsError
+        assert k8s.load_gke_config(fname, "gke") == (K8sConfig(), True)
+
     @mock.patch.object(k8s.subprocess, "run")
     def test_load_eks_config_ok(self, m_run):
         """Load EKS configuration from demo kubeconfig."""

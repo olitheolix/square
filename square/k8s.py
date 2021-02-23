@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Set, Tuple
 
 import backoff
 import google.auth
+import google.auth.exceptions
 import google.auth.transport.requests
 import requests
 import yaml
@@ -172,11 +173,15 @@ def load_gke_config(
     ssl_ca_cert.write_bytes(ssl_ca_cert_data)
 
     with warnings.catch_warnings(record=disable_warnings):
-        cred, project_id = google.auth.default(
-            scopes=['https://www.googleapis.com/auth/cloud-platform']
-        )
-        cred.refresh(google.auth.transport.requests.Request())
-        token = cred.token
+        try:
+            cred, project_id = google.auth.default(
+                scopes=['https://www.googleapis.com/auth/cloud-platform']
+            )
+            cred.refresh(google.auth.transport.requests.Request())
+            token = cred.token
+        except google.auth.exceptions.DefaultCredentialsError as e:
+            logit.error(str(e))
+            return (K8sConfig(), True)
 
     # Return the config data.
     logit.info("Assuming GKE cluster.")
@@ -199,8 +204,8 @@ def load_eks_config(
     Returns None if `kubeconfig` does not exist or could not be parsed.
 
     Inputs:
-        kubconfig: str
-            Name of kubeconfig file.
+        fname: Filepath
+            Kubeconfig file.
         context: str
             Kubeconf context. Use `None` to use default context.
         disable_warnings: bool
@@ -246,19 +251,25 @@ def load_eks_config(
     env.update(env_kubeconf)
     logit.debug(f"Requesting EKS certificate: {cmd_args} with envs: {env_kubeconf}")
 
+    # Pre-format the command for the log message.
+    log_cmd = (
+        f"kubeconf={fname} kubectx={context} "
+        f"cmd={cmd_args}  env={env_kubeconf}"
+    )
+
     # Run the specified command to produce the access token. That program must
     # produce a YAML document on stdout that specifies the bearer token.
     try:
         out = subprocess.run(cmd_args, stdout=subprocess.PIPE, env=env)
         token = yaml.safe_load(out.stdout.decode("utf8"))["status"]["token"]
     except FileNotFoundError:
-        logit.error(f"Could not find <{cmd}> application to get token")
+        logit.error(f"Could not find {cmd} application to get token ({log_cmd})")
         return (K8sConfig(), True)
     except (KeyError, yaml.YAMLError):
-        logit.error(f"Token manifest from <{cmd}> is corrupt")
+        logit.error(f"Token manifest produce by {cmd_args} is corrupt ({log_cmd})")
         return (K8sConfig(), True)
     except TypeError:
-        logit.error(f"The YAML token produced by <{cmd}> is corrupt")
+        logit.error(f"The YAML token produced by {cmd_args} is corrupt ({log_cmd})")
         return (K8sConfig(), True)
 
     # Return the config data.
@@ -612,7 +623,7 @@ def delete(client, url: str, payload: dict) -> Tuple[dict, bool]:
     resp, code = request(client, 'DELETE', url, payload, headers=None)
     err = (code not in (200, 202))
     if err:
-        logit.error(f"{code} - DELETE - {url} - {resp}")
+        logit.info(f"{code} - DELETE - {url} - {resp}")
     return (resp, err)
 
 
@@ -621,7 +632,7 @@ def get(client, url: str) -> Tuple[dict, bool]:
     resp, code = request(client, 'GET', url, payload=None, headers=None)
     err = (code != 200)
     if err:
-        logit.error(f"{code} - GET - {url} - {resp}")
+        logit.info(f"{code} - GET - {url} - {resp}")
     return (resp, err)
 
 
@@ -631,7 +642,7 @@ def patch(client, url: str, payload: dict) -> Tuple[dict, bool]:
     resp, code = request(client, 'PATCH', url, payload, headers)
     err = (code != 200)
     if err:
-        logit.error(f"{code} - PATCH - {url} - {resp}")
+        logit.info(f"{code} - PATCH - {url} - {resp}")
     return (resp, err)
 
 
@@ -640,7 +651,7 @@ def post(client, url: str, payload: dict) -> Tuple[dict, bool]:
     resp, code = request(client, 'POST', url, payload, headers=None)
     err = (code != 201)
     if err:
-        logit.error(f"{code} - POST - {url} - {resp}")
+        logit.info(f"{code} - POST - {url} - {resp}")
     return (resp, err)
 
 
@@ -662,6 +673,7 @@ def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     url = f"{k8sconfig.url}/version"
     resp, err = get(k8sconfig.client, url)
     if err or resp is None:
+        logit.error(f"Could not interrogate {k8sconfig.name} ({url})")
         return (K8sConfig(), True)
 
     # Construct the version number of the K8s API.
@@ -810,7 +822,7 @@ def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
     # Compile the list of all K8s API groups that this K8s instance knows about.
     resp, err = get(k8sconfig.client, f"{k8sconfig.url}/apis")
     if err:
-        logit.error(f"Could not interrogate the {k8sconfig.url}/apis")
+        logit.error(f"Could not interrogate {k8sconfig.name} ({k8sconfig.url}/apis)")
         return True
 
     # Compile the list of all API groups and their endpoints. Example
@@ -862,7 +874,8 @@ def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
         for api_version, url in ver_url:
             resp, err = get(k8sconfig.client, f"{k8sconfig.url}/{url}")
             if err:
-                logit.error(f"Could not interrogate the {k8sconfig.url}/{url}")
+                msg = f"Could not interrogate {k8sconfig.name} ({k8sconfig.url}/{url})"
+                logit.error(msg)
                 return True
 
             data, short2kind = parse_api_group(api_version, url, resp)
