@@ -1008,6 +1008,8 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[ServerManifests, boo
                 # assert would have failed.
                 manifests = {k: v[0] for k, v in ret.items() if v[0] is not None}
             except AssertionError:
+                logit.error(f"Could not query <{kind}> from {k8sconfig.name}")
+
                 # Return nothing, even if we had downloaded other kinds already.
                 return ({}, True)
             else:
@@ -1036,6 +1038,7 @@ def download_single(k8sconfig: K8sConfig,
         manifest, _, err = strip(k8sconfig, manifest, {})
         assert not err
     except AssertionError:
+        logit.error(f"Could not query {k8sconfig.name} ({k8sconfig.url}/{resource.url})")
         return (MetaManifest("", "", "", ""), {}, True)
 
     return (make_meta(manifest), manifest, False)
