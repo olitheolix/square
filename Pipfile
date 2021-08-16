@@ -25,6 +25,8 @@ sh = "*"
 pytest-pycodestyle = "*"
 pytest-cov = "*"
 pyinstaller = "==3.6"
+types-pyyaml = "*"
+types-requests = "*"
 
 [requires]
 python_version = "3.7"
