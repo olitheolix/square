@@ -202,9 +202,11 @@ def _parse_worker(fname: Filepath,
         manifests = list(yaml.load_all(yaml_str, Loader=Loader))
         return manifests, False
     except (yaml.parser.ParserError, yaml.scanner.ScannerError) as err:
+        # To satisfy MyPy we need to check that `problem_mark` is not None.
+        line = err.problem_mark.line if err.problem_mark else ""
         logit.error(
             f"Cannot YAML parse <{fname}>"
-            f" - {err.problem} - Line {err.problem_mark.line}"
+            f" - {err.problem} - Line {line}"
         )
         return ([], True)
 
