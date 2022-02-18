@@ -599,7 +599,7 @@ def request(
         return ({}, True)
 
     try:
-        response = ret.json()
+        response = json.loads(ret.text)
     except json.decoder.JSONDecodeError as err:
         msg = (
             f"JSON error: {err.msg} in line {err.lineno} column {err.colno}",
