@@ -24,7 +24,6 @@ bumpversion = "*"
 sh = "*"
 pytest-pycodestyle = "*"
 pytest-cov = "*"
-pyinstaller = "==3.6"
 types-pyyaml = "*"
 types-requests = "*"
 
