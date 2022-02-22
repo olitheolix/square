@@ -1,7 +1,7 @@
 import pathlib
 from typing import (
-    TYPE_CHECKING, Any, Collection, Dict, List, NamedTuple, Optional, Set,
-    Tuple, Union,
+    TYPE_CHECKING, Any, Callable, Collection, Dict, List, NamedTuple, Optional,
+    Set, Tuple, Union,
 )
 
 if TYPE_CHECKING:
@@ -198,6 +198,10 @@ class Config:
 
     # Define which fields to skip for which resource.
     filters: Dict[str, List[Union[str, dict]]] = _factory({})
+
+    # Callable: will be invoked for every local/server manifest that requires
+    # patching before the actual patch will be computed.
+    patch_callback: Optional[Callable] = None
 
     version: str = ""
 

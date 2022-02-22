@@ -466,14 +466,14 @@ def diff(config: Config,
         local: dict
             Local manifest.
         server: dict
-            Local manifest.
+            Server manifest.
 
     Returns:
         str: human readable diff string as the Unix `diff` utility would
         produce it.
 
     """
-    # Precaution: undo the DotDicts to ensure the YAML parse will accept them.
+    # Precaution: undo the DotDicts to ensure the YAML parser will accept them.
     srv = square.dotdict.undo(server)
     loc = square.dotdict.undo(local)
     srv_lines = yaml.dump(srv, default_flow_style=False, Dumper=Dumper).splitlines()

@@ -888,6 +888,122 @@ class TestPlan:
         assert sq.compile_plan(config, k8sconfig, error, valid) == err_resp
         assert sq.compile_plan(config, k8sconfig, error, error) == err_resp
 
+    def test_run_user_callback(self, config, k8sconfig):
+        """Safeguard the call to the user supplied callback function.
+
+        This test will define a few callback functions. Some will work as
+        intended whereas others will raise exceptions. The goal is to ensure
+        that `run_user_callback` can gracefully abort if the user supplied
+        callback function misbehaves, for instance raise an exception or return
+        the wrong number of arguments.
+
+        """
+        # Define a single resource.
+        meta = MetaManifest('v1', 'Namespace', None, 'ns1')
+
+        def get_dummy_manifests():
+            """Return a valid local/server manfiest pair to force a patch."""
+            loc_man = {meta: make_manifest("Namespace", None, "ns1")}
+            srv_man = {meta: make_manifest("Namespace", None, "ns1")}
+            loc_man[meta]["metadata"]["labels"] = {"foo": "foo"}
+            srv_man[meta]["metadata"]["labels"] = {"bar": "bar"}
+            return loc_man, srv_man
+
+        # ----------------------------------------------------------------------
+        # No callback function installed.
+        # ----------------------------------------------------------------------
+        local, server = get_dummy_manifests()
+        config.patch_callback = None
+        assert not sq.run_user_callback(config, [meta], local, server)
+        assert local[meta] != server[meta]
+        del local, server
+
+        # ----------------------------------------------------------------------
+        # Callback is well behaved. It matches the local manifest to the server.
+        # ----------------------------------------------------------------------
+        def cb1(_cfg, _local, _server):
+            return _server, _server
+
+        local, server = get_dummy_manifests()
+        config.patch_callback = cb1
+        assert not sq.run_user_callback(config, [meta], local, server)
+        assert local[meta] == server[meta]
+        del cb1, local, server
+
+        # ----------------------------------------------------------------------
+        # Callback returns zero instead of two arguments.
+        # ----------------------------------------------------------------------
+        def cb2(_cfg, _local, _server):
+            return None
+
+        local, server = get_dummy_manifests()
+        config.patch_callback = cb2
+        assert sq.run_user_callback(config, [meta], local, server)
+        del cb2, local, server
+
+        # ----------------------------------------------------------------------
+        # Callback triggers an exception (division by zero in this case).
+        # ----------------------------------------------------------------------
+        def cb3(_cfg, _local, _server):
+            1 / 0
+
+        local, server = get_dummy_manifests()
+        config.patch_callback = cb3
+        assert sq.run_user_callback(config, [meta], local, server)
+        del cb3, local, server
+
+    def test_compile_plan_patch_user_callback(self, config, k8sconfig):
+        """Test a plan that uses a custom callback function for patches.
+
+        The client and server have the same resource but one requires a patch.
+        Here we ensure that this resource passes through the callback function
+        before the patch is computed.
+
+        """
+        # Define a single resource.
+        meta = MetaManifest('v1', 'Namespace', None, 'ns1')
+
+        # Local and server manifests have the same resources but their
+        # definition differs. This will ensure a non-empty patch in the plan.
+        loc_man = {meta: make_manifest("Namespace", None, "ns1")}
+        srv_man = {meta: make_manifest("Namespace", None, "ns1")}
+        loc_man[meta]["metadata"]["labels"] = {"foo": "foo"}
+        srv_man[meta]["metadata"]["labels"] = {"bar": "bar"}
+        loc_man_bak = copy.deepcopy(loc_man)
+        srv_man_bak = copy.deepcopy(srv_man)
+
+        def cb1(_cfg: Config, _local: dict, _server: dict):
+            assert _cfg == config
+            assert _local == loc_man[meta]
+            assert _server == srv_man[meta]
+            return _server, _server
+
+        # Create the plan without a user callback. This must produce a patch
+        # because there is a difference between the local and remote manifests.
+        config.patch_callback = None
+        ret, err = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
+        assert not err and ret.create == ret.delete == [] and len(ret.patch) == 1
+
+        # Repeat the test with a callback function. Our test CB will overwrite
+        # the local one with that from the server, which means there will be
+        # nothing to patch.
+        config.patch_callback = cb1
+        ret = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
+        assert ret == (DeploymentPlan(create=[], patch=[], delete=[]), False)
+
+        # Verify that there were no side effects even though the
+        # callback function made changes to the manifests.
+        assert loc_man == loc_man_bak
+        assert srv_man == srv_man_bak
+
+        # Repeat the test, but this time force an error in the callback function.
+        def cb2(_cfg: Config, _local: dict, _server: dict):
+            1 / 0
+
+        config.patch_callback = cb2
+        _, err = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
+        assert err
+
 
 class TestMainOptions:
     @mock.patch.object(k8s, "post")

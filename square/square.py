@@ -2,8 +2,10 @@ import copy
 import json
 import logging
 import re
+import sys
+import traceback
 from collections import Counter
-from typing import Collection, List, Optional, Set, Tuple
+from typing import Collection, Dict, List, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
@@ -117,9 +119,9 @@ def partition_manifests(
     Patch : all resources that exist in both and therefore *may* need patching.
 
     Inputs:
-        local: Dict[MetaManifest:str]
+        local: ServerManifests
             Usually the dictionary keys returned by `load_manifest`.
-        server: Dict[MetaManifest:str]
+        server: ServerManifests
             Usually the dictionary keys returned by `manio.download`.
 
     Returns:
@@ -218,6 +220,52 @@ def match_api_version(
         server[meta] = manifest
 
     return server, False
+
+
+def run_user_callback(config: Config,
+                      plan_patch: List[MetaManifest],
+                      local: Dict[MetaManifest, dict],
+                      server: Dict[MetaManifest, dict]) -> bool:
+    """Run the user supplied callback function for all manifests to patch.
+
+    This function will run *after* the filters from the `Config` were applied.
+
+    NOTE: modifies `local` and `server` inplace.
+
+    Inputs:
+        config: Square configuration.
+        plan_patch: List[MetaManifest]
+            The list of meta manifests that currently require a patch.
+        local: ServerManifests
+            Should be output from `load_manifest` or `load`.
+        server: ServerManifests
+            Should be output from `manio.download`.
+
+    """
+    # Do nothing and return immediately if the user did not provide a callback.
+    cb = config.patch_callback
+    if not cb:
+        return False
+
+    # Run user supplied callback for each local/server manifest pair that needs
+    # patching. This will update our dict of local/server manifests inplace.
+    try:
+        for meta in plan_patch:
+            local[meta], server[meta] = cb(config, local[meta], server[meta])
+    except Exception:
+        # Error in user supplied callback function. Print a hopefully useful
+        # stack trace and the return cleanly with an error.
+        tb_str = str.join(
+            "\n",
+            traceback.format_exception(*sys.exc_info())
+        )
+        logit.error(
+            "Error in filter callback. See below for details:\n"
+            "---\n"
+            f"{tb_str}---"
+        )
+        return True
+    return False
 
 
 def compile_plan(
@@ -320,12 +368,17 @@ def compile_plan(
         # Compile the Delta and add it to the list.
         delete.append(DeltaDelete(meta, resource.url, del_opts.copy()))
 
+    # Run the local/server manifests through a custom callback function that
+    # can modify them before Square computes the patch.
+    if run_user_callback(config, list(plan.patch), local, server):
+        return err_resp
+
     # Iterate over each manifest that needs patching and determine the
     # necessary JSON Patch to transition K8s into the state specified in the
     # local manifests.
     patches = []
     for meta in plan.patch:
-        # Compute textual diff (only useful for the user to study the diff).
+        # Compute human readable diff.
         diff_str, err = manio.diff(config, k8sconfig, local[meta], server[meta])
         if err or diff_str is None:
             logit.error(f"Could not compute the diff for <{meta}>.")

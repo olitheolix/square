@@ -296,6 +296,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         groupby=groupby,
         priorities=priorities,
         filters=filters,
+        patch_callback=None,
     )
     return cfg, False
 
