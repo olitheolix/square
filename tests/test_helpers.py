@@ -40,13 +40,6 @@ def k8s_apis(config: K8sConfig):
             namespaced=False,
             url=f"{config.url}/apis/rbac.authorization.k8s.io/v1",
         ),
-        ("ClusterRole", "rbac.authorization.k8s.io/v1beta1"): K8sResource(
-            apiVersion="rbac.authorization.k8s.io/v1beta1",
-            kind="ClusterRole",
-            name="clusterroles",
-            namespaced=False,
-            url=f"{config.url}/apis/rbac.authorization.k8s.io/v1beta1",
-        ),
         ("ClusterRoleBinding", ""): K8sResource(
             apiVersion="rbac.authorization.k8s.io/v1",
             kind="ClusterRoleBinding",
@@ -60,13 +53,6 @@ def k8s_apis(config: K8sConfig):
             name="clusterrolebindings",
             namespaced=False,
             url=f"{config.url}/apis/rbac.authorization.k8s.io/v1",
-        ),
-        ("ClusterRoleBinding", "rbac.authorization.k8s.io/v1beta1"): K8sResource(
-            apiVersion="rbac.authorization.k8s.io/v1beta1",
-            kind="ClusterRoleBinding",
-            name="clusterrolebindings",
-            namespaced=False,
-            url=f"{config.url}/apis/rbac.authorization.k8s.io/v1beta1",
         ),
         ("ConfigMap", ""): K8sResource(
             apiVersion="v1",
@@ -83,32 +69,32 @@ def k8s_apis(config: K8sConfig):
             url=f"{config.url}/api/v1",
         ),
         ("CronJob", ""): K8sResource(
-            apiVersion="batch/v1beta1",
+            apiVersion="batch/v1",
             kind="CronJob",
             name="cronjobs",
             namespaced=True,
-            url=f"{config.url}/apis/batch/v1beta1",
+            url=f"{config.url}/apis/batch/v1",
         ),
-        ("CronJob", "batch/v1beta1"): K8sResource(
-            apiVersion="batch/v1beta1",
+        ("CronJob", "batch/v1"): K8sResource(
+            apiVersion="batch/v1",
             kind="CronJob",
             name="cronjobs",
             namespaced=True,
-            url=f"{config.url}/apis/batch/v1beta1",
+            url=f"{config.url}/apis/batch/v1",
         ),
         ("CustomResourceDefinition", ""): K8sResource(
-            apiVersion="apiextensions.k8s.io/v1beta1",
+            apiVersion="apiextensions.k8s.io/v1",
             kind="CustomResourceDefinition",
             name="customresourcedefinitions",
             namespaced=False,
-            url=f"{config.url}/apis/apiextensions.k8s.io/v1beta1",
+            url=f"{config.url}/apis/apiextensions.k8s.io/v1",
         ),
-        ("CustomResourceDefinition", "apiextensions.k8s.io/v1beta1"): K8sResource(
-            apiVersion="apiextensions.k8s.io/v1beta1",
+        ("CustomResourceDefinition", "apiextensions.k8s.io/v1"): K8sResource(
+            apiVersion="apiextensions.k8s.io/v1",
             kind="CustomResourceDefinition",
             name="customresourcedefinitions",
             namespaced=False,
-            url=f"{config.url}/apis/apiextensions.k8s.io/v1beta1",
+            url=f"{config.url}/apis/apiextensions.k8s.io/v1",
         ),
         ("DaemonSet", ""): K8sResource(
             apiVersion="apps/v1",
@@ -123,20 +109,6 @@ def k8s_apis(config: K8sConfig):
             name="daemonsets",
             namespaced=True,
             url=f"{config.url}/apis/apps/v1",
-        ),
-        ("DaemonSet", "apps/v1beta2"): K8sResource(
-            apiVersion="apps/v1beta2",
-            kind="DaemonSet",
-            name="daemonsets",
-            namespaced=True,
-            url=f"{config.url}/apis/apps/v1beta2",
-        ),
-        ("DaemonSet", "extensions/v1beta1"): K8sResource(
-            apiVersion="extensions/v1beta1",
-            kind="DaemonSet",
-            name="daemonsets",
-            namespaced=True,
-            url=f"{config.url}/apis/extensions/v1beta1",
         ),
         ("DemoCRD", ""): K8sResource(
             apiVersion="mycrd.com/v1",
@@ -166,33 +138,12 @@ def k8s_apis(config: K8sConfig):
             namespaced=True,
             url=f"{config.url}/apis/apps/v1",
         ),
-        ("Deployment", "apps/v1beta1"): K8sResource(
-            apiVersion="apps/v1beta1",
-            kind="Deployment",
-            name="deployments",
-            namespaced=True,
-            url=f"{config.url}/apis/apps/v1beta1",
-        ),
-        ("Deployment", "apps/v1beta2"): K8sResource(
-            apiVersion="apps/v1beta2",
-            kind="Deployment",
-            name="deployments",
-            namespaced=True,
-            url=f"{config.url}/apis/apps/v1beta2",
-        ),
-        ("Deployment", "extensions/v1beta1"): K8sResource(
-            apiVersion="extensions/v1beta1",
-            kind="Deployment",
-            name="deployments",
-            namespaced=True,
-            url=f"{config.url}/apis/extensions/v1beta1",
-        ),
         ("HorizontalPodAutoscaler", ""): K8sResource(
-            apiVersion="autoscaling/v1",
+            apiVersion="autoscaling/v2",
             kind="HorizontalPodAutoscaler",
             name="horizontalpodautoscalers",
             namespaced=True,
-            url=f"{config.url}/apis/autoscaling/v1",
+            url=f"{config.url}/apis/autoscaling/v2",
         ),
         ("HorizontalPodAutoscaler", "autoscaling/v1"): K8sResource(
             apiVersion="autoscaling/v1",
@@ -200,6 +151,13 @@ def k8s_apis(config: K8sConfig):
             name="horizontalpodautoscalers",
             namespaced=True,
             url=f"{config.url}/apis/autoscaling/v1",
+        ),
+        ("HorizontalPodAutoscaler", "autoscaling/v2"): K8sResource(
+            apiVersion="autoscaling/v2",
+            kind="HorizontalPodAutoscaler",
+            name="horizontalpodautoscalers",
+            namespaced=True,
+            url=f"{config.url}/apis/autoscaling/v2",
         ),
         ("HorizontalPodAutoscaler", "autoscaling/v2beta1"): K8sResource(
             apiVersion="autoscaling/v2beta1",
@@ -216,25 +174,18 @@ def k8s_apis(config: K8sConfig):
             url=f"{config.url}/apis/autoscaling/v2beta2",
         ),
         ("Ingress", ""): K8sResource(
-            apiVersion="extensions/v1beta1",
+            apiVersion="networking.k8s.io/v1",
             kind="Ingress",
             name="ingresses",
             namespaced=True,
-            url=f"{config.url}/apis/extensions/v1beta1",
+            url=f"{config.url}/apis/networking.k8s.io/v1",
         ),
-        ("Ingress", "extensions/v1beta1"): K8sResource(
-            apiVersion="extensions/v1beta1",
+        ("Ingress", "networking.k8s.io/v1"): K8sResource(
+            apiVersion="networking.k8s.io/v1",
             kind="Ingress",
             name="ingresses",
             namespaced=True,
-            url=f"{config.url}/apis/extensions/v1beta1",
-        ),
-        ("Ingress", "networking.k8s.io/v1beta1"): K8sResource(
-            apiVersion="networking.k8s.io/v1beta1",
-            kind="Ingress",
-            name="ingresses",
-            namespaced=True,
-            url=f"{config.url}/apis/networking.k8s.io/v1beta1",
+            url=f"{config.url}/apis/networking.k8s.io/v1",
         ),
         ("Job", ""): K8sResource(
             apiVersion="batch/v1",
@@ -307,18 +258,18 @@ def k8s_apis(config: K8sConfig):
             url=f"{config.url}/api/v1",
         ),
         ("PodDisruptionBudget", ""): K8sResource(
-            apiVersion="policy/v1beta1",
+            apiVersion="policy/v1",
             kind="PodDisruptionBudget",
             name="poddisruptionbudgets",
             namespaced=True,
-            url=f"{config.url}/apis/policy/v1beta1",
+            url=f"{config.url}/apis/policy/v1",
         ),
-        ("PodDisruptionBudget", "policy/v1beta1"): K8sResource(
-            apiVersion="policy/v1beta1",
+        ("PodDisruptionBudget", "policy/v1"): K8sResource(
+            apiVersion="policy/v1",
             kind="PodDisruptionBudget",
             name="poddisruptionbudgets",
             namespaced=True,
-            url=f"{config.url}/apis/policy/v1beta1",
+            url=f"{config.url}/apis/policy/v1",
         ),
         ("Role", ""): K8sResource(
             apiVersion="rbac.authorization.k8s.io/v1",
@@ -334,13 +285,6 @@ def k8s_apis(config: K8sConfig):
             namespaced=True,
             url=f"{config.url}/apis/rbac.authorization.k8s.io/v1",
         ),
-        ("Role", "rbac.authorization.k8s.io/v1beta1"): K8sResource(
-            apiVersion="rbac.authorization.k8s.io/v1beta1",
-            kind="Role",
-            name="roles",
-            namespaced=True,
-            url=f"{config.url}/apis/rbac.authorization.k8s.io/v1beta1",
-        ),
         ("RoleBinding", ""): K8sResource(
             apiVersion="rbac.authorization.k8s.io/v1",
             kind="RoleBinding",
@@ -354,13 +298,6 @@ def k8s_apis(config: K8sConfig):
             name="rolebindings",
             namespaced=True,
             url=f"{config.url}/apis/rbac.authorization.k8s.io/v1",
-        ),
-        ("RoleBinding", "rbac.authorization.k8s.io/v1beta1"): K8sResource(
-            apiVersion="rbac.authorization.k8s.io/v1beta1",
-            kind="RoleBinding",
-            name="rolebindings",
-            namespaced=True,
-            url=f"{config.url}/apis/rbac.authorization.k8s.io/v1beta1",
         ),
         ("Secret", ""): K8sResource(
             apiVersion="v1",
@@ -417,20 +354,6 @@ def k8s_apis(config: K8sConfig):
             name="statefulsets",
             namespaced=True,
             url=f"{config.url}/apis/apps/v1",
-        ),
-        ("StatefulSet", "apps/v1beta1"): K8sResource(
-            apiVersion="apps/v1beta1",
-            kind="StatefulSet",
-            name="statefulsets",
-            namespaced=True,
-            url=f"{config.url}/apis/apps/v1beta1",
-        ),
-        ("StatefulSet", "apps/v1beta2"): K8sResource(
-            apiVersion="apps/v1beta2",
-            kind="StatefulSet",
-            name="statefulsets",
-            namespaced=True,
-            url=f"{config.url}/apis/apps/v1beta2",
         ),
     }
 

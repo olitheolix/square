@@ -652,11 +652,11 @@ class TestUrlPathBuilder:
         kinds = {
             # Standard resources that a v1.16 Kubernetes cluster always has.
             ('ClusterRole', 'rbac.authorization.k8s.io/v1'),
-            ('ClusterRole', 'rbac.authorization.k8s.io/v1beta1'),
             ('ConfigMap', 'v1'),
             ('DaemonSet', 'apps/v1'),
             ('Deployment', 'apps/v1'),
             ('HorizontalPodAutoscaler', 'autoscaling/v1'),
+            ('HorizontalPodAutoscaler', 'autoscaling/v2'),
             ('HorizontalPodAutoscaler', 'autoscaling/v2beta1'),
             ('HorizontalPodAutoscaler', 'autoscaling/v2beta2'),
             ('Pod', 'v1'),
@@ -712,12 +712,12 @@ class TestUrlPathBuilder:
             namespaced=True,
             url=f"{config.url}/apis/apps/v1",
         )
-        assert config.apis[("Ingress", "networking.k8s.io/v1beta1")] == K8sResource(
-            apiVersion="networking.k8s.io/v1beta1",
+        assert config.apis[("Ingress", "networking.k8s.io/v1")] == K8sResource(
+            apiVersion="networking.k8s.io/v1",
             kind="Ingress",
             name="ingresses",
             namespaced=True,
-            url=f"{config.url}/apis/networking.k8s.io/v1beta1",
+            url=f"{config.url}/apis/networking.k8s.io/v1",
         )
 
         # Verify our CRD.
