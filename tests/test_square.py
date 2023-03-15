@@ -446,42 +446,50 @@ class TestMatchApiVersions:
 
     @mock.patch.object(square.manio, "download_single")
     def test_match_api_version_multi(self, m_fetch, k8sconfig):
-        """Mix multiple deployments, some of which need re-downloading."""
-        # Create local and server manifests. Both specify the same two resources
-        # but the Deployment uses different `apiVersions`.
-        local_in = {
-            # These two exist on server as well (same API version).
-            MetaManifest("apps/v1", "Deployment", "ns", "name-1"): {"loc-deploy-1"},
-            MetaManifest("apps/v1beta1", "Deployment", "ns", "name-2"): {"loc-deploy-2"},
+        """Mix matching and mis-matching API version for same resources.
 
-            # Also exists on server but with different version.
-            MetaManifest("apps/v1beta1", "Deployment", "ns", "name-3"): {"loc-deploy-3"},
+        A trivial extension to `test_match_api_version_namespace` where we use
+        three HPA resources from the same namespace. This test ensures that
+        Square inspects the resources one-by-one instead of applying the API
+        version rule by namespace.
+
+        """
+        hpa = "HorizontalPodAutoscaler"
+
+        # Create local and server manifests for HPAs.
+        local_in = {
+            # These two exist on server with the same API version.
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"loc-hpa-1"},
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"loc-hpa-2"},
+
+            # This one exists on the server but with a different API version.
+            MetaManifest("autoscaling/v2beta1", hpa, "ns", "name-3"): {"loc-hpa-3"},
         }
         server_in = {
-            # These two exist locally as well (same API version).
-            MetaManifest("apps/v1", "Deployment", "ns", "name-1"): {"srv-deploy-1"},
-            MetaManifest("apps/v1beta1", "Deployment", "ns", "name-2"): {"srv-deploy-2"},
+            # These two exist locally with the same API version.
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"srv-hpa-1"},
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"srv-hpa-2"},
 
-            # Also exists locally but with different version.
-            MetaManifest("apps/v1beta2", "Deployment", "ns", "name-3"): {"loc-deploy-3"},
+            # This one exists locally but with a different API version.
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-3"): {"loc-hpa-3"},
         }
 
         # Mock the resource download to supply it from the correct API endpoint.
-        meta = MetaManifest("apps/v1beta1", "Deployment", "ns", "name-3")
+        meta = MetaManifest("autoscaling/v2beta1", hpa, "ns", "name-3")
         resource, err = square.k8s.resource(k8sconfig, meta)
         assert not err
-        m_fetch.return_value = (meta, {"new-deploy-3"}, False)
+        m_fetch.return_value = (meta, {"new-hpa-3"}, False)
         del err
 
-        # Test function must have re-downloaded the Deployment "name-3" from the
-        # `apps/v1beta1` endpoint because that is what the local manifest uses.
+        # Test function must used the API version specified in the local
+        # manifest to fetch the HPA "name-3".
         srv, err = square.square.match_api_version(k8sconfig, local_in, server_in)
         assert not err and srv == {
-            MetaManifest("apps/v1", "Deployment", "ns", "name-1"): {"srv-deploy-1"},
-            MetaManifest("apps/v1beta1", "Deployment", "ns", "name-2"): {"srv-deploy-2"},
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"srv-hpa-1"},
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"srv-hpa-2"},
 
             # This must have been downloaded.
-            MetaManifest("apps/v1beta1", "Deployment", "ns", "name-3"): {"new-deploy-3"},
+            MetaManifest("autoscaling/v2beta1", hpa, "ns", "name-3"): {"new-hpa-3"},
         }
 
         # Must have downloaded exactly one deployment, namely `name-3`.
