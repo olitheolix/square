@@ -376,10 +376,10 @@ class TestUrlPathBuilder:
     def test_resource_hpa(self, integrationtest, k8sconfig):
         """Verify with a HorizontalPodAutoscaler resource.
 
-        This resource is available under three different API endpoints
-        (v1, v2beta1 and v2beta2).
+        This resource is available under four different API endpoints
+        (v1, v2, v2beta1 and v2beta2).
 
-        NOTE: this test is tailored to Kubernetes v1.16.
+        NOTE: this test is tailored to Kubernetes v1.24.
 
         """
         config = self.k8sconfig(integrationtest, k8sconfig)
@@ -395,7 +395,7 @@ class TestUrlPathBuilder:
             ("autoscaling/v2beta2", "autoscaling/v2beta2"),
 
             # Function must automatically determine the latest version of the resource.
-            ("", "autoscaling/v1"),
+            ("", "autoscaling/v2"),
         ]
 
         # Convenience.
