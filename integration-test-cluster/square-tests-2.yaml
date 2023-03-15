@@ -56,7 +56,7 @@ spec:
 
 ---
 
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: hello-1
@@ -166,7 +166,7 @@ spec:
 
 ---
 
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: demoapp-1
@@ -179,9 +179,12 @@ spec:
     http:
       paths:
       - backend:
-          serviceName: demoapp
-          servicePort: 80
+          service:
+            name: demoapp
+            port:
+              name: http
         path: /
+        pathType: Prefix
 
 ---
 
