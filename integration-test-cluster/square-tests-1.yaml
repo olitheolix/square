@@ -77,7 +77,7 @@ spec:
 
 ---
 
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: hello-1
@@ -221,7 +221,7 @@ spec:
 
 ---
 
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: demoapp-1
@@ -234,9 +234,12 @@ spec:
     http:
       paths:
       - backend:
-          serviceName: demoapp
-          servicePort: 80
+          service:
+            name: demoapp
+            port:
+              name: http
         path: /
+        pathType: Prefix
 
 ---
 
@@ -345,7 +348,7 @@ spec:
 
 ---
 
-apiVersion: policy/v1beta1
+apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: demoapp-1
@@ -358,7 +361,7 @@ spec:
 
 ---
 
-apiVersion: apiextensions.k8s.io/v1beta1
+apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: democrds.mycrd.com
@@ -368,12 +371,23 @@ spec:
   conversion:
     strategy: None
   group: mycrd.com
-  version: v1
   versions:
     - name: v1
       served: true
       storage: true
-  preserveUnknownFields: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                fooStr:
+                  type: string
+                fooInt:
+                  type: integer
+
+  preserveUnknownFields: false
   scope: Namespaced
   names:
     plural: democrds
@@ -382,17 +396,6 @@ spec:
     listKind: DemoCRDList
     shortNames:
     - democrd
-  validation:
-    openAPIV3Schema:
-      type: object
-      properties:
-        spec:
-          type: object
-          properties:
-            fooStr:
-              type: string
-            fooInt:
-              type: integer
 
 ---
 
