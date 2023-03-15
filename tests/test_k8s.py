@@ -322,9 +322,11 @@ class TestUrlPathBuilder:
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     def test_resource_service(self, integrationtest, k8sconfig):
-        """Verify with a Service resource.
+        """Function must query the correct version of the API endpoint.
 
-        NOTE: this test is tailored to Kubernetes v1.16.
+        This test uses a Service which is available as part of the core API.
+
+        NOTE: this test is tailored to Kubernetes v1.24.
 
         """
         # Fixtures.
@@ -441,10 +443,10 @@ class TestUrlPathBuilder:
     def test_resource_namespace(self, integrationtest, k8sconfig):
         """Verify with a Namespace resource.
 
-        This one is a special case because it is not namespaced but Square's
-        MetaManifest may specify a `namespace` for them, which refers to their
-        actual name. This is a necessary implementation detail to properly
-        support the selectors.
+        This one is a special case because it is not namespaced yet Square's
+        MetaManifest may specify a `namespace` which, in this one special case
+        refers to the namespace's actual name. This is a necessary
+        implementation detail to properly support the selectors.
 
         """
         # Fixtures.
