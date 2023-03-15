@@ -374,10 +374,9 @@ class TestUrlPathBuilder:
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     def test_resource_hpa(self, integrationtest, k8sconfig):
-        """Verify with a HorizontalPodAutoscaler resource.
+        """Verify API version retrieval with a HorizontalPodAutoscaler.
 
-        This resource is available under four different API endpoints
-        (v1, v2, v2beta1 and v2beta2).
+        This resource is available as {v1, v2, v2beta1 and v2beta2}.
 
         NOTE: this test is tailored to Kubernetes v1.24.
 
@@ -403,7 +402,7 @@ class TestUrlPathBuilder:
         name = kind.lower() + "s"
 
         for src, expected in api_versions:
-            # A particular StatefulSet in a particular namespace.
+            # A particular HPA in a particular namespace.
             res, err = k8s.resource(config, MM(src, kind, "ns", "name"))
             assert not err
             assert res == K8sResource(
@@ -414,7 +413,7 @@ class TestUrlPathBuilder:
                 url=f"{config.url}/apis/{expected}/namespaces/ns/{name}/name",
             )
 
-            # All StatefulSets in all namespaces.
+            # All HPAs in all namespaces.
             res, err = k8s.resource(config, MM(src, kind, None, None))
             assert not err
             assert res == K8sResource(
@@ -425,7 +424,7 @@ class TestUrlPathBuilder:
                 url=f"{config.url}/apis/{expected}/{name}",
             )
 
-            # All StatefulSets in a particular namespace.
+            # All HPAs in a particular namespace.
             res, err = k8s.resource(config, MM(src, kind, "ns", ""))
             assert not err
             assert res == K8sResource(
@@ -436,7 +435,7 @@ class TestUrlPathBuilder:
                 url=f"{config.url}/apis/{expected}/namespaces/ns/{name}",
             )
 
-            # A particular StatefulSet in all namespaces -> Invalid.
+            # A particular HPA in all namespaces -> Invalid.
             assert k8s.resource(config, MM(src, kind, None, "name")) == err_resp
 
     @pytest.mark.parametrize("integrationtest", [False, True])
