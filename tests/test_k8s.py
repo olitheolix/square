@@ -373,7 +373,7 @@ class TestUrlPathBuilder:
             assert k8s.resource(k8sconfig, MM(src, "Service", None, "name")) == err_resp
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    def test_resource_statefulset(self, integrationtest, k8sconfig):
+    def test_resource_hpa(self, integrationtest, k8sconfig):
         """Verify with a HorizontalPodAutoscaler resource.
 
         This resource is available under three different API endpoints
