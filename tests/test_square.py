@@ -359,14 +359,23 @@ class TestPatchK8s:
 class TestMatchApiVersions:
     @mock.patch.object(square.manio, "download_single")
     def test_match_api_version_basic(self, m_fetch, k8sconfig):
-        """Define tow resources and verify the test function downloads the one
-        where the `apiVersion` does not match.
+        """Square must use the API version declared in local manifests.
+
+        In this case, we have an HPA resource. The local manifest uses
+        v2beta1 whereas K8s will have automatically converted it to the latest
+        version, which happens to be v2 for K8s 1.24.
+
+        This test verifies that Square requests the manifest from the `v2beta`
+        endpoint as specified in the manifest, even though K8s stores it in
+        `v2` format.
 
         """
-        # Create local and server manifests. Both specify the same two resources
-        # but the Deployment uses different `apiVersions`.
-        meta_deploy_loc = MetaManifest("extensions/v1beta1", "Deployment", "ns", "name")
-        meta_deploy_srv = MetaManifest("apps/v1", "Deployment", "ns", "name")
+        hpa = "HorizontalPodAutoscaler"
+
+        # Create local and server manifests. Both specify the same HPA resource
+        # but with different `apiVersions`.
+        meta_deploy_loc = MetaManifest("autoscaling/v2beta1", hpa, "ns", "name")
+        meta_deploy_srv = MetaManifest("autoscaling/v2", hpa, "ns", "name")
         local = {
             MetaManifest("v1", "Namespace", None, "ns1"): {"ns-loc"},
             meta_deploy_loc: {"dply-loc"},
@@ -382,12 +391,12 @@ class TestMatchApiVersions:
         m_fetch.return_value = (meta_deploy_loc, {"new-srv"}, False)
         del err
 
-        # Test function must have re-downloaded the Deployment from the
-        # `extensions/v1beta1` endpoint.
+        # Test function must have interrogated the `autoscaling/v2beta1`
+        # endpoint to fetch the HPA manifest.
         srv, err = square.square.match_api_version(k8sconfig, local, server_in)
         assert not err and srv == {
             MetaManifest("v1", "Namespace", None, "ns1"): {"ns-srv"},
-            MetaManifest("extensions/v1beta1", "Deployment", "ns", "name"): {"new-srv"},
+            MetaManifest("autoscaling/v2beta1", hpa, "ns", "name"): {"new-srv"},
         }
 
         # Must have downloaded the deployments.
