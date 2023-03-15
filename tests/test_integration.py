@@ -287,7 +287,7 @@ class TestMainGet:
             kubecontext=None,
             kubeconfig=Filepath("/tmp/kubeconfig-kind.yaml"),
             selectors=Selectors(
-                kinds={"Namespace", "HorizontalPodAutoscaler"},
+                kinds={"HorizontalPodAutoscaler"},
                 namespaces=["test-hpa"],
                 labels=[],
             ),
@@ -300,11 +300,10 @@ class TestMainGet:
         assert len(manifests) == 3
 
         # ---------------------------------------------------------------------
-        # Deploy the resources: one namespace with two HPAs in it. On will be
-        # deployed via `autoscaling/v1` the other via `autoscaling/v2beta2`.
+        # Deploy two HPAs into the same namespace. One HPA will use
+        # `autoscaling/v1` whereas the other uses `autoscaling/v2beta2`.
         # ---------------------------------------------------------------------
-        sh.kubectl("apply", "--kubeconfig", config.kubeconfig,
-                   "-f", str(man_path))
+        sh.kubectl("apply", "--kubeconfig", config.kubeconfig, "-f", str(man_path))
 
         # ---------------------------------------------------------------------
         # Sync all manifests. This must do nothing. In particular, it must not
@@ -436,7 +435,7 @@ class TestMainPlan:
             kubecontext=None,
             kubeconfig=Filepath("/tmp/kubeconfig-kind.yaml"),
             selectors=Selectors(
-                kinds={"Namespace", "HorizontalPodAutoscaler"},
+                kinds={"HorizontalPodAutoscaler"},
                 namespaces=["test-hpa"],
                 labels=[]),
         )
