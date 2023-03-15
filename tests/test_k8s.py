@@ -401,7 +401,6 @@ class TestUrlPathBuilder:
         name = kind.lower() + "s"
 
         for src, expected in api_versions:
-            print(src)
             # A particular StatefulSet in a particular namespace.
             res, err = k8s.resource(config, MM(src, kind, "ns", "name"))
             assert not err
