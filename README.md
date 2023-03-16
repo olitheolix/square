@@ -1,5 +1,5 @@
 [![](https://img.shields.io/badge/license-Apache%202-blue.svg)]()
-[![](https://img.shields.io/badge/python-3.7+-blue.svg)]()
+[![](https://img.shields.io/badge/python-3.10+-blue.svg)]()
 [![](https://img.shields.io/badge/latest-v1.2.0-blue.svg)]()
 [![](https://github.com/olitheolix/square/workflows/build/badge.svg)]()
 [![](https://img.shields.io/codecov/c/github/olitheolix/square.svg?style=flat)]()
@@ -14,7 +14,7 @@ manifests are all there is.
 
 # Installation
 Grab a [binary release](https://github.com/olitheolix/square/releases) or
-install it into a Python 3.7+ environment with `pip install kubernetes-square
+install it into a Python 3.10+ environment with `pip install kubernetes-square
 --upgrade`.
 ```console
 foo@bar:~$ square version
