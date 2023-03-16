@@ -1,3 +1,4 @@
+import dataclasses
 import pathlib
 from typing import (
     TYPE_CHECKING, Any, Callable, Collection, Dict, List, NamedTuple, Optional,
@@ -7,8 +8,6 @@ from typing import (
 if TYPE_CHECKING:
     from dataclasses import dataclass
 else:
-    import dataclasses
-
     from pydantic.dataclasses import dataclass
 
 # All files in Square have this type.
