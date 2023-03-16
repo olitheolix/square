@@ -3,6 +3,7 @@ import itertools
 import random
 import sys
 import unittest.mock as mock
+from typing import Any, Dict, cast
 
 import pytest
 import yaml
@@ -10,7 +11,9 @@ import yaml
 import square.dotdict as dotdict
 import square.k8s as k8s
 import square.manio as manio
-from square.dtypes import Filepath, GroupBy, MetaManifest, Selectors
+from square.dtypes import (
+    Filepath, GroupBy, LocalManifestLists, MetaManifest, Selectors,
+)
 from square.k8s import resource
 
 from .test_helpers import make_manifest, mk_deploy
@@ -73,7 +76,7 @@ class TestHelpers:
         # Iterate over (almost) all valid selectors.
         manifest = make_manifest("Namespace", None, "name", {"app": "a", "env": "e"})
         namespaces = (["name"], ["name", "ns5"])
-        kinds = (["Namespace"], ["Deployment", "Namespace"])
+        kinds = ({"Namespace"}, {"Deployment", "Namespace"})
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
             assert select(manifest, Selectors(kind, ns, lab)) is True
 
@@ -82,7 +85,7 @@ class TestHelpers:
             Selectors({"blah"}, [], []),
             Selectors({"Namespace"}, ["foo-ns"], []),
             Selectors({"Namespace"}, ["ns0"], ["app=b"]),
-            Selectors({"Namespace"}, ["ns0"], {"app=a", "env=x"}),
+            Selectors({"Namespace"}, ["ns0"], ["app=a", "env=x"]),
         ]
         for sel in selectors:
             assert select(manifest, sel) is False
@@ -143,11 +146,11 @@ class TestHelpers:
         # Must always ignore "default" service account.
         kind, ns = "ServiceAccount", "ns1"
         manifest = make_manifest(kind, ns, "default")
-        assert select(manifest, Selectors({kind}, {ns}, [])) is False
+        assert select(manifest, Selectors({kind}, [ns], [])) is False
 
         # Must select all other Secret that match the selector.
         manifest = make_manifest(kind, ns, "some-service-account")
-        assert select(manifest, Selectors({kind}, {ns}, [])) is True
+        assert select(manifest, Selectors({kind}, [ns], [])) is True
 
         # ---------------------------------------------------------------------
         #                      Default Token Secret
@@ -155,11 +158,11 @@ class TestHelpers:
         # Must always ignore "default-token-*" Secrets.
         kind, ns = "Secret", "ns1"
         manifest = make_manifest(kind, ns, "default-token-12345")
-        assert select(manifest, Selectors({kind}, {ns}, [])) is False
+        assert select(manifest, Selectors({kind}, [ns], [])) is False
 
         # Must select all other Secret that match the selector.
         manifest = make_manifest(kind, ns, "some-secret")
-        assert select(manifest, Selectors({kind}, {ns}, [])) is True
+        assert select(manifest, Selectors({kind}, [ns], [])) is True
 
 
 class TestUnpackParse:
@@ -196,7 +199,7 @@ class TestUnpackParse:
         # which means they must still miss the "kind" field. However, it must
         # have added the correct "kind" value the manifests it returned.
         assert all(["kind" not in _ for _ in manifests_nokind])
-        assert all(["kind" in v for k, v in data.items()])
+        assert all(["kind" in v for _, v in data.items()])
 
         # Verify the Python dict.
         MM = MetaManifest
@@ -355,10 +358,10 @@ class TestYamlManifestIO:
         ]
 
         # Compile input and expected output for test function.
-        file_manifests = {
-            "m0.yaml": sorted_manifests_1.copy(),
-            "m1.yaml": sorted_manifests_2.copy(),
-            "m2.yaml": sorted_manifests_3.copy(),
+        file_manifests: LocalManifestLists = {
+            Filepath("m0.yaml"): sorted_manifests_1.copy(),
+            Filepath("m1.yaml"): sorted_manifests_2.copy(),
+            Filepath("m2.yaml"): sorted_manifests_3.copy(),
         }
         expected = {k: [man for _, man in v] for k, v in file_manifests.items()}
 
@@ -366,15 +369,16 @@ class TestYamlManifestIO:
         # always produces the correct order, ie NS, SVC, DEPLOY, and all
         # manifests in each group sorted by namespace and name.
         random.seed(1)
-        for i in range(10):
+        for _ in range(10):
             for fname in file_manifests:
-                random.shuffle(file_manifests[fname])
+                random.shuffle(cast(list, file_manifests[fname]))
             assert manio.sort_manifests(file_manifests, priority) == (expected, False)
 
     def test_sort_manifests_priority(self):
         """Verify the sorted output for three files with randomly ordered manifests."""
         # Convenience.
-        fname = "manifests.yaml"
+        fun = manio.sort_manifests
+        fname = Filepath("manifests.yaml")
         random.seed(1)
 
         def mm(*args):
@@ -401,13 +405,13 @@ class TestYamlManifestIO:
         ]
 
         # Compile input and expected output for test function.
-        file_manifests = {fname: sorted_manifests.copy()}
+        file_manifests: LocalManifestLists = {fname: sorted_manifests.copy()}
         expected = {k: [man for _, man in v] for k, v in file_manifests.items()}
 
         # Shuffle the manifests in each file and verify the sorted output.
-        for i in range(10):
-            random.shuffle(file_manifests[fname])
-            assert manio.sort_manifests(file_manifests, priority) == (expected, False)
+        for _ in range(10):
+            random.shuffle(cast(list, file_manifests[fname]))
+            assert fun(file_manifests, priority) == (expected, False)
 
         # --- Define manifests in the correctly prioritised order.
         priority = ("Service", "Namespace", "Deployment")
@@ -425,9 +429,9 @@ class TestYamlManifestIO:
         expected = {k: [man for _, man in v] for k, v in file_manifests.items()}
 
         # Shuffle the manifests in each file and verify the sorted output.
-        for i in range(10):
-            random.shuffle(file_manifests[fname])
-            assert manio.sort_manifests(file_manifests, priority) == (expected, False)
+        for _ in range(10):
+            random.shuffle(cast(list, file_manifests[fname]))
+            assert fun(file_manifests, priority) == (expected, False)
 
         # --- Define manifests in the correctly prioritised order.
         priority = ("Service", "Deployment")
@@ -445,9 +449,9 @@ class TestYamlManifestIO:
         expected = {k: [man for _, man in v] for k, v in file_manifests.items()}
 
         # Shuffle the manifests in each file and verify the sorted output.
-        for i in range(10):
-            random.shuffle(file_manifests[fname])
-            assert manio.sort_manifests(file_manifests, priority) == (expected, False)
+        for _ in range(10):
+            random.shuffle(cast(list, file_manifests[fname]))
+            assert fun(file_manifests, priority) == (expected, False)
 
         # --- Define manifests in the correctly prioritised order.
         priority = tuple()
@@ -465,12 +469,17 @@ class TestYamlManifestIO:
         expected = {k: [man for _, man in v] for k, v in file_manifests.items()}
 
         # Shuffle the manifests in each file and verify the sorted output.
-        for i in range(10):
-            random.shuffle(file_manifests[fname])
-            assert manio.sort_manifests(file_manifests, priority) == (expected, False)
+        for _ in range(10):
+            random.shuffle(cast(list, file_manifests[fname]))
+            assert fun(file_manifests, priority) == (expected, False)
 
     def test_parse_noselector_ok(self):
         """Test function must be able to parse the YAML string and compile a dict."""
+        # Convenience.
+        m1_yaml = Filepath("m0.yaml")
+        m2_yaml = Filepath("m2.yaml")
+        m3_yaml = Filepath("m3.yaml")
+
         # Generic selector that matches all manifests in this test.
         selectors = Selectors({"Deployment"}, [], [])
 
@@ -479,18 +488,18 @@ class TestYamlManifestIO:
         dply = [make_manifest(kind, ns, f"d_{_}", labels) for _ in range(10)]
         meta = [manio.make_meta(_) for _ in dply]
         fdata_test_in = {
-            "m0.yaml": [dply[0], dply[1]],
-            "m2.yaml": [dply[2]],
-            "m3.yaml": [],
+            m1_yaml: [dply[0], dply[1]],
+            m2_yaml: [dply[2]],
+            m3_yaml: [],
         }
-        fdata_test_in = self.yamlfy(fdata_test_in)
+        fdata_test_in = cast(Dict[Filepath, str], self.yamlfy(fdata_test_in))
 
         # We expect a dict with the same keys as the input. The dict values
         # must be a list of tuples, each of which contains the MetaManifest and
         # actual manifest as a Python dict.
         expected = {
-            "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
-            "m2.yaml": [(meta[2], dply[2])],
+            m1_yaml: [(meta[0], dply[0]), (meta[1], dply[1])],
+            m2_yaml: [(meta[2], dply[2])],
         }
         assert manio.parse(fdata_test_in, selectors) == (expected, False)
 
@@ -499,15 +508,15 @@ class TestYamlManifestIO:
         # would produce.
         fdata_test_blank_pre = copy.deepcopy(fdata_test_in)
         fdata_test_blank_post = copy.deepcopy(fdata_test_in)
-        fdata_test_blank_post["m2.yaml"] = fdata_test_blank_pre["m2.yaml"] + "\n---\n"
-        fdata_test_blank_pre["m2.yaml"] = "\n---\n" + fdata_test_blank_pre["m2.yaml"]
+        fdata_test_blank_post[m2_yaml] = fdata_test_blank_pre[m2_yaml] + "\n---\n"
+        fdata_test_blank_pre[m2_yaml] = "\n---\n" + fdata_test_blank_pre[m2_yaml]
         out, err = manio.parse(fdata_test_blank_post, selectors)
-        assert not err and len(out["m2.yaml"]) == len(expected["m2.yaml"])
+        assert not err and len(out[m2_yaml]) == len(expected[m2_yaml])
         out, err = manio.parse(fdata_test_blank_pre, selectors)
-        assert not err and len(out["m2.yaml"]) == len(expected["m2.yaml"])
+        assert not err and len(out[m2_yaml]) == len(expected[m2_yaml])
 
     def test_parse_with_selector_ok(self):
-        """Verify the the function correctly apply the selectors."""
+        """Verify the function correctly apply the selectors."""
         # Construct manifests like `load_files` would return them.
         kind, ns = "Deployment", "namespace"
         dply = [
@@ -520,7 +529,7 @@ class TestYamlManifestIO:
             "m2.yaml": [dply[2]],
             "m3.yaml": [],
         }
-        fdata_test_in = self.yamlfy(fdata_test_in)
+        fdata_test_in = cast(Dict[Filepath, str], self.yamlfy(fdata_test_in))
 
         # We expect a dict with the same keys as the input. The dict values
         # must be a list of tuples, each of which contains the MetaManifest and
@@ -561,7 +570,7 @@ class TestYamlManifestIO:
 
         # Construct manifests like `load_files` would return them.
         for data in ["scanner error :: - yaml", ": parser error -"]:
-            assert manio.parse({"m0.yaml": data}, selectors) == ({}, True)
+            assert manio.parse({Filepath("m0.yaml"): data}, selectors) == ({}, True)
 
         # Corrupt manifests (can happen when files are read from local YAML
         # files that are not actually K8s manifests). This one looks valid
@@ -573,22 +582,24 @@ class TestYamlManifestIO:
             'items': [{"invalid": "manifest"}]
         }
         fdata_test_in = {"m0.yaml": yaml.safe_dump(not_a_k8s_manifest)}
+        fdata_test_in = cast(Dict[Filepath, str], fdata_test_in)
         assert manio.parse(fdata_test_in, selectors) == ({}, True)
 
     def test_parse_worker(self):
         """Load valid and invalid YAML strings with `_parse_worker` helper."""
         fun = manio._parse_worker
+        m1_yaml = Filepath("m0.yaml")
 
         # Construct manifests like `load_files` would return them.
         for data in ["scanner error :: - yaml", ": parser error -"]:
-            assert fun("m0.yaml", data) == ([], True)
+            assert fun(m1_yaml, data) == ([], True)
 
         # Must return the manifest if the source string was valid.
         valid_yaml = {
             'apiVersion': 'v1',
             'kind': 'Deployment',
         }
-        assert fun("m0.yaml", yaml.safe_dump(valid_yaml)) == ([valid_yaml], False)
+        assert fun(m1_yaml, yaml.safe_dump(valid_yaml)) == ([valid_yaml], False)
 
     def test_unpack_ok(self):
         """Test function must remove the filename dimension.
@@ -597,32 +608,40 @@ class TestYamlManifestIO:
         what happens if not.
 
         """
-        src = {
-            "file0.txt": [("meta0", "manifest0"), ("meta1", "manifest1")],
-            "file1.txt": [("meta2", "manifest2")],
+        meta0 = MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_0')
+        meta1 = MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_1')
+        meta2 = MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_2')
+
+        src: LocalManifestLists = {
+            Filepath("file0.txt"): [
+                (meta0, {"manifest": "0"}),
+                (meta1, {"manifest": "1"}),
+            ],
+            Filepath("file1.txt"): [(meta2, {"manifest": "2"})],
         }
         ret, err = manio.unpack(src)
         assert err is False
         assert ret == {
-            "meta0": "manifest0",
-            "meta1": "manifest1",
-            "meta2": "manifest2",
+            meta0: {"manifest": "0"},
+            meta1: {"manifest": "1"},
+            meta2: {"manifest": "2"},
         }
 
     def test_unpack_err(self):
         """The MetaManifests must be unique across all source files."""
-        P = Filepath
+        meta = MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_0')
 
         # Two resources with same meta information in same file.
-        src = {
-            P("file0.txt"): [("meta0", "manifest0"), ("meta0", "manifest0")],
+        src: LocalManifestLists = {
+            Filepath("file0.txt"): [(meta, {"manifest": "0"}),
+                                    (meta, {"manifest": "0"})],
         }
         assert manio.unpack(src) == ({}, True)
 
         # Two resources with same meta information in different files.
-        src = {
-            P("file0.txt"): [("meta0", "manifest0")],
-            P("file1.txt"): [("meta0", "manifest0")],
+        src: LocalManifestLists = {
+            Filepath("file0.txt"): [(meta, {"manifest": "0"})],
+            Filepath("file1.txt"): [(meta, {"manifest": "0"})],
         }
         assert manio.unpack(src) == ({}, True)
 
@@ -976,7 +995,7 @@ class TestManifestValidation:
         is part of the default filters (see `square/resources/defaultconfig.yaml`).
 
         """
-        manifest = {
+        manifest: Dict[str, Any] = {
             "apiVersion": "v1",
             "kind": "Service",
             "something": "here",
@@ -993,7 +1012,7 @@ class TestManifestValidation:
     def test_strip_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
         # Minimally valid filters for fake resource kind "TEST".
-        filters = {"TEST": {"metadata": False}}
+        filters = {"TEST": ["metadata"]}
 
         # Valid K8s version with unknown resource type.
         manifest = {"apiVersion": "v1", "kind": "Unknown"}
@@ -1016,7 +1035,7 @@ class TestManifestValidation:
             }
         }
         filters = {"Service": "should-be-a-list"}
-        assert manio.strip(config, manifest, filters) == ({}, {}, True)
+        assert manio.strip(config, manifest, filters) == ({}, {}, True)  # type: ignore
 
     def test_strip_namespace(self, k8sconfig):
         """Filter NAMESPACE manifests."""
@@ -1121,8 +1140,8 @@ class TestDiff:
         loc = make_manifest("Deployment", "namespace", "name2")
 
         # Test function must able to cope with `DotDicts`.
-        srv = dotdict.make(srv)
-        loc = dotdict.make(loc)
+        srv = cast(dict, dotdict.make(srv))
+        loc = cast(dict, dotdict.make(loc))
 
         # Diff the manifests. Must not return an error.
         diff_str, err = manio.diff(config, k8sconfig, loc, srv)
@@ -1142,6 +1161,7 @@ class TestYamlManifestIOIntegration:
         """Basic file loading/saving tests."""
         # Demo file names and content.
         fnames = ("m0.yaml", "m1.yaml", "foo/m2.yaml", "foo/bar/m3.yaml")
+        fnames = [Filepath(_) for _ in fnames]
         file_data = {fname: f"Data in {fname}" for fname in fnames}
 
         # Asking for non-existing files must return an error.
@@ -1161,7 +1181,7 @@ class TestYamlManifestIOIntegration:
     def test_load_save_files_empty(self, tmp_path):
         """Only non-empty files must be written."""
         # Add an empty file.
-        file_data = {"empty.yaml": "", "nonempty.yaml": "some content"}
+        file_data = {Filepath("empty.yaml"): "", Filepath("nonempty.yaml"): "some content"}
 
         # Saving the files. Verify that the empty one was not created.
         assert manio.save_files(tmp_path, file_data) is False
@@ -1171,7 +1191,7 @@ class TestYamlManifestIOIntegration:
     @pytest.mark.skipif(sys.platform.startswith("win"), reason="Windows")
     def test_save_err_permissions(self, tmp_path):
         """Make temp folder readonly and try to save the manifests."""
-        file_data = {"m0.yaml": "Some data"}
+        file_data = {Filepath("m0.yaml"): "Some data"}
         tmp_path.chmod(0o555)
         assert manio.save_files(tmp_path, file_data) is True
         assert not (tmp_path / "m0.yaml").exists()
@@ -1209,7 +1229,7 @@ class TestYamlManifestIOIntegration:
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
         meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
-        man_files = {
+        man_files: LocalManifestLists = {
             Filepath("m0.yaml"): [(meta[0], dply[0]), (meta[1], dply[1])],
             Filepath("foo/m1.yaml"): [(meta[2], dply[2])],
         }
@@ -1239,10 +1259,10 @@ class TestYamlManifestIOIntegration:
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(3)]
         meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(3)]
-        visible_files = {
+        visible_files: LocalManifestLists = {
             Filepath("m0.yaml"): [(meta[0], dply[0])],
         }
-        hidden_files = {
+        hidden_files: LocalManifestLists = {
             Filepath(".hidden-0.yaml"): [(meta[1], dply[1])],
             Filepath("foo/.hidden-1.yaml"): [(meta[2], dply[2])],
         }
@@ -1256,7 +1276,7 @@ class TestYamlManifestIOIntegration:
         assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == set()
 
         # Write the hidden files with dummy content.
-        for fname, data in hidden_files.items():
+        for fname, _ in hidden_files.items():
             fname = tmp_path / fname
             fname.parent.mkdir(parents=True, exist_ok=True)
             fname.write_text("")
@@ -1271,7 +1291,7 @@ class TestYamlManifestIOIntegration:
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
         meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
-        man_files = {
+        man_files: LocalManifestLists = {
             Filepath("m0.yaml"): [(meta[0], dply[0])],
             Filepath("m1.yaml"): [(meta[1], dply[1])],
             Filepath("foo/m2.yaml"): [(meta[2], dply[2])],
@@ -1496,8 +1516,8 @@ class TestSync:
 
         # The local and server manifests will remain fixed for all tests. We
         # will only vary the namespaces and resource kinds (arguments to `sync`).
-        loc_man = {
-            "m0.yaml": [
+        loc_man: LocalManifestLists = {
+            Filepath("m0.yaml"): [
                 (ns0, ns0_man),
                 (dpl_ns0, dpl_ns0_man),
                 (svc_ns0, svc_ns0_man),
@@ -1534,7 +1554,7 @@ class TestSync:
         # Sync all namespaces implicitly (Namespaces, Deployments, Services).
         # ----------------------------------------------------------------------
         expected = {
-            "m0.yaml": [
+            Filepath("m0.yaml"): [
                 (ns0, modify(ns0_man)),
                 (dpl_ns0, modify(dpl_ns0_man)),
                 (svc_ns0, modify(svc_ns0_man)),
@@ -1554,14 +1574,14 @@ class TestSync:
 
             # Specify all namespaces explicitly.
             for ns in itertools.permutations(["ns0", "ns1"]):
-                selectors = Selectors(kinds, namespaces=ns, labels=[])
+                selectors = Selectors(kinds, namespaces=list(ns), labels=[])
                 assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
         # Sync the server manifests in namespace "ns0".
         # ----------------------------------------------------------------------
         expected = {
-            "m0.yaml": [
+            Filepath("m0.yaml"): [
                 (ns0, ns0_man),
                 (dpl_ns0, modify(dpl_ns0_man)),
                 (svc_ns0, modify(svc_ns0_man)),
@@ -1579,7 +1599,7 @@ class TestSync:
         # Sync only Deployments (all namespaces).
         # ----------------------------------------------------------------------
         expected = {
-            "m0.yaml": [
+            Filepath("m0.yaml"): [
                 (ns0, ns0_man),
                 (dpl_ns0, modify(dpl_ns0_man)),
                 (svc_ns0, svc_ns0_man),
@@ -1595,7 +1615,7 @@ class TestSync:
         # Sync only Deployments in namespace "ns0".
         # ----------------------------------------------------------------------
         expected = {
-            "m0.yaml": [
+            Filepath("m0.yaml"): [
                 (ns0, ns0_man),
                 (dpl_ns0, modify(dpl_ns0_man)),
                 (svc_ns0, svc_ns0_man),
@@ -1611,7 +1631,7 @@ class TestSync:
         # Sync only Services in namespace "ns1".
         # ----------------------------------------------------------------------
         expected = {
-            "m0.yaml": [
+            Filepath("m0.yaml"): [
                 (ns0, ns0_man),
                 (dpl_ns0, dpl_ns0_man),
                 (svc_ns0, svc_ns0_man),
@@ -1641,7 +1661,7 @@ class TestSync:
             return out
 
         groupby = GroupBy(order=[], label="")
-        m_fname.return_value = ("catchall.yaml", False)
+        m_fname.return_value = (Filepath("catchall.yaml"), False)
 
         # Args for `sync`. In this test, we only have Deployments and want to
         # sync them across all namespaces.
@@ -1652,11 +1672,11 @@ class TestSync:
         man_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(10)]
         meta_1 = [manio.make_meta(_) for _ in man_1]
         meta_2 = [manio.make_meta(_) for _ in man_2]
-        loc_man = {
-            "m0.yaml": [(meta_1[0], man_1[0]), (meta_1[1], man_1[1]),
-                        (meta_2[2], man_2[2])],
-            "m1.yaml": [(meta_2[3], man_2[3]), (meta_1[4], man_1[4])],
-            "m2.yaml": [(meta_1[5], man_1[5])],
+        loc_man: LocalManifestLists = {
+            Filepath("m0.yaml"): [(meta_1[0], man_1[0]), (meta_1[1], man_1[1]),
+                                  (meta_2[2], man_2[2])],
+            Filepath("m1.yaml"): [(meta_2[3], man_2[3]), (meta_1[4], man_1[4])],
+            Filepath("m2.yaml"): [(meta_1[5], man_1[5])],
         }
 
         # Create server manifests as `download_manifests` would return it. Only
@@ -1676,12 +1696,18 @@ class TestSync:
         # The expected outcome is that the local manifests were updated,
         # overwritten (modified), deleted or put into a default manifest.
         expected = {
-            "m0.yaml": [(meta_1[0], man_1[0]), (meta_1[1], modify(man_1[1])),
-                        (meta_2[2], man_2[2])],
-            "m1.yaml": [(meta_1[4], man_1[4])],
-            "m2.yaml": [],
-            "catchall.yaml": [(meta_1[6], man_1[6]), (meta_2[7], man_2[7]),
-                              (meta_1[8], man_1[8])],
+            Filepath("m0.yaml"): [
+                (meta_1[0], man_1[0]),
+                (meta_1[1], modify(man_1[1])),
+                (meta_2[2], man_2[2])
+            ],
+            Filepath("m1.yaml"): [(meta_1[4], man_1[4])],
+            Filepath("m2.yaml"): [],
+            Filepath("catchall.yaml"): [
+                (meta_1[6], man_1[6]),
+                (meta_2[7], man_2[7]),
+                (meta_1[8], man_1[8])
+            ],
         }, False
         selectors = Selectors(kinds, namespaces, labels=[])
         assert manio.sync(loc_man, srv_man, selectors, groupby) == expected
@@ -1713,7 +1739,7 @@ class TestSync:
         man_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(10)]
         meta_1 = [manio.make_meta(_) for _ in man_1]
         meta_2 = [manio.make_meta(_) for _ in man_2]
-        loc_man = {
+        loc_man: LocalManifestLists = {
             Filepath("_ns1.yaml"): [
                 (meta_1[1], man_1[1]),
                 (meta_1[2], man_1[2]),
@@ -1805,7 +1831,7 @@ class TestSync:
         name = 'demoapp'
 
         # Load the test support file and ensure it contains exactly one manifest.
-        local_meta, _, err = manio.load("tests/support/", selectors)
+        local_meta, _, err = manio.load(Filepath("tests/support/"), selectors)
         assert not err
         assert len(local_meta) == 1
 
@@ -1834,7 +1860,7 @@ class TestSync:
 
         # Load and unpack the ServiceAccount manifest. Make two copies so we
         # can create local/cluster manifest as inputs for the `align` function.
-        local_meta, _, _ = manio.load("tests/support/", selectors)
+        local_meta, _, _ = manio.load(Filepath("tests/support/"), selectors)
         local_meta = copy.deepcopy(local_meta)
         server_meta = copy.deepcopy(local_meta)
         meta, _ = local_meta.copy().popitem()

@@ -18,8 +18,8 @@ def kind_available():
     # Query the version of the integration test cluster. If that works we have
     # a cluster that the tests can use, otherwise not.
     try:
-        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "version")
-    except (ImportError, sh.CommandNotFound, sh.ErrorReturnCode_1):
+        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "version")  # type: ignore
+    except (ImportError, sh.CommandNotFound, sh.ErrorReturnCode_1):         # type: ignore
         return False
     return True
 
@@ -358,12 +358,12 @@ def k8s_apis(config: K8sConfig):
     }
 
 
-def make_manifest(kind: str, namespace: str, name: str,
+def make_manifest(kind: str, namespace: str | None, name: str | None,
                   labels: Dict[str, str] = {}) -> dict:
     # Try to find the resource `kind` and lift its associated `apiVersion`.
     apis = k8s_apis(K8sConfig(version="1.15"))
     try:
-        apiVersion = apis[(kind, "")].apiVersion
+        apiVersion = apis[(kind, "")].apiVersion  # type: ignore
     except KeyError:
         apiVersion = "v1"
 

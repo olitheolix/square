@@ -292,10 +292,10 @@ def load_minikube_config(fname: Filepath,
     Return None on error.
 
     Inputs:
-        kubconfig: str
+        fname: Filepath
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: str
-            Kubeconf context. Use `None` to use default context.
+            Kubeconf context. Use `None` to select default context.
 
     Returns:
         Config
@@ -310,8 +310,8 @@ def load_minikube_config(fname: Filepath,
     # to the HTTP client of our choice when we create the session.
     try:
         client_cert = K8sClientCert(
-            crt=user["client-certificate"],
-            key=user["client-key"],
+            crt=Filepath(user["client-certificate"]),
+            key=Filepath(user["client-key"]),
         )
 
         # Return the config data.
@@ -319,7 +319,7 @@ def load_minikube_config(fname: Filepath,
         return K8sConfig(
             url=cluster["server"],
             token="",
-            ca_cert=cluster["certificate-authority"],
+            ca_cert=Filepath(cluster["certificate-authority"]),
             client_cert=client_cert,
             version="",
             name=cluster["name"],

@@ -106,7 +106,7 @@ class TestResourceCleanup:
         # available K8s resources that Square could manage.
         cfg = Config(
             folder=pathlib.Path('/tmp'),
-            kubeconfig="",
+            kubeconfig=Filepath(),
             kubecontext=None,
             selectors=Selectors(
                 kinds=set(),
@@ -114,7 +114,7 @@ class TestResourceCleanup:
                 labels=["app=morty", "foo=bar"],
             ),
             groupby=GroupBy("", []),
-            priorities=("Namespace", "Deployment"),
+            priorities=["Namespace", "Deployment"],
         )
 
         # Do nothing if `Selectors.kinds` is non-empty.
@@ -123,7 +123,7 @@ class TestResourceCleanup:
 
         cfg = Config(
             folder=pathlib.Path('/tmp'),
-            kubeconfig="",
+            kubeconfig=Filepath(),
             kubecontext=None,
             selectors=Selectors(
                 kinds={"svc", "Deployment"},
@@ -131,7 +131,7 @@ class TestResourceCleanup:
                 labels=["app=morty", "foo=bar"],
             ),
             groupby=GroupBy("", []),
-            priorities=("Namespace", "Deployment"),
+            priorities=["Namespace", "Deployment"],
         )
 
         # Convert the resource names to their correct K8s kind.
@@ -149,8 +149,8 @@ class TestResourceCleanup:
                 namespaces=['default'],
                 labels=["app=morty", "foo=bar"],
             ),
-            groupby=GroupBy("", tuple()),
-            priorities=("Namespace", "Deployment"),
+            groupby=GroupBy("", []),
+            priorities=["Namespace", "Deployment"],
         )
 
         _, err = main.expand_all_kinds(cfg)
@@ -453,7 +453,7 @@ class TestMain:
                 cfg, err = main.compile_config(param)
 
                 if envvar:
-                    assert not err and cfg.kubeconfig == Filepath(os.getenv("KUBECONFIG"))
+                    assert not err and cfg.kubeconfig == Filepath(os.getenv("KUBECONFIG", ""))
                 else:
                     assert err
 
@@ -910,9 +910,9 @@ class TestApplyPlan:
         # Valid non-empty deployment plan.
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
         plan = DeploymentPlan(
-            create=[DeltaCreate(meta, "create_url", "create_man")],
+            create=[DeltaCreate(meta, "create_url", {"create": "man"})],
             patch=[DeltaPatch(meta, "diff", patch)],
-            delete=[DeltaDelete(meta, "delete_url", "delete_man")],
+            delete=[DeltaDelete(meta, "delete_url", {"delete": "man"})],
         )
 
         # Simulate a none empty plan and successful application of that plan.
