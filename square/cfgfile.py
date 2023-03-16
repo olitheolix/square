@@ -11,7 +11,7 @@ import copy
 import logging
 import typing
 from types import SimpleNamespace
-from typing import List, Tuple, Union
+from typing import List, Tuple
 
 import pydantic
 import yaml
@@ -27,7 +27,7 @@ logit = logging.getLogger("square")
 # ignores the recursive nature of the function where one of the nested elements
 # may not adhere to the requirement.
 @typing.no_type_check
-def valid(filters: List[Union[dict, list, str]]) -> bool:
+def valid(filters: List[dict | list | str]) -> bool:
     """Return `True` iff `filters` is valid."""
     if not isinstance(filters, list):
         logit.error(f"<{filters}> must be a list")
