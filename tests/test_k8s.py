@@ -44,7 +44,7 @@ class TestK8sDeleteGetPatchPost:
         assert sess.headers["authorization"] == "Bearer token"
 
         # With access token and client certificate.
-        ccert = k8s.K8sClientCert(crt="foo", key="bar")
+        ccert = k8s.K8sClientCert(crt=Filepath("foo"), key=Filepath("bar"))
         config = k8sconfig._replace(token="token", client_cert=ccert)
         sess = k8s.session(config)
         assert sess.headers["authorization"] == "Bearer token"
@@ -168,7 +168,7 @@ class TestK8sDeleteGetPatchPost:
         # Dummy values.
         client = "client"
         path = "path"
-        payload = "payload"
+        payload = {"pay": "load"}
         response = "response"
 
         # K8s DELETE request was successful iff its return status is 200 or 202
@@ -176,7 +176,7 @@ class TestK8sDeleteGetPatchPost:
         # because of grace periods).
         for code in (200, 202):
             m_req.reset_mock()
-            m_req.return_value = (response, 202)
+            m_req.return_value = (response, code)
             assert k8s.delete(client, path, payload) == (response, False)
             m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
 
@@ -189,9 +189,9 @@ class TestK8sDeleteGetPatchPost:
         # K8s PATCH request was successful iff its return status is 200.
         m_req.reset_mock()
         m_req.return_value = (response, 200)
-        assert k8s.patch(client, path, payload) == (response, False)
+        assert k8s.patch(client, path, [payload]) == (response, False)
         patch_headers = {'Content-Type': 'application/json-patch+json'}
-        m_req.assert_called_once_with(client, "PATCH", path, payload, patch_headers)
+        m_req.assert_called_once_with(client, "PATCH", path, [payload], patch_headers)
 
         # K8s POST request was successful iff its return status is 201.
         m_req.reset_mock()
@@ -211,7 +211,7 @@ class TestK8sDeleteGetPatchPost:
         # Dummy values.
         client = "client"
         path = "path"
-        payload = "payload"
+        payload = {"pay": "load"}
         response = "response"
 
         # K8s DELETE request was unsuccessful because its returns status is not 200.
@@ -229,9 +229,9 @@ class TestK8sDeleteGetPatchPost:
         # K8s PATCH request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
         m_req.return_value = (response, 400)
-        assert k8s.patch(client, path, payload) == (response, True)
+        assert k8s.patch(client, path, [payload]) == (response, True)
         patch_headers = {'Content-Type': 'application/json-patch+json'}
-        m_req.assert_called_once_with(client, "PATCH", path, payload, patch_headers)
+        m_req.assert_called_once_with(client, "PATCH", path, [payload], patch_headers)
 
         # K8s POST request was unsuccessful because its returns status is not 201.
         m_req.reset_mock()
@@ -770,7 +770,7 @@ class TestK8sKubeconfig:
     @mock.patch.object(k8s, "compile_api_endpoints")
     def test_cluster_config(self, m_compile_endpoints, m_version, m_load_auto, k8sconfig):
         kubeconfig = Filepath("kubeconfig")
-        kubecontext = False
+        kubecontext = None
 
         m_load_auto.return_value = (k8sconfig, False)
         m_version.return_value = (k8sconfig, False)
@@ -794,7 +794,7 @@ class TestK8sKubeconfig:
         m_gke.return_value = (K8sConfig(), False)
 
         # Incluster returns a non-zero value.
-        kubeconf, context = "kubeconf", "context"
+        kubeconf, context = Filepath("kubeconf"), "context"
         assert fun(kubeconf, context) == m_incluster.return_value
         m_incluster.assert_called_once_with()
 
@@ -824,19 +824,21 @@ class TestK8sKubeconfig:
 
     def test_load_minikube_config_ok(self):
         # Load the K8s configuration for "minikube" context.
-        fname = "tests/support/kubeconf.yaml"
+        fname = Filepath("tests/support/kubeconf.yaml")
 
         # Verify the expected output.
         ref = K8sConfig(
             url="https://192.168.0.177:8443",
             token="",
-            ca_cert="ca.crt",
-            client_cert=k8s.K8sClientCert(crt="client.crt", key="client.key"),
+            ca_cert=Filepath("ca.crt"),
+            client_cert=k8s.K8sClientCert(
+                crt=Filepath("client.crt"),
+                key=Filepath("client.key"),
+            ),
             version="",
             name="clustername-minikube",
         )
         expected = (ref, False)
-
         assert k8s.load_minikube_config(fname, "minikube") == expected
 
         # Function must also accept pathlib.Path instances.
@@ -870,6 +872,7 @@ class TestK8sKubeconfig:
 
         # Function must have create the credential files.
         assert ret.ca_cert.exists()
+        assert ret.client_cert is not None
         assert ret.client_cert.crt.exists()
         assert ret.client_cert.key.exists()
 
@@ -879,7 +882,7 @@ class TestK8sKubeconfig:
     def test_load_kind_config_invalid_context_err(self, tmp_path):
         """Gracefully abort if we cannot parse Kubeconfig."""
         # Valid Kubeconfig file but it has no "invalid" context.
-        fname = "tests/support/kubeconf.yaml"
+        fname = Filepath("tests/support/kubeconf.yaml")
         assert k8s.load_kind_config(fname, "invalid") == (K8sConfig(), True)
 
         # Create a corrupt Kubeconfig file.
@@ -899,22 +902,20 @@ class TestK8sKubeconfig:
         m_google.token = "google token"
 
         # Load the K8s configuration for "gke" context.
-        fname = "tests/support/kubeconf.yaml"
+        fname = Filepath("tests/support/kubeconf.yaml")
         ret, err = k8s.load_gke_config(fname, "gke")
         assert not err and isinstance(ret, K8sConfig)
 
-        # The certificate will be in a temporary folder because the `requests`
-        # library insists on reading it from a file. Here we load that file and
-        # manually insert its value into the returned Config structure. This
-        # will make the verification step below easier to read.
-        ca_cert = open(ret.ca_cert, "r").read().strip()
-        ret = ret._replace(ca_cert=ca_cert)
+        # The certificate will be in a temporary folder because the `Requests`
+        # library insists on reading it from a file. Here we verify that the
+        # test function did indeed create such a temporary file.
+        assert ret.ca_cert.exists()
 
         # Verify the expected output.
         assert ret == K8sConfig(
             url="https://1.2.3.4",
             token="google token",
-            ca_cert="ca.cert",
+            ca_cert=ret.ca_cert,
             client_cert=None,
             version="",
             name="clustername-gke",
@@ -939,22 +940,20 @@ class TestK8sKubeconfig:
         m_run.return_value = types.SimpleNamespace(stdout=token.encode("utf8"))
 
         # Load the K8s configuration for "eks" context.
-        fname = "tests/support/kubeconf.yaml"
+        fname = Filepath("tests/support/kubeconf.yaml")
         ret, err = k8s.load_eks_config(fname, "eks")
         assert not err and isinstance(ret, K8sConfig)
 
         # The certificate will be in a temporary folder because the `Requests`
-        # library insists on reading it from a file. Here we load that file and
-        # manually insert its value into the returned Config structure. This
-        # will make the verification step below easier to read.
-        ca_cert = open(ret.ca_cert, "r").read().strip()
-        ret = ret._replace(ca_cert=ca_cert)
+        # library insists on reading it from a file. Here we verify that the
+        # test function did indeed create such a temporary file.
+        assert ret.ca_cert.exists()
 
         # Verify the expected output.
         assert ret == K8sConfig(
             url="https://5.6.7.8",
             token="EKS token",
-            ca_cert="ca.cert",
+            ca_cert=ret.ca_cert,
             client_cert=None,
             version="",
             name="clustername-eks",
@@ -981,7 +980,7 @@ class TestK8sKubeconfig:
     def test_load_eks_config_err(self, m_run):
         """Load EKS configuration from demo kubeconfig."""
         # Valid kubeconfig file.
-        fname = "tests/support/kubeconf.yaml"
+        fname = Filepath("tests/support/kubeconf.yaml")
         err_resp = (K8sConfig(), True)
 
         # Pretend the `aws-iam-authenticator` binary does not exist.
@@ -1010,20 +1009,21 @@ class TestK8sKubeconfig:
         # Minikube
         fun = k8s.load_minikube_config
         resp = (K8sConfig(), True)
-        assert fun("tests/support/invalid.yaml", None) == resp
-        assert fun("tests/support/invalid.yaml", "invalid") == resp
-        assert fun("tests/support/kubeconf.yaml", "invalid") == resp
-        assert fun("tests/support/kubeconf_invalid.yaml", "minkube") == resp
+        P = Filepath("tests/support")
+        assert fun(P / "invalid.yaml", None) == resp
+        assert fun(P / "invalid.yaml", "invalid") == resp
+        assert fun(P / "kubeconf.yaml", "invalid") == resp
+        assert fun(P / "kubeconf_invalid.yaml", "minkube") == resp
 
         # GKE
-        assert k8s.load_gke_config("tests/support/invalid.yaml", None) == resp
-        assert k8s.load_gke_config("tests/support/invalid.yaml", "invalid") == resp
-        assert k8s.load_gke_config("tests/support/kubeconf.yaml", "invalid") == resp
-        assert k8s.load_gke_config("tests/support/kubeconf_invalid.yaml",
+        assert k8s.load_gke_config(P / "invalid.yaml", None) == resp
+        assert k8s.load_gke_config(P / "invalid.yaml", "invalid") == resp
+        assert k8s.load_gke_config(P / "kubeconf.yaml", "invalid") == resp
+        assert k8s.load_gke_config(P / "kubeconf_invalid.yaml",
                                    "gke") == resp
 
         # EKS
-        assert k8s.load_eks_config("tests/support/invalid.yaml", None) == resp
-        assert k8s.load_eks_config("tests/support/invalid.yaml", "invalid") == resp
-        assert k8s.load_eks_config("tests/support/kubeconf.yaml", "invalid") == resp
-        assert k8s.load_eks_config("tests/support/kubeconf_invalid.yaml", "eks") == resp
+        assert k8s.load_eks_config(P / "invalid.yaml", None) == resp
+        assert k8s.load_eks_config(P / "invalid.yaml", "invalid") == resp
+        assert k8s.load_eks_config(P / "kubeconf.yaml", "invalid") == resp
+        assert k8s.load_eks_config(P / "kubeconf_invalid.yaml", "eks") == resp

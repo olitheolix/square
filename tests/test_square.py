@@ -1,15 +1,17 @@
 import copy
 import random
 import unittest.mock as mock
+from typing import cast
 
 import square.cfgfile
 import square.k8s as k8s
+import square.manio
 import square.manio as manio
 import square.square as sq
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, Filepath, GroupBy, JsonPatch, K8sConfig, MetaManifest,
-    Selectors,
+    DeploymentPlan, DeploymentPlanMeta, Filepath, GroupBy, JsonPatch,
+    K8sConfig, MetaManifest, Selectors, ServerManifests,
 )
 from square.k8s import resource
 
@@ -34,7 +36,7 @@ class TestBasic:
             kubeconfig=tmp_path,
             selectors=Selectors(kinds=set(DEFAULT_PRIORITIES),
                                 namespaces=[],
-                                labels=set()),
+                                labels=[]),
             priorities=list(DEFAULT_PRIORITIES),
             groupby=GroupBy(label="", order=[]),
             filters={},
@@ -91,12 +93,12 @@ class TestBasic:
             ],
         )
         plan = DeploymentPlan(
-            create=[DeltaCreate(meta, "url", "manifest")],
+            create=[DeltaCreate(meta, "url", {})],
             patch=[
                 DeltaPatch(meta, "", patch),
                 DeltaPatch(meta, "  normal\n+  add\n-  remove", patch)
             ],
-            delete=[DeltaDelete(meta, "url", "manifest")],
+            delete=[DeltaDelete(meta, "url", {})],
         )
         assert sq.show_plan(plan) is False
 
@@ -104,7 +106,7 @@ class TestBasic:
         """Translate various spellings in `selectors.kinds`"""
         cfg = Config(
             folder=Filepath('/tmp'),
-            kubeconfig="",
+            kubeconfig=Filepath(),
             kubecontext=None,
             selectors=Selectors(
                 kinds={"svc", 'DEPLOYMENT', "Secret"},
@@ -179,7 +181,7 @@ class TestPartition:
     def test_partition_manifests_patch(self):
         """Local and server manifests match.
 
-        If all resource exist both locally and remotely then nothing needs to
+        If all resources exist both locally and remotely then nothing needs to
         be created or deleted. However, the resources may need patching but
         that is not something `partition_manifests` concerns itself with.
 
@@ -187,15 +189,15 @@ class TestPartition:
         # Local and cluster manifests are identical - the Plan must not
         # create/add anything but mark all resources for (possible)
         # patching.
-        local_man = cluster_man = {
-            MetaManifest('v1', 'Namespace', None, 'ns3'): "0",
-            MetaManifest('v1', 'Namespace', None, 'ns1'): "1",
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar'): "2",
-            MetaManifest('v1', 'Namespace', None, 'ns2'): "3",
-            MetaManifest('v1', 'Deployment', 'ns1', 'foo'): "4",
+        manifests: ServerManifests = {
+            MetaManifest('v1', 'Namespace', None, 'ns3'): {},
+            MetaManifest('v1', 'Namespace', None, 'ns1'): {},
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar'): {},
+            MetaManifest('v1', 'Namespace', None, 'ns2'): {},
+            MetaManifest('v1', 'Deployment', 'ns1', 'foo'): {},
         }
-        plan = DeploymentPlan(create=[], patch=list(local_man.keys()), delete=[])
-        assert sq.partition_manifests(local_man, cluster_man) == (plan, False)
+        plan = DeploymentPlanMeta(create=[], patch=list(manifests.keys()), delete=[])
+        assert sq.partition_manifests(manifests, manifests) == (plan, False)
 
     def test_partition_manifests_add_delete(self):
         """Local and server manifests are orthogonal sets.
@@ -207,16 +209,16 @@ class TestPartition:
         fun = sq.partition_manifests
 
         # Local and cluster manifests are orthogonal.
-        local_man = {
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar'): "0",
-            MetaManifest('v1', 'Namespace', None, 'ns2'): "1",
+        local_man: ServerManifests = {
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar'): {},
+            MetaManifest('v1', 'Namespace', None, 'ns2'): {},
         }
-        cluster_man = {
-            MetaManifest('v1', 'Deployment', 'ns1', 'foo'): "2",
-            MetaManifest('v1', 'Namespace', None, 'ns1'): "3",
-            MetaManifest('v1', 'Namespace', None, 'ns3'): "4",
+        cluster_man: ServerManifests = {
+            MetaManifest('v1', 'Deployment', 'ns1', 'foo'): {},
+            MetaManifest('v1', 'Namespace', None, 'ns1'): {},
+            MetaManifest('v1', 'Namespace', None, 'ns3'): {},
         }
-        plan = DeploymentPlan(
+        plan = DeploymentPlanMeta(
             create=[
                 MetaManifest('v1', 'Deployment', 'ns2', 'bar'),
                 MetaManifest('v1', 'Namespace', None, 'ns2'),
@@ -243,19 +245,19 @@ class TestPartition:
         # The local manifests are a subset of the server's. Therefore, the plan
         # must contain patches for those resources that exist locally and on
         # the server. All the other manifest on the server are obsolete.
-        local_man = {
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar1'): "0",
-            MetaManifest('v1', 'Namespace', None, 'ns2'): "1",
+        local_man: ServerManifests = {
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar1'): {},
+            MetaManifest('v1', 'Namespace', None, 'ns2'): {},
         }
-        cluster_man = {
-            MetaManifest('v1', 'Deployment', 'ns1', 'foo'): "2",
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar1'): "3",
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar2'): "4",
-            MetaManifest('v1', 'Namespace', None, 'ns1'): "5",
-            MetaManifest('v1', 'Namespace', None, 'ns2'): "6",
-            MetaManifest('v1', 'Namespace', None, 'ns3'): "7",
+        cluster_man: ServerManifests = {
+            MetaManifest('v1', 'Deployment', 'ns1', 'foo'): {},
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar1'): {},
+            MetaManifest('v1', 'Deployment', 'ns2', 'bar2'): {},
+            MetaManifest('v1', 'Namespace', None, 'ns1'): {},
+            MetaManifest('v1', 'Namespace', None, 'ns2'): {},
+            MetaManifest('v1', 'Namespace', None, 'ns3'): {},
         }
-        plan = DeploymentPlan(
+        plan = DeploymentPlanMeta(
             create=[],
             patch=[
                 MetaManifest('v1', 'Deployment', 'ns2', 'bar1'),
@@ -376,27 +378,27 @@ class TestMatchApiVersions:
         # but with different `apiVersions`.
         meta_deploy_loc = MetaManifest("autoscaling/v2beta1", hpa, "ns", "name")
         meta_deploy_srv = MetaManifest("autoscaling/v2", hpa, "ns", "name")
-        local = {
-            MetaManifest("v1", "Namespace", None, "ns1"): {"ns-loc"},
-            meta_deploy_loc: {"dply-loc"},
+        local: ServerManifests = {
+            MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "loc"},
+            meta_deploy_loc: {"dply": "loc"},
         }
-        server_in = {
-            MetaManifest("v1", "Namespace", None, "ns1"): {"ns-srv"},
-            meta_deploy_srv: {"orig-srv"},
+        server_in: ServerManifests = {
+            MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "srv"},
+            meta_deploy_srv: {"orig": "srv"},
         }
 
         # Mock the resource download to supply it from the correct API endpoint.
-        resource, err = square.k8s.resource(k8sconfig, meta_deploy_loc)
+        resource, err = k8s.resource(k8sconfig, meta_deploy_loc)
         assert not err
-        m_fetch.return_value = (meta_deploy_loc, {"new-srv"}, False)
+        m_fetch.return_value = (meta_deploy_loc, {"new": "srv"}, False)
         del err
 
         # Test function must have interrogated the `autoscaling/v2beta1`
         # endpoint to fetch the HPA manifest.
         srv, err = square.square.match_api_version(k8sconfig, local, server_in)
         assert not err and srv == {
-            MetaManifest("v1", "Namespace", None, "ns1"): {"ns-srv"},
-            MetaManifest("autoscaling/v2beta1", hpa, "ns", "name"): {"new-srv"},
+            MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "srv"},
+            MetaManifest("autoscaling/v2beta1", hpa, "ns", "name"): {"new": "srv"},
         }
 
         # Must have downloaded the deployments.
@@ -414,31 +416,31 @@ class TestMatchApiVersions:
 
         # Create local and server manifests. Both specify the same HPAs
         # but K8s and the local manifests uses different `apiVersions`.
-        local = {
-            MetaManifest("autoscaling/v2", hpa, "name", "ns1"): {"hpa-1"},
-            MetaManifest("autoscaling/v2beta2", hpa, "name", "ns2"): {"hpa-2"},
+        local: ServerManifests = {
+            MetaManifest("autoscaling/v2", hpa, "name", "ns1"): {"hpa": "1"},
+            MetaManifest("autoscaling/v2beta2", hpa, "name", "ns2"): {"hpa": "2"},
         }
-        server_in = {
+        server_in: ServerManifests = {
             # Same as in `local`
-            MetaManifest("autoscaling/v2", hpa, "name", "ns1"): {"hpa-1"},
+            MetaManifest("autoscaling/v2", hpa, "name", "ns1"): {"hpa": "1"},
 
             # Different than in `local`.
-            MetaManifest("autoscaling/v2", hpa, "name", "ns2"): {"hpa-2"},
+            MetaManifest("autoscaling/v2", hpa, "name", "ns2"): {"hpa": "2"},
         }
 
         # Mock the resource download to supply it from the correct API endpoint.
         meta = MetaManifest("autoscaling/v2beta2", hpa, "name", "ns2")
         assert meta in local
-        resource, err = square.k8s.resource(k8sconfig, meta)
+        resource, err = k8s.resource(k8sconfig, meta)
         assert not err
-        m_fetch.return_value = (meta, {"new-hpa-2"}, False)
+        m_fetch.return_value = (meta, {"new-hpa": "2"}, False)
         del err
 
         # Test function must interrogate `autoscaling/v2beta2` for the HPA manifest.
         srv, err = square.square.match_api_version(k8sconfig, local, server_in)
         assert not err and srv == {
-            MetaManifest("autoscaling/v2", hpa, "name", "ns1"): {"hpa-1"},
-            MetaManifest("autoscaling/v2beta2", hpa, "name", "ns2"): {"new-hpa-2"},
+            MetaManifest("autoscaling/v2", hpa, "name", "ns1"): {"hpa": "1"},
+            MetaManifest("autoscaling/v2beta2", hpa, "name", "ns2"): {"new-hpa": "2"},
         }
 
         # Must have downloaded the deployments.
@@ -457,39 +459,39 @@ class TestMatchApiVersions:
         hpa = "HorizontalPodAutoscaler"
 
         # Create local and server manifests for HPAs.
-        local_in = {
+        local_in: ServerManifests = {
             # These two exist on server with the same API version.
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"loc-hpa-1"},
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"loc-hpa-2"},
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"loc-hpa": "1"},
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"loc-hpa": "2"},
 
             # This one exists on the server but with a different API version.
-            MetaManifest("autoscaling/v2beta1", hpa, "ns", "name-3"): {"loc-hpa-3"},
+            MetaManifest("autoscaling/v2beta1", hpa, "ns", "name-3"): {"loc-hpa": "3"},
         }
-        server_in = {
+        server_in: ServerManifests = {
             # These two exist locally with the same API version.
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"srv-hpa-1"},
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"srv-hpa-2"},
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"srv-hpa": "1"},
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"srv-hpa": "2"},
 
             # This one exists locally but with a different API version.
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-3"): {"loc-hpa-3"},
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-3"): {"loc-hpa": "3"},
         }
 
         # Mock the resource download to supply it from the correct API endpoint.
         meta = MetaManifest("autoscaling/v2beta1", hpa, "ns", "name-3")
-        resource, err = square.k8s.resource(k8sconfig, meta)
+        resource, err = k8s.resource(k8sconfig, meta)
         assert not err
-        m_fetch.return_value = (meta, {"new-hpa-3"}, False)
+        m_fetch.return_value = (meta, {"new-hpa": "3"}, False)
         del err
 
         # Test function must used the API version specified in the local
         # manifest to fetch the HPA "name-3".
         srv, err = square.square.match_api_version(k8sconfig, local_in, server_in)
         assert not err and srv == {
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"srv-hpa-1"},
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"srv-hpa-2"},
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"srv-hpa": "1"},
+            MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"srv-hpa": "2"},
 
             # This must have been downloaded.
-            MetaManifest("autoscaling/v2beta1", hpa, "ns", "name-3"): {"new-hpa-3"},
+            MetaManifest("autoscaling/v2beta1", hpa, "ns", "name-3"): {"new-hpa": "3"},
         }
 
         # Must have downloaded exactly one deployment, namely `name-3`.
@@ -512,9 +514,9 @@ class TestMatchApiVersions:
         assert not m_fetch.called
 
         # Local and server manifests are identical - must not synchronise anything.
-        local_in = {
-            MetaManifest("v1", "Namespace", None, "ns1"): {"ns-loc"},
-            MetaManifest("apps/v1", "Deployment", "ns", "name"): {"dply-loc"},
+        local_in: ServerManifests = {
+            MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "loc"},
+            MetaManifest("apps/v1", "Deployment", "ns", "name"): {"dply": "loc"},
         }
         srv, err = fun(k8sconfig, local_in, local_in)
         assert not err and srv == local_in
@@ -524,12 +526,12 @@ class TestMatchApiVersions:
         # completely different deployments. Must not sync anything because the
         # deployments are actually different resources.
         local_in = {
-            MetaManifest("v1", "Service", "svc-name", "ns1"): {"ns-loc"},
-            MetaManifest("apps/v1", "Deployment", "ns", "foo"): {"dply-loc"},
+            MetaManifest("v1", "Service", "svc-name", "ns1"): {"ns": "loc"},
+            MetaManifest("apps/v1", "Deployment", "ns", "foo"): {"dply": "loc"},
         }
         server_in = {
-            MetaManifest("v1", "Service", "svc-name", "ns1"): {"ns-srv"},
-            MetaManifest("extensions/v1beta1", "Deployment", "ns", "bar"): {"orig-srv"},
+            MetaManifest("v1", "Service", "svc-name", "ns1"): {"ns": "srv"},
+            MetaManifest("extensions/v1beta1", "Deployment", "ns", "bar"): {"orig": "srv"},
         }
         srv, err = fun(k8sconfig, local_in, server_in)
         assert not err and srv == server_in
@@ -537,13 +539,13 @@ class TestMatchApiVersions:
 
         # Local- and server manifests have matching Deployments in two
         # different namespaces.
-        local_in = {
-            MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy-1"},
-            MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy-2"},
+        local_in: ServerManifests = {
+            MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy": "1"},
+            MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy": "2"},
         }
-        server_in = {
-            MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy-1"},
-            MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy-2"},
+        server_in: ServerManifests = {
+            MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy": "1"},
+            MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy": "1"},
         }
         srv, err = fun(k8sconfig, local_in, server_in)
         assert not err and srv == server_in
@@ -613,37 +615,37 @@ class TestPlan:
 
         expected = DeploymentPlan(
             create=[
-                DeltaCreate(meta_ns0, None, None),
-                DeltaCreate(meta_ns1, None, None),
-                DeltaCreate(meta_svc0, None, None),
-                DeltaCreate(meta_svc1, None, None),
-                DeltaCreate(meta_dpl0, None, None),
-                DeltaCreate(meta_dpl1, None, None),
+                DeltaCreate(meta_ns0, "url", {}),
+                DeltaCreate(meta_ns1, "url", {}),
+                DeltaCreate(meta_svc0, "url", {}),
+                DeltaCreate(meta_svc1, "url", {}),
+                DeltaCreate(meta_dpl0, "url", {}),
+                DeltaCreate(meta_dpl1, "url", {}),
             ],
             patch=[
-                DeltaCreate(meta_ns0, None, None),
-                DeltaCreate(meta_ns1, None, None),
-                DeltaCreate(meta_svc0, None, None),
-                DeltaCreate(meta_svc1, None, None),
-                DeltaCreate(meta_dpl0, None, None),
-                DeltaCreate(meta_dpl1, None, None),
+                DeltaPatch(meta_ns0, "url", JsonPatch("url", [{}])),
+                DeltaPatch(meta_ns1, "url", JsonPatch("url", [{}])),
+                DeltaPatch(meta_svc0, "url", JsonPatch("url", [{}])),
+                DeltaPatch(meta_svc1, "url", JsonPatch("url", [{}])),
+                DeltaPatch(meta_dpl0, "url", JsonPatch("url", [{}])),
+                DeltaPatch(meta_dpl1, "url", JsonPatch("url", [{}])),
             ],
             delete=[
-                DeltaCreate(meta_dpl1, None, None),
-                DeltaCreate(meta_dpl0, None, None),
-                DeltaCreate(meta_svc1, None, None),
-                DeltaCreate(meta_svc0, None, None),
-                DeltaCreate(meta_ns1, None, None),
-                DeltaCreate(meta_ns0, None, None),
+                DeltaDelete(meta_dpl1, "url", {}),
+                DeltaDelete(meta_dpl0, "url", {}),
+                DeltaDelete(meta_svc1, "url", {}),
+                DeltaDelete(meta_svc0, "url", {}),
+                DeltaDelete(meta_ns1, "url", {}),
+                DeltaDelete(meta_ns0, "url", {}),
             ],
         )
 
         config.priorities = ["Namespace", "Service", "Deployment"]
         plan = copy.deepcopy(expected)
-        for i in range(10):
-            random.shuffle(plan.create)
-            random.shuffle(plan.patch)
-            random.shuffle(plan.delete)
+        for _ in range(10):
+            random.shuffle(cast(list, plan.create))
+            random.shuffle(cast(list, plan.patch))
+            random.shuffle(cast(list, plan.delete))
             ret, err = sq.sort_plan(config, plan)
             assert not err
             assert ret.create == expected.create
@@ -653,32 +655,32 @@ class TestPlan:
         # Service must be last because it is not in the priority list.
         expected = DeploymentPlan(
             create=[
-                DeltaCreate(meta_ns0, None, None),
-                DeltaCreate(meta_ns1, None, None),
-                DeltaCreate(meta_dpl0, None, None),
-                DeltaCreate(meta_svc1, None, None),
+                DeltaCreate(meta_ns0, "url", {}),
+                DeltaCreate(meta_ns1, "url", {}),
+                DeltaCreate(meta_dpl0, "url", {}),
+                DeltaCreate(meta_svc1, "url", {}),
             ],
             patch=[
-                DeltaCreate(meta_ns0, None, None),
-                DeltaCreate(meta_ns1, None, None),
-                DeltaCreate(meta_svc0, None, None),
-                DeltaCreate(meta_svc1, None, None),
-                DeltaCreate(meta_dpl0, None, None),
-                DeltaCreate(meta_dpl1, None, None),
+                DeltaPatch(meta_ns0, "", JsonPatch("", [{}])),
+                DeltaPatch(meta_ns1, "", JsonPatch("", [{}])),
+                DeltaPatch(meta_svc0, "", JsonPatch("", [{}])),
+                DeltaPatch(meta_svc1, "", JsonPatch("", [{}])),
+                DeltaPatch(meta_dpl0, "", JsonPatch("", [{}])),
+                DeltaPatch(meta_dpl1, "", JsonPatch("", [{}])),
             ],
             delete=[
-                DeltaCreate(meta_svc0, None, None),
-                DeltaCreate(meta_dpl1, None, None),
-                DeltaCreate(meta_ns1, None, None),
-                DeltaCreate(meta_ns0, None, None),
+                DeltaDelete(meta_svc0, "url", {}),
+                DeltaDelete(meta_dpl1, "url", {}),
+                DeltaDelete(meta_ns1, "url", {}),
+                DeltaDelete(meta_ns0, "url", {}),
             ],
         )
         config.priorities = ["Namespace", "Deployment"]
         plan = copy.deepcopy(expected)
-        for i in range(10):
-            random.shuffle(plan.create)
-            random.shuffle(plan.patch)
-            random.shuffle(plan.delete)
+        for _ in range(10):
+            random.shuffle(cast(list, plan.create))
+            random.shuffle(cast(list, plan.patch))
+            random.shuffle(cast(list, plan.delete))
             ret, err = sq.sort_plan(config, plan)
             assert not err
             assert ret.create == expected.create
@@ -742,9 +744,9 @@ class TestPlan:
             ],
             patch=[],
             delete=[
-                DeltaDelete(meta[2], res[2].url + "/" + meta[2].name, del_opts),
-                DeltaDelete(meta[3], res[3].url + "/" + meta[3].name, del_opts),
-                DeltaDelete(meta[4], res[4].url + "/" + meta[4].name, del_opts),
+                DeltaDelete(meta[2], res[2].url + "/" + str(meta[2].name), del_opts),
+                DeltaDelete(meta[3], res[3].url + "/" + str(meta[3].name), del_opts),
+                DeltaDelete(meta[4], res[4].url + "/" + str(meta[4].name), del_opts),
             ],
         )
         ret, err = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
@@ -764,8 +766,8 @@ class TestPlan:
         # Pretend we only have to "create" resources and then trigger the
         # `resource` error in its code path.
         m_part.return_value = (
-            DeploymentPlan(create=[meta], patch=[], delete=[]),
-            False,
+            DeploymentPlan(create=[DeltaCreate(meta, "url", {})], patch=[], delete=[]),
+            False
         )
 
         # We must not be able to compile a plan because of the `resource` error.
@@ -776,8 +778,8 @@ class TestPlan:
         # Pretend we only have to "delete" resources, and then trigger the
         # `resource` error in its code path.
         m_part.return_value = (
-            DeploymentPlan(create=[], patch=[], delete=[meta]),
-            False,
+            DeploymentPlan(create=[], patch=[], delete=[DeltaDelete(meta, "url", {})]),
+            False
         )
         with mock.patch.object(sq.k8s, "resource") as m_url:
             m_url.return_value = (None, True)
@@ -864,7 +866,7 @@ class TestPlan:
         # Define a single resource and valid dummy return value for
         # `sq.partition_manifests`.
         meta = MetaManifest('v1', 'Namespace', None, 'ns1')
-        plan = DeploymentPlan(create=[], patch=[meta], delete=[])
+        plan = DeploymentPlanMeta(create=[], patch=[meta], delete=[])
 
         # Local and server manifests have the same resources but their
         # definition differs. This will ensure a non-empty patch in the plan.
@@ -965,7 +967,7 @@ class TestPlan:
         # Callback triggers an exception (division by zero in this case).
         # ----------------------------------------------------------------------
         def cb3(_cfg, _local, _server):
-            1 / 0
+            1 / 0               # type: ignore
 
         local, server = get_dummy_manifests()
         config.patch_callback = cb3
@@ -1018,7 +1020,7 @@ class TestPlan:
 
         # Repeat the test, but this time force an error in the callback function.
         def cb2(_cfg: Config, _local: dict, _server: dict):
-            1 / 0
+            1 / 0               # type: ignore
 
         config.patch_callback = cb2
         _, err = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
@@ -1052,9 +1054,9 @@ class TestMainOptions:
 
         # Valid non-empty deployment plan.
         plan = DeploymentPlan(
-            create=[DeltaCreate(meta, "create_url", "create_man")],
+            create=[DeltaCreate(meta, "create_url", {"create": "man"})],
             patch=[DeltaPatch(meta, "diff", patch)],
-            delete=[DeltaDelete(meta, "delete_url", "delete_man")],
+            delete=[DeltaDelete(meta, "delete_url", {"delete": "man"})],
         )
 
         def reset_mocks():
@@ -1071,9 +1073,9 @@ class TestMainOptions:
         # corresponding calls to K8s.
         reset_mocks()
         assert sq.apply_plan(config, plan) is False
-        m_post.assert_called_once_with("k8s_client", "create_url", "create_man")
+        m_post.assert_called_once_with("k8s_client", "create_url", {"create": "man"})
         m_apply.assert_called_once_with("k8s_client", patch.url, patch.ops)
-        m_delete.assert_called_once_with("k8s_client", "delete_url", "delete_man")
+        m_delete.assert_called_once_with("k8s_client", "delete_url", {"delete": "man"})
 
         # -----------------------------------------------------------------
         #                   Simulate An Empty Plan
@@ -1134,7 +1136,7 @@ class TestMainOptions:
         m_load.return_value = ("local", None, False)
         m_down.return_value = ("server", False)
         m_plan.return_value = (plan, False)
-        m_align.side_effect = lambda loc_man, srv_man: (loc_man, False)
+        m_align.side_effect = lambda loc_man, _: (loc_man, False)
 
         # A successful DIFF only computes and prints the plan.
         plan, err = sq.make_plan(config)

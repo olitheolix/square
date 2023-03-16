@@ -61,8 +61,10 @@ class MetaManifest(NamedTuple):
     apiVersion: str
     kind: str
     namespace: Optional[str]
-    name: str
 
+    # Every resource must have a name except for Namespaces, which encode their
+    # name in the `namespace` field.
+    name: str | None
 
 class K8sResource(NamedTuple):
     """Describe a specific K8s resource kind."""

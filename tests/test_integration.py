@@ -18,7 +18,7 @@ from .test_helpers import kind_available
 # We need to wrap this into a try/except block because CircleCI does not have
 # `kubectl` installed and cannot run the integration tests anyway.
 try:
-    kubectl = sh.kubectl.bake("--kubeconfig", "/tmp/kubeconfig-kind.yaml")
+    kubectl = sh.kubectl.bake("--kubeconfig", "/tmp/kubeconfig-kind.yaml")  # type: ignore
 except sh.CommandNotFound:
     kubectl = None
 
@@ -52,6 +52,7 @@ class TestMainGet:
         integration_test_manifest_path = cur_path / "integration-test-cluster"
         assert integration_test_manifest_path.exists()
         assert integration_test_manifest_path.is_dir()
+        assert kubectl is not None
         kubectl("apply", "-f", str(integration_test_manifest_path))
 
     def test_main_get(self, tmp_path):
@@ -122,6 +123,8 @@ class TestMainGet:
         This test will use `kubectl` to delete some resources.
 
         """
+        assert kubectl is not None
+
         # Convenience.
         man_path = tmp_path / "square-tests-1" / "demoapp-1"
 
@@ -176,6 +179,8 @@ class TestMainGet:
         This test will use `kubectl` to delete some resources.
 
         """
+        assert kubectl is not None
+
         def load_manifests(path):
             # Load all manifests and return just the metadata.
             manifests = yaml.safe_load_all(open(path / "_other.yaml"))
@@ -303,7 +308,8 @@ class TestMainGet:
         # Deploy two HPAs into the same namespace. One HPA will use
         # `autoscaling/v1` whereas the other uses `autoscaling/v2beta2`.
         # ---------------------------------------------------------------------
-        sh.kubectl("apply", "--kubeconfig", config.kubeconfig, "-f", str(man_path))
+        sh.kubectl("apply", "--kubeconfig", config.kubeconfig,  # type: ignore
+                   "-f", str(man_path))
 
         # ---------------------------------------------------------------------
         # Sync all manifests. This must do nothing. In particular, it must not
@@ -343,10 +349,10 @@ class TestMainPlan:
         # Define the resource priority and kinds we have in our workflow
         # manifests. Only target the `test-workflow` labels to avoid problems
         # with non-namespaced resources.
-        priorities = (
+        priorities = [
             "Namespace", "Secret", "ConfigMap", "ClusterRole",
             "ClusterRoleBinding", "Role", "RoleBinding",
-        )
+        ]
         namespace = "test-workflow"
 
         config = Config(
@@ -365,7 +371,7 @@ class TestMainPlan:
         # Deploy a new namespace with only a few resources. There are no
         # deployments among them to speed up the deletion of the namespace.
         # ---------------------------------------------------------------------
-        sh.kubectl("apply", "--kubeconfig", config.kubeconfig,
+        sh.kubectl("apply", "--kubeconfig", config.kubeconfig,  # type: ignore
                    "-f", "tests/support/k8s-test-resources.yaml")
 
         # ---------------------------------------------------------------------
@@ -395,11 +401,12 @@ class TestMainPlan:
         # ---------------------------------------------------------------------
         # Wait until K8s has deleted the namespace.
         # ---------------------------------------------------------------------
-        for i in range(120):
+        for _ in range(120):
             time.sleep(1)
             try:
-                sh.kubectl("get", "ns", namespace, "--kubeconfig", config.kubeconfig)
-            except sh.ErrorReturnCode_1:
+                sh.kubectl("get", "ns", namespace, "--kubeconfig",  # type: ignore
+                           config.kubeconfig)
+            except sh.ErrorReturnCode_1:  # type: ignore
                 break
         else:
             assert False, f"Could not delete the namespace <{namespace}> in time"
@@ -450,7 +457,7 @@ class TestMainPlan:
         # Deploy the resources: one namespace with two HPAs in it. On will be
         # deployed via `autoscaling/v1` the other via `autoscaling/v2beta2`.
         # ---------------------------------------------------------------------
-        sh.kubectl("apply", "--kubeconfig", config.kubeconfig,
+        sh.kubectl("apply", "--kubeconfig", config.kubeconfig,  # type: ignore
                    "-f", str(man_path))
 
         # ---------------------------------------------------------------------
@@ -476,8 +483,8 @@ class TestMainPlan:
         plan_2, err = square.square.make_plan(config)
         assert not err
         assert plan_2.create == plan_2.delete == [] and len(plan_2.patch) == 1
-        assert plan_2.patch[0].meta.name == "hpav2beta2"
-        assert plan_2.patch[0].meta.apiVersion == "autoscaling/v2beta2"
+        assert plan_2.patch[0].meta.name == "hpav2beta2"  # type: ignore
+        assert plan_2.patch[0].meta.apiVersion == "autoscaling/v2beta2"  # type: ignore
         del plan_2
 
         # ---------------------------------------------------------------------
@@ -531,5 +538,5 @@ class TestMainPlan:
         plan_6, err = square.square.make_plan(config)
         assert not err
         assert plan_6.delete == plan_6.create == [] and len(plan_6.patch) == 1
-        assert plan_6.patch[0].meta.name == "hpav1"
-        assert plan_6.patch[0].meta.apiVersion == "autoscaling/v2beta2"
+        assert plan_6.patch[0].meta.name == "hpav1"  # type: ignore
+        assert plan_6.patch[0].meta.apiVersion == "autoscaling/v2beta2"  # type: ignore

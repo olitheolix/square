@@ -16,7 +16,7 @@ class TestBasic:
 
         # Valid dict. Verify Dot access.
         d = dd.make({'foo': 'bar'})
-        assert d.foo == 'bar'
+        assert d.foo == 'bar'   # type: ignore
 
         # A list of dicts.
         d = dd.make([{'foo0': 'bar0'}, {'foo1': 'bar1'}])
@@ -25,7 +25,7 @@ class TestBasic:
 
         # A dict of dicts.
         d = dd.make({'foo0': {'foo1': 'bar1'}})
-        assert d.foo0.foo1 == 'bar1'
+        assert d.foo0.foo1 == 'bar1'  # type: ignore
 
         # The `make` function must have operated recursively.
         assert isinstance(d, dd.DotDict)

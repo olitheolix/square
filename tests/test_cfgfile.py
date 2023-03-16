@@ -130,7 +130,6 @@ class TestMainGet:
     def test_sane_filter(self):
         # Must be list.
         assert cfgfile.valid([]) is True
-        assert cfgfile.valid({}) is False
 
         # List must not contain empty strings.
         assert cfgfile.valid([""]) is False
