@@ -9,6 +9,7 @@ This module defines utility functions to define these filters.
 """
 import copy
 import logging
+import typing
 from types import SimpleNamespace
 from typing import List, Tuple, Union
 
@@ -21,6 +22,11 @@ from square.dtypes import Config, Filepath
 logit = logging.getLogger("square")
 
 
+# Need to disable MyPy type checking because it would otherwise report the
+# first `if` statement as unreachable code. That warning is justified but
+# ignores the recursive nature of the function where one of the nested elements
+# may not adhere to the requirement.
+@typing.no_type_check
 def valid(filters: List[Union[dict, list, str]]) -> bool:
     """Return `True` iff `filters` is valid."""
     if not isinstance(filters, list):

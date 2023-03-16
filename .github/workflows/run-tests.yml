@@ -42,7 +42,7 @@ jobs:
         run: pytest --cov=square --cov-report=term-missing --cov-report=xml --cov-fail-under=100
 
       - name: Tests - Static analysis
-        run: pipenv run mypy square/*.py
+        run: pipenv run mypy square/
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
@@ -87,4 +87,4 @@ jobs:
       - name: Run Unit Tests
         run: |
           pytest --cov=square
-          pipenv run mypy square/*.py
+          pipenv run mypy square/
