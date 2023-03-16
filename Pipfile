@@ -12,7 +12,7 @@ pyyaml = "*"
 requests = "*"
 colorlog = "*"
 backoff = "*"
-pydantic = "*"
+pydantic = ">=1.8"
 
 [dev-packages]
 ipython = "*"
@@ -28,4 +28,4 @@ types-pyyaml = "*"
 types-requests = "*"
 
 [requires]
-python_version = "3.7"
+python_version = "3.10"
