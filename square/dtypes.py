@@ -112,7 +112,7 @@ class JsonPatch(NamedTuple):
     url: str
 
     # The list of JSON patches.
-    ops: Collection[str]
+    ops: Collection[Dict[str, str]]
 
 
 class DeltaCreate(NamedTuple):

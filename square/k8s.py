@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import warnings
 from collections import defaultdict
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Collection, Dict, List, Optional, Set, Tuple
 
 import backoff
 import google.auth
@@ -637,10 +637,10 @@ def get(client, url: str) -> Tuple[dict, bool]:
     return (resp, err)
 
 
-def patch(client, url: str, payload: dict) -> Tuple[dict, bool]:
+def patch(client, url: str, payload: Collection[Dict[str, str]]) -> Tuple[dict, bool]:
     """Make PATCH requests to K8s (see `request`)."""
     headers = {'Content-Type': 'application/json-patch+json'}
-    resp, code = request(client, 'PATCH', url, payload, headers)
+    resp, code = request(client, 'PATCH', url, payload, headers)  # type: ignore
     err = (code != 200)
     if err:
         logit.error(f"{code} - PATCH - {url} - {resp}")
