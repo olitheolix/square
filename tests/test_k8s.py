@@ -442,10 +442,10 @@ class TestUrlPathBuilder:
     def test_resource_namespace(self, integrationtest, k8sconfig):
         """Verify with a Namespace resource.
 
-        This one is a special case because it is not namespaced yet Square's
-        MetaManifest may specify a `namespace` which, in this one special case
-        refers to the namespace's actual name. This is a necessary
-        implementation detail to properly support the selectors.
+        This one is a special case because namespaces not themselves namespaced
+        yet Square's MetaManifest may specify one. This is a special case where
+        the `namespace` field refers to the actual name of the namespace. This
+        is a necessary implementation detail to properly support the selectors.
 
         """
         # Fixtures.
@@ -485,7 +485,8 @@ class TestUrlPathBuilder:
     def test_resource_clusterrole(self, integrationtest, k8sconfig):
         """Verify with a ClusterRole resource.
 
-        NOTE: this test is tailored to Kubernetes v1.16.
+        This is a basic test since ClusterRoles only exist as
+        rbac.authorization.k8s.io/v1 anymore.
 
         """
         # Fixtures.
@@ -650,7 +651,7 @@ class TestUrlPathBuilder:
 
         # Sanity check.
         kinds = {
-            # Standard resources that a v1.16 Kubernetes cluster always has.
+            # Some standard resources that every v1.24 Kubernetes cluster has.
             ('ClusterRole', 'rbac.authorization.k8s.io/v1'),
             ('ConfigMap', 'v1'),
             ('DaemonSet', 'apps/v1'),
@@ -729,8 +730,8 @@ class TestUrlPathBuilder:
             url=f"{config.url}/apis/mycrd.com/v1",
         )
 
-        # Verify default resource versions for a Deployment. This is specific
-        # to Kubernetes 1.16.
+        # Verify default resource versions for a Deployment. In 1.24 the
+        # default (and only) API version for Deployments is `apps/v1`.
         assert config.apis[("Deployment", "")].apiVersion == "apps/v1"
 
 
