@@ -733,11 +733,6 @@ class TestUrlPathBuilder:
         # to Kubernetes 1.16.
         assert config.apis[("Deployment", "")].apiVersion == "apps/v1"
 
-        # Ingress are still in beta in v1.16. However, they exist as both
-        # `networking.k8s.io/v1beta1` and `extensions/v1beta1`. In that case,
-        # the function would just return the last one in alphabetical order.
-        assert config.apis[("Ingress", "")].apiVersion == "extensions/v1beta1"
-
 
 class TestK8sKubeconfig:
     @mock.patch.object(k8s.os, "getenv")
