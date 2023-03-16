@@ -297,8 +297,8 @@ def compile_plan(
     if any([k8s.resource(k8sconfig, meta)[1] for meta in local]):
         return err_resp
 
-    # Replace the server resources fetched from the K8s preferred endpoint with
-    # those fetched from the endpoint used by the local manifest.
+    # Replace the server resources fetched from K8s' preferred endpoint with
+    # those from the endpoint declared in the local manifest.
     server, err = match_api_version(k8sconfig, local, server)
     assert not err
 
@@ -306,11 +306,11 @@ def compile_plan(
     server = {
         meta: manio.strip(k8sconfig, man, config.filters)
         for meta, man in server.items()
-    }
+    }                           # type: ignore
     local = {
         meta: manio.strip(k8sconfig, man, config.filters)
         for meta, man in local.items()
-    }
+    }                           # type: ignore
 
     # Abort if any of the manifests could not be stripped.
     err_srv = {_[2] for _ in server.values()}
@@ -321,8 +321,8 @@ def compile_plan(
 
     # Unpack the stripped manifests (first element in the tuple returned from
     # `manio.strip`).
-    server = {k: dotdict.undo(v[0]) for k, v in server.items()}
-    local = {k: dotdict.undo(v[0]) for k, v in local.items()}
+    server = {k: dotdict.undo(v[0]) for k, v in server.items()}  # type: ignore
+    local = {k: dotdict.undo(v[0]) for k, v in local.items()}    # type: ignore
 
     # Partition the set of meta manifests into create/delete/patch groups.
     plan, err = partition_manifests(local, server)

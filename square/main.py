@@ -6,6 +6,7 @@ from typing import Optional, Tuple
 import colorama
 
 import square
+import square.k8s
 import square.square
 from square import DEFAULT_CONFIG_FILE, __version__
 from square.dtypes import Config, Filepath, GroupBy, Selectors

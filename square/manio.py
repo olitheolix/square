@@ -8,6 +8,7 @@ from typing import (
     Collection, DefaultDict, Dict, Iterable, List, Optional, Tuple,
 )
 
+import yaml.parser
 import yaml.scanner
 
 import square.cfgfile
@@ -239,7 +240,6 @@ def parse(file_yaml: Dict[Filepath, str],
         fnames = sorted(list(file_yaml))
 
         # Parse the YAMLs in a process pool.
-        ret: Collection[Tuple[MetaManifest, dict]]
         for fname, (manifests, err) in zip(fnames, pool.starmap(_parse_worker, funargs)):
             if err:
                 return ({}, err)
@@ -502,12 +502,13 @@ def strip(
 
     """
     # Convenience: default return value if an error occurs.
-    ret_err: Tuple[DotDict, dict, bool] = (square.dotdict.make({}), {}, True)
+    ret_err: Tuple[DotDict, dict, bool] = (
+        square.dotdict.make({}), {}, True) # type: ignore
 
     # Parse the manifest.
     try:
         meta = make_meta(manifest)
-        resource, err = square.k8s.resource(k8sconfig, meta)
+        _, err = square.k8s.resource(k8sconfig, meta)
         assert not err
     except KeyError as e:
         logit.error(f"Manifest is missing the <{e.args[0]}> key.")
@@ -575,13 +576,13 @@ def strip(
             square.DEFAULT_CONFIG.filters["_common_"]
         )
     )
-    if not square.cfgfile.valid(filters):
+    if not square.cfgfile.valid(filters):  # type: ignore
         return ret_err
 
     # Remove the keys from the `manifest` according to `filters`.
     manifest = copy.deepcopy(manifest)
     removed = _update(filters, manifest)
-    return (square.dotdict.make(manifest), removed, False)
+    return (square.dotdict.make(manifest), removed, False)  # type: ignore
 
 
 def align_serviceaccount(
@@ -680,7 +681,7 @@ def align_serviceaccount(
     for meta in server_meta:
         # Find the service account token in the local/cluster manifest.
         loc_token, loc_secrets, err1 = _get_token(meta, local_manifests)
-        srv_token, srv_secrets, err2 = _get_token(meta, server_manifests)
+        srv_token, _, err2 = _get_token(meta, server_manifests)
 
         # Ignore the manifest if there was an error. Typically this means the
         # local or cluster manifest defined multiple service account secrets.
@@ -867,7 +868,7 @@ def sort_manifests(
     for fname, manifests in file_manifests.items():
         # Group the manifests by their "kind" in order of `priority` and sort
         # each group alphabetically.
-        man_sorted: List[dict] = []
+        man_sorted: list = []
         for kind in priority:
             # Partition the manifest list into the current `kind` and the rest.
             tmp = [_ for _ in manifests if _[0].kind == kind]
@@ -935,6 +936,7 @@ def save(folder: Filepath, manifests: LocalManifestLists,
 
     # Convert all manifest dicts into YAML strings.
     out_final: Dict[Filepath, str] = {}
+    fname: Filepath = Filepath()
     try:
         for fname, v in out_clean.items():
             out_final[fname] = yaml.dump_all(v, default_flow_style=False,
