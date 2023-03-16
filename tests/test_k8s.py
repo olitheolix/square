@@ -576,18 +576,18 @@ class TestUrlPathBuilder:
         assert isinstance(k8sconfig.apis, dict) and len(k8sconfig.apis) > 0
 
         # Services have a short name.
-        k8sconfig.short2kind["service"] == "Service"
-        k8sconfig.short2kind["services"] == "Service"
-        k8sconfig.short2kind["svc"] == "Service"
+        assert k8sconfig.short2kind["service"] == "Service"
+        assert k8sconfig.short2kind["services"] == "Service"
+        assert k8sconfig.short2kind["svc"] == "Service"
 
         # Sanity check: must contain at least the default resource kinds. The
         # spelling must match with what would be declared in `manifest.kind`.
-        "Service" in k8sconfig.kinds
-        "service" not in k8sconfig.kinds
-        "Services" not in k8sconfig.kinds
-        "Deployment" in k8sconfig.kinds
-        "deployment" not in k8sconfig.kinds
-        "Deployments" not in k8sconfig.kinds
+        assert "Service" in k8sconfig.kinds
+        assert "service" not in k8sconfig.kinds
+        assert "Services" not in k8sconfig.kinds
+        assert "Deployment" in k8sconfig.kinds
+        assert "deployment" not in k8sconfig.kinds
+        assert "Deployments" not in k8sconfig.kinds
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     def test_compile_api_endpoints_resource_kinds(self, integrationtest, k8sconfig):
@@ -597,16 +597,16 @@ class TestUrlPathBuilder:
 
         # Sanity check: must contain at least the default resource kinds. The
         # spelling must match with what would be declared in `manifest.kind`.
-        "Service" in config.kinds
-        "service" not in config.kinds
-        "Services" not in config.kinds
-        "Deployment" in config.kinds
-        "deployment" not in config.kinds
-        "Deployments" not in config.kinds
-        "CustomResourceDefinition" in config.kinds
+        assert "Service" in config.kinds
+        assert "service" not in config.kinds
+        assert "Services" not in config.kinds
+        assert "Deployment" in config.kinds
+        assert "deployment" not in config.kinds
+        assert "Deployments" not in config.kinds
+        assert "CustomResourceDefinition" in config.kinds
 
         # Our demo CRD.
-        "DemoCRD" in config.kinds
+        assert "DemoCRD" in config.kinds
 
     @mock.patch.object(k8s, "get")
     def test_compile_api_endpoints_err(self, m_get, k8sconfig):
