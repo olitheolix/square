@@ -36,10 +36,10 @@ def load_kubeconfig(fname: Filepath,
     Return None on error.
 
     Inputs:
-        fname: str
+        fname: Filepath
             Path to kubeconfig file, eg "~/.kube/config.yaml"
-        context: str
-            Kubeconf context. Use `None` to use default context.
+        context: Optional[str]
+            Kubeconf context. Use `None` to get the default context.
 
     Returns:
         name, user info, cluster info
@@ -153,7 +153,7 @@ def load_gke_config(
 
     """
     # Parse the kubeconfig file.
-    name, user, cluster, err = load_kubeconfig(fname, context)
+    _, _, cluster, err = load_kubeconfig(fname, context)
     if err:
         return (K8sConfig(), True)
 
@@ -174,7 +174,7 @@ def load_gke_config(
 
     with warnings.catch_warnings(record=disable_warnings):
         try:
-            cred, project_id = google.auth.default(
+            cred, _ = google.auth.default(
                 scopes=['https://www.googleapis.com/auth/cloud-platform']
             )
             cred.refresh(google.auth.transport.requests.Request())
@@ -187,7 +187,7 @@ def load_gke_config(
     logit.info("Assuming GKE cluster.")
     return K8sConfig(
         url=cluster["server"],
-        token=token,
+        token=token,            # type: ignore
         ca_cert=ssl_ca_cert,
         client_cert=None,
         version="",
@@ -198,7 +198,7 @@ def load_gke_config(
 def load_eks_config(
         fname: Filepath,
         context: Optional[str],
-        disable_warnings: bool = False) -> Tuple[K8sConfig, bool]:
+        _: bool = False) -> Tuple[K8sConfig, bool]:
     """Return K8s access config for EKS cluster described in `kubeconfig`.
 
     Returns None if `kubeconfig` does not exist or could not be parsed.
@@ -208,15 +208,16 @@ def load_eks_config(
             Kubeconfig file.
         context: str
             Kubeconf context. Use `None` to use default context.
-        disable_warnings: bool
-            Whether or not do disable GCloud warnings.
+        disable_warnings: bool (unused)
+            Not used. It only exists for consistency with `load_gke_config` to
+            make those functions generic.
 
     Returns:
         Config
 
     """
     # Parse the kubeconfig file.
-    name, user, cluster, err = load_kubeconfig(fname, context)
+    user, cluster, err = load_kubeconfig(fname, context)[1:]
     if err:
         return (K8sConfig(), True)
 
@@ -241,7 +242,7 @@ def load_eks_config(
     # Save the certificate to a temporary file. This is only necessary because
     # the Requests library will need a path to the CA file - unfortunately, we
     # cannot just pass it the content.
-    _, tmp = tempfile.mkstemp(text=False)
+    tmp = tempfile.mkstemp(text=False)[1]
     ssl_ca_cert = Filepath(tmp)
     ssl_ca_cert.write_bytes(ssl_ca_cert_data)
 
@@ -301,7 +302,7 @@ def load_minikube_config(fname: Filepath,
 
     """
     # Parse the kubeconfig file.
-    name, user, cluster, err = load_kubeconfig(fname, context)
+    _, user, cluster, err = load_kubeconfig(fname, context)
     if err:
         return (K8sConfig(), True)
 
@@ -350,7 +351,7 @@ def load_kind_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
 
     """
     # Parse the kubeconfig file.
-    name, user, cluster, err = load_kubeconfig(fname, context)
+    _, user, cluster, err = load_kubeconfig(fname, context)
     if err:
         return (K8sConfig(), True)
 
@@ -585,8 +586,8 @@ def request(
                           interval=3,
                           max_time=20,
                           on_backoff=on_backoff,
-                          logger=None,
-                          jitter=None,
+                          logger=None,  # type: ignore
+                          jitter=None,  # type: ignore
                           )
     def _call(*args, **kwargs):
         return client.request(method, url, json=payload, headers=headers, timeout=30)
