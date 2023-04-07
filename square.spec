@@ -4,7 +4,6 @@ block_cipher = None
 
 
 a = Analysis(['runme.py'],
-             pathex=['/home/oliver/dh/square'],
              binaries=[],
              datas=[("resources/*", "resources")],
              hiddenimports=[],
