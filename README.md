@@ -8,15 +8,16 @@
 *Square* is to Kubernetes what Terraform is to Cloud: match the cluster state
 to what the local manifests dictate.
 
-Square is completely stateless. Unlike other tools it does not create resources
-like ConfigMaps or inject special annotations to track state - the local
-manifests are all there is.
+Square is stateless. It does not create resources like ConfigMaps or inject
+special annotations to track its internal state - the local manifests are all
+there is.
 
 # Installation
 Grab a [binary release](https://github.com/olitheolix/square/releases) or
-install it into a Python 3.10+ environment with `pip install kubernetes-square
---upgrade`.
+install it into a Python 3.10+ environment:
+
 ```console
+foo@bar:~$ pip install kubernetes-square --upgrade
 foo@bar:~$ square version
 1.3.0
 ```
@@ -28,18 +29,16 @@ foo@bar:~$ docker run -ti --rm olitheolix/square:v1.3.0 version
 ```
 
 # Usage
-A sensible first step is to create the `.square.yaml` file with `square config`
-and edit it. The only two really important fields are `kubeconfig` and
-`folder`, which denote the location of `kubeconfig` and where to store the
-manifests. You may also want to update `selectors.kinds`, `selectors.labels`
-and `selectors.namespaces` to target specific resource types with specific
-labels in specific namespaces. All other options have sensible defaults.
+A sensible first step is to create a `.square.yaml` file with `square config`
+and edit it. The file will have sensible defaults but you should check the
+value for `kubeconfig` to target the correct cluster. You may also want to
+refine `selectors.kinds`, `selectors.labels` and `selectors.namespaces` to
+target specific resources, labels and namespaces.
 
-The `.square.yaml` file is optional. All options in that file, except
-`filters`, can be passed via command line arguments.
+The `.square.yaml` file is optional. Most, but not all its options are also
+available as command line arguments.
 
-After that, the typical workflow to manage the resources specified in
-`.square.yaml` is:
+A typical Square workflow with an existing `.square.yaml` would be this:
 
 ```console
 # Import resources from cluster (if you want to).
@@ -53,8 +52,7 @@ square apply
 ```
 
 ## Supported Clusters And Versions
-*Square* supports Minikube, Kubernetes in Docker (KinD), EKS and GKE. Any
-cluster version `v1.11+` should work.
+*Square* should work with any cluster `v1.11+`.
 
 # Examples
 These example assume that you have *no* `.square.yaml`.
@@ -104,8 +102,9 @@ file.
 
 ### Group By Label
 *Square* can also use _one_ resource label and make it part of the manifests
-folder hierarchy. Here is the [integration test
-cluster](integration-test-cluster):
+folder hierarchy. Here is the result for the [integration test
+cluster](integration-test-cluster) when we want to group the manifests by the
+`app` label:
 
 ```console
 foo@bar:~$ kubectl apply -f integration-test-cluster/test-resources.yaml
@@ -168,9 +167,9 @@ manifests/
 ```
 
 As you can see, *Square* co-located all resources that are in the same
-namespace *and* have the same `app` label. Resources without an `app` label it
-put into the catch-all folder `_other` and non-namespaced resources into the
-`_global_` folder.
+namespace *and* have the same `app` label. Resources without an `app` label are
+in the catch-all folder `_other`. Similarly, Square put all non-namespaced
+resources into the `_global_` folder.
 
 ## Create A Plan
 Following on with the example, the local files and the cluster state
@@ -242,7 +241,7 @@ foo@bar:~$ square plan ns
 Plan: 0 to add, 0 to change, 0 to destroy.
 ```
 
-*Square* will first print the  *diff* we saw earlier already, followed by the
+*Square* will first print the  *diff* we saw earlier, followed by the
 JSON patch it sent to K8s to update the _Namespace_.
 
 Use *kubectl* to ensure the patch worked and the Namespace now has a `foo:bar` label.
@@ -372,8 +371,8 @@ square-b6bc65f6d-2xmzm   1/1     Running   0          37s
 # Deploy On A Cluster
 *Square* does not require anything installed on your cluster to work. However,
 it will require the appropriate RBACs if you want to run it in a Pod. The
-[examples folder](examples) contains an example of how to deploy the
-[official Docker image](https://hub.docker.com/r/olitheolix/square).
+[examples folder](examples) shows how to deploy the [official Docker
+image](https://hub.docker.com/r/olitheolix/square).
 
 This can be useful for automation tasks. For instance, you may want to
 track the configuration drift in your cluster over time.
