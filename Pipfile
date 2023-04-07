@@ -15,9 +15,9 @@ backoff = "*"
 pydantic = ">=1.8"
 
 [dev-packages]
-ipython = "*"
+ipython = ">=8.10"
 isort = "*"
-pytest = "*"
+pytest = ">=7.2"
 requests-mock = "*"
 mypy = "*"
 bumpversion = "*"
