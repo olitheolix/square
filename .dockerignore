@@ -4,6 +4,7 @@
 
 # Do not include repository.
 .git
+Dockerfile
 
 # Unit tests.
 htmlcov/
