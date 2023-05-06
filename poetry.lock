@@ -685,7 +685,7 @@ test = ["fixtures", "mock", "purl", "pytest", "sphinx", "testrepository (>=0.0.1
 
 [[package]]
 name = "rsa"
-version = "4.4"
+version = "4.9"
 description = "Pure-Python RSA implementation"
 category = "main"
 optional = false
