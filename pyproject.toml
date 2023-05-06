@@ -10,16 +10,16 @@ include = ["resources/defaultconfig.yaml"]
 
 
 [tool.poetry.dependencies]
+backoff = "*"
 colorama = "*"
+colorlog = "*"
 google = "*"
 google-api-python-client = "*"
 jsonpatch = "*"
+pydantic = ">=1.8"
 python = ">=3.10"
 pyyaml = "*"
 requests = "*"
-colorlog = "*"
-pydantic = ">=1.8"
-backoff = "*"
 
 [tool.poetry.dev-dependencies]
 bumpversion = "*"
