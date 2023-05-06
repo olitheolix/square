@@ -142,7 +142,6 @@ class TestK8sDeleteGetPatchPost:
     def test_request_invalid(self, nosleep, method):
         """Simulate various error scenarios and verify the backoff."""
         # Dummies for K8s API URL and `requests` session.
-        url = 'http://localhost:12345/'
         client = k8s.requests.Session()
 
         urls = [
