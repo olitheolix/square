@@ -5,12 +5,16 @@
 [![](https://img.shields.io/codecov/c/github/olitheolix/square.svg?style=flat)]()
 
 
-*Square* is to Kubernetes what Terraform is to Cloud: match the cluster state
-to what the local manifests dictate.
+*Square* is a CLI based GitOps tool to reconcile the difference between local
+manifests and a cluster.
 
-Square is stateless. It does not create resources like ConfigMaps or inject
-special annotations to track its internal state - the local manifests are all
-there is.
+It is stateless and will not create `ConfigMaps` or annotations to identify or
+track resources.
+
+Its single purpose is to reconcile manifests. As such, Square can neither
+render nor produce manifests except importing them from a cluster. It is
+therefore compatible with any tool that can produce manifests.
+
 
 # Installation
 Grab a [binary release](https://github.com/olitheolix/square/releases) or
