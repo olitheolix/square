@@ -372,8 +372,7 @@ class TestUrlPathBuilder:
             MM = MetaManifest
             assert k8s.resource(k8sconfig, MM(src, "Service", None, "name")) == err_resp
 
-    @pytest.mark.parametrize("integrationtest", [False, True])
-    def test_resource_hpa(self, integrationtest, k8sconfig):
+    def test_resource_hpa(self, k8sconfig):
         """Verify API version retrieval with a HorizontalPodAutoscaler.
 
         This resource is available as {v1, v2, v2beta1 and v2beta2}.
@@ -381,7 +380,7 @@ class TestUrlPathBuilder:
         NOTE: this test is tailored to Kubernetes v1.24.
 
         """
-        config = self.k8sconfig(integrationtest, k8sconfig)
+        config = self.k8sconfig(False, k8sconfig)
         MM = MetaManifest
         err_resp = (K8sResource("", "", "", False, ""), True)
 
@@ -436,6 +435,70 @@ class TestUrlPathBuilder:
             )
 
             # A particular HPA in all namespaces -> Invalid.
+            assert k8s.resource(config, MM(src, kind, None, "name")) == err_resp
+
+    def test_resource_event_integration(self, k8sconfig):
+        """Verify API version retrieval for `Event` resource.
+
+        This resource is available as {v1, events.k8s.io/v1}.
+
+        NOTE: this test is tailored to Kubernetes v1.25.
+
+        """
+        config = self.k8sconfig(True, k8sconfig)
+        MM = MetaManifest
+        err_resp = (K8sResource("", "", "", False, ""), True)
+
+        # Tuples of API version that we ask for (if any), and what the final
+        # K8sResource element will contain.
+        api_versions = [
+            # We expect to get the version we asked for.
+            ("v1", "api", "v1"),
+            ("events.k8s.io/v1", "apis", "events.k8s.io/v1"),
+
+            # Function must automatically determine the latest version of the resource.
+            ("", "api", "v1"),
+        ]
+
+        # Convenience.
+        kind = "Event"
+        name = kind.lower() + "s"
+
+        for src, prefix, expected in api_versions:
+            # A particular Event API version in a particular namespace.
+            res, err = k8s.resource(config, MM(src, kind, "ns", "name"))
+            assert not err
+            assert res == K8sResource(
+                apiVersion=expected,
+                kind=kind,
+                name=name,
+                namespaced=True,
+                url=f"{config.url}/{prefix}/{expected}/namespaces/ns/{name}/name",
+            )
+
+            # All Events APIs in all namespaces.
+            res, err = k8s.resource(config, MM(src, kind, None, None))
+            assert not err
+            assert res == K8sResource(
+                apiVersion=expected,
+                kind=kind,
+                name=name,
+                namespaced=True,
+                url=f"{config.url}/{prefix}/{expected}/{name}",
+            )
+
+            # All Events in a particular namespace.
+            res, err = k8s.resource(config, MM(src, kind, "ns", ""))
+            assert not err
+            assert res == K8sResource(
+                apiVersion=expected,
+                kind=kind,
+                name=name,
+                namespaced=True,
+                url=f"{config.url}/{prefix}/{expected}/namespaces/ns/{name}",
+            )
+
+            # A particular Event in all namespaces -> Invalid.
             assert k8s.resource(config, MM(src, kind, None, "name")) == err_resp
 
     @pytest.mark.parametrize("integrationtest", [False, True])
@@ -656,10 +719,7 @@ class TestUrlPathBuilder:
             ('ConfigMap', 'v1'),
             ('DaemonSet', 'apps/v1'),
             ('Deployment', 'apps/v1'),
-            ('HorizontalPodAutoscaler', 'autoscaling/v1'),
             ('HorizontalPodAutoscaler', 'autoscaling/v2'),
-            ('HorizontalPodAutoscaler', 'autoscaling/v2beta1'),
-            ('HorizontalPodAutoscaler', 'autoscaling/v2beta2'),
             ('Pod', 'v1'),
             ('Service', 'v1'),
             ('ServiceAccount', 'v1'),
@@ -678,27 +738,33 @@ class TestUrlPathBuilder:
             url=f"{config.url}/api/v1",
         )
         hpa = "HorizontalPodAutoscaler"
-        assert config.apis[(hpa, "autoscaling/v1")] == K8sResource(
-            apiVersion="autoscaling/v1",
+        assert config.apis[(hpa, "autoscaling/v2")] == K8sResource(
+            apiVersion="autoscaling/v2",
             kind="HorizontalPodAutoscaler",
             name="horizontalpodautoscalers",
             namespaced=True,
-            url=f"{config.url}/apis/autoscaling/v1",
+            url=f"{config.url}/apis/autoscaling/v2",
         )
-        assert config.apis[(hpa, "autoscaling/v2beta1")] == K8sResource(
-            apiVersion="autoscaling/v2beta1",
-            kind="HorizontalPodAutoscaler",
-            name="horizontalpodautoscalers",
-            namespaced=True,
-            url=f"{config.url}/apis/autoscaling/v2beta1",
-        )
-        assert config.apis[(hpa, "autoscaling/v2beta2")] == K8sResource(
-            apiVersion="autoscaling/v2beta2",
-            kind="HorizontalPodAutoscaler",
-            name="horizontalpodautoscalers",
-            namespaced=True,
-            url=f"{config.url}/apis/autoscaling/v2beta2",
-        )
+
+        # The current integration test cluster does not have those endpoints
+        # anymore, but for dry-run tests without a cluster they are still
+        # defined in `test_helpers` and help to verify that Square
+        # accurately lists all versions of the same resource.
+        if not integrationtest:
+            assert config.apis[(hpa, "autoscaling/v2beta1")] == K8sResource(
+                apiVersion="autoscaling/v2beta1",
+                kind="HorizontalPodAutoscaler",
+                name="horizontalpodautoscalers",
+                namespaced=True,
+                url=f"{config.url}/apis/autoscaling/v2beta1",
+            )
+            assert config.apis[(hpa, "autoscaling/v2beta2")] == K8sResource(
+                apiVersion="autoscaling/v2beta2",
+                kind="HorizontalPodAutoscaler",
+                name="horizontalpodautoscalers",
+                namespaced=True,
+                url=f"{config.url}/apis/autoscaling/v2beta2",
+            )
         assert config.apis[("Pod", "v1")] == K8sResource(
             apiVersion="v1",
             kind="Pod",

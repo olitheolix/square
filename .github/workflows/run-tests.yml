@@ -18,8 +18,8 @@ jobs:
       - name: Download Kubernetes Utilities
         run: |
           mkdir ~/bin
-          curl -L --output ~/bin/kubectl https://dl.k8s.io/release/v1.16.5/bin/linux/amd64/kubectl
-          curl -L --output ~/bin/kind https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64
+          curl -L --output ~/bin/kubectl https://dl.k8s.io/release/v1.25.5/bin/linux/amd64/kubectl
+          curl -L --output ~/bin/kind https://kind.sigs.k8s.io/dl/v0.18.0/kind-linux-amd64
           chmod +x ~/bin/kubectl ~/bin/kind
 
       - name: Start KinD Cluster
