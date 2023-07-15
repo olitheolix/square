@@ -189,13 +189,13 @@ class Config:
     kubecontext: Optional[str]
 
     # Only operate on resources that match the selectors.
-    selectors: Selectors = Selectors()
+    selectors: Selectors = _factory(Selectors())
 
     # Sort the manifest in this order, or alphabetically at the end if not in the list.
     priorities: List[str] = _factory(list(DEFAULT_PRIORITIES))
 
     # How to structure the folder directory when syncing manifests.
-    groupby: GroupBy = GroupBy()
+    groupby: GroupBy = _factory(GroupBy())
 
     # Define which fields to skip for which resource.
     filters: Dict[str, List[str | dict]] = _factory({})
