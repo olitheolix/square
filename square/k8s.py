@@ -545,7 +545,7 @@ def request(
         client,
         method: str,
         url: str,
-        payload: Optional[dict],
+        payload: Optional[dict | list],
         headers: Optional[dict]) -> Tuple[dict, bool]:
     """Return response of web request made with `client`.
 
@@ -637,10 +637,10 @@ def get(client, url: str) -> Tuple[dict, bool]:
     return (resp, err)
 
 
-def patch(client, url: str, payload: Collection[Dict[str, str]]) -> Tuple[dict, bool]:
+def patch(client, url: str, payload: List[Dict[str, str]]) -> Tuple[dict, bool]:
     """Make PATCH requests to K8s (see `request`)."""
     headers = {'Content-Type': 'application/json-patch+json'}
-    resp, code = request(client, 'PATCH', url, payload, headers)  # type: ignore
+    resp, code = request(client, 'PATCH', url, payload, headers)
     err = (code != 200)
     if err:
         logit.error(f"{code} - PATCH - {url} - {resp}")
