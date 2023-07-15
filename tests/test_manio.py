@@ -650,7 +650,7 @@ class TestYamlManifestIO:
         }
         assert manio.unpack(src) == ({}, True)
 
-    def test_manifest_lifecycle(self, k8sconfig, tmp_path):
+    def test_manifest_lifecycle(self, tmp_path):
         """Load, sync and save manifests the hard way.
 
         This test does not cover error scenarios. Instead, it shows how the
@@ -1807,7 +1807,7 @@ class TestSync:
         selectors = Selectors(kinds, namespaces=[], labels=[])
         assert manio.sync(loc_man, srv_man, selectors, groupby) == expected
 
-    def test_sync_filename_err(self, k8sconfig):
+    def test_sync_filename_err(self):
         """Must gracefully handle errors in `filename_for_manifest`.
 
         This test will use an invalid grouping specification to force an error.

@@ -566,7 +566,7 @@ class TestMain:
     @mock.patch.object(main, "apply_plan")
     @mock.patch.object(sq.k8s, "cluster_config")
     def test_main_valid_options(self, m_cluster, m_apply, m_plan, m_get,
-                                tmp_path, fname_param_config, k8sconfig):
+                                fname_param_config, k8sconfig):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
