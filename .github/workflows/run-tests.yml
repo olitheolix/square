@@ -39,15 +39,17 @@ jobs:
           pip install pipenv codecov
           pipenv install --system --deploy --dev
 
-      - name: Tests - Linting
-        run: isort --check-only ./
+      - name: Linting
+        run: |
+          isort --check-only ./
+          pycodestyle ./
+
+      - name: Static Analysis
+        run: pipenv run mypy ./
 
       # Break if coverage drops below 100%.
-      - name: Tests - Unit and Integration
+      - name: Unit and Integration Tests
         run: pytest --cov=square --cov-report=term-missing --cov-report=xml --cov-fail-under=100
-
-      - name: Tests - Static analysis
-        run: pipenv run mypy ./
 
       - uses: codecov/codecov-action@v3
         with:
