@@ -3,7 +3,7 @@ import itertools
 import random
 import sys
 import unittest.mock as mock
-from typing import Any, Dict, cast
+from typing import Any, Dict, List, cast
 
 import pytest
 import yaml
@@ -12,7 +12,8 @@ import square.dotdict as dotdict
 import square.k8s as k8s
 import square.manio as manio
 from square.dtypes import (
-    Filepath, GroupBy, LocalManifestLists, MetaManifest, Selectors,
+    Filepath, Filters, FiltersKind, GroupBy, LocalManifestLists, MetaManifest,
+    Selectors,
 )
 from square.k8s import resource
 
@@ -78,6 +79,7 @@ class TestHelpers:
         namespaces = (["name"], ["name", "ns5"])
         kinds = ({"Namespace"}, {"Deployment", "Namespace"})
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
+            lab = cast(List[str], lab)
             assert select(manifest, Selectors(kind, ns, lab)) is True
 
         # Function must reject these because the selectors match only partially.
@@ -102,6 +104,7 @@ class TestHelpers:
         kinds = ({"Deployment"}, {"Deployment", "Namespace"})
         namespaces = (["my-ns"], ["my-ns", "other-ns"])
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
+            lab = cast(List[str], lab)
             assert select(manifest, Selectors(kind, ns, lab)) is True
 
         # Function must reject these because the selectors match only partially.
@@ -126,6 +129,7 @@ class TestHelpers:
         kinds = ({"ClusterRole"}, {"ClusterRole", "Namespace"})
         namespaces = (["my-ns"], ["my-ns", "other-ns"])
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
+            lab = cast(List[str], lab)
             assert select(manifest, Selectors(kind, ns, lab)) is True
 
         # Function must reject these because the selectors match only partially.
@@ -231,8 +235,10 @@ class TestUnpackParse:
             'items': manifests,
         }
 
+
         # Select all.
         for ns in ([], ["ns_0", "ns_1", "ns_2"]):
+            ns = cast(List[str], ns)
             selectors = Selectors({"Deployment"}, ns, [])
             data, err = manio.unpack_list(manifest_list, selectors)
             assert err is False and data == {
@@ -302,8 +308,8 @@ class TestUnpackParse:
 
         # All fields present but `kind` does not end in List (case sensitive).
         for invalid_kind in ('Deploymentlist', 'Deployment'):
-            src = {'apiVersion': 'v1', 'kind': invalid_kind, 'items': []}
-            assert manio.unpack_list(src, selectors) == ({}, True)
+            src_invalid = {'apiVersion': 'v1', 'kind': invalid_kind, 'items': []}
+            assert manio.unpack_list(src_invalid, selectors) == ({}, True)
 
 
 class TestYamlManifestIO:
@@ -430,7 +436,7 @@ class TestYamlManifestIO:
 
         # Shuffle the manifests in each file and verify the sorted output.
         for _ in range(10):
-            random.shuffle(cast(list, file_manifests[fname]))
+            random.shuffle(file_manifests[fname])
             assert fun(file_manifests, priority) == (expected, False)
 
         # --- Define manifests in the correctly prioritised order.
@@ -450,11 +456,10 @@ class TestYamlManifestIO:
 
         # Shuffle the manifests in each file and verify the sorted output.
         for _ in range(10):
-            random.shuffle(cast(list, file_manifests[fname]))
+            random.shuffle(file_manifests[fname])
             assert fun(file_manifests, priority) == (expected, False)
 
         # --- Define manifests in the correctly prioritised order.
-        priority = tuple()
         sorted_manifests = [
             meta_dpl_a,
             meta_dpl_b,
@@ -470,8 +475,8 @@ class TestYamlManifestIO:
 
         # Shuffle the manifests in each file and verify the sorted output.
         for _ in range(10):
-            random.shuffle(cast(list, file_manifests[fname]))
-            assert fun(file_manifests, priority) == (expected, False)
+            random.shuffle(file_manifests[fname])
+            assert fun(file_manifests, priority=[]) == (expected, False)
 
     def test_parse_noselector_ok(self):
         """Test function must be able to parse the YAML string and compile a dict."""
@@ -738,7 +743,7 @@ class TestManifestValidation:
 
         """
         # Define filters for this test.
-        filters = [
+        _filters: FiltersKind = [
             "invalid",
             {"metadata": [
                 "creationTimestamp",
@@ -748,7 +753,7 @@ class TestManifestValidation:
             "status",
             {"spec": [{"ports": ["nodePort"]}]},
         ]
-        filters = {"Service": filters}
+        filters: Filters = {"Service": _filters}
 
         # Demo manifest. None of its keys matches the filter and
         # `strip` must therefore not remove anything.
@@ -829,7 +834,7 @@ class TestManifestValidation:
     def test_strip_ambigous_filters(self, k8sconfig):
         """Must cope with filters that specify the same resource multiple times."""
         # Define filters for this test.
-        filters = [
+        _filters: FiltersKind = [
             {"metadata": [
                 # Specify "creationTimestamp" twice. Must behave no different
                 # than if it was specified only once.
@@ -841,7 +846,7 @@ class TestManifestValidation:
             {"status": [{"foo": ["bar"]}]},
             "status",
         ]
-        filters = {"Service": filters}
+        filters: Filters = {"Service": _filters}
 
         # Demo manifest. None of its keys matches the filter and
         # `strip` must therefore not remove anything.
@@ -914,7 +919,7 @@ class TestManifestValidation:
         """Remove an entire sub-tree from the manifest."""
         # Remove the "status" key, irrespective of whether it is a string, dict
         # or list in the actual manifest.
-        filters = {"Service": ["status"]}
+        filters: Filters = {"Service": ["status"]}
 
         # Minimally valid manifest.
         expected = {
@@ -922,7 +927,7 @@ class TestManifestValidation:
             "kind": "Service",
             "metadata": {"name": "mandatory", "namespace": "ns"},
         }
-        manifest = copy.deepcopy(expected)
+        manifest: dict = copy.deepcopy(expected)
 
         manifest["status"] = "string"
         out, removed, err = manio.strip(k8sconfig, manifest, filters)
@@ -943,7 +948,7 @@ class TestManifestValidation:
     def test_strip_lists_simple(self, k8sconfig):
         """Filter the `NodePort` key from a list of dicts."""
         # Filter the "nodePort" element from the port list.
-        filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
+        filters: Filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
 
         expected = {
             "apiVersion": "v1",
@@ -951,7 +956,7 @@ class TestManifestValidation:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": {"type": "NodePort"},
         }
-        manifest = copy.deepcopy(expected)
+        manifest: dict = copy.deepcopy(expected)
         manifest["spec"]["ports"] = [
             {"nodePort": 1},
             {"nodePort": 3},
@@ -964,15 +969,15 @@ class TestManifestValidation:
     def test_strip_lists_service(self, k8sconfig):
         """Filter the `NodePort` key from a list of dicts."""
         # Filter the "nodePort" element from the port list.
-        filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
+        filters: Filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
 
-        expected = {
+        expected: dict = {
             "apiVersion": "v1",
             "kind": "Service",
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": {"type": "NodePort"},
         }
-        manifest = copy.deepcopy(expected)
+        manifest: dict = copy.deepcopy(expected)
         manifest["spec"]["ports"] = [
             {"name": "http", "port": 81, "nodePort": 1},
             {"name": "http", "port": 82},
@@ -1012,7 +1017,7 @@ class TestManifestValidation:
     def test_strip_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
         # Minimally valid filters for fake resource kind "TEST".
-        filters = {"TEST": ["metadata"]}
+        filters: Filters = {"TEST": ["metadata"]}
 
         # Valid K8s version with unknown resource type.
         manifest = {"apiVersion": "v1", "kind": "Unknown"}
@@ -1034,13 +1039,13 @@ class TestManifestValidation:
                 "uid": "some-uid"
             }
         }
-        filters = {"Service": "should-be-a-list"}
-        assert manio.strip(config, manifest, filters) == ({}, {}, True)  # type: ignore
+        filters: Filters = {"Service": "should-be-a-list"}              # type: ignore
+        assert manio.strip(config, manifest, filters) == ({}, {}, True)
 
     def test_strip_namespace(self, k8sconfig):
         """Filter NAMESPACE manifests."""
         # Valid: a namespace manifest without a `metadata.namespace` field.
-        manifest = {
+        manifest: dict = {
             "apiVersion": "v1",
             "kind": "Namespace",
             "metadata": {"name": "mandatory"},
@@ -1346,11 +1351,15 @@ class TestYamlManifestIOIntegration:
         meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
 
         # Input to test function where one "manifest" is garbage that cannot be
-        # converted to a YAML string, eg a Python frozenset.
-        file_manifests = {
-            Filepath("m0.yaml"): [(meta[0], "0"),
-                                  (meta[1], frozenset(("invalid", "input")))],
-            Filepath("m1.yaml"): [(meta[2], "2")],
+        # converted to a YAML string, eg a Python frozenset. This assumption
+        # also violates the definition of `LocalManifestLists` which is why we
+        # need to tell MyPy to ignore it.
+        file_manifests: LocalManifestLists = {
+            Filepath("m0.yaml"): [
+                (meta[0], {"0": "0"}),
+                (meta[1], frozenset(("invalid", "input")))  # type: ignore
+            ],
+            Filepath("m1.yaml"): [(meta[2], {"2": "2"})],
         }
 
         # Test function must return with an error.
@@ -1591,8 +1600,7 @@ class TestSync:
             ],
         }, False
         for kinds in itertools.permutations(["Deployment", "Service"]):
-            kinds = set(kinds)
-            selectors = Selectors(kinds, namespaces=["ns0"], labels=[])
+            selectors = Selectors(set(kinds), namespaces=["ns0"], labels=[])
             assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
@@ -1665,7 +1673,7 @@ class TestSync:
 
         # Args for `sync`. In this test, we only have Deployments and want to
         # sync them across all namespaces.
-        kinds, namespaces = {"Deployment"}, []
+        kinds = {"Deployment"}
 
         # First, create the local manifests as `load_files` would return it.
         man_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(10)]
@@ -1709,7 +1717,7 @@ class TestSync:
                 (meta_1[8], man_1[8])
             ],
         }, False
-        selectors = Selectors(kinds, namespaces, labels=[])
+        selectors = Selectors(kinds, namespaces=[], labels=[])
         assert manio.sync(loc_man, srv_man, selectors, groupby) == expected
 
     def test_sync_catch_all_files(self):
@@ -1728,7 +1736,7 @@ class TestSync:
 
         # Args for `sync`. In this test, we only have Deployments and want to
         # sync them across all namespaces.
-        kinds, namespaces = {"Deployment"}, []
+        kinds = {"Deployment"}
         groupby = GroupBy(order=[], label="")
 
         # First, create the local manifests as `load_files` would return it.
@@ -1796,7 +1804,7 @@ class TestSync:
                 (meta_2[3], man_2[3]),
             ],
         }, False
-        selectors = Selectors(kinds, namespaces, labels=[])
+        selectors = Selectors(kinds, namespaces=[], labels=[])
         assert manio.sync(loc_man, srv_man, selectors, groupby) == expected
 
     def test_sync_filename_err(self, k8sconfig):
@@ -1812,7 +1820,7 @@ class TestSync:
         # Simulate the scenario where the server has a Deployment we lack
         # locally. This will ensure that `sync` will try to create a new file
         # for it, which is what we want to test.
-        loc_man = {}
+        loc_man: LocalManifestLists = {}
         srv_man = {manio.make_meta(mk_deploy("d_1", "ns1")): mk_deploy("d_1", "ns1")}
 
         # Define an invalid grouping specification. As a consequence,
