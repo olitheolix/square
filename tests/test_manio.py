@@ -322,7 +322,7 @@ class TestYamlManifestIO:
     def test_sort_manifests(self):
         """Verify the sorted output for three files with randomly ordered manifests."""
         # Convenience.
-        priority = ("Namespace", "Service", "Deployment")
+        priority = ["Namespace", "Service", "Deployment"]
 
         def mm(*args):
             man = make_manifest(*args)
@@ -400,7 +400,7 @@ class TestYamlManifestIO:
         meta_dpl_b = mm("Deployment", "b", "dpl-b")
 
         # --- Define manifests in the correctly prioritised order.
-        priority = ("Namespace", "Service", "Deployment")
+        priority = ["Namespace", "Service", "Deployment"]
         sorted_manifests = [
             meta_ns_a,
             meta_ns_b,
@@ -420,7 +420,7 @@ class TestYamlManifestIO:
             assert fun(file_manifests, priority) == (expected, False)
 
         # --- Define manifests in the correctly prioritised order.
-        priority = ("Service", "Namespace", "Deployment")
+        priority = ["Service", "Namespace", "Deployment"]
         sorted_manifests = [
             meta_svc_a,
             meta_svc_a,
@@ -440,7 +440,7 @@ class TestYamlManifestIO:
             assert fun(file_manifests, priority) == (expected, False)
 
         # --- Define manifests in the correctly prioritised order.
-        priority = ("Service", "Deployment")
+        priority = ["Service", "Deployment"]
         sorted_manifests = [
             meta_svc_a,
             meta_svc_a,
@@ -715,7 +715,7 @@ class TestYamlManifestIO:
         # Convert the data to YAML. The output would normally be passed to
         # `save_files` but here we will verify it directly (see below).
         # :: Dict[Filename:List[(MetaManifest, YamlDict)]] -> Dict[Filename:YamlStr]
-        assert not manio.save(tmp_path, updated_manifests, ("Deployment", ))
+        assert not manio.save(tmp_path, updated_manifests, ["Deployment"])
 
         # Expected output after we merged back the changes (reminder: `dply[1]`
         # is different, `dply[{3,5}]` were deleted and `dply[{6,7}]` are new).
@@ -1228,7 +1228,7 @@ class TestYamlManifestIOIntegration:
     def test_load_save_ok(self, tmp_path):
         """Basic test that uses the {load,save} convenience functions."""
         # Generic selector that matches all manifests in this test.
-        priority = ("Deployment", )
+        priority = ["Deployment"]
         selectors = Selectors(set(priority), [], [])
 
         # Create two YAML files, each with multiple manifests.
@@ -1258,7 +1258,7 @@ class TestYamlManifestIOIntegration:
     def test_load_save_hidden_ok(self, tmp_path):
         """Basic test that uses the {load,save} convenience functions."""
         # Generic selector that matches all manifests in this test.
-        priority = ("Deployment", )
+        priority = ["Deployment"]
         selectors = Selectors(set(priority), [], [])
 
         # Create two YAML files, each with multiple manifests.
@@ -1290,7 +1290,7 @@ class TestYamlManifestIOIntegration:
     def test_save_delete_stale_yaml(self, tmp_path):
         """`save_file` must remove all excess YAML files."""
         # Generic selector that matches all manifests in this test.
-        priority = ("Deployment", )
+        priority = ["Deployment"]
         selectors = Selectors(set(priority), [], [])
 
         # Create two YAML files, each with multiple manifests.
@@ -1363,7 +1363,7 @@ class TestYamlManifestIOIntegration:
         }
 
         # Test function must return with an error.
-        assert manio.save(tmp_path, file_manifests, ("Deployment", )) is True
+        assert manio.save(tmp_path, file_manifests, ["Deployment"]) is True
 
 
 class TestSync:
