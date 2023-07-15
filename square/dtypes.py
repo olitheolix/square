@@ -1,8 +1,7 @@
 import dataclasses
 import pathlib
 from typing import (
-    TYPE_CHECKING, Any, Callable, Collection, Dict, List, NamedTuple, Optional,
-    Set, Tuple,
+    TYPE_CHECKING, Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple,
 )
 
 if TYPE_CHECKING:
@@ -115,7 +114,7 @@ class JsonPatch(NamedTuple):
     url: str
 
     # The list of JSON patches.
-    ops: Collection[Dict[str, str]]
+    ops: List[Dict[str, str]]
 
 
 class DeltaCreate(NamedTuple):
