@@ -31,9 +31,9 @@ def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
     Example: "svc" -> "Service" or "ns" -> "Namespace".
 
     Silently ignore unknown resource kinds. This is necessary because the user
-    may have specified a custom resource that does not (yet) exist. Since we cannot
-    distinguish them from typos, we allow unknown resource kinds but
-    get/plan/apply cycles will ignore them.
+    may have specified a custom resource that does not (yet) exist. Since we
+    cannot distinguish those from typos we must allow them but
+    will ignore them during the get/plan/apply cycle.
 
     """
     # Avoid side effects to the original `cfg`.
