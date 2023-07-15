@@ -4,6 +4,8 @@ from typing import (
     TYPE_CHECKING, Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple,
 )
 
+from pydantic import BaseModel
+
 if TYPE_CHECKING:
     from dataclasses import dataclass
 else:
@@ -157,23 +159,17 @@ class DeploymentPlanMeta(NamedTuple):
 # -----------------------------------------------------------------------------
 #                             Square Configuration
 # -----------------------------------------------------------------------------
-def _factory(ret):
-    return dataclasses.field(default_factory=lambda: ret)
-
-
-@dataclass
-class Selectors:
+class Selectors(BaseModel):
     """Parameters to target specific groups of manifests."""
-    kinds: Set[str] = _factory(set(DEFAULT_PRIORITIES))
-    namespaces: List[str] = _factory([])
-    labels: List[str] = _factory([])
+    kinds: Set[str] = set()
+    namespaces: List[str] = []
+    labels: List[str] = []
 
 
-@dataclass
-class GroupBy:
-    """Define how to organise downloaded manifest on the files system."""
+class GroupBy(BaseModel):
+    """Define how to organise downloaded manifests on the files system."""
     label: str = ""                  # "app"
-    order: List[str] = _factory([])  # ["ns", "label=app", kind"]
+    order: List[str] = []            # ["ns", "label=app", kind"]
 
 
 """Define the filters to exclude sections of manifests."""
@@ -181,8 +177,7 @@ FiltersKind = List[str | dict]
 Filters = Dict[str, FiltersKind]
 
 
-@dataclass
-class Config:
+class Config(BaseModel):
     """Uniform interface into top level Square API."""
     # Path to local manifests eg "./foo"
     folder: Filepath
@@ -191,19 +186,19 @@ class Config:
     kubeconfig: Filepath
 
     # Kubernetes context (use `None` to use the default).
-    kubecontext: Optional[str]
+    kubecontext: Optional[str] = None
 
     # Only operate on resources that match the selectors.
-    selectors: Selectors = _factory(Selectors())
+    selectors: Selectors = Selectors()
 
     # Sort the manifest in this order, or alphabetically at the end if not in the list.
-    priorities: List[str] = _factory(list(DEFAULT_PRIORITIES))
+    priorities: List[str] = list(DEFAULT_PRIORITIES)
 
     # How to structure the folder directory when syncing manifests.
-    groupby: GroupBy = _factory(GroupBy())
+    groupby: GroupBy = GroupBy()
 
     # Define which fields to skip for which resource.
-    filters: Filters = _factory({})
+    filters: Filters = {}
 
     # Callable: will be invoked for every local/server manifest that requires
     # patching before the actual patch will be computed.

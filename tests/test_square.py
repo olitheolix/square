@@ -34,9 +34,11 @@ class TestBasic:
             folder=tmp_path,
             kubecontext="ctx",
             kubeconfig=tmp_path,
-            selectors=Selectors(kinds=set(DEFAULT_PRIORITIES),
-                                namespaces=[],
-                                labels=[]),
+            selectors=Selectors(
+                kinds=set(),
+                namespaces=[],
+                labels=[]
+            ),
             priorities=list(DEFAULT_PRIORITIES),
             groupby=GroupBy(label="", order=[]),
             filters={},
@@ -111,9 +113,9 @@ class TestBasic:
             selectors=Selectors(
                 kinds={"svc", 'DEPLOYMENT', "Secret"},
                 namespaces=['default'],
-                labels=["app=morty", "foo=bar"],
+                labels=["app=square", "foo=bar"],
             ),
-            groupby=GroupBy("", []),
+            groupby=GroupBy(label="", order=[]),
             priorities=["ns", "DEPLOYMENT"],
         )
 

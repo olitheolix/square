@@ -624,7 +624,7 @@ def sort_plan(cfg: Config, plan: DeploymentPlan) -> Tuple[DeploymentPlan, bool]:
 def valid_label(label: str) -> bool:
     """Return `True` if `label` is K8s and Square compatible.
 
-    The `label` contains both key and value, eg `dh/app=morty`.
+    The `label` contains both key and value, eg `app=square`.
 
     """
     # K8s uses this regex to validate the three individual label components
