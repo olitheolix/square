@@ -303,26 +303,26 @@ def compile_plan(
     assert not err
 
     # Apply the filters to all local and server manifests before we compute patches.
-    server = {
+    filtered_server = {
         meta: manio.strip(k8sconfig, man, config.filters)
         for meta, man in server.items()
-    }                           # type: ignore
-    local = {
+    }
+    filtered_local = {
         meta: manio.strip(k8sconfig, man, config.filters)
         for meta, man in local.items()
-    }                           # type: ignore
+    }
 
     # Abort if any of the manifests could not be stripped.
-    err_srv = {_[2] for _ in server.values()}
-    err_loc = {_[2] for _ in local.values()}
-    if True in err_srv or True in err_loc:
+    err_srv = {_[2] for _ in filtered_server.values()}
+    err_loc = {_[2] for _ in filtered_local.values()}
+    if any(err_srv) or any(err_loc):
         logit.error("Could not strip all manifests.")
         return err_resp
 
-    # Unpack the stripped manifests (first element in the tuple returned from
-    # `manio.strip`).
-    server = {k: dotdict.undo(v[0]) for k, v in server.items()}  # type: ignore
-    local = {k: dotdict.undo(v[0]) for k, v in local.items()}    # type: ignore
+    # Unpack the filtered manifests (ie first element in the tuple returned
+    # by `manio.strip`).
+    server = {k: dotdict.undo(v[0]) for k, v in filtered_server.items()}
+    local = {k: dotdict.undo(v[0]) for k, v in filtered_local.items()}
 
     # Partition the set of meta manifests into create/delete/patch groups.
     plan, err = partition_manifests(local, server)
