@@ -83,7 +83,7 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     label_selectors = {tuple(_.split("=")) for _ in selectors.labels}
     assert all([len(_) == 2 for _ in label_selectors])
 
-    # Unpack the resource's kind and labels.
+    # Unpack KIND, LABELS and NAME.
     kind = manifest.get("kind", None)
     labels = manifest.get("metadata", {}).get("labels", {})
     name = manifest.get("metadata", {}).get("name", "")
@@ -111,19 +111,19 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     else:
         pass
 
-    # Proceed only if the resource kind is among the desired ones.
+    # Abort if this manifest does not have the KIND we are looking for.
     if kind not in selectors.kinds:
         logit.debug(f"Kind {kind} does not match selector {selectors.kinds}")
         return False
 
-    # Include the resource if it is a) namespaced b) we have namespace
-    # selectors and c) the resource matches one of them.
-    if ns and selectors.namespaces and ns not in selectors.namespaces:
+    # Skip this resource if it is a) namespaced b) we have namespace
+    # selectors and c) the resource does not match it.
+    if (ns and selectors.namespaces) and ns not in selectors.namespaces:
         logit.debug(f"Namespace {ns} does not match selector {selectors.namespaces}")
         return False
 
     # Convert the labels dictionary into a set of (key, value) tuples. We can
-    # then use set logic to determine if the resource specifies the desired
+    # then use set-logic to determine if the resource specifies the desired
     # labels or not.
     labels = {(k, v) for k, v in labels.items()}
 
@@ -139,10 +139,13 @@ def select(manifest: dict, selectors: Selectors) -> bool:
 
 def unpack_list(manifest_list: dict,
                 selectors: Selectors) -> Tuple[ServerManifests, bool]:
-    """Unpack a K8s List item, eg `DeploymentList` or `NamespaceList`.
+    """Unpack the `manifest_list` and return only those manifests that match `selectors`.
 
-    Return a dictionary where each key uniquely identifies the resource via a
-    `MetaManifest` tuple and the value is the actual JSON `manifest`.
+    The `manifest_list` must be a K8s List item, eg `DeploymentList` or
+    `NamespaceList`.
+
+    Return a dictionary where the key uniquely identifies the resource via a
+    `MetaManifest` and the value is the actual K8s manifest.
 
     Input:
         manifest_list: dict
@@ -331,17 +334,17 @@ def sync(local_manifests: LocalManifestLists,
     # Avoid side effects.
     server_manifests = copy.deepcopy(server_manifests)
 
-    # Only retain server manifests with correct `kinds` and `namespaces`.
+    # Only retain server manifests that match the selectors.
     server_manifests = {
         meta: manifest for meta, manifest in server_manifests.items()
         if select(manifest, selectors)
     }
 
-    # Add all local manifests outside the specified `kinds` and `namespaces`
-    # to the server list. This will *not* propagate to the server in any way,
-    # but allows us to make the rest of the function oblivious to the fact that
-    # we only care about a subset of namespaces and resources by pretending
-    # that local and server manifests are already in sync.
+    # Add all local manifests that do not match the selectors to the server
+    # manifests. This will *not* propagate to K8s in any way. However, it will
+    # simplify the logic of this function because local and server manifests
+    # that were not selected will be automatically in sync and not appear in
+    # the diffs.
     for fname, manifests in local_manifests.items():
         for meta, manifest in manifests:
             if select(manifest, selectors):
@@ -349,9 +352,9 @@ def sync(local_manifests: LocalManifestLists,
             server_manifests[meta] = manifest
 
     # Create map for MetaManifest -> (File, doc-idx). The doc-idx denotes the
-    # index of the manifest inside the YAML files (it may contain multiple
-    # manifests). We will need that information later to find out which
-    # manifest in which file we need to update.
+    # index of the manifest inside the YAML file which may contain multiple
+    # manifests. We will need this index later to update the correct manifest
+    # in the correct YAML file.
     meta_to_fname = {}
     for fname in local_manifests:
         for idx, (meta, _) in enumerate(local_manifests[fname]):
@@ -589,7 +592,7 @@ def align_serviceaccount(
     This makes it difficult to manage service accounts with Square because the
     token is not known in advance. One would have to
 
-        square apply; square plan; square get serviceaccount
+        square apply serviceaccount; square get serviceaccount
 
     to sync this, and even that is not portable because the token will be
     different on a new cluster.
@@ -792,12 +795,14 @@ def load_files(
 
 def load(folder: Filepath, selectors: Selectors) -> Tuple[
          ServerManifests, LocalManifestLists, bool]:
-    """Recursively load all "*.yaml" files under `folder`.
+    """Return all K8s manifest found in `folder`.
 
-    Ignores all files not ending in ".yaml". Also removes all manifests that do
-    not match the `selectors`.
+    The function will recursively load all "*.yaml" files under `folder`.
 
-    Returns no data in the case of an error.
+    Ignores all files not ending in ".yaml".
+
+    Returns only manifests that match the `selectors`, or no data if there was
+    an error.
 
     NOTE: this is merely a wrapper around the various low-level functions to
     load and parse the YAML files.
