@@ -1,7 +1,7 @@
 import argparse
 import logging
 import os
-from typing import Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import colorama
 
@@ -84,7 +84,7 @@ def parse_commandline_args():
     # Configuration for `kinds` positional arguments. Every sub-parser must
     # specify this one individually and here we define the kwargs to reduce
     # duplicated code.
-    kinds_kwargs = {
+    kinds_kwargs: Dict[str, Any] = {
         "dest": "kinds",
         "type": str,
         "nargs": '*',
