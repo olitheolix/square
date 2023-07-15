@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import warnings
 from collections import defaultdict
-from typing import Collection, Dict, List, Optional, Set, Tuple
+from typing import Collection, Dict, List, Optional, Set, Tuple, cast
 
 import backoff
 import google.auth
@@ -187,7 +187,7 @@ def load_gke_config(
     logit.info("Assuming GKE cluster.")
     return K8sConfig(
         url=cluster["server"],
-        token=token,            # type: ignore
+        token=cast(str, token),
         ca_cert=ssl_ca_cert,
         client_cert=None,
         version="",
