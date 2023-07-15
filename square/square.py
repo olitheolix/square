@@ -792,6 +792,7 @@ def get_resources(cfg: Config) -> bool:
         # Load manifests from local files.
         local_meta, local_path, err = manio.load(cfg.folder, load_selectors)
         assert not err
+        del load_selectors
 
         # Download manifests from K8s.
         server, err = manio.download(cfg, k8sconfig)
