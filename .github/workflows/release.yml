@@ -10,8 +10,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
       - name: Build Linux Binary
@@ -21,8 +20,7 @@ jobs:
           pipenv install --system
 
           pyinstaller square.spec --clean
-      - name: create-artifact
-        uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v2
         with:
           name: square-linux-amd64
           path: dist/square
@@ -30,10 +28,8 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
           architecture: 'x64'
@@ -54,8 +50,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
       - name: Build MacOS Binary
@@ -65,8 +60,7 @@ jobs:
           pipenv install --system
 
           pyinstaller square.spec --clean
-      - name: create-artifact
-        uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v2
         with:
           name: square-darwin-amd64
           path: dist/square
@@ -107,9 +101,8 @@ jobs:
           mv windows/square.exe bin/square-windows-amd64.exe
           ls -R
 
-      - name: Create Release
+      - uses: actions/create-release@v1
         id: create_release
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SOURCE_TAG: ${{ steps.branch_name.outputs.SOURCE_TAG }}
