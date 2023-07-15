@@ -274,7 +274,7 @@ class TestK8sVersion:
 
         # The return `Config` tuple must be identical to the input except for
         # the version number because "k8s.version" will have overwritten it.
-        assert k8sconfig._replace(version=None) == config2._replace(version=None)
+        assert k8sconfig._replace(version="None") == config2._replace(version="None")
         del config2, err
 
         # Repeat the test for a Google idiosyncracy which likes to report the
