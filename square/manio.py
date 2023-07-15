@@ -367,7 +367,7 @@ def sync(local_manifests: LocalManifestLists,
     # Also put it into a default dict for convenience.
     out_add_mod: DefaultDict[Filepath, List[Tuple[MetaManifest, dict]]]
     out_add_mod = collections.defaultdict(list)
-    out_add_mod.update(copy.deepcopy(local_manifests))  # type: ignore
+    out_add_mod.update(copy.deepcopy(local_manifests))
     del local_manifests
 
     # If the server's meta manifest exists locally then update the local one,
@@ -502,8 +502,7 @@ def strip(
 
     """
     # Convenience: default return value if an error occurs.
-    ret_err: Tuple[DotDict, dict, bool] = (
-        square.dotdict.make({}), {}, True) # type: ignore
+    ret_err: Tuple[DotDict, dict, bool] = (square.dotdict.make({}), {}, True)
 
     # Parse the manifest.
     try:
@@ -582,7 +581,7 @@ def strip(
     # Remove the keys from the `manifest` according to `filters`.
     manifest = copy.deepcopy(manifest)
     removed = _update(filters, manifest)
-    return (square.dotdict.make(manifest), removed, False)  # type: ignore
+    return (square.dotdict.make(manifest), removed, False)
 
 
 def align_serviceaccount(
