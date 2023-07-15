@@ -1,15 +1,7 @@
-import dataclasses
 import pathlib
-from typing import (
-    TYPE_CHECKING, Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple,
-)
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from pydantic import BaseModel
-
-if TYPE_CHECKING:
-    from dataclasses import dataclass
-else:
-    from pydantic.dataclasses import dataclass
 
 # All files in Square have this type.
 Filepath = pathlib.Path
