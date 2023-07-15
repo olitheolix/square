@@ -329,7 +329,7 @@ def sync(local_manifests: LocalManifestLists,
             Specify relationship between new manifests and file names.
 
     Returns:
-        Dict[Filepath, Tuple[MetaManifest, dict]]
+        Dict[Filepath, Collection[Tuple[MetaManifest, dict]]]
 
     """
     # Avoid side effects.
@@ -850,7 +850,7 @@ def load(folder: Filepath, selectors: Selectors) -> Tuple[
 def sort_manifests(
         file_manifests: LocalManifestLists,
         priority: Collection[str]
-) -> Tuple[Dict[Filepath, Collection[MetaManifest]], bool]:
+) -> Tuple[Dict[Filepath, List[dict]], bool]:
     """Sort the manifests in each `file_manifests` by their `priority`.
 
     The returned data contains only the manifests without the `MetaData`. The
@@ -864,7 +864,7 @@ def sort_manifests(
 
     """
     # Sort the manifests in each file.
-    out: Dict[Filepath, Collection[MetaManifest]] = {}
+    out: Dict[Filepath, List[dict]] = {}
     for fname, manifests in file_manifests.items():
         # Group the manifests by their "kind" in order of `priority` and sort
         # each group alphabetically.
@@ -892,7 +892,7 @@ def sort_manifests(
         assert len(manifests) == 0
 
         # Drop the MetaManifest, ie
-        # Dict[Filepath:Tuple[MetaManifest, manifest]] -> Dict[Filepath:manifest]
+        # Collection[Tuple[MetaManifest, dict]] -> List[dict]
         man_clean = [manifest for _, manifest in man_sorted]
 
         # Assign the grouped and sorted list of manifests to the output dict.
@@ -901,7 +901,8 @@ def sort_manifests(
     return out, False
 
 
-def save(folder: Filepath, manifests: LocalManifestLists,
+def save(folder: Filepath,
+         manifests: LocalManifestLists,
          priority: Collection[str]) -> bool:
     """Saves all `manifests` as YAMLs in `folder`.
 
@@ -920,15 +921,19 @@ def save(folder: Filepath, manifests: LocalManifestLists,
     """
     # Sort the manifest in each file by priority. Ignore the error flag because
     # `sort_manifests` always succeeds.
+    # out: Dict[FilePath, List[dict]]
     out, _ = sort_manifests(manifests, priority)
 
     # Ignore all files without manifests, ie empty files.
     out_nonempty = {k: v for k, v in out.items() if len(v) > 0}
     del out
 
-    # Ensure we have no `DotDicts` left. This will avoid problems with the YAML
-    # serialisation below.
-    out_clean = {k: square.dotdict.undo(v) for k, v in out_nonempty.items()}
+    # Ensure that our list of manifests does not contain any `DotDicts`
+    # anymore. This will avoid problems with the YAML serialisation below.
+    out_clean = {
+        fname: [square.dotdict.undo(man) for man in manifests]
+        for fname, manifests in out_nonempty.items()
+    }
     del out_nonempty
 
     # Ignore all hidden files.
