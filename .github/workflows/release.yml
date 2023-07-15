@@ -20,7 +20,7 @@ jobs:
           pipenv install --system
 
           pyinstaller square.spec --clean
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: square-linux-amd64
           path: dist/square
@@ -41,7 +41,7 @@ jobs:
 
           pyinstaller square.spec --clean
       - name: create-artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: square-windows-amd64
           path: dist/square.exe
@@ -60,7 +60,7 @@ jobs:
           pipenv install --system
 
           pyinstaller square.spec --clean
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: square-darwin-amd64
           path: dist/square
