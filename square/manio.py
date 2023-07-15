@@ -88,9 +88,6 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     labels = manifest.get("metadata", {}).get("labels", {})
     name = manifest.get("metadata", {}).get("name", "")
 
-    # Unpack the resource's namespace.
-    ns = manifest.get("metadata", {}).get("namespace", None)
-
     # We need to pay special attention to `Namespace` resources since they are
     # not themselves namespaced.
     #
@@ -100,6 +97,7 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     # says to create them yet once Square created the namespace they also
     # already exist and can only be patched. As a result, Square would abort
     # unexpectedly.
+    ns = manifest.get("metadata", {}).get("namespace", None)
     if kind == "Namespace":
         ns = manifest.get("metadata", {}).get("name", None)
     elif kind == "Secret":
