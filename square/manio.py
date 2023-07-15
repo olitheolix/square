@@ -4,9 +4,7 @@ import difflib
 import logging
 import multiprocessing
 import pathlib
-from typing import (
-    Collection, DefaultDict, Dict, Iterable, List, Optional, Tuple, cast,
-)
+from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple, cast
 
 import yaml.parser
 import yaml.scanner
@@ -195,7 +193,7 @@ def unpack_list(manifest_list: dict,
 
 
 def _parse_worker(fname: Filepath,
-                  yaml_str: str) -> Tuple[Collection[dict], bool]:
+                  yaml_str: str) -> Tuple[List[dict], bool]:
     logit.debug(f"Parsing <{fname}>")
 
     # Decode the YAML documents in the current file.
@@ -329,7 +327,7 @@ def sync(local_manifests: LocalManifestLists,
             Specify relationship between new manifests and file names.
 
     Returns:
-        Dict[Filepath, Collection[Tuple[MetaManifest, dict]]]
+        Dict[Filepath, List[Tuple[MetaManifest, dict]]]
 
     """
     # Avoid side effects.
@@ -844,7 +842,7 @@ def load(folder: Filepath, selectors: Selectors) -> Tuple[
 
 def sort_manifests(
         file_manifests: LocalManifestLists,
-        priority: Collection[str]
+        priority: List[str]
 ) -> Tuple[Dict[Filepath, List[dict]], bool]:
     """Sort the manifests in each `file_manifests` by their `priority`.
 
@@ -853,7 +851,7 @@ def sort_manifests(
 
     Inputs:
         file_manifests: the manifests that should go into each file.
-        priority: Collection[str]
+        priority: List[str]
             Sort the manifest in this order, or alphabetically at the end if
             not in the list.
 
@@ -887,7 +885,7 @@ def sort_manifests(
         assert len(manifests) == 0
 
         # Drop the MetaManifest, ie
-        # Collection[Tuple[MetaManifest, dict]] -> List[dict]
+        # List[Tuple[MetaManifest, dict]] -> List[dict]
         man_clean = [manifest for _, manifest in man_sorted]
 
         # Assign the grouped and sorted list of manifests to the output dict.
@@ -898,7 +896,7 @@ def sort_manifests(
 
 def save(folder: Filepath,
          manifests: LocalManifestLists,
-         priority: Collection[str]) -> bool:
+         priority: List[str]) -> bool:
     """Saves all `manifests` as YAMLs in `folder`.
 
     Input:
@@ -906,7 +904,7 @@ def save(folder: Filepath,
             Source folder.
         file_manifests: Dict[Filepath, Tuple(MetaManifest, dict)]
             Names of files and their Python dicts to save as YAML.
-        priority: Collection[str]
+        priority: List[str]
             Sort the manifest in this order, or alphabetically at the end if
             not in the list.
 

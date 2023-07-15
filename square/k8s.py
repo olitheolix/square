@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import warnings
 from collections import defaultdict
-from typing import Collection, Dict, List, Optional, Set, Tuple, cast
+from typing import Dict, List, Optional, Set, Tuple, cast
 
 import backoff
 import google.auth
