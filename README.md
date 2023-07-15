@@ -1,5 +1,5 @@
 [![](https://img.shields.io/badge/license-Apache%202-blue.svg)]()
-[![](https://img.shields.io/badge/python-3.10+-blue.svg)]()
+[![](https://img.shields.io/badge/python-3.10,3.11-blue.svg)]()
 [![](https://img.shields.io/badge/latest-v1.3.2-blue.svg)]()
 [![](https://github.com/olitheolix/square/workflows/build/badge.svg)]()
 [![](https://img.shields.io/codecov/c/github/olitheolix/square.svg?style=flat)]()
