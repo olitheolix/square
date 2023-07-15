@@ -1138,7 +1138,7 @@ class TestManifestValidation:
 
 
 class TestDiff:
-    def test_diff_ok(self, config, k8sconfig):
+    def test_diff_ok(self):
         """Diff two valid manifests and (roughly) verify the output."""
         # Two valid manifests.
         srv = make_manifest("Deployment", "namespace", "name1")
@@ -1149,7 +1149,7 @@ class TestDiff:
         loc = cast(dict, dotdict.make(loc))
 
         # Diff the manifests. Must not return an error.
-        diff_str, err = manio.diff(config, k8sconfig, loc, srv)
+        diff_str, err = manio.diff(loc, srv)
         assert err is False
 
         # Since it is difficult to compare the correct diff string due to

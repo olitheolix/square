@@ -377,7 +377,7 @@ def compile_plan(
     patches = []
     for meta in plan.patch:
         # Compute human readable diff.
-        diff_str, err = manio.diff(config, k8sconfig, local[meta], server[meta])
+        diff_str, err = manio.diff(local[meta], server[meta])
         if err or diff_str is None:
             logit.error(f"Could not compute the diff for <{meta}>.")
             return err_resp
