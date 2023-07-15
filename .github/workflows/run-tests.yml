@@ -111,12 +111,12 @@ jobs:
       - name: Install Square With Python 3.10
         run: |
           # Install Poetry and build the Python package.
-          pip install poetry==1.1.13
+          pip install poetry==1.5.1
           poetry build
 
           # Install the package. The following shell magic expands to
           # eg `pip install dist/kubernetes-square-1.3.2.tar.gz`
-          pip install "dist/kubernetes-square-`poetry version -s`.tar.gz"
+          pip install "dist/kubernetes_square-`poetry version -s`.tar.gz"
 
           # Invoke Square to ensure it runs.
           square version
@@ -127,12 +127,12 @@ jobs:
       - name: Install Square With Python 3.11
         run: |
           # Install Poetry and build the Python package.
-          pip install poetry==1.1.13
+          pip install poetry==1.5.1
           poetry build
 
           # Install the package. The following shell magic expands to
           # eg `pip install dist/kubernetes-square-1.3.2.tar.gz`
-          pip install "dist/kubernetes-square-`poetry version -s`.tar.gz"
+          pip install "dist/kubernetes_square-`poetry version -s`.tar.gz"
 
           # Invoke Square to ensure it runs.
           square version
