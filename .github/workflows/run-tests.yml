@@ -7,14 +7,19 @@ on:
     branches: [ master ]
 
 jobs:
+  # ----------------------------------------------------------------------------
+  # Start KinD cluster and run unit and integration tests.
+  # Upload the coverage report to CodeCov.
+  # ----------------------------------------------------------------------------
   linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+
       - name: Download Kubernetes Utilities
         run: |
           mkdir ~/bin
@@ -52,13 +57,15 @@ jobs:
           env_vars: OS,PYTHON
           name: codecov-umbrella
           fail_ci_if_error: true
+
+  # ----------------------------------------------------------------------------
+  # Run only the unit tests on Windows because we cannot run KinD there.
+  # ----------------------------------------------------------------------------
   windows:
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
           architecture: 'x64'
@@ -71,12 +78,14 @@ jobs:
         run: |
           pytest --cov=square --ignore=tests/test_integration.py
 
+  # ----------------------------------------------------------------------------
+  # Run only the unit tests on OSX because we cannot run KinD there.
+  # ----------------------------------------------------------------------------
   macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
       - name: Install dependencies
