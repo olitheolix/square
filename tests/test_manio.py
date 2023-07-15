@@ -68,6 +68,7 @@ class TestHelpers:
         """Prune a list of manifests based on namespace and resource."""
         # Convenience.
         select = manio.select
+        Sel = Selectors
 
         labels = [[], ["app=a"], ["env=e"], ["app=a", "env=e"]]
 
@@ -79,22 +80,22 @@ class TestHelpers:
         namespaces = (["name"], ["name", "ns5"])
         kinds = ({"Namespace"}, {"Deployment", "Namespace"})
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
-            lab = cast(List[str], lab)
-            assert select(manifest, Selectors(kind, ns, lab)) is True
+            sel = Sel(kinds=kind, namespaces=ns, labels=cast(List[str], lab))
+            assert select(manifest, sel) is True
 
         # Function must reject these because the selectors match only partially.
         selectors = [
-            Selectors({"blah"}, [], []),
-            Selectors({"Namespace"}, ["foo-ns"], []),
-            Selectors({"Namespace"}, ["ns0"], ["app=b"]),
-            Selectors({"Namespace"}, ["ns0"], ["app=a", "env=x"]),
+            Sel(kinds={"blah"}),
+            Sel(kinds={"Namespace"}, namespaces=["foo-ns"]),
+            Sel(kinds={"Namespace"}, namespaces=["ns0"], labels=["app=b"]),
+            Sel(kinds={"Namespace"}, namespaces=["ns0"], labels=["app=a", "env=x"]),
         ]
         for sel in selectors:
             assert select(manifest, sel) is False
 
         # Reject the manifest if the selector does not specify at least one "kind".
-        assert select(manifest, Selectors({"Namespace"}, [], [])) is True
-        assert select(manifest, Selectors(set(), [], [])) is False
+        assert select(manifest, Sel(kinds={"Namespace"})) is True
+        assert select(manifest, Sel()) is False
 
         # ---------------------------------------------------------------------
         #                      Deployment Manifest
@@ -104,22 +105,22 @@ class TestHelpers:
         kinds = ({"Deployment"}, {"Deployment", "Namespace"})
         namespaces = (["my-ns"], ["my-ns", "other-ns"])
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
-            lab = cast(List[str], lab)
-            assert select(manifest, Selectors(kind, ns, lab)) is True
+            sel = Sel(kinds=kind, namespaces=ns, labels=cast(List[str], lab))
+            assert select(manifest, sel) is True
 
         # Function must reject these because the selectors match only partially.
         selectors = [
-            Selectors({"blah"}, [], []),
-            Selectors({"Deployment"}, ["foo-ns"], []),
-            Selectors({"Deployment"}, ["ns0"], ["app=b"]),
-            Selectors({"Deployment"}, ["ns0"], ["app=a", "env=x"]),
+            Sel(kinds={"blah"}),
+            Sel(kinds={"Deployment"}, namespaces=["foo-ns"]),
+            Sel(kinds={"Deployment"}, namespaces=["ns0"], labels=["app=b"]),
+            Sel(kinds={"Deployment"}, namespaces=["ns0"], labels=["app=a", "env=x"]),
         ]
         for sel in selectors:
             assert select(manifest, sel) is False
 
         # Reject the manifest if the selector does not specify at least one "kind".
-        assert select(manifest, Selectors({"Deployment"}, [], [])) is True
-        assert select(manifest, Selectors(set(), [], [])) is False
+        assert select(manifest, Sel(kinds={"Deployment"})) is True
+        assert select(manifest, Sel()) is False
 
         # ---------------------------------------------------------------------
         #                      ClusterRole Manifest
@@ -129,20 +130,20 @@ class TestHelpers:
         kinds = ({"ClusterRole"}, {"ClusterRole", "Namespace"})
         namespaces = (["my-ns"], ["my-ns", "other-ns"])
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
-            lab = cast(List[str], lab)
-            assert select(manifest, Selectors(kind, ns, lab)) is True
+            sel = Sel(kinds=kind, namespaces=ns, labels=cast(List[str], lab))
+            assert select(manifest, sel) is True
 
         # Function must reject these because the selectors match only partially.
         selectors = [
-            Selectors({"blah"}, [], []),
-            Selectors({"Clusterrole"}, ["ns0"], ["app=b"]),
-            Selectors({"Clusterrole"}, ["ns0"], ["app=a", "env=x"]),
+            Sel(kinds={"blah"}),
+            Sel(kinds={"Clusterrole"}, namespaces=["ns0"], labels=["app=b"]),
+            Sel(kinds={"Clusterrole"}, namespaces=["ns0"], labels=["app=a", "env=x"]),
         ]
         for sel in selectors:
             assert select(manifest, sel) is False
 
         # Reject the manifest if the selector does not specify at least one "kind".
-        assert select(manifest, Selectors(set(), [], [])) is False
+        assert select(manifest, Sel()) is False
 
         # ---------------------------------------------------------------------
         #                    Default Service Account
@@ -150,11 +151,11 @@ class TestHelpers:
         # Must always ignore "default" service account.
         kind, ns = "ServiceAccount", "ns1"
         manifest = make_manifest(kind, ns, "default")
-        assert select(manifest, Selectors({kind}, [ns], [])) is False
+        assert select(manifest, Sel(kinds={kind}, namespaces=[ns])) is False
 
         # Must select all other Secret that match the selector.
         manifest = make_manifest(kind, ns, "some-service-account")
-        assert select(manifest, Selectors({kind}, [ns], [])) is True
+        assert select(manifest, Sel(kinds={kind}, namespaces=[ns])) is True
 
         # ---------------------------------------------------------------------
         #                      Default Token Secret
@@ -162,11 +163,11 @@ class TestHelpers:
         # Must always ignore "default-token-*" Secrets.
         kind, ns = "Secret", "ns1"
         manifest = make_manifest(kind, ns, "default-token-12345")
-        assert select(manifest, Selectors({kind}, [ns], [])) is False
+        assert select(manifest, Sel(kinds={kind}, namespaces=[ns])) is False
 
         # Must select all other Secret that match the selector.
         manifest = make_manifest(kind, ns, "some-secret")
-        assert select(manifest, Selectors({kind}, [ns], [])) is True
+        assert select(manifest, Sel(kinds={kind}, namespaces=[ns])) is True
 
 
 class TestUnpackParse:
@@ -185,7 +186,7 @@ class TestUnpackParse:
             del manifest["kind"]
 
         # Generic selector that matches all manifests in this test.
-        selectors = Selectors({"Deployment"}, [], [])
+        selectors = Selectors(kinds={"Deployment"})
 
         # The actual DeploymentList returned from K8s.
         manifest_list = {
@@ -238,7 +239,7 @@ class TestUnpackParse:
         # Select all.
         for ns in ([], ["ns_0", "ns_1", "ns_2"]):
             ns = cast(List[str], ns)
-            selectors = Selectors({"Deployment"}, ns, [])
+            selectors = Selectors(kinds={"Deployment"}, namespaces=ns)
             data, err = manio.unpack_list(manifest_list, selectors)
             assert err is False and data == {
                 MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_0'): manifests[0],
@@ -247,24 +248,24 @@ class TestUnpackParse:
             }
 
         # Must select nothing because no resource is in the "foo" namespace.
-        selectors = Selectors({"Deployment"}, ["foo"], [])
+        selectors = Selectors(kinds={"Deployment"}, namespaces=["foo"])
         data, err = manio.unpack_list(manifest_list, selectors)
         assert err is False and data == {}
 
         # Must select nothing because we have no resource kind "foo".
-        selectors = Selectors({"foo"}, [], [])
+        selectors = Selectors(kinds={"foo"})
         data, err = manio.unpack_list(manifest_list, selectors)
         assert err is False and data == {}
 
         # Must select the Deployment in the "ns_1" namespace.
-        selectors = Selectors({"Deployment"}, ["ns_1"], [])
+        selectors = Selectors(kinds={"Deployment"}, namespaces=["ns_1"])
         data, err = manio.unpack_list(manifest_list, selectors)
         assert err is False and data == {
             MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
         }
 
         # Must select the Deployment in the "ns_1" & "ns_2" namespace.
-        selectors = Selectors({"Deployment"}, ["ns_1", "ns_2"], [])
+        selectors = Selectors(kinds={"Deployment"}, namespaces=["ns_1", "ns_2"])
         data, err = manio.unpack_list(manifest_list, selectors)
         assert err is False and data == {
             MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
@@ -272,7 +273,7 @@ class TestUnpackParse:
         }
 
         # Must select the second Deployment due to label selector.
-        selectors = Selectors({"Deployment"}, [], ["app=d_1"])
+        selectors = Selectors(kinds={"Deployment"}, labels=["app=d_1"])
         data, err = manio.unpack_list(manifest_list, selectors)
         assert err is False and data == {
             MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
@@ -286,7 +287,7 @@ class TestUnpackParse:
 
         """
         # Generic selector that matches all manifests in this test.
-        selectors = Selectors({"Deployment"}, [], [])
+        selectors = Selectors(kinds={"Deployment"})
 
         # Valid input.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList', 'items': []}
@@ -485,7 +486,7 @@ class TestYamlManifestIO:
         m3_yaml = Filepath("m3.yaml")
 
         # Generic selector that matches all manifests in this test.
-        selectors = Selectors({"Deployment"}, [], [])
+        selectors = Selectors(kinds={"Deployment"})
 
         # Construct manifests like `load_files` would return them.
         kind, ns, labels = "Deployment", "namespace", {"app": "name"}
@@ -543,34 +544,38 @@ class TestYamlManifestIO:
             "m2.yaml": [(meta[2], dply[2])],
         }
         # Generic selector that matches all manifests in this test.
-        selectors = Selectors({"Deployment"}, [], ["cluster=test"])
+        selectors = Selectors(kinds={"Deployment"}, labels=["cluster=test"])
         assert manio.parse(fdata_test_in, selectors) == (expected, False)
 
         # Same as before, but this time with the explicit namespace.
-        selectors = Selectors({"Deployment"}, ["namespace"], ["cluster=test"])
+        selectors = Selectors(kinds={"Deployment"}, namespaces=["namespace"],
+                              labels=["cluster=test"])
         assert manio.parse(fdata_test_in, selectors) == (expected, False)
 
         # Must match nothing because no resource has a "cluster=foo" label.
-        selectors = Selectors({"Deployment"}, [], ["cluster=foo"])
+        selectors = Selectors(kinds={"Deployment"}, labels=["cluster=foo"])
         assert manio.parse(fdata_test_in, selectors) == ({}, False)
 
         # Must match nothing because we do not have a namespace "blah".
-        selectors = Selectors({"Deployment"}, ["blah"], ["cluster=test"])
+        selectors = Selectors(kinds={"Deployment"}, namespaces=["blah"],
+                              labels=["cluster=test"])
         assert manio.parse(fdata_test_in, selectors) == ({}, False)
 
         # Must match nothing because we do not have a resource kind "blah".
-        selectors = Selectors({"blah"}, ["namespace"], ["cluster=test"])
+        selectors = Selectors(kinds={"blah"}, namespaces=["namespace"],
+                              labels=["cluster=test"])
         assert manio.parse(fdata_test_in, selectors) == ({}, False)
 
         # Must match exactly one deployment due to label selector.
-        selectors = Selectors({"Deployment"}, ["namespace"], ["app=d_1"])
+        selectors = Selectors(kinds={"Deployment"}, namespaces=["namespace"],
+                              labels=["app=d_1"])
         expected = {"m0.yaml": [(meta[1], dply[1])]}
         assert manio.parse(fdata_test_in, selectors) == (expected, False)
 
     def test_parse_err(self):
         """Intercept YAML decoding errors."""
         # Generic selector that matches all manifests in this test.
-        selectors = Selectors({"Deployment"}, [], [])
+        selectors = Selectors(kinds={"Deployment"})
 
         # Construct manifests like `load_files` would return them.
         for data in ["scanner error :: - yaml", ": parser error -"]:
@@ -659,7 +664,7 @@ class TestYamlManifestIO:
 
         """
         # Generic selector that matches all manifests in this test.
-        selectors = Selectors({"Deployment"}, [], [])
+        selectors = Selectors(kinds={"Deployment"})
         groupby = GroupBy(order=[], label="")
 
         # Construct demo manifests in the same way as `load_files` would.
@@ -706,7 +711,7 @@ class TestYamlManifestIO:
         # :: Dict[MetaManifests:YamlDict] -> Dict[Filename:List[(MetaManifest, YamlDict)]]
         updated_manifests, err = manio.sync(
             fdata_meta, server_manifests,
-            Selectors({"Deployment"}, namespaces=[], labels=[]),
+            Selectors(kinds={"Deployment"}),
             groupby,
         )
         assert err is False
@@ -1187,7 +1192,7 @@ class TestYamlManifestIOIntegration:
         # Add an empty file.
         file_data = {
             Filepath("empty.yaml"): "",
-            Filepath("nonempty.yaml"): "some content"
+            Filepath("nonempty.yaml"): "some content",
         }
 
         # Saving the files. Verify that the empty one was not created.
@@ -1231,7 +1236,7 @@ class TestYamlManifestIOIntegration:
         """Basic test that uses the {load,save} convenience functions."""
         # Generic selector that matches all manifests in this test.
         priority = ["Deployment"]
-        selectors = Selectors(set(priority), [], [])
+        selectors = Selectors(kinds=set(priority))
 
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
@@ -1261,7 +1266,7 @@ class TestYamlManifestIOIntegration:
         """Basic test that uses the {load,save} convenience functions."""
         # Generic selector that matches all manifests in this test.
         priority = ["Deployment"]
-        selectors = Selectors(set(priority), [], [])
+        selectors = Selectors(kinds=set(priority))
 
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(3)]
@@ -1293,7 +1298,7 @@ class TestYamlManifestIOIntegration:
         """`save_file` must remove all excess YAML files."""
         # Generic selector that matches all manifests in this test.
         priority = ["Deployment"]
-        selectors = Selectors(set(priority), [], [])
+        selectors = Selectors(kinds=set(priority))
 
         # Create two YAML files, each with multiple manifests.
         dply = [mk_deploy(f"d_{_}") for _ in range(10)]
@@ -1343,7 +1348,7 @@ class TestYamlManifestIOIntegration:
     def test_load_err(self, m_load, tmp_path):
         """Simulate an error in `load_files` function."""
         # Generic selector that matches all manifests in this test.
-        selectors = Selectors({"Deployment"}, [], [])
+        selectors = Selectors(kinds={"Deployment"})
         m_load.return_value = ({}, True)
         assert manio.load(tmp_path, selectors) == ({}, {}, True)
 
@@ -1550,15 +1555,15 @@ class TestSync:
         # Special cases: empty list of resources. Must do nothing.
         # ----------------------------------------------------------------------
         expected = loc_man
-        selectors = Selectors(set(), namespaces=[], labels=[])
+        selectors = Selectors()
         assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
-        selectors = Selectors(set(), namespaces=[], labels=[])
+        selectors = Selectors()
         assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # NOTE: this must *not* sync the Namespace manifest from "ns1" because
         # it was not an explicitly specified resource.
-        selectors = Selectors(set(), namespaces=["ns1"], labels=[])
+        selectors = Selectors(namespaces=["ns1"])
         assert fun(loc_man, srv_man, selectors, groupby) == (expected, False)
 
         # ----------------------------------------------------------------------
@@ -1580,12 +1585,12 @@ class TestSync:
             kinds = set(kinds)
 
             # Implicitly use all namespaces.
-            selectors = Selectors(kinds, namespaces=[], labels=[])
+            selectors = Selectors(kinds=kinds)
             assert fun(loc_man, srv_man, selectors, groupby) == expected
 
             # Specify all namespaces explicitly.
             for ns in itertools.permutations(["ns0", "ns1"]):
-                selectors = Selectors(kinds, namespaces=list(ns), labels=[])
+                selectors = Selectors(kinds=kinds, namespaces=list(ns))
                 assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
@@ -1602,7 +1607,7 @@ class TestSync:
             ],
         }, False
         for kinds in itertools.permutations(["Deployment", "Service"]):
-            selectors = Selectors(set(kinds), namespaces=["ns0"], labels=[])
+            selectors = Selectors(kinds=set(kinds), namespaces=["ns0"])
             assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
@@ -1618,7 +1623,7 @@ class TestSync:
                 (svc_ns1, svc_ns1_man),
             ],
         }, False
-        selectors = Selectors({"Deployment"}, namespaces=[], labels=[])
+        selectors = Selectors(kinds={"Deployment"})
         assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
@@ -1634,7 +1639,7 @@ class TestSync:
                 (svc_ns1, svc_ns1_man),
             ],
         }, False
-        selectors = Selectors({"Deployment"}, namespaces=["ns0"], labels=[])
+        selectors = Selectors(kinds={"Deployment"}, namespaces=["ns0"])
         assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
@@ -1650,7 +1655,7 @@ class TestSync:
                 (svc_ns1, modify(svc_ns1_man)),
             ],
         }, False
-        selectors = Selectors({"Service"}, namespaces=["ns1"], labels=[])
+        selectors = Selectors(kinds={"Service"}, namespaces=["ns1"])
         assert fun(loc_man, srv_man, selectors, groupby) == expected
 
     @mock.patch.object(manio, "filename_for_manifest")
@@ -1719,7 +1724,7 @@ class TestSync:
                 (meta_1[8], man_1[8])
             ],
         }, False
-        selectors = Selectors(kinds, namespaces=[], labels=[])
+        selectors = Selectors(kinds=kinds)
         assert manio.sync(loc_man, srv_man, selectors, groupby) == expected
 
     def test_sync_catch_all_files(self):
@@ -1806,7 +1811,7 @@ class TestSync:
                 (meta_2[3], man_2[3]),
             ],
         }, False
-        selectors = Selectors(kinds, namespaces=[], labels=[])
+        selectors = Selectors(kinds=kinds)
         assert manio.sync(loc_man, srv_man, selectors, groupby) == expected
 
     def test_sync_filename_err(self):
@@ -1817,7 +1822,7 @@ class TestSync:
 
         """
         # Valid selector for Deployment manifests.
-        selectors = Selectors({"Deployment"}, namespaces=[], labels=[])
+        selectors = Selectors(kinds={"Deployment"})
 
         # Simulate the scenario where the server has a Deployment we lack
         # locally. This will ensure that `sync` will try to create a new file
@@ -1837,7 +1842,7 @@ class TestSync:
         Some other tests, most notably those for the `align` function, rely on this.
         """
         # Fixtures.
-        selectors = Selectors({"ServiceAccount"}, namespaces=[], labels=[])
+        selectors = Selectors(kinds={"ServiceAccount"})
         name = 'demoapp'
 
         # Load the test support file and ensure it contains exactly one manifest.
@@ -1866,7 +1871,7 @@ class TestSync:
 
         """
         # Fixtures.
-        selectors = Selectors({"ServiceAccount"}, namespaces=[], labels=[])
+        selectors = Selectors(kinds={"ServiceAccount"})
 
         # Load and unpack the ServiceAccount manifest. Make two copies so we
         # can create local/cluster manifest as inputs for the `align` function.
@@ -2035,7 +2040,7 @@ class TestDownloadManifests:
             (l_dply, False),
         ]
         expected = {make_meta(_): manio.strip(k8sconfig, _, {})[0] for _ in meta}
-        config.selectors = Selectors({"Namespace", "Deployment", "Unknown"}, [], [])
+        config.selectors = Selectors(kinds={"Namespace", "Deployment", "Unknown"})
         ret = manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_args_list == [
@@ -2056,7 +2061,8 @@ class TestDownloadManifests:
             (l_ns_1, False),
             (l_dply_1, False),
         ]
-        config.selectors = Selectors({"Namespace", "Deployment"}, ["ns0", "ns1"], [])
+        config.selectors = Selectors(kinds={"Namespace", "Deployment"},
+                                     namespaces=["ns0", "ns1"])
         ret = manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_args_list == [
@@ -2081,7 +2087,8 @@ class TestDownloadManifests:
             make_meta(meta[0]): manio.strip(k8sconfig, meta[0], {})[0],
             make_meta(meta[2]): manio.strip(k8sconfig, meta[2], {})[0],
         }
-        config.selectors = Selectors({"Namespace", "Deployment"}, ["ns0"], [])
+        config.selectors = Selectors(kinds={"Namespace", "Deployment"},
+                                     namespaces=["ns0"])
         ret = manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_args_list == [
@@ -2107,7 +2114,7 @@ class TestDownloadManifests:
         res_deploy, err2 = resource(k8sconfig, MetaManifest("", "Deployment", None, ""))
         assert not err1 and not err2
 
-        config.selectors = Selectors({"Namespace", "Deployment"}, [], [])
+        config.selectors = Selectors(kinds={"Namespace", "Deployment"})
 
         # Run test function and verify it returns an error and no data, despite
         # a successful `NamespaceList` download.

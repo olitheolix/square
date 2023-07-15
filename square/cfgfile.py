@@ -98,7 +98,7 @@ def merge(src: list, dst: list) -> list:
 
 def load(fname: Filepath) -> Tuple[Config, bool]:
     """Parse the Square configuration file `fname` and return it as a `Config`."""
-    err_resp = Config(Filepath(""), kubeconfig=Filepath(""), kubecontext=None), True
+    err_resp = Config(folder=Filepath(""), kubeconfig=Filepath("")), True
     fname = Filepath(fname)
 
     # Load the configuration file.
