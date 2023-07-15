@@ -66,6 +66,7 @@ class MetaManifest(NamedTuple):
     # name in the `namespace` field.
     name: str | None
 
+
 class K8sResource(NamedTuple):
     """Describe a specific K8s resource kind."""
     apiVersion: str   # "batch/v1beta1" or "extensions/v1beta1".
@@ -176,6 +177,9 @@ class GroupBy:
     order: List[str] = _factory([])  # ["ns", "label=app", kind"]
 
 
+"""Define the filters to exclude sections of manifests."""
+Filters = Dict[str, List[str | dict]]
+
 @dataclass
 class Config:
     """Uniform interface into top level Square API."""
@@ -198,7 +202,7 @@ class Config:
     groupby: GroupBy = _factory(GroupBy())
 
     # Define which fields to skip for which resource.
-    filters: Dict[str, List[str | dict]] = _factory({})
+    filters: Filters = _factory({})
 
     # Callable: will be invoked for every local/server manifest that requires
     # patching before the actual patch will be computed.
@@ -213,3 +217,4 @@ class Config:
 LocalManifests = Dict[Filepath, Tuple[MetaManifest, dict]]
 LocalManifestLists = Dict[Filepath, List[Tuple[MetaManifest, dict]]]
 ServerManifests = Dict[MetaManifest, dict]
+
