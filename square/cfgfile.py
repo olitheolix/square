@@ -9,20 +9,21 @@ This module defines utility functions to define these filters.
 """
 import copy
 import logging
-import typing
 from types import SimpleNamespace
-from typing import List, Tuple
+from typing import Tuple
 
 import pydantic
 import yaml
 
 from square.dtypes import Config, Filepath
 
+from .dtypes import FiltersKind
+
 # Convenience.
 logit = logging.getLogger("square")
 
 
-def valid(filters: dict) -> bool:
+def valid(filters: FiltersKind) -> bool:
     """Return `True` iff `filters` is valid."""
     return _valid(filters)
 

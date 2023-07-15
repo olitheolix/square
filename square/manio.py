@@ -5,7 +5,7 @@ import logging
 import multiprocessing
 import pathlib
 from typing import (
-    Collection, DefaultDict, Dict, Iterable, List, Optional, Tuple,
+    Collection, DefaultDict, Dict, Iterable, List, Optional, Tuple, cast,
 )
 
 import yaml.parser
@@ -15,8 +15,8 @@ import square.cfgfile
 import square.dotdict
 import square.k8s
 from square.dtypes import (
-    Config, Filepath, GroupBy, K8sConfig, K8sResource, LocalManifestLists,
-    MetaManifest, Selectors, ServerManifests,
+    Config, Filepath, Filters, FiltersKind, GroupBy, K8sConfig, K8sResource,
+    LocalManifestLists, MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -487,7 +487,7 @@ def diff(config: Config,
 def strip(
     k8sconfig: K8sConfig,
     manifest: dict,
-    manifest_filters: Dict[str, list],
+    manifest_filters: Filters,
 ) -> Tuple[DotDict, dict, bool]:
     """Strip `manifest` according to the filters in `square.cfgfile`.
 
@@ -515,7 +515,7 @@ def strip(
     except AssertionError:
         return ret_err
 
-    def _update(filters: list, manifest: dict):
+    def _update(filters: FiltersKind, manifest: dict):
         """Recursively traverse the `manifest` and prune it according to `filters`.
 
         Returns dict with the excluded keys.
@@ -568,14 +568,10 @@ def strip(
     # 3) Square default filters that apply to all resource kinds.
     # Pick the first one that matches.
     kind = manifest["kind"]
-    filters = manifest_filters.get(
-        kind,
-        square.DEFAULT_CONFIG.filters.get(
-            kind,
-            square.DEFAULT_CONFIG.filters["_common_"]
-        )
-    )
-    if not square.cfgfile.valid(filters):  # type: ignore
+
+    default_filter = cast(Filters, square.DEFAULT_CONFIG.filters["_common_"])
+    filters: FiltersKind = cast(FiltersKind, manifest_filters.get(kind, default_filter))
+    if not square.cfgfile.valid(filters):
         return ret_err
 
     # Remove the keys from the `manifest` according to `filters`.
