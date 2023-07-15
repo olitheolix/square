@@ -163,7 +163,7 @@ def _factory(ret):
 
 @dataclass
 class Selectors:
-    """Comprises the available parameters to select manifests."""
+    """Parameters to target specific groups of manifests."""
     kinds: Set[str] = _factory(set(DEFAULT_PRIORITIES))
     namespaces: List[str] = _factory([])
     labels: List[str] = _factory([])
