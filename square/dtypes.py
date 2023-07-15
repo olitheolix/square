@@ -178,7 +178,8 @@ class GroupBy:
 
 
 """Define the filters to exclude sections of manifests."""
-Filters = Dict[str, List[str | dict]]
+FiltersKind = List[str | dict]
+Filters = Dict[str, FiltersKind]
 
 @dataclass
 class Config:
