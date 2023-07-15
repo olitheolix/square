@@ -6,26 +6,25 @@ import square.dotdict as dd
 class TestBasic:
     def test_make(self):
         """Create various DotDict instances."""
-
-        # These are not dictionaries but must return a comparable type nevertheless.
-        assert dd.make(None) is None
-        assert dd.make(3) == 3
-        assert dd.make('3') == '3'
-        assert dd.make(['3', 3]) == ['3', 3]
-        assert dd.make(('3', 3)) == ['3', 3]
-
         # Valid dict. Verify Dot access.
         d = dd.make({'foo': 'bar'})
-        assert d.foo == 'bar'   # type: ignore
+        assert d.foo == 'bar'
+
+        # These are not dictionaries but must return a comparable type nevertheless.
+        assert dd._make(None) is None
+        assert dd._make(3) == 3
+        assert dd._make('3') == '3'
+        assert dd._make(['3', 3]) == ['3', 3]
+        assert dd._make(('3', 3)) == ['3', 3]
 
         # A list of dicts.
-        d = dd.make([{'foo0': 'bar0'}, {'foo1': 'bar1'}])
+        d = dd._make([{'foo0': 'bar0'}, {'foo1': 'bar1'}])
         assert d[0].foo0 == 'bar0'
         assert d[1].foo1 == 'bar1'
 
         # A dict of dicts.
         d = dd.make({'foo0': {'foo1': 'bar1'}})
-        assert d.foo0.foo1 == 'bar1'  # type: ignore
+        assert d.foo0.foo1 == 'bar1'
 
         # The `make` function must have operated recursively.
         assert isinstance(d, dd.DotDict)

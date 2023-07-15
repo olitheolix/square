@@ -37,7 +37,7 @@ def main():
         # Specify the resources to operate on. These ones model the demo setup in
         # the `../integration-test-cluster`.
         selectors=Selectors(
-            kinds=["Deployment", "Service", "Namespace"],
+            kinds={"Deployment", "Service", "Namespace"},
             labels=["app=demoapp-1"],
             namespaces=["square-tests-1", "square-tests-2"],
         ),

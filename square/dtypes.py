@@ -164,7 +164,7 @@ def _factory(ret):
 
 @dataclass
 class Selectors:
-    """Comprises all the filters to select manifests."""
+    """Comprises the available parameters to select manifests."""
     kinds: Set[str] = _factory(set(DEFAULT_PRIORITIES))
     namespaces: List[str] = _factory([])
     labels: List[str] = _factory([])

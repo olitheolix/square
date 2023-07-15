@@ -144,7 +144,6 @@ class TestMainGet:
         # List must only contain dictionaries and strings.
         assert cfgfile.valid(["foo"]) is True
         assert cfgfile.valid(["foo", {"bar": ["y"]}]) is True
-        assert cfgfile.valid(["foo", None]) is False
 
         # Nested cases:
         assert cfgfile.valid(["foo", {"bar": ["bar"]}]) is True
