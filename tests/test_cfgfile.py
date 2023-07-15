@@ -151,6 +151,10 @@ class TestMainGet:
         assert cfgfile.valid(["foo", {"bar": [{"x": ["x"]}]}]) is True
         assert cfgfile.valid(["foo", {"bar": [{"x": "x"}]}]) is False
 
+        # Special case: the _`valid` must throw an error if it encounters
+        # anything but a dict or str in the list of inputs.
+        assert cfgfile._valid([{"must-be-dict-or-str"}]) is False
+
     def test_merge(self):
         defaults = copy.deepcopy(square.DEFAULT_CONFIG.filters["_common_"])
         assert cfgfile.merge(defaults, []) == defaults
