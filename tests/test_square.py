@@ -844,7 +844,7 @@ class TestPlan:
         # output structure below.
         patch, err = sq.make_patch(k8sconfig, loc_man[meta], srv_man[meta])
         assert not err
-        diff_str, err = manio.diff(config, k8sconfig, loc_man[meta], srv_man[meta])
+        diff_str, err = manio.diff(loc_man[meta], srv_man[meta])
         assert not err
 
         # Verify the test function returns the correct Patch and diff.

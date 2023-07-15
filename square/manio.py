@@ -449,10 +449,7 @@ def filename_for_manifest(
     return Filepath(path), False
 
 
-def diff(config: Config,
-         k8sconfig: K8sConfig,
-         local: dict,
-         server: dict) -> Tuple[str, bool]:
+def diff(local: dict, server: dict) -> Tuple[str, bool]:
     """Return the human readable diff between the `local` and `server` manifest.
 
     The diff shows the necessary changes to transition the `server` manifest
