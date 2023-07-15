@@ -53,14 +53,12 @@ def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
 
 
 def make_patch(
-        config: Config,
         k8sconfig: K8sConfig,
         local: dict,
         server: dict) -> Tuple[JsonPatch, bool]:
     """Return JSON patch to transition `server` to `local`.
 
     Inputs:
-        config: Square configuration.
         k8sconfig: K8sConfig
         local: dict
             Usually on fo the dict manifests returned by `load_manifest`.
@@ -386,7 +384,7 @@ def compile_plan(
 
         # Compute the JSON patch that will change the K8s state to match the
         # one in the local files.
-        patch, err = make_patch(config, k8sconfig, local[meta], server[meta])
+        patch, err = make_patch(k8sconfig, local[meta], server[meta])
         if err or patch is None:
             logit.error(f"Could not compute the patch for <{meta}>")
             return err_resp

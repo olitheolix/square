@@ -274,7 +274,7 @@ class TestPartition:
 
 
 class TestPatchK8s:
-    def test_make_patch_empty(self, config, k8sconfig):
+    def test_make_patch_empty(self, k8sconfig):
         """Basic test: compute patch between two identical resources."""
         # Setup.
         kind, ns, name = 'Deployment', 'ns', 'foo'
@@ -284,11 +284,11 @@ class TestPatchK8s:
 
         # The patch must be empty for identical manifests.
         loc = srv = make_manifest(kind, ns, name)
-        data, err = sq.make_patch(config, k8sconfig, loc, srv)
+        data, err = sq.make_patch(k8sconfig, loc, srv)
         assert (data, err) == (JsonPatch(url, []), False)
         assert isinstance(data, JsonPatch)
 
-    def test_make_patch_incompatible(self, config, k8sconfig):
+    def test_make_patch_incompatible(self, k8sconfig):
         """Must not try to compute diffs for incompatible manifests.
 
         For instance, refuse to compute a patch when one manifest has kind
@@ -303,24 +303,24 @@ class TestPatchK8s:
         # `apiVersion` must match.
         loc = copy.deepcopy(srv)
         loc['apiVersion'] = 'mismatch'
-        assert sq.make_patch(config, k8sconfig, loc, srv) == err_resp
+        assert sq.make_patch(k8sconfig, loc, srv) == err_resp
 
         # `kind` must match.
         loc = copy.deepcopy(srv)
         loc['kind'] = 'Mismatch'
-        assert sq.make_patch(config, k8sconfig, loc, srv) == err_resp
+        assert sq.make_patch(k8sconfig, loc, srv) == err_resp
 
         # `name` must match.
         loc = copy.deepcopy(srv)
         loc['metadata']['name'] = 'mismatch'
-        assert sq.make_patch(config, k8sconfig, loc, srv) == err_resp
+        assert sq.make_patch(k8sconfig, loc, srv) == err_resp
 
         # `namespace` must match.
         loc = copy.deepcopy(srv)
         loc['metadata']['namespace'] = 'mismatch'
-        assert sq.make_patch(config, k8sconfig, loc, srv) == err_resp
+        assert sq.make_patch(k8sconfig, loc, srv) == err_resp
 
-    def test_make_patch_special(self, config, k8sconfig):
+    def test_make_patch_special(self, k8sconfig):
         """Namespace, ClusterRole(Bindings) etc are special.
 
         What makes them special is that they exist outside namespaces.
@@ -336,7 +336,7 @@ class TestPatchK8s:
 
             # The patch between two identical manifests must be empty but valid.
             loc = srv = make_manifest(kind, None, "name")
-            assert sq.make_patch(config, k8sconfig, loc, srv) == ((url, []), False)
+            assert sq.make_patch(k8sconfig, loc, srv) == ((url, []), False)
 
             # Create two almost identical manifests, except the second one has
             # different `metadata.labels`. This must succeed.
@@ -344,18 +344,18 @@ class TestPatchK8s:
             srv = copy.deepcopy(loc)
             loc['metadata']['labels'] = {"key": "value"}
 
-            data, err = sq.make_patch(config, k8sconfig, loc, srv)
+            data, err = sq.make_patch(k8sconfig, loc, srv)
             assert err is False and len(data) > 0
 
     @mock.patch.object(k8s, "resource")
-    def test_make_patch_error_resource(self, m_url, config, k8sconfig):
+    def test_make_patch_error_resource(self, m_url, k8sconfig):
         """Coverage gap: simulate `resource` error."""
         # Simulate `resource` error.
         m_url.return_value = (None, True)
 
         # Test function must return with error.
         loc = srv = make_manifest("Deployment", "ns", "foo")
-        assert sq.make_patch(config, k8sconfig, loc, srv) == (JsonPatch("", []), True)
+        assert sq.make_patch(k8sconfig, loc, srv) == (JsonPatch("", []), True)
 
 
 class TestMatchApiVersions:
@@ -553,7 +553,7 @@ class TestMatchApiVersions:
 
 
 class TestPlan:
-    def test_make_patch_ok(self, config, k8sconfig):
+    def test_make_patch_ok(self, k8sconfig):
         """Compute patch between two manifests.
 
         This test function first verifies that the patch between two identical
@@ -573,7 +573,7 @@ class TestPlan:
         res, err = resource(k8sconfig, MetaManifest("apps/v1", kind, namespace, name))
         assert not err
         expected = JsonPatch(url=res.url, ops=[])
-        assert sq.make_patch(config, k8sconfig, loc, loc) == (expected, False)
+        assert sq.make_patch(k8sconfig, loc, loc) == (expected, False)
 
         # The patch between `srv` and `loc` must remove the old label and add
         # the new one.
@@ -584,9 +584,9 @@ class TestPlan:
                 {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'}
             ]
         )
-        assert sq.make_patch(config, k8sconfig, loc, srv) == (expected, False)
+        assert sq.make_patch(k8sconfig, loc, srv) == (expected, False)
 
-    def test_make_patch_err(self, config, k8sconfig):
+    def test_make_patch_err(self, k8sconfig):
         """Verify error cases with invalid or incompatible manifests."""
         err_resp = (JsonPatch("", []), True)
 
@@ -596,13 +596,13 @@ class TestPlan:
         # Must handle `resource` errors.
         with mock.patch.object(sq.k8s, "resource") as m_url:
             m_url.return_value = (None, True)
-            assert sq.make_patch(config, k8sconfig, valid, valid) == err_resp
+            assert sq.make_patch(k8sconfig, valid, valid) == err_resp
 
         # Must handle incompatible manifests, ie manifests that do not belong
         # to the same resource.
         valid_a = make_manifest(kind, namespace, "bar")
         valid_b = make_manifest(kind, namespace, "foo")
-        assert sq.make_patch(config, k8sconfig, valid_a, valid_b) == err_resp
+        assert sq.make_patch(k8sconfig, valid_a, valid_b) == err_resp
 
     def test_sort_plan(self, config):
         # Dummy MetaManifests that we will use in our test plan.
@@ -842,7 +842,7 @@ class TestPlan:
 
         # Compute the JSON patch and textual diff to populate the expected
         # output structure below.
-        patch, err = sq.make_patch(config, k8sconfig, loc_man[meta], srv_man[meta])
+        patch, err = sq.make_patch(k8sconfig, loc_man[meta], srv_man[meta])
         assert not err
         diff_str, err = manio.diff(config, k8sconfig, loc_man[meta], srv_man[meta])
         assert not err
