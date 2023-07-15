@@ -483,8 +483,8 @@ class TestMainPlan:
         plan_2, err = square.square.make_plan(config)
         assert not err
         assert plan_2.create == plan_2.delete == [] and len(plan_2.patch) == 1
-        assert plan_2.patch[0].meta.name == "hpav2beta2"  # type: ignore
-        assert plan_2.patch[0].meta.apiVersion == "autoscaling/v2beta2"  # type: ignore
+        assert plan_2.patch[0].meta.name == "hpav2beta2"
+        assert plan_2.patch[0].meta.apiVersion == "autoscaling/v2beta2"
         del plan_2
 
         # ---------------------------------------------------------------------
@@ -538,5 +538,5 @@ class TestMainPlan:
         plan_6, err = square.square.make_plan(config)
         assert not err
         assert plan_6.delete == plan_6.create == [] and len(plan_6.patch) == 1
-        assert plan_6.patch[0].meta.name == "hpav1"  # type: ignore
-        assert plan_6.patch[0].meta.apiVersion == "autoscaling/v2beta2"  # type: ignore
+        assert plan_6.patch[0].meta.name == "hpav1"
+        assert plan_6.patch[0].meta.apiVersion == "autoscaling/v2beta2"
