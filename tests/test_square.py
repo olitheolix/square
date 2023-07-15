@@ -910,7 +910,7 @@ class TestPlan:
         assert sq.compile_plan(config, k8sconfig, error, valid) == err_resp
         assert sq.compile_plan(config, k8sconfig, error, error) == err_resp
 
-    def test_run_user_callback(self, config, k8sconfig):
+    def test_run_user_callback(self, config):
         """Safeguard the call to the user supplied callback function.
 
         This test will define a few callback functions. Some will work as
