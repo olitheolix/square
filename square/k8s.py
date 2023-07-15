@@ -506,7 +506,7 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
             url += f"/{meta.name}"
         return resource._replace(url=url), False
 
-    # Determine if the prefix for namespaced resources.
+    # Determine the prefix for namespaced resources.
     if meta.namespace is None:
         namespace = ""
     else:
