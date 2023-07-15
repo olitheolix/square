@@ -169,8 +169,8 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         folder=Filepath(""),
         kubeconfig=Filepath(""),
         kubecontext=None,
-        selectors=Selectors(set(), namespaces=[], labels=[]),
-        groupby=GroupBy("", []),
+        selectors=Selectors(),
+        groupby=GroupBy(label="", order=[]),
         priorities=[],
     ), True
 
@@ -272,7 +272,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     namespaces = cfg.selectors.namespaces if p.namespaces is None else p.namespaces
     sel_labels = cfg.selectors.labels if p.labels is None else p.labels
     priorities = p.priorities or cfg.priorities
-    selectors = Selectors(kinds, namespaces, sel_labels)
+    selectors = Selectors(kinds=kinds, namespaces=namespaces, labels=sel_labels)
 
     # Use filters from (default) config file because they cannot be specified
     # on the command line.
@@ -350,7 +350,7 @@ def expand_all_kinds(cfg: Config) -> Tuple[Config, bool]:
     Does nothing if `cfg.selectors.kinds` is non-empty.
 
     """
-    # Do nothing if the user specified at least on resource type.
+    # Do nothing if the user specified at least one resource type.
     if len(cfg.selectors.kinds) > 0:
         return cfg, False
 
@@ -359,9 +359,7 @@ def expand_all_kinds(cfg: Config) -> Tuple[Config, bool]:
     if err:
         return (cfg, True)
 
-    # Replace the empty resource list with all kinds that K8s has to offer and
-    # that Square can manage (ie all kinds with the correct set of verbs to
-    # create, delete, get, and patch).
+    # Replace the empty resource list with all KINDS that K8s has to offer.
     cfg.selectors.kinds.clear()
     cfg.selectors.kinds.update(k8sconfig.kinds)
     return (cfg, False)

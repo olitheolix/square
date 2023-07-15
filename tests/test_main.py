@@ -111,9 +111,9 @@ class TestResourceCleanup:
             selectors=Selectors(
                 kinds=set(),
                 namespaces=['default'],
-                labels=["app=morty", "foo=bar"],
+                labels=["app=square", "foo=bar"],
             ),
-            groupby=GroupBy("", []),
+            groupby=GroupBy(label="", order=[]),
             priorities=["Namespace", "Deployment"],
         )
 
@@ -128,9 +128,9 @@ class TestResourceCleanup:
             selectors=Selectors(
                 kinds={"svc", "Deployment"},
                 namespaces=['default'],
-                labels=["app=morty", "foo=bar"],
+                labels=["app=square", "foo=bar"],
             ),
-            groupby=GroupBy("", []),
+            groupby=GroupBy(label="", order=[]),
             priorities=["Namespace", "Deployment"],
         )
 
@@ -138,7 +138,7 @@ class TestResourceCleanup:
         ret, err = main.expand_all_kinds(cfg)
         assert not err and ret == cfg
 
-    def test_expand_all_kinds_err_config(self, k8sconfig):
+    def test_expand_all_kinds_err_config(self):
         """Abort if the kubeconfig file does not exist."""
         cfg = Config(
             folder=pathlib.Path('/tmp'),
@@ -147,9 +147,9 @@ class TestResourceCleanup:
             selectors=Selectors(
                 kinds=set(),
                 namespaces=['default'],
-                labels=["app=morty", "foo=bar"],
+                labels=["app=square", "foo=bar"],
             ),
-            groupby=GroupBy("", []),
+            groupby=GroupBy(label="", order=[]),
             priorities=["Namespace", "Deployment"],
         )
 
@@ -201,7 +201,7 @@ class TestMain:
         assert not err
         assert cfg.selectors.kinds == ref_config.selectors.kinds
 
-    def test_compile_config_kinds_merge_file(self, config, tmp_path):
+    def test_compile_config_kinds_merge_file(self, tmp_path):
         """Merge configuration from file and command line."""
         # Dummy file.
         kubeconfig_override = tmp_path / "kubeconfig"
@@ -353,7 +353,7 @@ class TestMain:
         """
         # Unpack the fixture: path to valid ".square.yaml", command line
         # parameters and an already parsed `Config`.
-        fname_config, param, ref_config = fname_param_config
+        fname_config, param, _ = fname_param_config
         ref_data = yaml.safe_load(fname_config.read_text())
 
         cwd = fname_config.parent
@@ -458,7 +458,7 @@ class TestMain:
                 else:
                     assert err
 
-    def test_compile_config_kinds_clear_existing(self, fname_param_config, tmp_path):
+    def test_compile_config_kinds_clear_existing(self, fname_param_config):
         """Empty list on command line must clear the option."""
         _, param, _ = fname_param_config
 
@@ -509,8 +509,8 @@ class TestMain:
                 folder=Filepath(""),
                 kubeconfig=Filepath(""),
                 kubecontext=None,
-                selectors=Selectors(set(), [], []),
-                groupby=GroupBy("", []),
+                selectors=Selectors(),
+                groupby=GroupBy(),
                 priorities=[],
             ), True)
 
@@ -522,8 +522,8 @@ class TestMain:
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kubecontext=None,
-            selectors=Selectors(set(), [], []),
-            groupby=GroupBy("", []),
+            selectors=Selectors(),
+            groupby=GroupBy(),
             priorities=[],
         ), True
 
@@ -813,8 +813,8 @@ class TestMain:
             folder=Filepath(""),
             kubeconfig=Filepath(""),
             kubecontext=None,
-            selectors=Selectors(set(), [], []),
-            groupby=GroupBy("", []),
+            selectors=Selectors(),
+            groupby=GroupBy(),
             priorities=[],
         )
         assert main.compile_config(param) == (expected, True)
