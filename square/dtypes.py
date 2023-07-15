@@ -143,16 +143,16 @@ class DeploymentPlan(NamedTuple):
     patches that make up a full plan.
 
     """
-    create: Collection[DeltaCreate]
-    patch: Collection[DeltaPatch]
-    delete: Collection[DeltaDelete]
+    create: List[DeltaCreate] | Tuple[DeltaCreate, ...]
+    patch: List[DeltaPatch] | Tuple[DeltaPatch, ...]
+    delete: List[DeltaDelete] | Tuple[DeltaDelete, ...]
 
 
 class DeploymentPlanMeta(NamedTuple):
     """Same as `DeploymentPlan` but contains `MetaManifests` only."""
-    create: Collection[MetaManifest]
-    patch: Collection[MetaManifest]
-    delete: Collection[MetaManifest]
+    create: List[MetaManifest] | Tuple[MetaManifest, ...]
+    patch: List[MetaManifest] | Tuple[MetaManifest, ...]
+    delete: List[MetaManifest] | Tuple[MetaManifest, ...]
 
 
 # -----------------------------------------------------------------------------
