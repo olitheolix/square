@@ -22,12 +22,12 @@ from square.dtypes import Config, Filepath
 logit = logging.getLogger("square")
 
 
-# Need to disable MyPy type checking because it would otherwise report the
-# first `if` statement as unreachable code. That warning is justified but
-# ignores the recursive nature of the function where one of the nested elements
-# may not adhere to the requirement.
-@typing.no_type_check
-def valid(filters: List[dict | list | str]) -> bool:
+def valid(filters: dict) -> bool:
+    """Return `True` iff `filters` is valid."""
+    return _valid(filters)
+
+
+def _valid(filters) -> bool:
     """Return `True` iff `filters` is valid."""
     if not isinstance(filters, list):
         logit.error(f"<{filters}> must be a list")
@@ -43,7 +43,7 @@ def valid(filters: List[dict | list | str]) -> bool:
             value = list(el.values())[0]
 
             # Recursively check the dictionary values.
-            if not valid(value):
+            if not _valid(value):
                 logit.error(f"<{value}> is invalid")
                 return False
         elif isinstance(el, str):
@@ -51,7 +51,7 @@ def valid(filters: List[dict | list | str]) -> bool:
                 logit.error("Strings must be non-empty")
                 return False
         else:
-            logit.error(f"<{el}> must be a string")
+            logit.error(f"<{el}> must be a string or dict")
             return False
     return True
 
