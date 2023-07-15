@@ -319,7 +319,7 @@ def compile_plan(
         logit.error("Could not strip all manifests.")
         return err_resp
 
-    # Unpack the filtered manifests (ie first element in the tuple returned
+    # Unpack the stripped manifests (ie first element in the tuple returned
     # by `manio.strip`).
     server = {k: dotdict.undo(v[0]) for k, v in stripped_server.items()}
     local = {k: dotdict.undo(v[0]) for k, v in stripped_local.items()}
@@ -360,8 +360,8 @@ def compile_plan(
     # Compile the Deltas to delete the excess resources.
     delete = []
     for meta in plan.delete:
-        # Resource URL. Ignore the error flag because the `strip` function
-        # above already called `k8s.resource` and would have aborted on error.
+        # Resource URL. Ignore the error flag because `strip` already called
+        # `k8s.resource` earlier and would have aborted if there was an error.
         resource, err = k8s.resource(k8sconfig, meta)
         assert not err
 
@@ -784,9 +784,8 @@ def get_resources(cfg: Config) -> bool:
         # Use a wildcard Selector to ensure `manio.load` will read _all_ local
         # manifests. This will allow `manio.sync` to modify the ones specified by
         # the `selector` argument only, delete all the local manifests, and then
-        # write the new ones. This logic will ensure we never have stale manifests
-        # (see `manio.save_files` for details and how `manio.save`, which we call
-        # at the end of this function, uses it).
+        # write the new ones. This logic will ensure we never have stale manifests.
+        # Refer to `manio.save_files` for details and how `manio.save` uses it.
         load_selectors = Selectors(kinds=k8sconfig.kinds, labels=[], namespaces=[])
 
         # Load manifests from local files.
