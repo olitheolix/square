@@ -29,7 +29,7 @@ DotDict = square.dotdict.DotDict
 # NOTE: this import is excluded from the coverage report since it is difficult
 #       to write a meaningful test around a library import that may or may not
 #       exist on the host. I deem this acceptable in this case because it is a
-#       widely used snipped devoid of logic.
+#       widely used snippet and devoid of logic.
 try:                                 # codecov-skip
     from yaml import (  # type: ignore
         CSafeDumper as Dumper, CSafeLoader as Loader,
