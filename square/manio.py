@@ -122,13 +122,12 @@ def select(manifest: dict, selectors: Selectors) -> bool:
         logit.debug(f"Namespace {ns} does not match selector {selectors.namespaces}")
         return False
 
-    # Convert the labels dictionary into a set of (key, value) tuples. We can
-    # then use set-logic to determine if the resource specifies the desired
-    # labels or not.
-    labels = {(k, v) for k, v in labels.items()}
-
-    # The resource must match the label selectors unless we have no such selectors.
+    # The manifest must match all label selectors to be included.
     if label_selectors:
+        # Convert the labels dictionary into a Set of (key, value) tuples. We can
+        # then use set-logic to determine if the manifest has the necessary labels.
+        labels = set(labels.items())
+
         if not label_selectors.issubset(labels):
             logit.debug(f"Labels {labels} do not match selector {selectors.labels}")
             return False
