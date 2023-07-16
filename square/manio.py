@@ -14,7 +14,7 @@ import square.dotdict
 import square.k8s
 from square.dtypes import (
     Config, Filepath, Filters, FiltersKind, GroupBy, K8sConfig, K8sResource,
-    LocalManifestLists, MetaManifest, Selectors, ServerManifests,
+    KindName, LocalManifestLists, MetaManifest, Selectors, ServerManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -84,7 +84,7 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     assert all([len(_) == 2 for _ in label_selectors])
 
     # Unpack KIND, LABELS and NAME.
-    kind = manifest.get("kind", None)
+    kind = manifest.get("kind", "_unknown_")
     labels = manifest.get("metadata", {}).get("labels", {})
     name = manifest.get("metadata", {}).get("name", "")
 
@@ -111,15 +111,18 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     else:
         pass
 
-    # Abort if this manifest does not have a KIND that matches the selector.
-    if kind not in selectors.kinds:
-        logit.debug(f"Kind {kind} does not match selector {selectors.kinds}")
-        return False
-
     # Skip this resource if it is a) namespaced b) we have namespace
     # selectors and c) the resource does not match it.
     if (ns and selectors.namespaces) and ns not in selectors.namespaces:
         logit.debug(f"Namespace {ns} does not match selector {selectors.namespaces}")
+        return False
+
+    if KindName(kind=kind, name=name) in selectors._kinds_names:
+        return True
+
+    # Abort if this manifest does not have a KIND that matches the selector.
+    if kind not in selectors._kinds_only:
+        logit.debug(f"Kind {kind} does not match selector {selectors.kinds}")
         return False
 
     # The manifest must match all label selectors to be included.
