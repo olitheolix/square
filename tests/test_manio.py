@@ -235,7 +235,6 @@ class TestUnpackParse:
             'items': manifests,
         }
 
-
         # Select all.
         for ns in ([], ["ns_0", "ns_1", "ns_2"]):
             ns = cast(List[str], ns)
@@ -1186,7 +1185,10 @@ class TestYamlManifestIOIntegration:
     def test_load_save_files_empty(self, tmp_path):
         """Only non-empty files must be written."""
         # Add an empty file.
-        file_data = {Filepath("empty.yaml"): "", Filepath("nonempty.yaml"): "some content"}
+        file_data = {
+            Filepath("empty.yaml"): "",
+            Filepath("nonempty.yaml"): "some content"
+        }
 
         # Saving the files. Verify that the empty one was not created.
         assert manio.save_files(tmp_path, file_data) is False
