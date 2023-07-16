@@ -73,8 +73,8 @@ def select(manifest: dict, selectors: Selectors) -> bool:
         bool: `True` iff the resource matches all selectors.
 
     """
-    # "kinds" cannot be an empty list or `None`.
-    if not selectors.kinds:
+    # The "kinds" selector must be non-empty.
+    if len(selectors.kinds) == 0:
         logit.error(f"BUG: selector must specify a `kind`: {selectors}")
         return False
 
@@ -94,9 +94,9 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     # Furthermore, we *never* mess with `default-token-*` Secrets or the
     # `default` service account. K8s automatically creates them in every new
     # namespace. We can thus never "restore" them with Square because the plan
-    # says to create them yet once Square created the namespace they also
-    # already exist and can only be patched. As a result, Square would abort
-    # unexpectedly.
+    # would create them yet once Square created the associated namespace the
+    # service account already exist and can only be patched, not created
+    # anymore. As a result, Square would abort unexpectedly.
     ns = manifest.get("metadata", {}).get("namespace", None)
     if kind == "Namespace":
         ns = manifest.get("metadata", {}).get("name", None)
@@ -111,7 +111,7 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     else:
         pass
 
-    # Abort if this manifest does not have the KIND we are looking for.
+    # Abort if this manifest does not have a KIND that matches the selector.
     if kind not in selectors.kinds:
         logit.debug(f"Kind {kind} does not match selector {selectors.kinds}")
         return False

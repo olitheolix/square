@@ -137,6 +137,4 @@ def load(fname: Filepath) -> Tuple[Config, bool]:
     # Ensure the path is an absolute path.
     cfg.folder = fname.parent.absolute() / cfg.folder
 
-    # Convert the list to a set. No functional reason.
-    cfg.selectors.kinds = set(cfg.selectors.kinds)
     return cfg, False
