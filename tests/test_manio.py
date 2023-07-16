@@ -169,6 +169,42 @@ class TestHelpers:
         manifest = make_manifest(kind, ns, "some-secret")
         assert select(manifest, Sel(kinds={kind}, namespaces=[ns])) is True
 
+    def test_select_kind_name(self):
+        """Verify `select` if not only KIND but also NAME was specified."""
+        # Convenience.
+        select = manio.select
+        manifest = make_manifest("Pod", "ns", "app")
+
+        # Must be selected because it is a Pod.
+        for namespaces in ([], ["ns"]):
+            selector = Selectors(kinds={"Pod"}, namespaces=namespaces)
+            assert select(manifest, selector) is True
+
+        # Must be selected because it is uniquely specified Pod.
+        for namespaces in ([], ["ns"]):
+            selector = Selectors(kinds={"Pod/app"}, namespaces=namespaces)
+            assert select(manifest, selector) is True
+
+        # Must not select it because it is not the uniquely specified Pod.
+        for namespaces in ([], ["ns"]):
+            selector = Selectors(kinds={"Pod/foo"}, namespaces=namespaces)
+            assert select(manifest, selector) is False
+
+        # Must be selected because it is covered by "Pod".
+        for namespaces in ([], ["ns"]):
+            selector = Selectors(kinds={"Pod/foo", "Pod"}, namespaces=namespaces)
+            assert select(manifest, selector) is True
+
+        # Must never select the manifest if the namespace is wrong.
+        selectors = [
+            Selectors(kinds={"Pod"}, namespaces=["wrong"]),
+            Selectors(kinds={"Pod/app"}, namespaces=["wrong"]),
+            Selectors(kinds={"Pod/foo"}, namespaces=["wrong"]),
+            Selectors(kinds={"Pod/foo", "Pod"}, namespaces=["wrong"]),
+        ]
+        for selector in selectors:
+            assert select(manifest, selector) is False
+
 
 class TestUnpackParse:
     def test_unpack_list_without_selectors_ok(self):
