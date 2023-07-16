@@ -11,7 +11,7 @@ import square.square as sq
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
     DeploymentPlan, DeploymentPlanMeta, Filepath, GroupBy, JsonPatch,
-    K8sConfig, MetaManifest, Selectors, ServerManifests,
+    K8sConfig, KindName, MetaManifest, Selectors, ServerManifests,
 )
 from square.k8s import resource
 
@@ -100,7 +100,7 @@ class TestBasic:
         )
         assert sq.show_plan(plan) is False
 
-    def test_translate_resource_kinds(self, k8sconfig):
+    def test_translate_resource_kinds_simple(self, k8sconfig):
         """Translate various spellings in `selectors.kinds`"""
         cfg = Config(
             folder=Filepath('/tmp'),
@@ -113,8 +113,14 @@ class TestBasic:
 
         # Convert the resource names to their correct K8s kind.
         ret = sq.translate_resource_kinds(cfg, k8sconfig)
-        assert ret.selectors.kinds == {"Service", "Deployment", "Secret"}
         assert ret.priorities == ["Namespace", "Deployment"]
+        assert ret.selectors.kinds == {"Service", "Deployment", "Secret"}
+        assert ret.selectors._kinds_only == {"Service", "Deployment", "Secret"}
+        assert ret.selectors._kinds_names == [
+            KindName(kind="Deployment", name=""),
+            KindName(kind="Secret", name=""),
+            KindName(kind="Service", name=""),
+        ]
 
         # Add two invalid resource names. This must succeed but return the
         # resource names without having changed them.
@@ -123,8 +129,56 @@ class TestBasic:
         cfg.priorities.clear()
         cfg.priorities.extend(["invalid", "k8s-resource-kind"])
         ret = sq.translate_resource_kinds(cfg, k8sconfig)
-        assert ret.selectors.kinds == {"invalid", "k8s-resource-kind"}
         assert ret.priorities == ["invalid", "k8s-resource-kind"]
+        assert ret.selectors.kinds == {"invalid", "k8s-resource-kind"}
+        assert ret.selectors._kinds_only == {"invalid", "k8s-resource-kind"}
+        assert ret.selectors._kinds_names == [
+            KindName(kind="invalid", name=""),
+            KindName(kind="k8s-resource-kind", name=""),
+        ]
+
+    def test_translate_resource_kinds_kind_name(self, k8sconfig):
+        """Same as previous test but this time also specify `kind/name`."""
+        kinds = {"svc/app1", "DEPLOYMENT/app2",
+                 "ns", "namespace/foo",
+                 "unknown-a", "unknown-b/foo"}
+        cfg = Config(
+            folder=Filepath('/tmp'),
+            kubeconfig=Filepath(),
+            kubecontext=None,
+            groupby=GroupBy(),
+            priorities=[],
+            selectors=Selectors(kinds=kinds),
+        )
+
+        # Verify the baseline.
+        assert cfg.selectors.kinds == kinds
+        assert cfg.selectors._kinds_only == {"ns", "unknown-a"}
+        assert cfg.selectors._kinds_names == [
+            KindName(kind="DEPLOYMENT", name="app2"),
+            KindName(kind="namespace", name="foo"),
+            KindName(kind="ns", name=""),
+            KindName(kind="svc", name="app1"),
+            KindName(kind="unknown-a", name=""),
+            KindName(kind="unknown-b", name="foo"),
+        ]
+
+        # Convert the selector KINDs to their canonical K8s KINDs.
+        ret = sq.translate_resource_kinds(cfg, k8sconfig)
+        assert ret.selectors.kinds == {
+            "Service/app1", "Deployment/app2",
+            "Namespace", "Namespace/foo",
+            "unknown-a", "unknown-b/foo"
+        }
+        assert ret.selectors._kinds_only == {"Namespace", "unknown-a"}
+        assert ret.selectors._kinds_names == [
+            KindName(kind="Deployment", name="app2"),
+            KindName(kind="Namespace", name=""),
+            KindName(kind="Namespace", name="foo"),
+            KindName(kind="Service", name="app1"),
+            KindName(kind="unknown-a", name=""),
+            KindName(kind="unknown-b", name="foo"),
+        ]
 
     def test_valid_label(self):
         """Test label values (not their key names)."""

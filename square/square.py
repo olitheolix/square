@@ -32,23 +32,30 @@ def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
 
     Silently ignore unknown resource kinds. This is necessary because the user
     may have specified a custom resource that does not (yet) exist. Since we
-    cannot distinguish those from typos we must allow them but
-    will ignore them during the get/plan/apply cycle.
+    cannot distinguish those from typos we allow them here because the
+    get/plan/apply cycle will ignore them anyway.
 
     """
+    # Convenience
+    short2kind = k8sconfig.short2kind
+
     # Avoid side effects to the original `cfg`.
     cfg = copy.deepcopy(cfg)
 
     # Translate the shorthand names to their canonical K8s names. Use the
     # original name if we cannot find a canonical name for it.
-    kinds = {k8sconfig.short2kind.get(_.lower(), _) for _ in cfg.selectors.kinds}
-    priorities = [k8sconfig.short2kind.get(_.lower(), _) for _ in cfg.priorities]
+    cfg.priorities = [short2kind.get(_.lower(), _) for _ in cfg.priorities]
 
-    # Return a copy of `cfg` with the translated resource kinds.
+    # Backup the original list of KIND selectors.
+    kinds_names = [(_.kind, _.name) for _ in cfg.selectors._kinds_names]
     cfg.selectors.kinds.clear()
-    cfg.selectors.kinds.update(kinds)
-    cfg.priorities.clear()
-    cfg.priorities.extend(priorities)
+
+    # Convert eg [("ns"), ("svc", "app1")] -> {"Namespace", "Service/app1"}.
+    for kind, name in kinds_names:
+        ans = short2kind.get(kind.lower(), kind)
+        ans = ans if name == "" else f"{ans}/{name}"
+        cfg.selectors.kinds.add(ans)
+
     return cfg
 
 
