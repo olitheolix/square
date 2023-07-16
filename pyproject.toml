@@ -16,10 +16,10 @@ colorlog = "*"
 google = "*"
 google-api-python-client = "*"
 jsonpatch = "*"
-pydantic = ">=1.8"
+pydantic = ">=2.0"
 python = ">=3.10"
 pyyaml = "*"
-requests = "*"
+requests = ">=2.31"
 
 [tool.poetry.dev-dependencies]
 bumpversion = "*"
