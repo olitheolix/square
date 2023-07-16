@@ -124,6 +124,7 @@ def load(fname: Filepath) -> Tuple[Config, bool]:
         # Explicitly access the computed `_kinds_names` attribute because
         # Pydantic will not compute it until it is accessed.
         cfg.selectors._kinds_names
+        cfg.selectors._kinds_only
     except (pydantic.ValidationError, TypeError) as e:
         logit.error(f"Schema is invalid: {e}")
         return err_resp
