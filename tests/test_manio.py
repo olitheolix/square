@@ -2097,6 +2097,100 @@ class TestDownloadManifests:
         ]
 
     @mock.patch.object(k8s, 'get')
+    def test_download_kind_name(self, m_get, config, k8sconfig):
+        """Special case: user specified explicit kind/name selectors.
+
+        The test only mocks the K8s API call. All other functions actually run.
+
+        """
+        man_ns0 = make_manifest("Namespace", None, "ns0")
+        man_ns1 = make_manifest("Namespace", None, "ns1")
+        man_dp0 = make_manifest("Deployment", "ns0", "d0")
+        man_dp1 = make_manifest("Deployment", "ns1", "d1")
+
+        # Resource URLs (not namespaced).
+        res_ns, err1 = resource(k8sconfig, MetaManifest("", "Namespace", None, ""))
+        res_deploy, err2 = resource(k8sconfig, MetaManifest("", "Deployment", None, ""))
+        assert not any([err1, err2])
+        del err1, err2
+
+        # Create mocked K8s for a NamespaceList and DeploymentList (all namespaces).
+        l_ns = {
+            'apiVersion': 'v1',
+            'kind': 'NamespaceList',
+            "items": [man_ns0, man_ns1],
+        }
+        l_dply = {
+            'apiVersion': 'apps/v1',
+            'kind': 'DeploymentList',
+            "items": [man_dp0, man_dp1],
+        }
+
+        # Convenience: create meta manifest and stripped K8s manifests for our
+        # demo resources. This will make the test more readable.
+        meta_ns0 = manio.make_meta(man_ns0)
+        meta_dp0 = manio.make_meta(man_dp0)
+        meta_dp1 = manio.make_meta(man_dp1)
+
+        manstrip_ns0 = manio.strip(k8sconfig, man_ns0, {})[0]
+        manstrip_dp0 = manio.strip(k8sconfig, man_dp0, {})[0]
+        manstrip_dp1 = manio.strip(k8sconfig, man_dp1, {})[0]
+
+        # ----------------------------------------------------------------------
+        # Ask for a single specific deployment.
+        # ----------------------------------------------------------------------
+        m_get.reset_mock()
+        m_get.side_effect = [(l_dply, False)]
+        config.selectors = Selectors(kinds={"Deployment/d0"})
+        expected = {meta_dp0: manstrip_dp0}
+        assert manio.download(config, k8sconfig) == (expected, False)
+        assert m_get.call_args_list == [
+            mock.call(k8sconfig.client, res_deploy.url),
+        ]
+
+        # ----------------------------------------------------------------------
+        # Ask for two specific deployments.
+        # ----------------------------------------------------------------------
+        m_get.reset_mock()
+        m_get.side_effect = [(l_dply, False)]
+        config.selectors = Selectors(kinds={"Deployment/d0", "Deployment/d1"})
+        expected = {meta_dp0: manstrip_dp0, meta_dp1: manstrip_dp1}
+        assert manio.download(config, k8sconfig) == (expected, False)
+        assert m_get.call_args_list == [
+            mock.call(k8sconfig.client, res_deploy.url),
+        ]
+
+        # ----------------------------------------------------------------------
+        # Ask for a specific deployment as well as all deployments.
+        # This must make one call to the deployment endpoint and return all.
+        # ----------------------------------------------------------------------
+        m_get.reset_mock()
+        m_get.side_effect = [(l_dply, False)]
+        config.selectors = Selectors(kinds={"Deployment/d0", "Deployment"})
+        expected = {meta_dp0: manstrip_dp0, meta_dp1: manstrip_dp1}
+        assert manio.download(config, k8sconfig) == (expected, False)
+        assert m_get.call_args_list == [
+            mock.call(k8sconfig.client, res_deploy.url),
+        ]
+
+        # ----------------------------------------------------------------------
+        # Ask for all deployments and a specific namespace.
+        # This must make two calls, one the deployment and namespace endpoint,
+        # respectively.
+        # ----------------------------------------------------------------------
+        m_get.reset_mock()
+        m_get.side_effect = [(l_dply, False), (l_ns, False)]
+        config.selectors = Selectors(kinds={"Deployment", "Namespace/ns0"})
+        expected = {meta_dp0: manstrip_dp0,
+                    meta_dp1: manstrip_dp1,
+                    meta_ns0: manstrip_ns0}
+        assert manio.download(config, k8sconfig) == (expected, False)
+        assert m_get.call_args_list == [
+            mock.call(k8sconfig.client, res_deploy.url),
+            mock.call(k8sconfig.client, res_ns.url),
+        ]
+
+    @mock.patch.object(k8s, 'get')
     def test_download_err(self, m_get, config, k8sconfig):
         """Simulate a download error."""
         # A valid NamespaceList with one element.
