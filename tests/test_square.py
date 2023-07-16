@@ -34,13 +34,9 @@ class TestBasic:
             folder=tmp_path,
             kubecontext="ctx",
             kubeconfig=tmp_path,
-            selectors=Selectors(
-                kinds=set(),
-                namespaces=[],
-                labels=[]
-            ),
+            selectors=Selectors(),
             priorities=list(DEFAULT_PRIORITIES),
-            groupby=GroupBy(label="", order=[]),
+            groupby=GroupBy(),
             filters={},
         )
 
@@ -110,13 +106,9 @@ class TestBasic:
             folder=Filepath('/tmp'),
             kubeconfig=Filepath(),
             kubecontext=None,
-            selectors=Selectors(
-                kinds={"svc", 'DEPLOYMENT', "Secret"},
-                namespaces=['default'],
-                labels=["app=square", "foo=bar"],
-            ),
-            groupby=GroupBy(label="", order=[]),
+            groupby=GroupBy(),
             priorities=["ns", "DEPLOYMENT"],
+            selectors=Selectors(kinds={"svc", 'DEPLOYMENT', "Secret"}),
         )
 
         # Convert the resource names to their correct K8s kind.
@@ -136,7 +128,7 @@ class TestBasic:
 
     def test_valid_label(self):
         """Test label values (not their key names)."""
-        # A specific example of a valid label that trigger a bug once.
+        # A specific example of a valid label that triggered a bug once.
         assert sq.valid_label("dh/repo=pd-devops-charts")
 
         # Valid specimen.
