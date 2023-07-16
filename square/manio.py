@@ -974,9 +974,16 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[ServerManifests, boo
     else:
         all_namespaces = config.selectors.namespaces
 
+    # Determine all the resource endpoints we need to interrogate on K8s. We
+    # cannot use `config.selectors._kinds_only` because it will be empty if the
+    # user selected only specific resources, eg `svc/foo` instead of just
+    # `svc`. We therefore need to compile the list of all resource types the
+    # user wanted which we can get from the `selectors._kinds_names`.
+    all_kinds = {_.kind for _ in config.selectors._kinds_names}
+
     # Download each resource type. Abort at the first error and return nothing.
     for namespace in all_namespaces:
-        for kind in sorted(config.selectors.kinds):
+        for kind in sorted(all_kinds):
             # Get the K8s URL for the current resource kind. Ignore this
             # resource if K8s does not know about it. The reason for that could
             # be a typo or that it is a Custom Resource that does not (yet) exist.
