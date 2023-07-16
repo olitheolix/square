@@ -117,13 +117,13 @@ def load(fname: Filepath) -> Tuple[Config, bool]:
         logit.error(msg)
         return err_resp
 
-    if not isinstance(raw, dict):
-        logit.error(f"Config file <{fname}> has invalid structure")
-        return err_resp
-
     # Parse the configuration into `ConfigFile` structure.
     try:
-        cfg = Config(**raw)
+        cfg = Config.model_validate(raw)
+
+        # Explicitly access the computed `_kinds_names` attribute because
+        # Pydantic will not compute it until it is accessed.
+        cfg.selectors._kinds_names
     except (pydantic.ValidationError, TypeError) as e:
         logit.error(f"Schema is invalid: {e}")
         return err_resp
