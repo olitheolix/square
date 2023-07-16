@@ -318,6 +318,78 @@ class TestMainGet:
         assert not square.square.get_resources(config)
         assert list(yaml.safe_load_all(man_path.read_text())) == manifests
 
+    def test_main_get_kind_name_resource(self, tmp_path):
+        """Sync a configmap specified by its `Configmap/name` selector.
+
+        In this test we will plan against an empty local manifest folder, which
+        means Square every only want to delete anything; no patching or creating.
+
+        """
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        # Populate the `Config` structure. All main functions expect this.
+        config = Config(
+            kubecontext=None,
+            kubeconfig=Filepath("/tmp/kubeconfig-kind.yaml"),
+
+            # Store manifests in this folder.
+            folder=tmp_path / 'manifests',
+        )
+
+        # ----------------------------------------------------------------------
+        # Must find 6 Configmaps in our two test namespaces.
+        # ----------------------------------------------------------------------
+        config.selectors = Selectors(
+            kinds={"Configmap"},
+            namespaces=["square-tests-1", "square-tests-2"]
+        )
+        plan, err = square.plan(config)
+        assert not err
+        assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 6
+
+        # ----------------------------------------------------------------------
+        # Must find 3 Configmaps in "square-tests-1".
+        # ----------------------------------------------------------------------
+        config.selectors = Selectors(
+            kinds={"Configmap"},
+            namespaces=["square-tests-1"]
+        )
+        plan, err = square.plan(config)
+        assert not err
+        assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 3
+
+        # ----------------------------------------------------------------------
+        # Must find exactly one Configmap if we specify it explicitly.
+        # ----------------------------------------------------------------------
+        config.selectors = Selectors(
+            kinds={"Configmap/demoapp-1"},
+            namespaces=["square-tests-1"]
+        )
+
+        plan, err = square.plan(config)
+        assert not err
+        assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 1
+        meta = [_.meta for _ in plan.delete][0]
+        assert meta.kind == "ConfigMap" and meta.name == "demoapp-1"
+
+        # ----------------------------------------------------------------------
+        # Must find the explicit ConfigMap if it exists in multiple namespaces.
+        # ----------------------------------------------------------------------
+        config.selectors = Selectors(
+            kinds={"Configmap/demoapp-1"},
+            namespaces=[]
+        )
+
+        plan, err = square.plan(config)
+        assert not err
+        assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 2
+        metas = [_.meta for _ in plan.delete]
+        assert len(metas) == 2
+        for meta in metas:
+            assert meta.kind == "ConfigMap" and meta.name == "demoapp-1"
+
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestMainPlan:
