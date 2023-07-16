@@ -453,7 +453,8 @@ class TestMain:
                 cfg, err = main.compile_config(param)
 
                 if envvar:
-                    assert not err and cfg.kubeconfig == Filepath(os.getenv("KUBECONFIG", ""))
+                    assert not err
+                    assert cfg.kubeconfig == Filepath(os.getenv("KUBECONFIG", ""))
                 else:
                     assert err
 

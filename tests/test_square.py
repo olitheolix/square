@@ -531,7 +531,7 @@ class TestMatchApiVersions:
         }
         server_in = {
             MetaManifest("v1", "Service", "svc-name", "ns1"): {"ns": "srv"},
-            MetaManifest("extensions/v1beta1", "Deployment", "ns", "bar"): {"orig": "srv"},
+            MetaManifest("extensions/v1beta1", "Deployment", "ns", "bar"): {"orig": "srv"},  # noqa
         }
         srv, err = fun(k8sconfig, local_in, server_in)
         assert not err and srv == server_in
