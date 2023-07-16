@@ -39,8 +39,8 @@ def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
     # Avoid side effects to the original `cfg`.
     cfg = copy.deepcopy(cfg)
 
-    # Translate the possibly colloquial names to their canonical K8s names. Use
-    # the original name if we cannot find the canonical name.
+    # Translate the shorthand names to their canonical K8s names. Use the
+    # original name if we cannot find a canonical name for it.
     kinds = {k8sconfig.short2kind.get(_.lower(), _) for _ in cfg.selectors.kinds}
     priorities = [k8sconfig.short2kind.get(_.lower(), _) for _ in cfg.priorities]
 
@@ -780,10 +780,11 @@ def get_resources(cfg: Config) -> bool:
         cfg = translate_resource_kinds(cfg, k8sconfig)
 
         # Use a wildcard Selector to ensure `manio.load` will read _all_ local
-        # manifests. This will allow `manio.sync` to modify the ones specified by
-        # the `selector` argument only, delete all the local manifests, and then
-        # write the new ones. This logic will ensure we never have stale manifests.
-        # Refer to `manio.save_files` for details and how `manio.save` uses it.
+        # manifests. This will allow `manio.sync` to modify the ones specified
+        # by the `selector` argument only, delete all the local manifests and
+        # then create the new ones. This logic will ensure we never have stale
+        # manifests. Refer to `manio.save_files` for details and how
+        # `manio.save` uses it.
         load_selectors = Selectors(kinds=k8sconfig.kinds, labels=[], namespaces=[])
 
         # Load manifests from local files.
