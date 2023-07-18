@@ -11,7 +11,7 @@ import square.square as sq
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
     DeploymentPlan, DeploymentPlanMeta, Filepath, GroupBy, JsonPatch,
-    K8sConfig, KindName, MetaManifest, Selectors, ServerManifests,
+    K8sConfig, KindName, MetaManifest, Selectors, SquareManifests,
 )
 from square.k8s import resource
 
@@ -237,7 +237,7 @@ class TestPartition:
         # Local and cluster manifests are identical - the Plan must not
         # create/add anything but mark all resources for (possible)
         # patching.
-        manifests: ServerManifests = {
+        manifests: SquareManifests = {
             MetaManifest('v1', 'Namespace', None, 'ns3'): {},
             MetaManifest('v1', 'Namespace', None, 'ns1'): {},
             MetaManifest('v1', 'Deployment', 'ns2', 'bar'): {},
@@ -257,11 +257,11 @@ class TestPartition:
         fun = sq.partition_manifests
 
         # Local and cluster manifests are orthogonal.
-        local_man: ServerManifests = {
+        local_man: SquareManifests = {
             MetaManifest('v1', 'Deployment', 'ns2', 'bar'): {},
             MetaManifest('v1', 'Namespace', None, 'ns2'): {},
         }
-        cluster_man: ServerManifests = {
+        cluster_man: SquareManifests = {
             MetaManifest('v1', 'Deployment', 'ns1', 'foo'): {},
             MetaManifest('v1', 'Namespace', None, 'ns1'): {},
             MetaManifest('v1', 'Namespace', None, 'ns3'): {},
@@ -293,11 +293,11 @@ class TestPartition:
         # The local manifests are a subset of the server's. Therefore, the plan
         # must contain patches for those resources that exist locally and on
         # the server. All the other manifest on the server are obsolete.
-        local_man: ServerManifests = {
+        local_man: SquareManifests = {
             MetaManifest('v1', 'Deployment', 'ns2', 'bar1'): {},
             MetaManifest('v1', 'Namespace', None, 'ns2'): {},
         }
-        cluster_man: ServerManifests = {
+        cluster_man: SquareManifests = {
             MetaManifest('v1', 'Deployment', 'ns1', 'foo'): {},
             MetaManifest('v1', 'Deployment', 'ns2', 'bar1'): {},
             MetaManifest('v1', 'Deployment', 'ns2', 'bar2'): {},
@@ -426,11 +426,11 @@ class TestMatchApiVersions:
         # but with different `apiVersions`.
         meta_deploy_loc = MetaManifest("autoscaling/v2beta1", hpa, "ns", "name")
         meta_deploy_srv = MetaManifest("autoscaling/v2", hpa, "ns", "name")
-        local: ServerManifests = {
+        local: SquareManifests = {
             MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "loc"},
             meta_deploy_loc: {"dply": "loc"},
         }
-        server_in: ServerManifests = {
+        server_in: SquareManifests = {
             MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "srv"},
             meta_deploy_srv: {"orig": "srv"},
         }
@@ -464,11 +464,11 @@ class TestMatchApiVersions:
 
         # Create local and server manifests. Both specify the same HPAs
         # but K8s and the local manifests uses different `apiVersions`.
-        local: ServerManifests = {
+        local: SquareManifests = {
             MetaManifest("autoscaling/v2", hpa, "name", "ns1"): {"hpa": "1"},
             MetaManifest("autoscaling/v2beta2", hpa, "name", "ns2"): {"hpa": "2"},
         }
-        server_in: ServerManifests = {
+        server_in: SquareManifests = {
             # Same as in `local`
             MetaManifest("autoscaling/v2", hpa, "name", "ns1"): {"hpa": "1"},
 
@@ -507,7 +507,7 @@ class TestMatchApiVersions:
         hpa = "HorizontalPodAutoscaler"
 
         # Create local and server manifests for HPAs.
-        local_in: ServerManifests = {
+        local_in: SquareManifests = {
             # These two exist on server with the same API version.
             MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"loc-hpa": "1"},
             MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"loc-hpa": "2"},
@@ -515,7 +515,7 @@ class TestMatchApiVersions:
             # This one exists on the server but with a different API version.
             MetaManifest("autoscaling/v2beta1", hpa, "ns", "name-3"): {"loc-hpa": "3"},
         }
-        server_in: ServerManifests = {
+        server_in: SquareManifests = {
             # These two exist locally with the same API version.
             MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"srv-hpa": "1"},
             MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"srv-hpa": "2"},
@@ -562,7 +562,7 @@ class TestMatchApiVersions:
         assert not m_fetch.called
 
         # Local and server manifests are identical - must not synchronise anything.
-        local_in: ServerManifests = {
+        local_in: SquareManifests = {
             MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "loc"},
             MetaManifest("apps/v1", "Deployment", "ns", "name"): {"dply": "loc"},
         }
@@ -587,11 +587,11 @@ class TestMatchApiVersions:
 
         # Local- and server manifests have matching Deployments in two
         # different namespaces.
-        local_in: ServerManifests = {
+        local_in: SquareManifests = {
             MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy": "1"},
             MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy": "2"},
         }
-        server_in: ServerManifests = {
+        server_in: SquareManifests = {
             MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy": "1"},
             MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy": "1"},
         }
@@ -939,7 +939,7 @@ class TestPlan:
         """Abort if any of the manifests cannot be stripped."""
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
-        # Create two valid `ServerManifests`, then stunt one in such a way that
+        # Create two valid `SquareManifests`, then stunt one in such a way that
         # `manio.strip` will reject it.
         man_valid = make_manifest("Deployment", "namespace", "name")
         man_error = make_manifest("Deployment", "namespace", "name")
@@ -949,7 +949,7 @@ class TestPlan:
         # Stunt one manifest.
         del man_error["kind"]
 
-        # Compile to `ServerManifest` types.
+        # Compile to `SquareManifest` types.
         valid = {meta_valid: man_valid}
         error = {meta_error: man_error}
 

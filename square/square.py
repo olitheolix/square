@@ -18,7 +18,7 @@ import square.manio as manio
 from square.dtypes import (
     Config, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
     DeploymentPlanMeta, JsonPatch, K8sConfig, MetaManifest, Selectors,
-    ServerManifests,
+    SquareManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -111,8 +111,8 @@ def make_patch(
 
 
 def partition_manifests(
-        local: ServerManifests,
-        server: ServerManifests) -> Tuple[DeploymentPlanMeta, bool]:
+        local: SquareManifests,
+        server: SquareManifests) -> Tuple[DeploymentPlanMeta, bool]:
     """Compile `{local,server}` into CREATE, PATCH and DELETE groups.
 
     The returned deployment plan will contain *every* resource in
@@ -124,9 +124,9 @@ def partition_manifests(
     Patch : all resources that exist in both and therefore *may* need patching.
 
     Inputs:
-        local: ServerManifests
+        local: SquareManifests
             Usually the dictionary keys returned by `load_manifest`.
-        server: ServerManifests
+        server: SquareManifests
             Usually the dictionary keys returned by `manio.download`.
 
     Returns:
@@ -155,8 +155,8 @@ def partition_manifests(
 
 def match_api_version(
         k8sconfig: K8sConfig,
-        local: ServerManifests,
-        server: ServerManifests) -> Tuple[ServerManifests, bool]:
+        local: SquareManifests,
+        server: SquareManifests) -> Tuple[SquareManifests, bool]:
     """Fetch the manifests from the endpoints defined in the local manifest.
 
     If a local manifest uses a different value for `apiVersion` then we need to
@@ -169,9 +169,9 @@ def match_api_version(
     Inputs:
         config: Square configuration.
         k8sconfig: K8sConfig
-        local: ServerManifests
+        local: SquareManifests
             Should be output from `load_manifest` or `load`.
-        server: ServerManifests
+        server: SquareManifests
             Should be output from `manio.download`.
 
     Returns:
@@ -241,9 +241,9 @@ def run_user_callback(config: Config,
         config: Square configuration.
         plan_patch: List[MetaManifest]
             The list of meta manifests that currently require a patch.
-        local: ServerManifests
+        local: SquareManifests
             Should be output from `load_manifest` or `load`.
-        server: ServerManifests
+        server: SquareManifests
             Should be output from `manio.download`.
 
     """
@@ -276,8 +276,8 @@ def run_user_callback(config: Config,
 def compile_plan(
         config: Config,
         k8sconfig: K8sConfig,
-        local: ServerManifests,
-        server: ServerManifests) -> Tuple[DeploymentPlan, bool]:
+        local: SquareManifests,
+        server: SquareManifests) -> Tuple[DeploymentPlan, bool]:
     """Return the `DeploymentPlan` to transition K8s to the `local` state.
 
     The deployment plan is a named tuple. It specifies which resources to
@@ -287,9 +287,9 @@ def compile_plan(
     Inputs:
         config: Square configuration.
         k8sconfig: K8sConfig
-        local: ServerManifests
+        local: SquareManifests
             Should be output from `load_manifest` or `load`.
-        server: ServerManifests
+        server: SquareManifests
             Should be output from `manio.download`.
 
     Returns:
