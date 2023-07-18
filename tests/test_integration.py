@@ -350,7 +350,7 @@ class TestKindName:
         )
         plan, err = square.plan(config)
         assert not err
-        assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 7
+        assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 8
 
         # ----------------------------------------------------------------------
         # Must find 3 Configmaps in "square-tests-1".
