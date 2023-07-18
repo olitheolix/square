@@ -253,4 +253,4 @@ class Config(BaseModel):
 # -----------------------------------------------------------------------------
 LocalManifests = Dict[Filepath, Tuple[MetaManifest, dict]]
 LocalManifestLists = Dict[Filepath, List[Tuple[MetaManifest, dict]]]
-ServerManifests = Dict[MetaManifest, dict]
+SquareManifests = Dict[MetaManifest, dict]

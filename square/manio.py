@@ -14,7 +14,7 @@ import square.dotdict
 import square.k8s
 from square.dtypes import (
     Config, Filepath, Filters, FiltersKind, GroupBy, K8sConfig, K8sResource,
-    KindName, LocalManifestLists, MetaManifest, Selectors, ServerManifests,
+    KindName, LocalManifestLists, MetaManifest, Selectors, SquareManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -140,7 +140,7 @@ def select(manifest: dict, selectors: Selectors) -> bool:
 
 
 def unpack_k8s_resource_list(manifest_list: dict,
-                             selectors: Selectors) -> Tuple[ServerManifests, bool]:
+                             selectors: Selectors) -> Tuple[SquareManifests, bool]:
     """Unpack the `manifest_list` and return only those manifests that match `selectors`.
 
     The `manifest_list` must be a K8s List item, eg `DeploymentList` or
@@ -271,8 +271,8 @@ def parse(file_yaml: Dict[Filepath, str],
     return (out, False)
 
 
-def unpack(manifests: LocalManifestLists) -> Tuple[ServerManifests, bool]:
-    """Convert `manifests` to `ServerManifests` for internal processing.
+def unpack(manifests: LocalManifestLists) -> Tuple[SquareManifests, bool]:
+    """Convert `manifests` into `SquareManifests` for internal processing.
 
     Returns `False` unless all resources in `manifests` are unique. For
     instance, returns False if two files define the same namespace or the same
@@ -285,7 +285,7 @@ def unpack(manifests: LocalManifestLists) -> Tuple[ServerManifests, bool]:
         manifests: LocalManifestLists
 
     Returns:
-        ServerManifests: flattened version of `manifests`.
+        SquareManifests: flattened version of `manifests`.
 
     """
     # Compile a dict that shows which meta manifest was defined in which file.
@@ -316,7 +316,7 @@ def unpack(manifests: LocalManifestLists) -> Tuple[ServerManifests, bool]:
 
 
 def sync(local_manifests: LocalManifestLists,
-         server_manifests: ServerManifests,
+         server_manifests: SquareManifests,
          selectors: Selectors,
          groupby: GroupBy) -> Tuple[LocalManifestLists, bool]:
     """Update the local manifests with the server values and return the result.
@@ -579,8 +579,8 @@ def strip(
 
 
 def align_serviceaccount(
-        local_manifests: ServerManifests,
-        server_manifests: ServerManifests) -> Tuple[ServerManifests, bool]:
+        local_manifests: SquareManifests,
+        server_manifests: SquareManifests) -> Tuple[SquareManifests, bool]:
     """Insert the token secret from `server_manifest` into `local_manifest`.
 
     Every ServiceAccount (SA) has a "secrets" section that K8s automatically
@@ -612,7 +612,7 @@ def align_serviceaccount(
     """
     ReturnType = Tuple[Optional[str], List[Dict[str, str]], bool]
 
-    def _get_token(meta: MetaManifest, manifests: ServerManifests) -> ReturnType:
+    def _get_token(meta: MetaManifest, manifests: SquareManifests) -> ReturnType:
         """Return token secret from `manifest` as well as all other other secrets.
 
         Example input manifest:
@@ -793,7 +793,7 @@ def load_files(
 
 
 def load(folder: Filepath, selectors: Selectors) -> Tuple[
-         ServerManifests, LocalManifestLists, bool]:
+         SquareManifests, LocalManifestLists, bool]:
     """Return all K8s manifest found in `folder`.
 
     The function will recursively load all "*.yaml" files under `folder`.
@@ -951,7 +951,7 @@ def save(folder: Filepath,
     return save_files(folder, out_final)
 
 
-def download(config: Config, k8sconfig: K8sConfig) -> Tuple[ServerManifests, bool]:
+def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifests, bool]:
     """Download and return the resources that match `selectors`.
 
     Set `selectors.namespace` to `None` to download the resources from all
