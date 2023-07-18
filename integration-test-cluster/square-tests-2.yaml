@@ -43,6 +43,21 @@ metadata:
 
 ---
 
+apiVersion: v1
+data:
+  comment: |
+    This is a
+    multi-line comment that
+    spans three rows.
+kind: ConfigMap
+metadata:
+  name: multiline-1
+  namespace: square-tests-2
+  labels:
+    app: demoapp-1
+
+---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
