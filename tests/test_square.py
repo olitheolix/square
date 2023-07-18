@@ -1162,7 +1162,7 @@ class TestMainOptions:
             m_sort.return_value = [], True
             assert sq.apply_plan(config, plan) is True
 
-    @mock.patch.object(manio, "load")
+    @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
     @mock.patch.object(manio, "align_serviceaccount")
     @mock.patch.object(sq, "compile_plan")
@@ -1205,7 +1205,7 @@ class TestMainOptions:
         m_load.return_value = (None, None, True)
         assert sq.make_plan(config) == err_resp
 
-    @mock.patch.object(manio, "load")
+    @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
     @mock.patch.object(sq, "match_api_version")
     @mock.patch.object(manio, "sync")
