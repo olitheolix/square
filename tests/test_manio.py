@@ -207,7 +207,7 @@ class TestHelpers:
 
 
 class TestUnpackParse:
-    def test_unpack_list_without_selectors_ok(self):
+    def test_unpack_k8s_resource_list_without_selectors_ok(self):
         """Convert eg a `DeploymentList` into a Python dict of `Deployments`."""
         # Demo manifests for this test.
         manifests_withkind = [
@@ -233,7 +233,7 @@ class TestUnpackParse:
 
         # Parse the DeploymentList into a dict. The keys are ManifestTuples and
         # the values are the Deployments (*not* DeploymentList) manifests.
-        data, err = manio.unpack_list(manifest_list, selectors)
+        data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
         assert err is False
 
         # The test function must not have modified our original dictionaries,
@@ -256,7 +256,7 @@ class TestUnpackParse:
             assert src == data[out_key]
             assert src is not data[out_key]
 
-    def test_unpack_list_with_selectors_ok(self):
+    def test_unpack_k8s_resource_list_with_selectors_ok(self):
         """Function must correctly apply the `selectors`."""
         # Demo manifests.
         manifests = [
@@ -276,7 +276,7 @@ class TestUnpackParse:
         for ns in ([], ["ns_0", "ns_1", "ns_2"]):
             ns = cast(List[str], ns)
             selectors = Selectors(kinds={"Deployment"}, namespaces=ns)
-            data, err = manio.unpack_list(manifest_list, selectors)
+            data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
             assert err is False and data == {
                 MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_0'): manifests[0],
                 MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
@@ -285,24 +285,24 @@ class TestUnpackParse:
 
         # Must select nothing because no resource is in the "foo" namespace.
         selectors = Selectors(kinds={"Deployment"}, namespaces=["foo"])
-        data, err = manio.unpack_list(manifest_list, selectors)
+        data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
         assert err is False and data == {}
 
         # Must select nothing because we have no resource kind "foo".
         selectors = Selectors(kinds={"foo"})
-        data, err = manio.unpack_list(manifest_list, selectors)
+        data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
         assert err is False and data == {}
 
         # Must select the Deployment in the "ns_1" namespace.
         selectors = Selectors(kinds={"Deployment"}, namespaces=["ns_1"])
-        data, err = manio.unpack_list(manifest_list, selectors)
+        data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
         assert err is False and data == {
             MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
         }
 
         # Must select the Deployment in the "ns_1" & "ns_2" namespace.
         selectors = Selectors(kinds={"Deployment"}, namespaces=["ns_1", "ns_2"])
-        data, err = manio.unpack_list(manifest_list, selectors)
+        data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
         assert err is False and data == {
             MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
             MetaManifest('apps/v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
@@ -310,12 +310,12 @@ class TestUnpackParse:
 
         # Must select the second Deployment due to label selector.
         selectors = Selectors(kinds={"Deployment"}, labels=["app=d_1"])
-        data, err = manio.unpack_list(manifest_list, selectors)
+        data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
         assert err is False and data == {
             MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
         }
 
-    def test_unpack_list_invalid_list_manifest(self):
+    def test_unpack_k8s_resource_list_invalid_list_manifest(self):
         """The input manifest must have `apiVersion`, `kind` and `items`.
 
         Furthermore, the `kind` *must* be capitalised and end in `List`, eg
@@ -327,25 +327,25 @@ class TestUnpackParse:
 
         # Valid input.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList', 'items': []}
-        ret = manio.unpack_list(src, selectors)
+        ret = manio.unpack_k8s_resource_list(src, selectors)
         assert ret == ({}, False)
 
         # Missing `apiVersion`.
         src = {'kind': 'DeploymentList', 'items': []}
-        assert manio.unpack_list(src, selectors) == ({}, True)
+        assert manio.unpack_k8s_resource_list(src, selectors) == ({}, True)
 
         # Missing `kind`.
         src = {'apiVersion': 'v1', 'items': []}
-        assert manio.unpack_list(src, selectors) == ({}, True)
+        assert manio.unpack_k8s_resource_list(src, selectors) == ({}, True)
 
         # Missing `items`.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList'}
-        assert manio.unpack_list(src, selectors) == ({}, True)
+        assert manio.unpack_k8s_resource_list(src, selectors) == ({}, True)
 
         # All fields present but `kind` does not end in List (case sensitive).
         for invalid_kind in ('Deploymentlist', 'Deployment'):
             src_invalid = {'apiVersion': 'v1', 'kind': invalid_kind, 'items': []}
-            assert manio.unpack_list(src_invalid, selectors) == ({}, True)
+            assert manio.unpack_k8s_resource_list(src_invalid, selectors) == ({}, True)
 
 
 class TestYamlManifestIO:

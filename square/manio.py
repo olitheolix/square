@@ -139,8 +139,8 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     return True
 
 
-def unpack_list(manifest_list: dict,
-                selectors: Selectors) -> Tuple[ServerManifests, bool]:
+def unpack_k8s_resource_list(manifest_list: dict,
+                             selectors: Selectors) -> Tuple[ServerManifests, bool]:
     """Unpack the `manifest_list` and return only those manifests that match `selectors`.
 
     The `manifest_list` must be a K8s List item, eg `DeploymentList` or
@@ -1002,7 +1002,7 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[ServerManifests, boo
 
                 # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a
                 # Dict[MetaManifest, dict] dictionary.
-                manifests, err = unpack_list(manifest_list, config.selectors)
+                manifests, err = unpack_k8s_resource_list(manifest_list, config.selectors)
                 assert not err and manifests is not None
 
                 # Strip off the fields defined in `config.filters`.
