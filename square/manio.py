@@ -39,7 +39,7 @@ except ImportError:                  # codecov-skip
 
 
 def make_meta(manifest: dict) -> MetaManifest:
-    """Compile `MetaManifest` information from `manifest` and return it.
+    """Extract the `MetaManifest` information from `manifest`.
 
     Throw `KeyError` if manifest lacks essential fields like `apiVersion`,
     `kind`, etc because it cannot possibly be a valid K8s manifest then.
@@ -141,13 +141,10 @@ def select(manifest: dict, selectors: Selectors) -> bool:
 
 def unpack_k8s_resource_list(manifest_list: dict,
                              selectors: Selectors) -> Tuple[SquareManifests, bool]:
-    """Unpack the `manifest_list` and return only those manifests that match `selectors`.
+    """Return only those entries from `manifest_list` that match the `selectors`.
 
     The `manifest_list` must be a K8s List item, eg `DeploymentList` or
     `NamespaceList`.
-
-    Return a dictionary where the key uniquely identifies the resource via a
-    `MetaManifest` and the value is the actual K8s manifest.
 
     Input:
         manifest_list: dict
@@ -155,7 +152,7 @@ def unpack_k8s_resource_list(manifest_list: dict,
         selectors: Selectors
 
     Returns:
-        dict[MetaManifest:dict]
+        SquareManifests
 
     """
     # Ensure the server manifests have the essential fields. If not then
@@ -754,11 +751,12 @@ def load_files(
         fnames: Iterable[Filepath]) -> Tuple[Dict[Filepath, str], bool]:
     """Load all `fnames` in `folder` and return their content.
 
+    This is a convenience function for Square to recursively load all manifests
+    in a given manifest folder. It will either return the content of all files,
+    or an error. In particular, it will never return only a sub-set of files.
+
     The elements of `fname` can have sub-paths, eg `foo/bar/file.txt` is valid
     and would ultimately open f"{folder}/foo/bar/file.txt".
-
-    Either returns the content of all files or returns with an error and no
-    data. It will not return only a sub-set of the files.
 
     Inputs:
         folder: Path
@@ -796,19 +794,17 @@ def load(folder: Filepath, selectors: Selectors) -> Tuple[
          SquareManifests, LocalManifestLists, bool]:
     """Return all K8s manifest found in `folder`.
 
-    The function will recursively load all "*.yaml" files under `folder`.
+    Recursively load all "*.yaml" files in `folder` and return those manifests
+    that match the `selectors`.
 
-    Ignores all files not ending in ".yaml".
-
-    Returns only manifests that match the `selectors`, or no data if there was
-    an error.
+    It will either return all manifests or none, if there was an error. In
+    particular, it will never return only a sub-set of files (cf `load_files`).
 
     NOTE: this is merely a wrapper around the various low-level functions to
-    load and parse the YAML files.
+    load and parse YAML files.
 
     Input:
         folder: Filepath
-            Source folder.
         selectors: Selectors
 
     Returns:
