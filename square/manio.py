@@ -16,26 +16,11 @@ from square.dtypes import (
     Config, Filepath, Filters, FiltersKind, GroupBy, K8sConfig, K8sResource,
     KindName, LocalManifestLists, MetaManifest, Selectors, SquareManifests,
 )
+from square.yaml_io import Dumper, Loader
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
 DotDict = square.dotdict.DotDict
-
-
-# Use the fast CSafeLoader/CSafeDumper from the LibYAML C library if they are
-# available on the host, otherwise fall back to the slow Python loader/dumper.
-# NOTE: this import is excluded from the coverage report since it is difficult
-#       to write a meaningful test around a library import that may or may not
-#       exist on the host. I deem this acceptable in this case because it is a
-#       widely used snippet and devoid of logic.
-try:                                 # codecov-skip
-    from yaml import (  # type: ignore
-        CSafeDumper as Dumper, CSafeLoader as Loader,
-    )
-    logit.debug("Using LibYAML C library")
-except ImportError:                  # codecov-skip
-    from yaml import Dumper, Loader  # type: ignore
-    logit.debug("Using Python YAML library")
 
 
 def make_meta(manifest: dict) -> MetaManifest:
