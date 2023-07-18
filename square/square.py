@@ -68,9 +68,9 @@ def make_patch(
     Inputs:
         k8sconfig: K8sConfig
         local: dict
-            Usually on fo the dict manifests returned by `load_manifest`.
+            Usually one of the manifests returned by `load_manifest`.
         server: dict
-            Usually on fo the dict manifests returned by `manio.download`.
+            Usually one of the manifests returned by `manio.download`.
 
     Returns:
         Patch: the JSON patch and human readable diff in a `Patch` tuple.
@@ -125,9 +125,9 @@ def partition_manifests(
 
     Inputs:
         local: SquareManifests
-            Usually the dictionary keys returned by `load_manifest`.
+            Usually the dictionaries returned by `load_manifest`.
         server: SquareManifests
-            Usually the dictionary keys returned by `manio.download`.
+            Usually the dictionaries returned by `manio.download`.
 
     Returns:
         DeploymentPlanMeta
