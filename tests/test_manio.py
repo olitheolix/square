@@ -646,11 +646,11 @@ class TestYamlManifestIO:
         }
         assert fun(m1_yaml, yaml.safe_dump(valid_yaml)) == ([valid_yaml], False)
 
-    def test_unpack_ok(self):
+    def test_compile_square_manifests_ok(self):
         """Test function must remove the filename dimension.
 
-        All meta manifests are unique in this test. See `test_unpack_err` for
-        what happens if not.
+        All meta manifests are unique in this test. See
+        `test_compile_square_manifests_err` for what happens if not.
 
         """
         meta0 = MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_0')
@@ -664,7 +664,7 @@ class TestYamlManifestIO:
             ],
             Filepath("file1.txt"): [(meta2, {"manifest": "2"})],
         }
-        ret, err = manio.unpack(src)
+        ret, err = manio.compile_square_manifests(src)
         assert err is False
         assert ret == {
             meta0: {"manifest": "0"},
@@ -672,7 +672,7 @@ class TestYamlManifestIO:
             meta2: {"manifest": "2"},
         }
 
-    def test_unpack_err(self):
+    def test_compile_square_manifests_err(self):
         """The MetaManifests must be unique across all source files."""
         meta = MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_0')
 
@@ -681,14 +681,14 @@ class TestYamlManifestIO:
             Filepath("file0.txt"): [(meta, {"manifest": "0"}),
                                     (meta, {"manifest": "0"})],
         }
-        assert manio.unpack(src) == ({}, True)
+        assert manio.compile_square_manifests(src) == ({}, True)
 
         # Two resources with same meta information in different files.
         src: LocalManifestLists = {
             Filepath("file0.txt"): [(meta, {"manifest": "0"})],
             Filepath("file1.txt"): [(meta, {"manifest": "0"})],
         }
-        assert manio.unpack(src) == ({}, True)
+        assert manio.compile_square_manifests(src) == ({}, True)
 
     def test_manifest_lifecycle(self, tmp_path):
         """Load, sync and save manifests the hard way.
@@ -722,7 +722,7 @@ class TestYamlManifestIO:
 
         # Drop the filenames and create a dict that uses MetaManifests as keys.
         # :: Dict[Filename:List[(MetaManifest, YamlDict)]] -> Dict[MetaManifest:YamlDict]
-        local_manifests, err = manio.unpack(fdata_meta)
+        local_manifests, err = manio.compile_square_manifests(fdata_meta)
         assert err is False
 
         # Verify that the loaded manifests are correct.
@@ -1281,7 +1281,7 @@ class TestYamlManifestIOIntegration:
             Filepath("m0.yaml"): [(meta[0], dply[0]), (meta[1], dply[1])],
             Filepath("foo/m1.yaml"): [(meta[2], dply[2])],
         }
-        expected = (manio.unpack(man_files)[0], man_files)
+        expected = (manio.compile_square_manifests(man_files)[0], man_files)
         del dply, meta
 
         # Save the test data, then load it back and verify.
@@ -1347,7 +1347,7 @@ class TestYamlManifestIOIntegration:
             Filepath("bar/m4.yaml"): [(meta[4], dply[4])],
             Filepath("bar/m5.yaml"): [(meta[5], dply[5])],
         }
-        expected = (manio.unpack(man_files)[0], man_files)
+        expected = (manio.compile_square_manifests(man_files)[0], man_files)
         del dply, meta
 
         # Save and load the test data.
@@ -1360,7 +1360,7 @@ class TestYamlManifestIOIntegration:
         del fdata_reduced[Filepath("m0.yaml")]
         del fdata_reduced[Filepath("foo/m3.yaml")]
         fdata_reduced[Filepath("bar/m4.yaml")] = []
-        expected = (manio.unpack(fdata_reduced)[0], fdata_reduced)
+        expected = (manio.compile_square_manifests(fdata_reduced)[0], fdata_reduced)
 
         # Verify that the files still exist from the last call to `save`.
         assert (tmp_path / "m0.yaml").exists()
@@ -1875,7 +1875,9 @@ class TestSync:
     def test_service_account_support_file(self):
         """Ensure the ServiceAccount support file has the correct setup.
 
-        Some other tests, most notably those for the `align` function, rely on this.
+        Some other tests, most notably those for the `align` function, rely on
+        this.
+
         """
         # Fixtures.
         selectors = Selectors(kinds={"ServiceAccount"})

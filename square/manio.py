@@ -268,7 +268,7 @@ def parse(file_yaml: Dict[Filepath, str],
     return (out, False)
 
 
-def unpack(manifests: LocalManifestLists) -> Tuple[SquareManifests, bool]:
+def compile_square_manifests(manifests: LocalManifestLists) -> Tuple[SquareManifests, bool]:  # noqa
     """Convert `manifests` into `SquareManifests` for internal processing.
 
     Returns `False` unless all resources in `manifests` are unique. For
@@ -830,7 +830,7 @@ def load_manifests(folder: Filepath,
         assert not err and man_files is not None
 
         # Remove the Filepath dimension.
-        man_meta, err = unpack(man_files)
+        man_meta, err = compile_square_manifests(man_files)
         assert not err and man_meta is not None
     except AssertionError:
         return ({}, {}, True)
