@@ -790,8 +790,9 @@ def load_files(
     return (out, False)
 
 
-def load(folder: Filepath, selectors: Selectors) -> Tuple[
-         SquareManifests, LocalManifestLists, bool]:
+def load_manifests(folder: Filepath,
+                   selectors: Selectors) -> Tuple[SquareManifests,
+                                                  LocalManifestLists, bool]:
     """Return all K8s manifest found in `folder`.
 
     Recursively load all "*.yaml" files in `folder` and return those manifests

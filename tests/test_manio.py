@@ -1268,7 +1268,7 @@ class TestYamlManifestIOIntegration:
         assert manio.save_files(tmp_path, {}) is True
         assert tmp_file.exists()
 
-    def test_load_save_ok(self, tmp_path):
+    def test_load_manifests_save_ok(self, tmp_path):
         """Basic test that uses the {load,save} convenience functions."""
         # Generic selector that matches all manifests in this test.
         priority = ["Deployment"]
@@ -1286,7 +1286,7 @@ class TestYamlManifestIOIntegration:
 
         # Save the test data, then load it back and verify.
         assert manio.save(tmp_path, man_files, priority) is False
-        assert manio.load(tmp_path, selectors) == (*expected, False)
+        assert manio.load_manifests(tmp_path, selectors) == (*expected, False)
 
         # Glob the folder and ensure it contains exactly the files specified in
         # the `fdata_test_in` dict.
@@ -1296,9 +1296,9 @@ class TestYamlManifestIOIntegration:
         # Create non-YAML files. The `load_files` function must skip those.
         (tmp_path / "delme.txt").touch()
         (tmp_path / "foo" / "delme.txt").touch()
-        assert manio.load(tmp_path, selectors) == (*expected, False)
+        assert manio.load_manifests(tmp_path, selectors) == (*expected, False)
 
-    def test_load_save_hidden_ok(self, tmp_path):
+    def test_load_manifests_save_hidden_ok(self, tmp_path):
         """Basic test that uses the {load,save} convenience functions."""
         # Generic selector that matches all manifests in this test.
         priority = ["Deployment"]
@@ -1328,7 +1328,7 @@ class TestYamlManifestIOIntegration:
             fname = tmp_path / fname
             fname.parent.mkdir(parents=True, exist_ok=True)
             fname.write_text("")
-        assert manio.load(tmp_path, selectors) == ({}, {}, False)
+        assert manio.load_manifests(tmp_path, selectors) == ({}, {}, False)
 
     def test_save_delete_stale_yaml(self, tmp_path):
         """`save_file` must remove all excess YAML files."""
@@ -1352,7 +1352,7 @@ class TestYamlManifestIOIntegration:
 
         # Save and load the test data.
         assert manio.save(tmp_path, man_files, priority) is False
-        assert manio.load(tmp_path, selectors) == (*expected, False)
+        assert manio.load_manifests(tmp_path, selectors) == (*expected, False)
 
         # Save a reduced set of files. Compared to `fdata_full`, it is two
         # files short and a third one ("bar/m4.yaml") is empty.
@@ -1373,7 +1373,7 @@ class TestYamlManifestIOIntegration:
         # Load the data. It must neither contain the files we removed from the
         # dict above, nor "bar/m4.yaml" which contained an empty manifest list.
         del fdata_reduced[Filepath("bar/m4.yaml")]
-        assert manio.load(tmp_path, selectors) == (*expected, False)
+        assert manio.load_manifests(tmp_path, selectors) == (*expected, False)
 
         # Verify that the files physically do not exist anymore.
         assert not (tmp_path / "m0.yaml").exists()
@@ -1386,7 +1386,7 @@ class TestYamlManifestIOIntegration:
         # Generic selector that matches all manifests in this test.
         selectors = Selectors(kinds={"Deployment"})
         m_load.return_value = ({}, True)
-        assert manio.load(tmp_path, selectors) == ({}, {}, True)
+        assert manio.load_manifests(tmp_path, selectors) == ({}, {}, True)
 
     def test_save_invalid_manifest(self, tmp_path):
         """Must handle YAML errors gracefully."""
@@ -1882,7 +1882,7 @@ class TestSync:
         name = 'demoapp'
 
         # Load the test support file and ensure it contains exactly one manifest.
-        local_meta, _, err = manio.load(Filepath("tests/support/"), selectors)
+        local_meta, _, err = manio.load_manifests(Filepath("tests/support/"), selectors)
         assert not err
         assert len(local_meta) == 1
 
@@ -1911,7 +1911,7 @@ class TestSync:
 
         # Load and unpack the ServiceAccount manifest. Make two copies so we
         # can create local/cluster manifest as inputs for the `align` function.
-        local_meta, _, _ = manio.load(Filepath("tests/support/"), selectors)
+        local_meta, _, _ = manio.load_manifests(Filepath("tests/support/"), selectors)
         local_meta = copy.deepcopy(local_meta)
         server_meta = copy.deepcopy(local_meta)
         meta, _ = local_meta.copy().popitem()
