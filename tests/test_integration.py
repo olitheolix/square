@@ -342,7 +342,7 @@ class TestKindName:
         )
 
         # ----------------------------------------------------------------------
-        # Must find 6 Configmaps in our two test namespaces.
+        # Must find 7 Configmaps in our two test namespaces.
         # ----------------------------------------------------------------------
         config.selectors = Selectors(
             kinds={"Configmap"},
@@ -350,7 +350,7 @@ class TestKindName:
         )
         plan, err = square.plan(config)
         assert not err
-        assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 6
+        assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 7
 
         # ----------------------------------------------------------------------
         # Must find 3 Configmaps in "square-tests-1".
@@ -392,6 +392,49 @@ class TestKindName:
         assert len(metas) == 2
         for meta in metas:
             assert meta.kind == "ConfigMap" and meta.name == "demoapp-1"
+
+    def test_main_get_kind_name_resource(self, tmp_path):
+        """Use CLI to fetch a specific resource name.
+
+        This test will actually fetch two different ConfigMap names. The first
+        one will only exist in a single namespace whereas the second one will
+        exist in two namespaces.
+
+        """
+        # Convenience.
+        man_path = tmp_path / "_other.yaml"
+
+        # Common command line arguments for GET command used in this test.
+        common_args = (
+            "--folder", str(tmp_path),
+            "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
+            "--groupby",        # Dump all manifests into a single file.
+            "-n"                # Search all namespaces.
+        )
+
+        # Fetch all ConfigMaps named `demo-configmap-1`, of which there are two
+        # in the demo cluster.
+        args = ("square.py", "get", "configmap/demo-configmap-1", *common_args)
+        with mock.patch("sys.argv", args):
+            square.main.main()
+
+        man = list(yaml.safe_load_all(man_path.read_text()))
+        assert len(man) == 2
+        assert man[0]["metadata"]["name"] == "demo-configmap-1"
+        assert man[1]["metadata"]["name"] == "demo-configmap-1"
+
+        # Clear out the manifest folder for the next test.
+        man_path.unlink()
+
+        # Fetch all ConfigMaps named `demo-configmap-2`, of which there is only
+        # one in the demo cluster.
+        args = ("square.py", "get", "configmap/demo-configmap-2", *common_args)
+        with mock.patch("sys.argv", args):
+            square.main.main()
+
+        man = list(yaml.safe_load_all((tmp_path / "_other.yaml").read_text()))
+        assert len(man) == 1
+        assert man[0]["metadata"]["name"] == "demo-configmap-2"
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")

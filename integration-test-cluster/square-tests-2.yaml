@@ -24,6 +24,18 @@ data:
   version: v1
 kind: ConfigMap
 metadata:
+  name: demo-configmap-1
+  namespace: square-tests-2
+  labels:
+    app: demoapp-1
+
+---
+
+apiVersion: v1
+data:
+  version: v1
+kind: ConfigMap
+metadata:
   name: demo-configmap-2
   namespace: square-tests-2
   labels:
