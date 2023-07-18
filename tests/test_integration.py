@@ -318,8 +318,11 @@ class TestMainGet:
         assert not square.square.get_resources(config)
         assert list(yaml.safe_load_all(man_path.read_text())) == manifests
 
-    def test_main_get_kind_name_resource(self, tmp_path):
-        """Sync a configmap specified by its `Configmap/name` selector.
+
+@pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
+class TestKindName:
+    def test_api_get_kind_name_resource(self, tmp_path):
+        """Get a ConfigMap specified by its `configmap/name` selector.
 
         In this test we will plan against an empty local manifest folder, which
         means Square every only want to delete anything; no patching or creating.
