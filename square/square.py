@@ -750,7 +750,7 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         cfg = translate_resource_kinds(cfg, k8sconfig)
 
         # Load manifests from local files.
-        local, _, err = manio.load(cfg.folder, cfg.selectors)
+        local, _, err = manio.load_manifests(cfg.folder, cfg.selectors)
         assert not err
 
         # Download manifests from K8s.
@@ -795,7 +795,7 @@ def get_resources(cfg: Config) -> bool:
         load_selectors = Selectors(kinds=k8sconfig.kinds, labels=[], namespaces=[])
 
         # Load manifests from local files.
-        local_meta, local_path, err = manio.load(cfg.folder, load_selectors)
+        local_meta, local_path, err = manio.load_manifests(cfg.folder, load_selectors)
         assert not err
         del load_selectors
 
