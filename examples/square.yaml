@@ -1,3 +1,9 @@
+# ----------------------------------------------------------------------
+# Run Square inside a Pod.
+#
+# NOTE: Square does not require anything installed onto the cluster
+#       to work. This exa
+# ----------------------------------------------------------------------
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -14,9 +20,9 @@ metadata:
 
 ---
 
-# Define a Role that has sufficient privileges to use all `square`
-# features. Trim the role to support your use case, eg "get" and "list" access
-# to deployments to monitor deployment drifts.
+# Define a Role that has sufficient privileges to use all `square` features.
+# Trim the role to support your use case, eg "get" and "list" access to
+# deployments to monitor deployment drifts.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
