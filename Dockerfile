@@ -4,9 +4,9 @@ FROM python:3.10-slim
 RUN apt update && apt install -y git
 RUN pip install pipenv pip --upgrade
 
-# Clone the repository.
-RUN git clone https://github.com/olitheolix/square.git --depth=1 /square
+# Copy the repository into the container.
 WORKDIR /square
+COPY . /square
 
 # Install the dependencies for Square.
 RUN pipenv install --system
