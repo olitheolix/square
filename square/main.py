@@ -394,7 +394,7 @@ def main() -> int:
         print(
             f"Created configuration file <{fname}>.\n"
             "Please open the file in an editor and adjust the values, most notably "
-            "<kubeconfig>, <kubecontext>, <folder> and <selectors.labels>."
+            "`kubeconfig` and `selectors.[kinds | namespaces | labels]`."
         )
         return 0
 

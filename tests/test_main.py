@@ -48,9 +48,9 @@ def fname_param_config(tmp_path) -> Generator[
 
     # We will "abuse" the `kubecontext` field to indicate that this is our mock
     # ".square.yaml". We will also replace the default path with a custom one
-    # to avoid an ambiguity with the default value of "." for the folder.
+    # to avoid ambiguity with the default value of "manifests/" for the folder.
     ref["kubecontext"] = "dot-square"
-    assert ref["folder"] == "."
+    assert ref["folder"] == "manifests/"
     ref["folder"] = "foo/bar"
     fname_square.write_text(yaml.dump(ref))
     del ref
@@ -84,7 +84,7 @@ def fname_param_config(tmp_path) -> Generator[
         folder=".",
         kinds=DEFAULT_PRIORITIES,
         labels=[],
-        namespaces=["default"],
+        namespaces=[],
         kubecontext=None,
         groupby=["ns", "label=app", "kind"],
         priorities=DEFAULT_PRIORITIES,
