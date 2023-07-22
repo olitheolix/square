@@ -15,11 +15,11 @@ colorama = "*"
 colorlog = "*"
 google = "*"
 google-api-python-client = "*"
+httpx = "*"
 jsonpatch = "*"
 pydantic = ">=2.0"
 python = ">=3.10"
 pyyaml = "*"
-requests = ">=2.31"
 
 [tool.poetry.dev-dependencies]
 bumpversion = "*"
@@ -31,7 +31,7 @@ pytest = ">=7.2"
 pytest-cov = "*"
 pytest-dotenv = "*"
 pytest-flake8 = "*"
-requests-mock = "*"
+respx = "*"
 sh = "*"
 
 [tool.poetry.scripts]
