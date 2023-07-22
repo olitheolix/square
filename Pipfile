@@ -12,7 +12,6 @@ google-api-python-client = "*"
 jsonpatch = "*"
 pydantic = ">=2.0"
 pyyaml = "*"
-requests = ">=2.31"
 httpx = "*"
 
 [dev-packages]
@@ -23,10 +22,8 @@ mypy = "*"
 pytest = ">=7.2"
 pytest-cov = "*"
 pytest-pycodestyle = "*"
-requests-mock = "*"
 sh = "*"
 types-pyyaml = "*"
-types-requests = "*"
 respx = "*"
 
 [requires]
