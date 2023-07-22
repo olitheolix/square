@@ -138,3 +138,16 @@ jobs:
 
           # Invoke Square to ensure it runs.
           square version
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: docker/build-push-action@v4
+        with:
+          context: .
+          load: true
+          tags: latest
+      - name: Run Square
+        run: |
+          docker run --rm latest
