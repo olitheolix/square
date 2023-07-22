@@ -4,7 +4,7 @@ import sys
 from . import square
 from .cfgfile import load
 
-__version__ = '1.3.3'
+__version__ = '1.4.0'
 
 
 # ---------------------------------------------------------------------------
