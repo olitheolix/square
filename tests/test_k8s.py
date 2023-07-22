@@ -1029,13 +1029,6 @@ class TestK8sKubeconfig:
         assert actual_cmd == expected_cmd
         assert actual_env == expected_env
 
-        # EKS is not the default context in the demo kubeconf file, which means
-        # this must fail.
-        assert k8s.load_eks_config(fname, None) == (K8sConfig(), True)
-
-        # Try to load a Minikube context - must fail.
-        assert k8s.load_eks_config(fname, "minikube") == (K8sConfig(), True)
-
     @mock.patch.object(k8s.subprocess, "run")
     def test_load_eks_config_err(self, m_run):
         """Load EKS configuration from demo kubeconfig."""
@@ -1064,6 +1057,12 @@ class TestK8sKubeconfig:
         m_run.side_effect = None
         m_run.return_value = types.SimpleNamespace(stdout=b"")
         assert k8s.load_eks_config(fname, "eks") == err_resp
+
+        # Must fail because EKS is not the default context in the demo kubeconf file.
+        assert k8s.load_eks_config(fname, None) == (K8sConfig(), True)
+
+        # Must fail because Minikube does not use an external app to create the token.
+        assert k8s.load_eks_config(fname, "minikube") == (K8sConfig(), True)
 
     def test_wrong_conf(self):
         # Minikube
