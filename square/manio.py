@@ -959,7 +959,7 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifests, boo
     else:
         all_namespaces = config.selectors.namespaces
 
-    # Determine all the resource endpoints we need to interrogate on K8s. We
+    # Determine all the resource endpoints we need to interrogate K8s. We
     # cannot use `config.selectors._kinds_only` because it will be empty if the
     # user selected only specific resources, eg `svc/foo` instead of just
     # `svc`. We therefore need to compile the list of all resource types the
