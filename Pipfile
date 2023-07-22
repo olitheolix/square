@@ -13,6 +13,7 @@ jsonpatch = "*"
 pydantic = ">=2.0"
 pyyaml = "*"
 requests = ">=2.31"
+httpx = "*"
 
 [dev-packages]
 bumpversion = "*"
@@ -26,6 +27,7 @@ requests-mock = "*"
 sh = "*"
 types-pyyaml = "*"
 types-requests = "*"
+respx = "*"
 
 [requires]
 python_version = "3.10"
