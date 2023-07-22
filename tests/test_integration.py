@@ -3,6 +3,7 @@ import pathlib
 import time
 import unittest.mock as mock
 
+import httpx
 import pytest
 import sh
 import yaml
@@ -39,9 +40,10 @@ class TestBasic:
         cfg, err = fun(fname, None)
         assert not err and isinstance(cfg, K8sConfig)
 
-        # Gracefully handle connection errors to K8s.
+        # Must not return a Kubernetes configuration if we could not create a
+        # HttpX session.
         with mock.patch.object(square.k8s, "session") as m_sess:
-            m_sess.return_value = None
+            m_sess.return_value = (httpx.Client(), True)
             assert fun(fname, None) == (K8sConfig(), True)
 
 

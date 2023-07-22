@@ -439,26 +439,35 @@ def load_auto_config(
     return (K8sConfig(), True)
 
 
-def session(k8sconfig: K8sConfig):
-    """Return configured `requests` session."""
+def session(k8sconfig: K8sConfig) -> Tuple[httpx.Client, bool]:
+    """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
     cafile = None if str(k8sconfig.ca_cert) == "." else k8sconfig.ca_cert
     ssl_context = ssl.create_default_context(cafile=cafile)
 
     # Add the client certificate, if the cluster uses those to authenticate users.
     if k8sconfig.client_cert is not None:
-        cert = (str(k8sconfig.client_cert.crt), str(k8sconfig.client_cert.key))
+        cert = (k8sconfig.client_cert.crt, k8sconfig.client_cert.key)
     else:
         cert = None
 
-    sess = httpx.Client(verify=ssl_context, cert=cert)
+    # Construct the HttpX client.
+    try:
+        sess = httpx.Client(verify=ssl_context, cert=cert)  # type: ignore
+    except ssl.SSLError:
+        logit.error("Invalid certificates")
+        return httpx.Client(), True
+    except FileNotFoundError:
+        # If the certificate files do not exist then we have a bug somewhere.
+        logit.error("Bug: certificate files do not exist")
+        return httpx.Client(), True
 
-    # Add the bearer token if this cluster uses them to authenticate users.
+    # Add the bearer token if we have one.
     if k8sconfig.token != "":
         sess.headers.update({'authorization': f'Bearer {k8sconfig.token}'})
 
     # Return the configured session object.
-    return sess
+    return sess, False
 
 
 def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
@@ -725,8 +734,12 @@ def cluster_config(
         k8sconfig, err = load_auto_config(kubeconfig, context, disable_warnings=True)
         assert not err
 
+        # Configure HttpX session.
+        client, err = session(k8sconfig)
+        assert not err
+
         # Configure web session.
-        k8sconfig = k8sconfig._replace(client=session(k8sconfig))
+        k8sconfig = k8sconfig._replace(client=client)
         assert k8sconfig.client
 
         # Contact the K8s API to update version field in `k8sconfig`.

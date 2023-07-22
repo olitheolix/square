@@ -6,6 +6,7 @@ import sys
 import time
 import types
 import unittest.mock as mock
+from pathlib import Path
 
 import httpx
 import pytest
@@ -25,26 +26,49 @@ def nosleep():
 
 
 class TestK8sDeleteGetPatchPost:
-    def test_session(self, k8sconfig):
-        """Verify the `requests.Session` object is correctly setup."""
-        # Basic.
+    def test_session_ok(self, k8sconfig):
+        """Verify the HttpX client is correctly setup."""
+        # Create basic Kubernetes configuration.
         config = k8sconfig._replace(token="")
-        print("*", config.ca_cert)
-        sess = k8s.session(config)
+        sess, err = k8s.session(config)
+        assert not err
         assert "authorization" not in sess.headers
 
-        # With access token.
+        # Create token based Kubernetes configuration.
         config = k8sconfig._replace(token="token")
-        sess = k8s.session(config)
+        sess, err = k8s.session(config)
+        assert not err
         assert sess.headers["authorization"] == "Bearer token"
-        return
 
-        # With access token and client certificate.
-        ccert = k8s.K8sClientCert(crt=Filepath("foo"), key=Filepath("bar"))
+        # Path to valid certificate specimen.
+        fname_client_crt = Path("tests/support/client.crt")
+        fname_client_key = Path("tests/support/client.key")
+
+        ccert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
         config = k8sconfig._replace(token="token", client_cert=ccert)
-        sess = k8s.session(config)
+        sess, err = k8s.session(config)
+        assert not err
         assert sess.headers["authorization"] == "Bearer token"
-        assert sess.cert == ("foo", "bar")
+
+    def test_session_err(self, k8sconfig, tmp_path: Path):
+        """Must gracefully abort when there are certificate problems."""
+        # Must gracefully abort when the certificate files do not exist.
+        fname_client_crt = tmp_path / "does-not-exist.crt"
+        fname_client_key = tmp_path / "does-not-exist.key"
+
+        client_cert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
+        config = k8sconfig._replace(client_cert=client_cert)
+        _, err = k8s.session(config)
+        assert err
+
+        # Must gracefully abort when the certificates are corrupt.
+        fname_client_crt.write_text("not a valid certificate")
+        fname_client_key.write_text("not a valid certificate")
+
+        client_cert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
+        config = k8sconfig._replace(client_cert=client_cert)
+        _, err = k8s.session(config)
+        assert err
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     def test_request_ok(self, method, respx_mock):
