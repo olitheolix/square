@@ -6,7 +6,7 @@ kubeconfig: /path/to/kubeconfig
 kubecontext: null
 
 # Where Square will read and write manifests.
-folder: .
+folder: manifests/
 
 
 # -----------------------------------------------------------------------------
@@ -35,7 +35,7 @@ selectors:
     - StatefulSet
 
   # Target these namespaces. Use an empty list to target all.
-  namespaces: ["default"]
+  namespaces: []
 
   # Example: ["app=square", "foo=bar"]. Use an empty list to ignore labels.
   labels: []
