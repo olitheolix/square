@@ -230,7 +230,7 @@ def load_eks_config(
     try:
         ssl_ca_cert_data = base64.b64decode(cluster["certificate-authority-data"])
         cmd = user["exec"]["command"]
-        args = user["exec"]["args"]
+        args = user["exec"].get("args", [])
         env_kubeconf = user["exec"].get("env", [])
     except KeyError:
         logit.debug(f"Context {context} in <{fname}> is not an EKS config")
