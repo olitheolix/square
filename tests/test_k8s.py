@@ -994,8 +994,9 @@ class TestK8sKubeconfig:
         m_google.side_effect = k8s.google.auth.exceptions.DefaultCredentialsError
         assert k8s.load_gke_config(fname, "gke") == (K8sConfig(), True)
 
+    @pytest.mark.parametrize("context", ["eks", "eks-noargs"])
     @mock.patch.object(k8s.subprocess, "run")
-    def test_load_eks_config_ok(self, m_run):
+    def test_load_eks_config_ok(self, m_run, context):
         """Load EKS configuration from demo kubeconfig."""
         # Mock the call to run the external `aws-iam-authenticator` tool.
         token = yaml.dump({"status": {"token": "EKS token"}})
@@ -1003,7 +1004,7 @@ class TestK8sKubeconfig:
 
         # Load the K8s configuration for "eks" context.
         fname = Filepath("tests/support/kubeconf.yaml")
-        ret, err = k8s.load_eks_config(fname, "eks")
+        ret, err = k8s.load_eks_config(fname, context)
         assert not err and isinstance(ret, K8sConfig)
 
         # Must have put the certificate into a temporary file for Httpx to find.
@@ -1022,8 +1023,13 @@ class TestK8sKubeconfig:
         # Verify that the correct external command was called, including
         # environment variables. The "expected_*" values are directly from
         # "support/kubeconf.yaml".
-        expected_cmd = ["aws-iam-authenticator", "token", "-i", "eks-cluster-name"]
         expected_env = os.environ.copy()
+        assert context in ("eks", "eks-noargs")
+        if context == "eks-noargs":
+            expected_cmd = ["aws-iam-authenticator"]
+        else:
+            expected_cmd = ["aws-iam-authenticator", "token", "-i", "eks-cluster-name"]
+
         expected_env.update({"foo1": "bar1", "foo2": "bar2"})
         actual_cmd, actual_env = m_run.call_args[0][0], m_run.call_args[1]["env"]
         assert actual_cmd == expected_cmd

@@ -22,6 +22,10 @@ contexts:
     user: aws
   name: eks
 - context:
+    cluster: clustername-eks
+    user: aws-noargs
+  name: eks-noargs
+- context:
     cluster: clustername-gke
     user: gke_foo-bar-123456_australia-southeast1-foobar
   name: gke
@@ -56,6 +60,16 @@ users:
       - token
       - -i
       - eks-cluster-name
+      command: aws-iam-authenticator
+      env:
+        - name: foo1
+          value: bar1
+        - name: foo2
+          value: bar2
+- name: aws-noargs
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
       command: aws-iam-authenticator
       env:
         - name: foo1
