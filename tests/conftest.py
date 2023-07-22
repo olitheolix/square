@@ -32,8 +32,8 @@ def kube_creds(request, k8sconfig) -> Generator[K8sConfig, None, None]:
 @pytest.fixture
 def k8sconfig() -> Generator[K8sConfig, None, None]:
     # Return a valid K8sConfig with a subsection of API endpoints available in
-    # K8s v1.15.
-    cfg = K8sConfig(version="1.15", client="k8s_client")
+    # Kubernetes v1.25.
+    cfg = K8sConfig(version="1.25", client="k8s_client")
 
     # The set of API endpoints we can use in the tests.
     cfg.apis.clear()
