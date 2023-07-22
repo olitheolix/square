@@ -569,8 +569,11 @@ def request(
 
     def on_backoff(details):
         """Log a warning whenever we retry."""
-        tries = details["tries"]
-        logit.warning(f"Backing off on {url} (Attempt {tries}/{max_tries-1})")
+        tries, exc = details["tries"], details["exception"]
+        logit.warning(
+            f"Backing off on {url}. Attempt {tries}/{max_tries-1}. "
+            f"Reason: {exc}"
+        )
 
     """
     Use linear backoff. The backoff is not exponential because the most
