@@ -4,6 +4,7 @@ import logging
 import os
 import pathlib
 import re
+import ssl
 import subprocess
 import tempfile
 import warnings
@@ -14,7 +15,7 @@ import backoff
 import google.auth
 import google.auth.exceptions
 import google.auth.transport.requests
-import requests
+import httpx
 import yaml
 
 from square.dtypes import (
@@ -440,18 +441,20 @@ def load_auto_config(
 
 def session(k8sconfig: K8sConfig):
     """Return configured `requests` session."""
-    # Plain session.
-    sess = requests.Session()
-
-    # Load the CA file (necessary for self signed certs to avoid https warning).
-    sess.verify = str(k8sconfig.ca_cert)
+    # Configure Httpx client with the K8s service account token.
+    cafile = None if str(k8sconfig.ca_cert) == "." else k8sconfig.ca_cert
+    ssl_context = ssl.create_default_context(cafile=cafile)
 
     # Add the client certificate, if the cluster uses those to authenticate users.
     if k8sconfig.client_cert is not None:
-        sess.cert = (str(k8sconfig.client_cert.crt), str(k8sconfig.client_cert.key))
+        cert = (str(k8sconfig.client_cert.crt), str(k8sconfig.client_cert.key))
+    else:
+        cert = None
+
+    sess = httpx.Client(verify=ssl_context, cert=cert)
 
     # Add the bearer token if this cluster uses them to authenticate users.
-    if k8sconfig.token is not None:
+    if k8sconfig.token != "":
         sess.headers.update({'authorization': f'Bearer {k8sconfig.token}'})
 
     # Return the configured session object.
@@ -565,7 +568,7 @@ def request(
     """
     # Define the maximum number of tries and exceptions we want to retry on.
     max_tries = 21
-    web_exceptions = (requests.exceptions.RequestException, )
+    web_exceptions = (httpx.RequestError, )
 
     def on_backoff(details):
         """Log a warning whenever we retry."""
