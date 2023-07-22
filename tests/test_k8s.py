@@ -997,7 +997,7 @@ class TestK8sKubeconfig:
     @mock.patch.object(k8s.subprocess, "run")
     def test_load_eks_config_ok(self, m_run):
         """Load EKS configuration from demo kubeconfig."""
-        # Mock the call to run the `aws-iam-authenticator` tool
+        # Mock the call to run the external `aws-iam-authenticator` tool.
         token = yaml.dump({"status": {"token": "EKS token"}})
         m_run.return_value = types.SimpleNamespace(stdout=token.encode("utf8"))
 
@@ -1006,12 +1006,10 @@ class TestK8sKubeconfig:
         ret, err = k8s.load_eks_config(fname, "eks")
         assert not err and isinstance(ret, K8sConfig)
 
-        # The certificate will be in a temporary folder because the `Requests`
-        # library insists on reading it from a file. Here we verify that the
-        # test function did indeed create such a temporary file.
+        # Must have put the certificate into a temporary file for Httpx to find.
         assert ret.ca_cert.exists()
 
-        # Verify the expected output.
+        # Verify the returned Kubernetes configuration.
         assert ret == K8sConfig(
             url="https://5.6.7.8",
             token="EKS token",
