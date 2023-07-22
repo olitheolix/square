@@ -32,7 +32,7 @@ logit = logging.getLogger("square")
 
 def load_kubeconfig(fname: Filepath,
                     context: Optional[str]) -> Tuple[str, dict, dict, bool]:
-    """Return user name and user- and cluster information.
+    """Return user name as well as user- and cluster information.
 
     Return None on error.
 
@@ -40,7 +40,7 @@ def load_kubeconfig(fname: Filepath,
         fname: Filepath
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: Optional[str]
-            Kubeconf context. Use `None` to get the default context.
+            Kubeconf context. Use `None` to select the default context.
 
     Returns:
         name, user info, cluster info
@@ -105,14 +105,13 @@ def load_incluster_config(
         Config
 
     """
-    # Every K8s pod has this.
+    # These exist inside every Kubernetes pod.
     server_ip = os.getenv('KUBERNETES_PORT_443_TCP_ADDR', None)
-
     fname_cert = pathlib.Path(fname_cert)
     fname_token = pathlib.Path(fname_token)
 
-    # Sanity checks: URL and service account files either exist, or we are not
-    # actually inside a Pod.
+    # Sanity checks: URL and service account must exist, or we are not running
+    # inside a Pod.
     try:
         assert server_ip is not None
         assert fname_cert.exists()
@@ -142,10 +141,10 @@ def load_gke_config(
     Returns None if `kubeconfig` does not exist or could not be parsed.
 
     Inputs:
-        kubconfig: str
-            Name of kubeconfig file.
-        context: str
-            Kubeconf context. Use `None` to use default context.
+        fname: Filepath
+            Path to kubeconfig file, eg "~/.kube/config.yaml"
+        context: Optional[str]
+            Kubeconf context. Use `None` to select the default context.
         disable_warnings: bool
             Whether or not do disable GCloud warnings.
 
@@ -153,12 +152,12 @@ def load_gke_config(
         Config
 
     """
-    # Parse the kubeconfig file.
+    # Parse the Kubeconfig file.
     _, _, cluster, err = load_kubeconfig(fname, context)
     if err:
         return (K8sConfig(), True)
 
-    # Unpack the self signed certificate (Google does not register the K8s API
+    # Unpack the self-signed certificate (Google does not register the K8s API
     # server certificate with a public CA).
     try:
         ssl_ca_cert_data = base64.b64decode(cluster["certificate-authority-data"])
@@ -166,13 +165,13 @@ def load_gke_config(
         logit.debug(f"Context {context} in <{fname}> is not a GKE config")
         return (K8sConfig(), True)
 
-    # Save the certificate to a temporary file. This is only necessary because
-    # the requests library will need a path to the CA file - unfortunately, we
-    # cannot just pass it the content.
+    # Save the certificate to a temporary file because Httpx expects it that way.
     _, tmp = tempfile.mkstemp(text=False)
-    ssl_ca_cert = Filepath(tmp)
-    ssl_ca_cert.write_bytes(ssl_ca_cert_data)
+    fname_cacert = Filepath(tmp)
+    fname_cacert.write_bytes(ssl_ca_cert_data)
 
+    # Use Google's auth library to create an access token. If that fails we
+    # are not dealing with a GKE clusters and return without credentials.
     with warnings.catch_warnings(record=disable_warnings):
         try:
             cred, _ = google.auth.default(
@@ -185,11 +184,11 @@ def load_gke_config(
             return (K8sConfig(), True)
 
     # Return the config data.
-    logit.info("Assuming GKE cluster.")
+    logit.info("Assuming Google cluster.")
     return K8sConfig(
         url=cluster["server"],
         token=cast(str, token),
-        ca_cert=ssl_ca_cert,
+        ca_cert=fname_cacert,
         client_cert=None,
         version="",
         name=cluster["name"],
@@ -206,9 +205,9 @@ def load_eks_config(
 
     Inputs:
         fname: Filepath
-            Kubeconfig file.
-        context: str
-            Kubeconf context. Use `None` to use default context.
+            Path to kubeconfig file, eg "~/.kube/config.yaml"
+        context: Optional[str]
+            Kubeconf context. Use `None` to select the default context.
         disable_warnings: bool (unused)
             Not used. It only exists for consistency with `load_gke_config` to
             make those functions generic.
@@ -240,9 +239,7 @@ def load_eks_config(
     # Convert a None value (valid value in YAML) to an empty list of env vars.
     env_kubeconf = env_kubeconf if env_kubeconf else []
 
-    # Save the certificate to a temporary file. This is only necessary because
-    # the Requests library will need a path to the CA file - unfortunately, we
-    # cannot just pass it the content.
+    # Save the certificate to a temporary file because Httpx expects it that way.
     tmp = tempfile.mkstemp(text=False)[1]
     ssl_ca_cert = Filepath(tmp)
     ssl_ca_cert.write_bytes(ssl_ca_cert_data)
@@ -268,13 +265,13 @@ def load_eks_config(
         logit.error(f"Could not find {cmd} application to get token ({log_cmd})")
         return (K8sConfig(), True)
     except (KeyError, yaml.YAMLError):
-        logit.error(f"Token manifest produce by {cmd_args} is corrupt ({log_cmd})")
+        logit.error(f"Token manifest produced by {cmd_args} is corrupt ({log_cmd})")
         return (K8sConfig(), True)
     except TypeError:
         logit.error(f"The YAML token produced by {cmd_args} is corrupt ({log_cmd})")
         return (K8sConfig(), True)
 
-    # Return the config data.
+    # Return the Kubernetes access configuration.
     logit.info("Assuming EKS cluster.")
     return K8sConfig(
         url=cluster["server"],
@@ -295,8 +292,8 @@ def load_minikube_config(fname: Filepath,
     Inputs:
         fname: Filepath
             Path to kubeconfig file, eg "~/.kube/config.yaml"
-        context: str
-            Kubeconf context. Use `None` to select default context.
+        context: Optional[str]
+            Kubeconf context. Use `None` to select the default context.
 
     Returns:
         Config
@@ -315,7 +312,7 @@ def load_minikube_config(fname: Filepath,
             key=Filepath(user["client-key"]),
         )
 
-        # Return the config data.
+        # Return the Kubernetes access configuration.
         logit.info("Assuming Minikube cluster.")
         return K8sConfig(
             url=cluster["server"],
@@ -342,10 +339,10 @@ def load_kind_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
     Return None on error.
 
     Inputs:
-        kubconfig: str
-            Path to kubeconfig for Kind cluster.
-        context: str
-            Kubeconf context. Use `None` to use default context.
+        fname: Filepath
+            Path to kubeconfig file, eg "~/.kube/config.yaml"
+        context: Optional[str]
+            Kubeconf context. Use `None` to select the default context.
 
     Returns:
         Config
@@ -399,12 +396,10 @@ def load_auto_config(
     2) `load_gke_config`
 
     Inputs:
-        fname: str
+        fname: Filepath
             Path to kubeconfig file, eg "~/.kube/config.yaml"
-            Use `None` to find out automatically or for incluster credentials.
-
-        context: str
-            Kubeconf context. Use `None` to use default context.
+        context: Optional[str]
+            Kubeconf context. Use `None` to select the default context.
 
     Returns:
         Config
@@ -562,7 +557,7 @@ def request(
     """Return response of web request made with `client`.
 
     Inputs:
-        client: `requests` session with correct K8s certificates.
+        client: HttpX client with correct K8s certificates.
         url: str
             Eg `https://1.2.3.4/api/v1/namespaces`)
         payload: dict
@@ -716,7 +711,7 @@ def cluster_config(
     interrogate its version and then return the configuration and web-session.
 
     Inputs:
-        kubeconfig: str
+        kubeconfig: Path
             Path to kubeconfig file.
         context: str
             Kubernetes context to use (can be `None` to use default).
@@ -725,9 +720,8 @@ def cluster_config(
         K8sConfig
 
     """
-    # Read Kubeconfig file and use it to create a `requests` client session.
-    # That session will have the proper security certificates and headers so
-    # that subsequent calls to K8s need not deal with it anymore.
+    # Create a HttpX client based on the Kubeconfig file. It will have the
+    # proper certificates and headers to connect to K8s.
     kubeconfig = kubeconfig.expanduser()
     try:
         # Parse Kubeconfig file.
