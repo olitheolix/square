@@ -128,8 +128,9 @@ def load_incluster_config(
     ), False
 
 
-def load_eks_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig, bool]:
-    """Return K8s access config for EKS cluster described in `kubeconfig`.
+def load_authenticator_config(fname: Filepath,
+                              context: Optional[str]) -> Tuple[K8sConfig, bool]:
+    """Return K8s config based on authenticator app specified in `kubeconfig`.
 
     Returns None if `kubeconfig` does not exist or could not be parsed.
 
@@ -345,7 +346,7 @@ def load_auto_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
         return conf, False
     logit.debug("KIND config failed")
 
-    conf, err = load_eks_config(fname, context)
+    conf, err = load_authenticator_config(fname, context)
     if not err:
         return conf, False
     logit.debug("EKS config failed")
