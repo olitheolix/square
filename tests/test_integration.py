@@ -42,7 +42,7 @@ class TestBasic:
 
         # Must not return a Kubernetes configuration if we could not create a
         # HttpX session.
-        with mock.patch.object(square.k8s, "session") as m_sess:
+        with mock.patch.object(square.k8s, "create_httpx_client") as m_sess:
             m_sess.return_value = (httpx.Client(), True)
             assert fun(fname, None) == (K8sConfig(), True)
 

@@ -360,7 +360,7 @@ def load_auto_config(kubeconf_path: Path,
     return (K8sConfig(), True)
 
 
-def session(k8sconfig: K8sConfig) -> Tuple[httpx.Client, bool]:
+def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[httpx.Client, bool]:
     """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
     cafile = None if str(k8sconfig.ca_cert) == "." else k8sconfig.ca_cert
@@ -374,7 +374,7 @@ def session(k8sconfig: K8sConfig) -> Tuple[httpx.Client, bool]:
 
     # Construct the HttpX client.
     try:
-        sess = httpx.Client(verify=ssl_context, cert=cert)  # type: ignore
+        client = httpx.Client(verify=ssl_context, cert=cert)  # type: ignore
     except ssl.SSLError:
         logit.error("Invalid certificates")
         return httpx.Client(), True
@@ -385,10 +385,10 @@ def session(k8sconfig: K8sConfig) -> Tuple[httpx.Client, bool]:
 
     # Add the bearer token if we have one.
     if k8sconfig.token != "":
-        sess.headers.update({'authorization': f'Bearer {k8sconfig.token}'})
+        client.headers.update({'authorization': f'Bearer {k8sconfig.token}'})
 
     # Return the configured session object.
-    return sess, False
+    return client, False
 
 
 def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
@@ -647,7 +647,7 @@ def cluster_config(
         assert not err
 
         # Configure HttpX session.
-        client, err = session(k8sconfig)
+        client, err = create_httpx_client(k8sconfig)
         assert not err
 
         # Configure web session.
