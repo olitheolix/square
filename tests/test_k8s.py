@@ -25,17 +25,17 @@ def nosleep():
 
 
 class TestK8sDeleteGetPatchPost:
-    def test_session_ok(self, k8sconfig):
+    def test_create_httpx_client_ok(self, k8sconfig):
         """Verify the HttpX client is correctly setup."""
         # Create basic Kubernetes configuration.
         config = k8sconfig._replace(token="")
-        sess, err = k8s.session(config)
+        sess, err = k8s.create_httpx_client(config)
         assert not err
         assert "authorization" not in sess.headers
 
         # Create token based Kubernetes configuration.
         config = k8sconfig._replace(token="token")
-        sess, err = k8s.session(config)
+        sess, err = k8s.create_httpx_client(config)
         assert not err
         assert sess.headers["authorization"] == "Bearer token"
 
@@ -45,11 +45,11 @@ class TestK8sDeleteGetPatchPost:
 
         ccert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
         config = k8sconfig._replace(token="token", client_cert=ccert)
-        sess, err = k8s.session(config)
+        sess, err = k8s.create_httpx_client(config)
         assert not err
         assert sess.headers["authorization"] == "Bearer token"
 
-    def test_session_err(self, k8sconfig, tmp_path: Path):
+    def test_create_httpx_client_err(self, k8sconfig, tmp_path: Path):
         """Must gracefully abort when there are certificate problems."""
         # Must gracefully abort when the certificate files do not exist.
         fname_client_crt = tmp_path / "does-not-exist.crt"
@@ -57,7 +57,7 @@ class TestK8sDeleteGetPatchPost:
 
         client_cert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
         config = k8sconfig._replace(client_cert=client_cert)
-        _, err = k8s.session(config)
+        _, err = k8s.create_httpx_client(config)
         assert err
 
         # Must gracefully abort when the certificates are corrupt.
@@ -66,7 +66,7 @@ class TestK8sDeleteGetPatchPost:
 
         client_cert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
         config = k8sconfig._replace(client_cert=client_cert)
-        _, err = k8s.session(config)
+        _, err = k8s.create_httpx_client(config)
         assert err
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
