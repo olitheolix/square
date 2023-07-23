@@ -314,13 +314,13 @@ def load_kind_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
 def load_auto_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Automagically find and load the correct K8s configuration.
 
-    This function will load several possible configuration options and returns
-    the first one with a match. The order is as follows:
+    This function will sequentially load all supported authentication schemes
+    until one fits.
 
-    1) `load_incluster_config`
-    2) `load_minikube_config`
+    1) `load_authenticator_config`
+    2) `load_incluster_config`
     3) `load_kind_config`
-    4) `load_authenticator_config`
+    4) `load_minikube_config`
 
     Inputs:
         fname: Filepath
@@ -332,25 +332,25 @@ def load_auto_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
         Config
 
     """
+    conf, err = load_authenticator_config(fname, context)
+    if not err:
+        return conf, False
+    logit.debug("Authenticator config failed")
+
     conf, err = load_incluster_config()
     if not err:
         return conf, False
     logit.debug("Incluster config failed")
-
-    conf, err = load_minikube_config(fname, context)
-    if not err:
-        return conf, False
-    logit.debug("Minikube config failed")
 
     conf, err = load_kind_config(fname, context)
     if not err:
         return conf, False
     logit.debug("KIND config failed")
 
-    conf, err = load_authenticator_config(fname, context)
+    conf, err = load_minikube_config(fname, context)
     if not err:
         return conf, False
-    logit.debug("Authenticator config failed")
+    logit.debug("Minikube config failed")
 
     logit.error(f"Could not find a valid configuration in <{fname}>")
     return (K8sConfig(), True)

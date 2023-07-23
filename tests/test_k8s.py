@@ -853,28 +853,28 @@ class TestK8sKubeconfig:
         m_kind.return_value = (K8sConfig(), False)
         m_auth.return_value = (K8sConfig(), False)
 
-        # Incluster returns a non-zero value.
+        # Authenticator succeeds.
         kubeconf, context = Filepath("kubeconf"), "context"
-        assert fun(kubeconf, context) == m_incluster.return_value
-        m_incluster.assert_called_once_with()
-
-        # Incluster fails but Minikube does not.
-        m_incluster.return_value = (K8sConfig(), True)
-        assert fun(kubeconf, context) == m_mini.return_value
-        m_mini.assert_called_once_with(kubeconf, context)
-
-        # Incluster & Minikube fail but KIND succeeds.
-        m_mini.return_value = (K8sConfig(), True)
-        assert fun(kubeconf, context) == m_kind.return_value
-        m_kind.assert_called_once_with(kubeconf, context)
-
-        # Incluster & Minikube & KIND fail but authenticator succeeds.
-        m_kind.return_value = (K8sConfig(), True)
         assert fun(kubeconf, context) == m_auth.return_value
         m_auth.assert_called_once_with(kubeconf, context)
 
-        # All fail.
+        # Authenticator fails but Incluster succeeds.
         m_auth.return_value = (K8sConfig(), True)
+        assert fun(kubeconf, context) == m_incluster.return_value
+        m_incluster.assert_called_once_with()
+
+        # Authenticator & Incluster fail but KinD succeeds.
+        m_incluster.return_value = (K8sConfig(), True)
+        assert fun(kubeconf, context) == m_kind.return_value
+        m_kind.assert_called_once_with(kubeconf, context)
+
+        # Authenticator & Incluster & KinD fail but Minikube succeeds.
+        m_kind.return_value = (K8sConfig(), True)
+        assert fun(kubeconf, context) == m_mini.return_value
+        m_mini.assert_called_once_with(kubeconf, context)
+
+        # All fail.
+        m_mini.return_value = (K8sConfig(), True)
         assert fun(kubeconf, context) == (K8sConfig(), True)
 
     def test_load_minikube_config_ok(self):
