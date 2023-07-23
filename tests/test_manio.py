@@ -2032,7 +2032,7 @@ class TestDownloadManifests:
     def test_download_ok(self, m_get, config, k8sconfig):
         """Download two kinds of manifests: Deployments and Namespaces.
 
-        The test only mocks the K8s API call. All other functions actually run.
+        The test only mocks the K8s API call. All other functions run normally.
 
         """
         make_meta = manio.make_meta
