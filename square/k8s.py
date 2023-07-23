@@ -593,11 +593,9 @@ def post(client, url: str, payload: dict) -> Tuple[dict, bool]:
 
 
 def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
-    """Return new `k8sconfig` with version number of K8s API.
+    """Return copy of `k8sconfig` but with current Kubernetes version.
 
-    Contact the K8s API, query its version via `client` and return `k8sconfig`
-    with an updated `version` field. All other field in `k8sconfig` will remain
-    intact.
+    All other fields in the provided `k8sconfig` will remain the same.
 
     Inputs:
         k8sconfig: K8sConfig
@@ -616,12 +614,6 @@ def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     # Construct the version number of the K8s API.
     major, minor = resp['major'], resp['minor']
     version = f"{major}.{minor}"
-
-    # If we are talking to GKE, the version string may now be "1.10+". It
-    # simply indicates that GKE is running version 1.10.x. We need to remove
-    # the "+" because the version string is important in `square`, for instance
-    # to determine which URLs to contact.
-    version = version.replace("+", "")
 
     # Return an updated `K8sconfig` tuple.
     k8sconfig = k8sconfig._replace(version=version)
