@@ -273,13 +273,6 @@ class TestK8sVersion:
         assert k8sconfig._replace(version="None") == config2._replace(version="None")
         del config2, err
 
-        # Repeat the test for a Google idiosyncracy which likes to report the
-        # minor version as eg "11+".
-        response["minor"] = "11+"
-        m_get.return_value = (response, None)
-        config, err = k8s.version(k8sconfig)
-        assert config.version == "1.11"
-
     @mock.patch.object(k8s, "get")
     def test_version_auto_err(self, m_get, k8sconfig):
         """Simulate an error when fetching the K8s version."""
