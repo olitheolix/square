@@ -233,7 +233,7 @@ def load_minikube_config(kubeconf_path: Path,
         return (K8sConfig(), True)
 
     # Minikube uses client certificates to authenticate. We need to pass those
-    # to the HTTP client of our choice when we create the session.
+    # to the HTTP client of our choice
     try:
         client_cert = K8sClientCert(
             crt=Path(user["client-certificate"]),
@@ -283,7 +283,7 @@ def load_kind_config(kubeconf_path: Path,
         return (K8sConfig(), True)
 
     # Kind and Minikube use client certificates to authenticate. We need to
-    # pass those to the HTTP client of our choice when we create the session.
+    # pass those to the HTTP client of our choice.
     try:
         client_crt = base64.b64decode(user["client-certificate-data"]).decode()
         client_key = base64.b64decode(user["client-key-data"]).decode()
@@ -387,7 +387,7 @@ def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[httpx.Client, bool]:
     if k8sconfig.token != "":
         client.headers.update({'authorization': f'Bearer {k8sconfig.token}'})
 
-    # Return the configured session object.
+    # Return the configured client object.
     return client, False
 
 
@@ -623,10 +623,10 @@ def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
 def cluster_config(
         kubeconfig: Path,
         context: Optional[str]) -> Tuple[K8sConfig, bool]:
-    """Return web session to K8s API.
+    """Return the `K8sConfig` to connect to the API.
 
-    This will read the Kubernetes credentials, contact Kubernetes to
-    interrogate its version and then return the configuration and web-session.
+    This will read the Kubernetes credentials, create a client and use it to
+    fetch the Kubernetes version.
 
     Inputs:
         kubeconfig: Path
@@ -646,11 +646,11 @@ def cluster_config(
         k8sconfig, err = load_auto_config(kubeconfig, context)
         assert not err
 
-        # Configure HttpX session.
+        # Configure a HttpX client for this cluster.
         client, err = create_httpx_client(k8sconfig)
         assert not err
 
-        # Configure web session.
+        # Add the web client to the `k8sconfig` object.
         k8sconfig = k8sconfig._replace(client=client)
         assert k8sconfig.client
 

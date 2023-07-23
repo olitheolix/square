@@ -673,7 +673,6 @@ class TestMain:
         """
         # Mock all calls to the K8s API.
         m_k8s.load_auto_config.return_value = k8sconfig
-        m_k8s.session.return_value = "client"
         m_k8s.version.return_value = (k8sconfig, False)
 
         # Pretend all main functions return errors.
