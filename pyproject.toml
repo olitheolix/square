@@ -13,8 +13,6 @@ include = ["resources/defaultconfig.yaml"]
 backoff = "*"
 colorama = "*"
 colorlog = "*"
-google = "*"
-google-api-python-client = "*"
 httpx = "*"
 jsonpatch = "*"
 pydantic = ">=2.0"
