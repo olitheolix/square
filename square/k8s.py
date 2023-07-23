@@ -128,10 +128,7 @@ def load_incluster_config(
     ), False
 
 
-def load_eks_config(
-        fname: Filepath,
-        context: Optional[str],
-        _: bool = False) -> Tuple[K8sConfig, bool]:
+def load_eks_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Return K8s access config for EKS cluster described in `kubeconfig`.
 
     Returns None if `kubeconfig` does not exist or could not be parsed.
@@ -141,9 +138,6 @@ def load_eks_config(
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: Optional[str]
             Kubeconf context. Use `None` to select the default context.
-        disable_warnings: bool (unused)
-            Not used. It only exists for consistency with `load_gke_config` to
-            make those functions generic.
 
     Returns:
         Config
@@ -316,10 +310,7 @@ def load_kind_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
         return (K8sConfig(), True)
 
 
-def load_auto_config(
-        fname: Filepath,
-        context: Optional[str],
-        disable_warnings: bool = False) -> Tuple[K8sConfig, bool]:
+def load_auto_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Automagically find and load the correct K8s configuration.
 
     This function will load several possible configuration options and returns
@@ -354,7 +345,7 @@ def load_auto_config(
         return conf, False
     logit.debug("KIND config failed")
 
-    conf, err = load_eks_config(fname, context, disable_warnings)
+    conf, err = load_eks_config(fname, context)
     if not err:
         return conf, False
     logit.debug("EKS config failed")
@@ -654,7 +645,7 @@ def cluster_config(
     kubeconfig = kubeconfig.expanduser()
     try:
         # Parse Kubeconfig file.
-        k8sconfig, err = load_auto_config(kubeconfig, context, disable_warnings=True)
+        k8sconfig, err = load_auto_config(kubeconfig, context)
         assert not err
 
         # Configure HttpX session.

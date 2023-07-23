@@ -871,7 +871,7 @@ class TestK8sKubeconfig:
         # Incluster & Minikube & KIND fail but EKS succeeds.
         m_kind.return_value = (K8sConfig(), True)
         assert fun(kubeconf, context) == m_eks.return_value
-        m_eks.assert_called_once_with(kubeconf, context, False)
+        m_eks.assert_called_once_with(kubeconf, context)
 
         # All fail.
         m_eks.return_value = (K8sConfig(), True)
