@@ -99,12 +99,11 @@ def merge(src: list, dst: list) -> list:
 
 def load(fname: Path) -> Tuple[Config, bool]:
     """Parse the Square configuration file `fname` and return it as a `Config`."""
-    err_resp = Config(folder=Path(""), kubeconfig=Path("")), True
-    fname = Path(fname)
+    err_resp = Config(folder=Path(), kubeconfig=Path()), True
 
     # Load the configuration file.
     try:
-        raw = yaml.safe_load(Path(fname).read_text())
+        raw = yaml.safe_load(fname.read_text())
     except FileNotFoundError as e:
         logit.error(f"Cannot load config file <{fname}>: {e.args[1]}")
         return err_resp

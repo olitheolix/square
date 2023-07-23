@@ -181,7 +181,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # Load the default configuration unless the user specified an explicit one.
     if p.configfile:
         logit.info(f"Loading configuration file <{p.configfile}>")
-        cfg, err = square.cfgfile.load(p.configfile)
+        cfg, err = square.cfgfile.load(Path(p.configfile))
 
         # Look for `--kubeconfig`. Defaults to the value in config file.
         kubeconfig = p.kubeconfig or cfg.kubeconfig
