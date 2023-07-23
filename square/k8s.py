@@ -98,7 +98,7 @@ def load_incluster_config(
         kubconfig: str
             Name of kubeconfig file.
     Returns:
-        Config
+        K8sConfig
 
     """
     # These exist inside every Kubernetes pod.
@@ -141,7 +141,7 @@ def load_authenticator_config(fname: Filepath,
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
-        Config
+        K8sConfig
 
     """
     # Parse the kubeconfig file.
@@ -224,7 +224,7 @@ def load_minikube_config(fname: Filepath,
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
-        Config
+        K8sConfig
 
     """
     # Parse the kubeconfig file.
@@ -273,7 +273,7 @@ def load_kind_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
-        Config
+        K8sConfig
 
     """
     # Parse the kubeconfig file.
@@ -329,7 +329,7 @@ def load_auto_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
-        Config
+        K8sConfig
 
     """
     conf, err = load_authenticator_config(fname, context)
