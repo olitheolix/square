@@ -26,14 +26,14 @@ FNAME_CERT = Filepath("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
 logit = logging.getLogger("square")
 
 
-def load_kubeconfig(fname: Filepath,
+def load_kubeconfig(kubeconf_path: Filepath,
                     context: Optional[str]) -> Tuple[str, dict, dict, bool]:
     """Return user name as well as user- and cluster information.
 
     Return None on error.
 
     Inputs:
-        fname: Filepath
+        kubeconf_path: Filepath
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: Optional[str]
             Kubeconf context. Use `None` to select the default context.
@@ -44,7 +44,7 @@ def load_kubeconfig(fname: Filepath,
     """
     # Load `kubeconfig`.
     try:
-        kubeconf = yaml.safe_load(open(fname))
+        kubeconf = yaml.safe_load(open(kubeconf_path))
     except (IOError, PermissionError) as err:
         logit.error(f"{err}")
         return ("", {}, {}, True)
@@ -79,11 +79,11 @@ def load_kubeconfig(fname: Filepath,
         user_info = user_info[0]["user"]
         del cluster_info
     except (KeyError, TypeError):
-        logit.error(f"Kubeconfig YAML file <{fname}> is invalid")
+        logit.error(f"Kubeconfig YAML file <{kubeconf_path}> is invalid")
         return ("", {}, {}, True)
 
     # Success. The explicit `dicts()` are to satisfy MyPy.
-    logit.info(f"Loaded {ctx} from Kubeconfig file <{fname}>")
+    logit.info(f"Loaded {ctx} from Kubeconfig file <{kubeconf_path}>")
     return (username, dict(user_info), dict(cluster_info_out), False)
 
 
@@ -128,14 +128,14 @@ def load_incluster_config(
     ), False
 
 
-def load_authenticator_config(fname: Filepath,
+def load_authenticator_config(kubeconf_path: Filepath,
                               context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Return K8s config based on authenticator app specified in `kubeconfig`.
 
     Returns None if `kubeconfig` does not exist or could not be parsed.
 
     Inputs:
-        fname: Filepath
+        kubeconf_path: Filepath
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: Optional[str]
             Kubeconf context. Use `None` to select the default context.
@@ -145,7 +145,7 @@ def load_authenticator_config(fname: Filepath,
 
     """
     # Parse the kubeconfig file.
-    user, cluster, err = load_kubeconfig(fname, context)[1:]
+    user, cluster, err = load_kubeconfig(kubeconf_path, context)[1:]
     if err:
         return (K8sConfig(), True)
 
@@ -161,7 +161,9 @@ def load_authenticator_config(fname: Filepath,
         args = user["exec"].get("args", [])
         env_kubeconf = user["exec"].get("env", [])
     except KeyError:
-        logit.debug(f"Context {context} in <{fname}> does not use authenticator app")
+        logit.debug(
+            f"Context {context} in <{kubeconf_path}> does not use authenticator app"
+        )
         return (K8sConfig(), True)
 
     # Convert a None value (valid value in YAML) to an empty list of env vars.
@@ -180,7 +182,7 @@ def load_authenticator_config(fname: Filepath,
 
     # Pre-format the command for the log message.
     log_cmd = (
-        f"kubeconf={fname} kubectx={context} "
+        f"kubeconf={kubeconf_path} kubectx={context} "
         f"cmd={cmd_args}  env={env_kubeconf}"
     )
 
@@ -211,14 +213,14 @@ def load_authenticator_config(fname: Filepath,
     ), False
 
 
-def load_minikube_config(fname: Filepath,
+def load_minikube_config(kubeconf_path: Filepath,
                          context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Load minikube configuration from `fname`.
 
     Return None on error.
 
     Inputs:
-        fname: Filepath
+        kubeconf_path: Filepath
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: Optional[str]
             Kubeconf context. Use `None` to select the default context.
@@ -228,7 +230,7 @@ def load_minikube_config(fname: Filepath,
 
     """
     # Parse the kubeconfig file.
-    _, user, cluster, err = load_kubeconfig(fname, context)
+    _, user, cluster, err = load_kubeconfig(kubeconf_path, context)
     if err:
         return (K8sConfig(), True)
 
@@ -251,11 +253,12 @@ def load_minikube_config(fname: Filepath,
             name=cluster["name"],
         ), False
     except KeyError:
-        logit.debug(f"Context {context} in <{fname}> is not a Minikube config")
+        logit.debug(f"Context {context} in <{kubeconf_path}> is not a Minikube config")
         return (K8sConfig(), True)
 
 
-def load_kind_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig, bool]:
+def load_kind_config(kubeconf_path: Filepath,
+                     context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Load Kind configuration from `fname`.
 
     https://github.com/bsycorp/kind
@@ -267,7 +270,7 @@ def load_kind_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
     Return None on error.
 
     Inputs:
-        fname: Filepath
+        kubeconf_path: Filepath
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: Optional[str]
             Kubeconf context. Use `None` to select the default context.
@@ -277,7 +280,7 @@ def load_kind_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
 
     """
     # Parse the kubeconfig file.
-    _, user, cluster, err = load_kubeconfig(fname, context)
+    _, user, cluster, err = load_kubeconfig(kubeconf_path, context)
     if err:
         return (K8sConfig(), True)
 
@@ -307,11 +310,14 @@ def load_kind_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
             name=cluster["name"],
         ), False
     except KeyError:
-        logit.debug(f"Context {context} in <{fname}> is not a Minikube config")
+        logit.debug(
+            f"Context {context} in <{kubeconf_path}> is not a Minikube config"
+        )
         return (K8sConfig(), True)
 
 
-def load_auto_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig, bool]:
+def load_auto_config(kubeconf_path: Filepath,
+                     context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Automagically find and load the correct K8s configuration.
 
     This function will sequentially load all supported authentication schemes
@@ -323,7 +329,7 @@ def load_auto_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
     4) `load_minikube_config`
 
     Inputs:
-        fname: Filepath
+        kubeconf_path: Filepath
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: Optional[str]
             Kubeconf context. Use `None` to select the default context.
@@ -332,7 +338,7 @@ def load_auto_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
         K8sConfig
 
     """
-    conf, err = load_authenticator_config(fname, context)
+    conf, err = load_authenticator_config(kubeconf_path, context)
     if not err:
         return conf, False
     logit.debug("Authenticator config failed")
@@ -342,17 +348,17 @@ def load_auto_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
         return conf, False
     logit.debug("Incluster config failed")
 
-    conf, err = load_kind_config(fname, context)
+    conf, err = load_kind_config(kubeconf_path, context)
     if not err:
         return conf, False
     logit.debug("KIND config failed")
 
-    conf, err = load_minikube_config(fname, context)
+    conf, err = load_minikube_config(kubeconf_path, context)
     if not err:
         return conf, False
     logit.debug("Minikube config failed")
 
-    logit.error(f"Could not find a valid configuration in <{fname}>")
+    logit.error(f"Could not find a valid configuration in <{kubeconf_path}>")
     return (K8sConfig(), True)
 
 
