@@ -687,7 +687,7 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     # Sort the plan according to `cfg.priority`.
     plan, plan_err = sort_plan(cfg, plan)
 
-    # Create properly configured "Requests" session to talk to the K8s API.
+    # Get an HttpX client to talk to the K8s API.
     k8sconfig, k8s_err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
 
     # Abort if we could not get the plan or establish the K8s session.
@@ -742,7 +742,7 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         return DeploymentPlan(tuple(), tuple(), tuple()), True
 
     try:
-        # Create properly configured Requests session to talk to K8s API.
+        # Get an HttpX client to talk to the K8s API.
         k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
         assert not err
 
@@ -779,7 +779,7 @@ def get_resources(cfg: Config) -> bool:
         return True
 
     try:
-        # Create properly configured Requests session to talk to K8s API.
+        # Get an HttpX client to talk to the K8s API.
         k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
         assert not err
 

@@ -29,15 +29,15 @@ class TestK8sDeleteGetPatchPost:
         """Verify the HttpX client is correctly setup."""
         # Create basic Kubernetes configuration.
         config = k8sconfig._replace(token="")
-        sess, err = k8s.create_httpx_client(config)
+        client, err = k8s.create_httpx_client(config)
         assert not err
-        assert "authorization" not in sess.headers
+        assert "authorization" not in client.headers
 
         # Create token based Kubernetes configuration.
         config = k8sconfig._replace(token="token")
-        sess, err = k8s.create_httpx_client(config)
+        client, err = k8s.create_httpx_client(config)
         assert not err
-        assert sess.headers["authorization"] == "Bearer token"
+        assert client.headers["authorization"] == "Bearer token"
 
         # Path to valid certificate specimen.
         fname_client_crt = Path("tests/support/client.crt")
@@ -45,9 +45,9 @@ class TestK8sDeleteGetPatchPost:
 
         ccert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
         config = k8sconfig._replace(token="token", client_cert=ccert)
-        sess, err = k8s.create_httpx_client(config)
+        client, err = k8s.create_httpx_client(config)
         assert not err
-        assert sess.headers["authorization"] == "Bearer token"
+        assert client.headers["authorization"] == "Bearer token"
 
     def test_create_httpx_client_err(self, k8sconfig, tmp_path: Path):
         """Must gracefully abort when there are certificate problems."""
