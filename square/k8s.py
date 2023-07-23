@@ -318,8 +318,9 @@ def load_auto_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
     the first one with a match. The order is as follows:
 
     1) `load_incluster_config`
-    1) `load_minikube_config`
-    2) `load_authenticator_config`
+    2) `load_minikube_config`
+    3) `load_kind_config`
+    4) `load_authenticator_config`
 
     Inputs:
         fname: Filepath
