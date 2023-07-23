@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import colorama
@@ -9,7 +10,7 @@ import square
 import square.k8s
 import square.square
 from square import DEFAULT_CONFIG_FILE, __version__
-from square.dtypes import Config, Filepath, GroupBy, Selectors
+from square.dtypes import Config, GroupBy, Selectors
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
@@ -166,8 +167,8 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
 
     """
     err_resp = Config(
-        folder=Filepath(""),
-        kubeconfig=Filepath(""),
+        folder=Path(""),
+        kubeconfig=Path(""),
         kubecontext=None,
         selectors=Selectors(),
         groupby=GroupBy(label="", order=[]),
@@ -188,7 +189,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         # Pick the configuration file. Depends on whether the user specified
         # `--no-config`, `--config` and if `.square.yaml` exists.
         default_cfg = DEFAULT_CONFIG_FILE
-        dot_square = Filepath(".square.yaml")
+        dot_square = Path(".square.yaml")
 
         if p.no_config:
             cfg_file = default_cfg
@@ -202,7 +203,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         # `--config`, `.square`, `KUBECONFIG` environment variable.
         if cfg_file == default_cfg:
             kubeconfig = p.kubeconfig or os.getenv("KUBECONFIG", "")
-            cfg.folder = Filepath.cwd()
+            cfg.folder = Path.cwd()
         else:
             kubeconfig = p.kubeconfig or str(cfg.kubeconfig) or os.getenv("KUBECONFIG", "")  # noqa
 
@@ -219,8 +220,8 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     folder = cfg.folder if p.folder is None else p.folder
 
     # Expand the user's home folder, ie if the path contains a "~".
-    folder = Filepath(folder).expanduser()
-    kubeconfig = Filepath(kubeconfig).expanduser()
+    folder = Path(folder).expanduser()
+    kubeconfig = Path(kubeconfig).expanduser()
 
     # ------------------------------------------------------------------------
     # GroupBy (determines the folder hierarchy that GET will create).
@@ -267,7 +268,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
 
     # Use the value from the (default) config file unless the user overrode
     # them on the command line.
-    kubeconfig = Filepath(kubeconfig)
+    kubeconfig = Path(kubeconfig)
     kubecontext = p.kubecontext or cfg.kubecontext
     namespaces = cfg.selectors.namespaces if p.namespaces is None else p.namespaces
     sel_labels = cfg.selectors.labels if p.labels is None else p.labels
@@ -388,7 +389,7 @@ def main() -> int:
 
     # Create a default ".square.yaml" in the current folder and quit.
     if param.parser == "config":
-        fname = Filepath(param.folder or ".") / ".square.yaml"
+        fname = Path(param.folder or ".") / ".square.yaml"
         fname.parent.mkdir(parents=True, exist_ok=True)
         fname.write_text(DEFAULT_CONFIG_FILE.read_text())
         print(

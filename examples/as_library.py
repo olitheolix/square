@@ -10,7 +10,7 @@ Start the KinD cluster, then run this script from the parent directory like so:
 
 """
 import os
-import pathlib
+from pathlib import Path
 
 import square
 from square.dtypes import Config, GroupBy, Selectors
@@ -21,7 +21,7 @@ def main():
     #                                 Setup
     # ----------------------------------------------------------------------
     # Kubernetes credentials.
-    kubeconfig, kubecontext = pathlib.Path(os.environ["KUBECONFIG"]), None
+    kubeconfig, kubecontext = Path(os.environ["KUBECONFIG"]), None
 
     # Optional: Set log level (0 = ERROR, 1 = WARNING, 2 = INFO, 3 = DEBUG).
     square.square.setup_logging(3)
@@ -33,7 +33,7 @@ def main():
         kubecontext=kubecontext,
 
         # Store manifests in this folder.
-        folder=pathlib.PosixPath('manifests'),
+        folder=Path('manifests'),
 
         # Group the downloaded manifests by namespace, label and kind.
         groupby=GroupBy(label="app", order=["ns", "label", "kind"]),

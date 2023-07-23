@@ -1,12 +1,12 @@
-import pathlib
 import unittest.mock as mock
+from pathlib import Path
 from typing import Generator
 
 import pytest
 
 import square.cfgfile
 import square.square
-from square.dtypes import Filepath, K8sConfig
+from square.dtypes import K8sConfig
 
 from .test_helpers import k8s_apis
 
@@ -16,7 +16,7 @@ def pytest_configure(*args, **kwargs):
     # Set log level to DEBUG for all unit tests.
     square.square.setup_logging(9)
 
-    if pathlib.Path(".square.yaml").exists():
+    if Path(".square.yaml").exists():
         print("\n--- Found `.square.yaml` in root folder. "
               "The tests cannot tolerate that. ABORT ---\n")
         assert False
@@ -64,7 +64,7 @@ def config(k8sconfig, tmp_path) -> Generator[square.dtypes.Config, None, None]:
 
     """
     # Load the sample configuration.
-    cfg, err = square.cfgfile.load(Filepath("tests/support/config.yaml"))
+    cfg, err = square.cfgfile.load(Path("tests/support/config.yaml"))
     assert not err
 
     # Point the folder and kubeconfig to temporary versions.

@@ -1,5 +1,5 @@
-import pathlib
 import sys
+from pathlib import Path
 
 from . import square
 from .cfgfile import load
@@ -13,9 +13,9 @@ __version__ = '1.4.0'
 # Determine the base folder. This is usually the folder of this very file, but
 # will be different if we run inside a bundle produced by PyInstaller.
 if getattr(sys, '_MEIPASS', None):
-    BASE_DIR = pathlib.Path(getattr(sys, '_MEIPASS'))
+    BASE_DIR = Path(getattr(sys, '_MEIPASS'))
 else:
-    BASE_DIR = pathlib.Path(__file__).parent.parent
+    BASE_DIR = Path(__file__).parent.parent
 
 # Square will source all its default values from this configuration file. The
 # only exceptions are the namespaces. By default, Square will target all the

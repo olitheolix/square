@@ -3,7 +3,7 @@ import copy
 import difflib
 import logging
 import multiprocessing
-import pathlib
+from pathlib import Path
 from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple, cast
 
 import yaml.parser
@@ -13,8 +13,8 @@ import square.cfgfile
 import square.dotdict
 import square.k8s
 from square.dtypes import (
-    Config, Filepath, Filters, FiltersKind, GroupBy, K8sConfig, K8sResource,
-    KindName, LocalManifestLists, MetaManifest, Selectors, SquareManifests,
+    Config, Filters, FiltersKind, GroupBy, K8sConfig, K8sResource, KindName,
+    LocalManifestLists, MetaManifest, Selectors, SquareManifests,
 )
 from square.yaml_io import Dumper, Loader
 
@@ -177,7 +177,7 @@ def unpack_k8s_resource_list(manifest_list: dict,
     return (manifests, False)
 
 
-def _parse_worker(fname: Filepath,
+def _parse_worker(fname: Path,
                   yaml_str: str) -> Tuple[List[dict], bool]:
     logit.debug(f"Parsing <{fname}>")
 
@@ -195,14 +195,14 @@ def _parse_worker(fname: Filepath,
         return ([], True)
 
 
-def parse(file_yaml: Dict[Filepath, str],
+def parse(file_yaml: Dict[Path, str],
           selectors: Selectors) -> Tuple[LocalManifestLists, bool]:
     """Parse all YAML strings from `file_yaml` into `LocalManifestLists`.
 
     Exclude all manifests that do not satisfy the `selectors`.
 
     Inputs:
-        file_yaml: Dict[Filepath, str]
+        file_yaml: Dict[Path, str]
             Raw data as returned by `load_files`.
         selectors: Selectors
             Skip all manifests that do not match these `selectors`.
@@ -304,7 +304,7 @@ def sync(local_manifests: LocalManifestLists,
     """Update the local manifests with the server values and return the result.
 
     Inputs:
-        local_manifests: Dict[Filepath, Tuple[MetaManifest, dict]]
+        local_manifests: Dict[Path, Tuple[MetaManifest, dict]]
         server_manifests: Dict[MetaManifest, dict]
         selectors: Selectors
             Only operate on resources that match the selectors.
@@ -312,7 +312,7 @@ def sync(local_manifests: LocalManifestLists,
             Specify relationship between new manifests and file names.
 
     Returns:
-        Dict[Filepath, List[Tuple[MetaManifest, dict]]]
+        Dict[Path, List[Tuple[MetaManifest, dict]]]
 
     """
     # Avoid side effects.
@@ -348,7 +348,7 @@ def sync(local_manifests: LocalManifestLists,
 
     # Make a copy of the local manifests to avoid side effects for the caller.
     # Also put it into a default dict for convenience.
-    out_add_mod: DefaultDict[Filepath, List[Tuple[MetaManifest, dict]]]
+    out_add_mod: DefaultDict[Path, List[Tuple[MetaManifest, dict]]]
     out_add_mod = collections.defaultdict(list)
     out_add_mod.update(copy.deepcopy(local_manifests))
     del local_manifests
@@ -381,7 +381,7 @@ def sync(local_manifests: LocalManifestLists,
 
 def filename_for_manifest(
         meta: MetaManifest, manifest: dict,
-        grouping: GroupBy) -> Tuple[Filepath, bool]:
+        grouping: GroupBy) -> Tuple[Path, bool]:
     """Return the file for the manifest based on `groupby`.
 
     Inputs:
@@ -390,18 +390,18 @@ def filename_for_manifest(
         groupby: GroupBy
 
     Output:
-        Filepath
+        Path
 
     """
     # --- Sanity checks ---
     if not set(grouping.order).issubset({"ns", "kind", "label"}):
         logit.error(f"Invalid resource ordering: {grouping.order}")
-        return Filepath(), True
+        return Path(), True
 
     if "label" in grouping.order:
         if len(grouping.label) == 0:
             logit.error("Must specify a non-empty label when grouping by it")
-            return Filepath(), True
+            return Path(), True
 
     # Convenience: reliably extract a label dictionary even when the original
     # manifest has none.
@@ -431,7 +431,7 @@ def filename_for_manifest(
     # Default to the catch-all `_other.yaml` resource if the order did not
     # produce a file name. This typically happens when `grouping.order = []`.
     path = "_other.yaml" if path == "" else f"{path}.yaml"
-    return Filepath(path), False
+    return Path(path), False
 
 
 def diff(local: dict, server: dict) -> Tuple[str, bool]:
@@ -682,23 +682,20 @@ def align_serviceaccount(
     return (local_manifests, False)
 
 
-def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> bool:
+def save_files(folder: Path, file_data: Dict[Path, str]) -> bool:
     """Save all `file_data` under `folder`.
 
     All paths in `file_data` are relative to `folder`.
 
     Inputs:
-        folder: Filepath
-        file_data: Dict[Filepath, str]
+        folder: Path
+        file_data: Dict[Path, str]
             The file name (relative to `folder`) and its content.
 
     Returns:
         None
 
     """
-    # Python's `pathlib.Path` objects are simply nicer to work with...
-    folder = pathlib.Path(folder)
-
     # Delete all YAML files under `folder`. This avoids stale manifests.
     try:
         for fp in folder.rglob("*.yaml"):
@@ -732,8 +729,8 @@ def save_files(folder: Filepath, file_data: Dict[Filepath, str]) -> bool:
 
 
 def load_files(
-        folder: Filepath,
-        fnames: Iterable[Filepath]) -> Tuple[Dict[Filepath, str], bool]:
+        folder: Path,
+        fnames: Iterable[Path]) -> Tuple[Dict[Path, str], bool]:
     """Load all `fnames` in `folder` and return their content.
 
     This is a convenience function for Square to recursively load all manifests
@@ -749,15 +746,12 @@ def load_files(
             The file names relative to `folder`.
 
     Returns:
-        Dict[Filepath, str]: the file names (relative to `folder`) and their
+        Dict[Path, str]: the file names (relative to `folder`) and their
         content as a string.
 
     """
-    # Python's `pathlib.Path` objects are simply nicer to work with...
-    folder = pathlib.Path(folder)
-
     # Load each file and store its name and content in the `out` dictionary.
-    out: Dict[Filepath, str] = {}
+    out: Dict[Path, str] = {}
     for fname_rel in fnames:
         # Construct absolute file path.
         fname_abs = folder / fname_rel
@@ -765,7 +759,6 @@ def load_files(
 
         # Read the file. Abort on error.
         try:
-            # The str() is necessary because `fname_rel` may be a `pathlib.Path`.
             out[fname_rel] = fname_abs.read_text()
         except FileNotFoundError:
             logit.error(f"Could not find <{fname_abs}>")
@@ -775,7 +768,7 @@ def load_files(
     return (out, False)
 
 
-def load_manifests(folder: Filepath,
+def load_manifests(folder: Path,
                    selectors: Selectors) -> Tuple[SquareManifests,
                                                   LocalManifestLists, bool]:
     """Return all K8s manifest found in `folder`.
@@ -790,16 +783,13 @@ def load_manifests(folder: Filepath,
     load and parse YAML files.
 
     Input:
-        folder: Filepath
+        folder: Path
         selectors: Selectors
 
     Returns:
         (local manifest without file info, local manifests with file info)
 
     """
-    # Python's `pathlib.Path` objects are simply nicer to work with...
-    folder = pathlib.Path(folder)
-
     # Compile the list of all YAML files in `folder` but only store their path
     # relative to `folder`.
     fnames = [(_.relative_to(folder), _.name) for _ in folder.rglob("*.yaml")]
@@ -814,7 +804,7 @@ def load_manifests(folder: Filepath,
         man_files, err = parse(fdata_raw, selectors)
         assert not err and man_files is not None
 
-        # Remove the Filepath dimension.
+        # Remove the Path dimension.
         man_meta, err = compile_square_manifests(man_files)
         assert not err and man_meta is not None
     except AssertionError:
@@ -827,7 +817,7 @@ def load_manifests(folder: Filepath,
 def sort_manifests(
         file_manifests: LocalManifestLists,
         priority: List[str]
-) -> Tuple[Dict[Filepath, List[dict]], bool]:
+) -> Tuple[Dict[Path, List[dict]], bool]:
     """Sort the manifests in each `file_manifests` by their `priority`.
 
     The returned data contains only the manifests without the `MetaData`. The
@@ -841,7 +831,7 @@ def sort_manifests(
 
     """
     # Sort the manifests in each file.
-    out: Dict[Filepath, List[dict]] = {}
+    out: Dict[Path, List[dict]] = {}
     for fname, manifests in file_manifests.items():
         # Group the manifests by their "kind" in order of `priority` and sort
         # each group alphabetically.
@@ -878,15 +868,15 @@ def sort_manifests(
     return out, False
 
 
-def save(folder: Filepath,
+def save(folder: Path,
          manifests: LocalManifestLists,
          priority: List[str]) -> bool:
     """Saves all `manifests` as YAMLs in `folder`.
 
     Input:
-        folder: Filepath
+        folder: Path
             Source folder.
-        file_manifests: Dict[Filepath, Tuple(MetaManifest, dict)]
+        file_manifests: Dict[Path, Tuple(MetaManifest, dict)]
             Names of files and their Python dicts to save as YAML.
         priority: List[str]
             Sort the manifest in this order, or alphabetically at the end if
@@ -898,7 +888,7 @@ def save(folder: Filepath,
     """
     # Sort the manifest in each file by priority. Ignore the error flag because
     # `sort_manifests` always succeeds.
-    # out: Dict[FilePath, List[dict]]
+    # out: Dict[Path, List[dict]]
     out, _ = sort_manifests(manifests, priority)
 
     # Ignore all files without manifests, ie empty files.
@@ -917,8 +907,8 @@ def save(folder: Filepath,
     out_clean = {k: v for k, v in out_clean.items() if not k.name.startswith(".")}
 
     # Convert all manifest dicts into YAML strings.
-    out_final: Dict[Filepath, str] = {}
-    fname: Filepath = Filepath()
+    out_final: Dict[Path, str] = {}
+    fname: Path = Path()
     try:
         for fname, v in out_clean.items():
             out_final[fname] = yaml.dump_all(v, default_flow_style=False,

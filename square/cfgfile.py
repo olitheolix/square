@@ -9,13 +9,14 @@ This module defines utility functions to define these filters.
 """
 import copy
 import logging
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Tuple
 
 import pydantic
 import yaml
 
-from square.dtypes import Config, Filepath
+from square.dtypes import Config
 
 from .dtypes import FiltersKind
 
@@ -96,14 +97,14 @@ def merge(src: list, dst: list) -> list:
     return dst
 
 
-def load(fname: Filepath) -> Tuple[Config, bool]:
+def load(fname: Path) -> Tuple[Config, bool]:
     """Parse the Square configuration file `fname` and return it as a `Config`."""
-    err_resp = Config(folder=Filepath(""), kubeconfig=Filepath("")), True
-    fname = Filepath(fname)
+    err_resp = Config(folder=Path(""), kubeconfig=Path("")), True
+    fname = Path(fname)
 
     # Load the configuration file.
     try:
-        raw = yaml.safe_load(Filepath(fname).read_text())
+        raw = yaml.safe_load(Path(fname).read_text())
     except FileNotFoundError as e:
         logit.error(f"Cannot load config file <{fname}>: {e.args[1]}")
         return err_resp

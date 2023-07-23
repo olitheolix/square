@@ -1,7 +1,7 @@
 import copy
-import pathlib
 import time
 import unittest.mock as mock
+from pathlib import Path
 
 import httpx
 import pytest
@@ -11,7 +11,7 @@ import yaml
 import square.k8s
 import square.main
 import square.manio as manio
-from square.dtypes import Config, Filepath, GroupBy, K8sConfig, Selectors
+from square.dtypes import Config, GroupBy, K8sConfig, Selectors
 
 from .test_helpers import kind_available
 
@@ -34,7 +34,7 @@ class TestBasic:
 
         # Fixtures.
         fun = square.k8s.cluster_config
-        fname = Filepath("/tmp/kubeconfig-kind.yaml")
+        fname = Path("/tmp/kubeconfig-kind.yaml")
 
         # Must produce a valid K8s configuration.
         cfg, err = fun(fname, None)
@@ -50,7 +50,7 @@ class TestBasic:
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestMainGet:
     def setup_method(self):
-        cur_path = pathlib.Path(__file__).parent.parent
+        cur_path = Path(__file__).parent.parent
         integration_test_manifest_path = cur_path / "integration-test-cluster"
         assert integration_test_manifest_path.exists()
         assert integration_test_manifest_path.is_dir()
@@ -292,7 +292,7 @@ class TestMainGet:
             folder=tmp_path,
             groupby=GroupBy(label="app", order=[]),
             kubecontext=None,
-            kubeconfig=Filepath("/tmp/kubeconfig-kind.yaml"),
+            kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
             selectors=Selectors(
                 kinds={"HorizontalPodAutoscaler"},
                 namespaces=["test-hpa"],
@@ -337,7 +337,7 @@ class TestKindName:
         # Populate the `Config` structure. All main functions expect this.
         config = Config(
             kubecontext=None,
-            kubeconfig=Filepath("/tmp/kubeconfig-kind.yaml"),
+            kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
 
             # Store manifests in this folder.
             folder=tmp_path / 'manifests',
@@ -479,7 +479,7 @@ class TestMainPlan:
             folder=tmp_path / "backup",
             groupby=GroupBy(label="app", order=[]),
             kubecontext=None,
-            kubeconfig=Filepath("/tmp/kubeconfig-kind.yaml"),
+            kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
             priorities=priorities,
             selectors=Selectors(
                 kinds=set(priorities),
@@ -560,7 +560,7 @@ class TestMainPlan:
             folder=tmp_path,
             groupby=GroupBy(label="app", order=[]),
             kubecontext=None,
-            kubeconfig=Filepath("/tmp/kubeconfig-kind.yaml"),
+            kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
             selectors=Selectors(
                 kinds={"HorizontalPodAutoscaler"},
                 namespaces=["test-hpa"],
