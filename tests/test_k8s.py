@@ -843,7 +843,7 @@ class TestK8sKubeconfig:
     @mock.patch.object(k8s, "load_incluster_config")
     @mock.patch.object(k8s, "load_minikube_config")
     @mock.patch.object(k8s, "load_kind_config")
-    @mock.patch.object(k8s, "load_eks_config")
+    @mock.patch.object(k8s, "load_authenticator_config")
     def test_load_auto_config(self, m_eks, m_kind, m_mini, m_incluster):
         """`load_auto_config` must pick the first successful configuration."""
         fun = k8s.load_auto_config
@@ -949,7 +949,7 @@ class TestK8sKubeconfig:
 
     @pytest.mark.parametrize("context", ["eks", "eks-noargs"])
     @mock.patch.object(k8s.subprocess, "run")
-    def test_load_eks_config_ok(self, m_run, context):
+    def test_load_authenticator_config_ok(self, m_run, context):
         """Load EKS configuration from demo kubeconfig."""
         # Mock the call to run the external `aws-iam-authenticator` tool.
         token = yaml.dump({"status": {"token": "EKS token"}})
@@ -957,7 +957,7 @@ class TestK8sKubeconfig:
 
         # Load the K8s configuration for "eks" context.
         fname = Filepath("tests/support/kubeconf.yaml")
-        ret, err = k8s.load_eks_config(fname, context)
+        ret, err = k8s.load_authenticator_config(fname, context)
         assert not err and isinstance(ret, K8sConfig)
 
         # Must have put the certificate into a temporary file for Httpx to find.
@@ -989,7 +989,7 @@ class TestK8sKubeconfig:
         assert actual_env == expected_env
 
     @mock.patch.object(k8s.subprocess, "run")
-    def test_load_eks_config_err(self, m_run):
+    def test_load_authenticator_config_err(self, m_run):
         """Load EKS configuration from demo kubeconfig."""
         # Valid kubeconfig file.
         fname = Filepath("tests/support/kubeconf.yaml")
@@ -997,31 +997,31 @@ class TestK8sKubeconfig:
 
         # Pretend the `aws-iam-authenticator` binary does not exist.
         m_run.side_effect = FileNotFoundError
-        assert k8s.load_eks_config(fname, "eks") == err_resp
+        assert k8s.load_authenticator_config(fname, "eks") == err_resp
 
         # Pretend that `aws-iam-authenticator` returned a valid but useless YAML.
         m_run.side_effect = None
         m_run.return_value = types.SimpleNamespace(stdout=yaml.dump({}).encode("utf8"))
-        assert k8s.load_eks_config(fname, "eks") == err_resp
+        assert k8s.load_authenticator_config(fname, "eks") == err_resp
 
         # Pretend that `aws-iam-authenticator` returned an invalid YAML.
         m_run.side_effect = None
         invalid_yaml = "invalid :: - yaml".encode("utf8")
         m_run.return_value = types.SimpleNamespace(stdout=invalid_yaml)
-        assert k8s.load_eks_config(fname, "eks") == err_resp
+        assert k8s.load_authenticator_config(fname, "eks") == err_resp
 
         # Pretend that `aws-iam-authenticator` ran without error but
         # returned an empty string. This typically happens if the AWS config
         # files do not exist for the selected AWS profile.
         m_run.side_effect = None
         m_run.return_value = types.SimpleNamespace(stdout=b"")
-        assert k8s.load_eks_config(fname, "eks") == err_resp
+        assert k8s.load_authenticator_config(fname, "eks") == err_resp
 
         # Must fail because EKS is not the default context in the demo kubeconf file.
-        assert k8s.load_eks_config(fname, None) == (K8sConfig(), True)
+        assert k8s.load_authenticator_config(fname, None) == (K8sConfig(), True)
 
         # Must fail because Minikube does not use an external app to create the token.
-        assert k8s.load_eks_config(fname, "minikube") == (K8sConfig(), True)
+        assert k8s.load_authenticator_config(fname, "minikube") == (K8sConfig(), True)
 
     def test_wrong_conf(self):
         # Minikube
@@ -1034,7 +1034,7 @@ class TestK8sKubeconfig:
         assert fun(P / "kubeconf_invalid.yaml", "minkube") == resp
 
         # EKS
-        assert k8s.load_eks_config(P / "invalid.yaml", None) == resp
-        assert k8s.load_eks_config(P / "invalid.yaml", "invalid") == resp
-        assert k8s.load_eks_config(P / "kubeconf.yaml", "invalid") == resp
-        assert k8s.load_eks_config(P / "kubeconf_invalid.yaml", "eks") == resp
+        assert k8s.load_authenticator_config(P / "invalid.yaml", None) == resp
+        assert k8s.load_authenticator_config(P / "invalid.yaml", "invalid") == resp
+        assert k8s.load_authenticator_config(P / "kubeconf.yaml", "invalid") == resp
+        assert k8s.load_authenticator_config(P / "kubeconf_invalid.yaml", "eks") == resp
