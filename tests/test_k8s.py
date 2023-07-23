@@ -891,7 +891,7 @@ class TestK8sKubeconfig:
                 key=Filepath("client.key"),
             ),
             version="",
-            name="clustername-minikube",
+            name="minikube",
         )
         expected = (ref, False)
         assert k8s.load_minikube_config(fname, "minikube") == expected
@@ -947,15 +947,23 @@ class TestK8sKubeconfig:
         fname = tmp_path / "does-not-exist"
         assert k8s.load_kind_config(fname, None) == (K8sConfig(), True)
 
-    @pytest.mark.parametrize("context", ["eks", "eks-noargs"])
+    @pytest.mark.parametrize("context", ["aks", "eks", "gke"])
     @mock.patch.object(k8s.subprocess, "run")
     def test_load_authenticator_config_ok(self, m_run, context):
-        """Load EKS configuration from demo kubeconfig."""
+        """Compile K8s configuration based on external authenticator apps."""
+        assert context in ("aks", "eks", "gke")
+        if context == "aks":
+            auth_app = "kubelogin"
+        elif context == "eks":
+            auth_app = "aws-iam-authenticator"
+        else:
+            auth_app = "gke-gcloud-auth-plugin"
+
         # Mock the call to run the external `aws-iam-authenticator` tool.
-        token = yaml.dump({"status": {"token": "EKS token"}})
+        token = yaml.dump({"status": {"token": "token"}})
         m_run.return_value = types.SimpleNamespace(stdout=token.encode("utf8"))
 
-        # Load the K8s configuration for "eks" context.
+        # Load the K8s configuration for the current `context`.
         fname = Filepath("tests/support/kubeconf.yaml")
         ret, err = k8s.load_authenticator_config(fname, context)
         assert not err and isinstance(ret, K8sConfig)
@@ -965,25 +973,30 @@ class TestK8sKubeconfig:
 
         # Verify the returned Kubernetes configuration.
         assert ret == K8sConfig(
-            url="https://5.6.7.8",
-            token="EKS token",
+            url=f"https://{context}.com",
+            token="token",
             ca_cert=ret.ca_cert,
             client_cert=None,
             version="",
-            name="clustername-eks",
+            name=context,
         )
 
         # Verify that the correct external command was called, including
         # environment variables. The "expected_*" values are directly from
         # "support/kubeconf.yaml".
-        expected_env = os.environ.copy()
-        assert context in ("eks", "eks-noargs")
-        if context == "eks-noargs":
-            expected_cmd = ["aws-iam-authenticator"]
+        if context == "aks":
+            args = ["get-token", "--login", "azurecli", "--server-id", "abc123"]
+            env = {}
+        elif context == "eks":
+            args = ["token", "-i", "eks-cluster-name"]
+            env = {"foo": "bar"}
         else:
-            expected_cmd = ["aws-iam-authenticator", "token", "-i", "eks-cluster-name"]
+            assert context == "gke"
+            args, env = [], {}
 
-        expected_env.update({"foo1": "bar1", "foo2": "bar2"})
+        expected_cmd = [auth_app] + args
+        expected_env = os.environ.copy() | env
+
         actual_cmd, actual_env = m_run.call_args[0][0], m_run.call_args[1]["env"]
         assert actual_cmd == expected_cmd
         assert actual_env == expected_env
@@ -1017,23 +1030,53 @@ class TestK8sKubeconfig:
         m_run.return_value = types.SimpleNamespace(stdout=b"")
         assert k8s.load_authenticator_config(fname, "eks") == err_resp
 
-        # Must fail because EKS is not the default context in the demo kubeconf file.
+        # Must fail because `eks` is not the default context in the demo kubeconf file.
         assert k8s.load_authenticator_config(fname, None) == (K8sConfig(), True)
 
         # Must fail because Minikube does not use an external app to create the token.
         assert k8s.load_authenticator_config(fname, "minikube") == (K8sConfig(), True)
 
-    def test_wrong_conf(self):
-        # Minikube
-        fun = k8s.load_minikube_config
-        resp = (K8sConfig(), True)
-        P = Filepath("tests/support")
-        assert fun(P / "invalid.yaml", None) == resp
-        assert fun(P / "invalid.yaml", "invalid") == resp
-        assert fun(P / "kubeconf.yaml", "invalid") == resp
-        assert fun(P / "kubeconf_invalid.yaml", "minkube") == resp
+    @mock.patch.object(k8s.subprocess, "run")
+    def test_load_all_supported_kubeconfig_styles(self, m_run):
+        """Verify that we can load every config style from our Kubeconfig specimen."""
+        # Kubeconfig specimen.
+        fname = Filepath("tests/support/kubeconf.yaml")
 
-        # Generic cluster using external authenticator app.
+        # Mock the call to the external authenticator and make it return a token.
+        token = yaml.dump({"status": {"token": "token"}})
+        m_run.return_value = types.SimpleNamespace(stdout=token.encode("utf8"))
+
+        assert k8s.load_minikube_config(fname, "minikube")[1] is False
+        assert k8s.load_kind_config(fname, "kind")[1] is False
+        assert k8s.load_authenticator_config(fname, "gke")[1] is False
+        assert k8s.load_authenticator_config(fname, "eks")[1] is False
+
+    def test_load_start_config_invalid_input(self):
+        """All `load_*_config` functions must fail gracefully.
+
+        This is a simple summary test to call all `load_*_functions` with
+        invalid or corrupt Kubeconfig data.
+
+        """
+        # Convenience.
+        P = Filepath("tests/support")
+
+        # Expected failure response.
+        resp = (K8sConfig(), True)
+
+        # `load_minikube_config` must fail due to invalid Kubenconfig.
+        assert k8s.load_minikube_config(P / "invalid.yaml", None) == resp
+        assert k8s.load_minikube_config(P / "invalid.yaml", "invalid") == resp
+        assert k8s.load_minikube_config(P / "kubeconf.yaml", "invalid") == resp
+        assert k8s.load_minikube_config(P / "kubeconf_invalid.yaml", "minkube") == resp
+
+        # `load_kind_config` must fail due to invalid Kubenconfig.
+        assert k8s.load_kind_config(P / "invalid.yaml", None) == resp
+        assert k8s.load_kind_config(P / "invalid.yaml", "invalid") == resp
+        assert k8s.load_kind_config(P / "kubeconf.yaml", "invalid") == resp
+        assert k8s.load_kind_config(P / "kubeconf_invalid.yaml", "kind") == resp
+
+        # `load_authenticator_config` must fail due to invalid Kubenconfig.
         assert k8s.load_authenticator_config(P / "invalid.yaml", None) == resp
         assert k8s.load_authenticator_config(P / "invalid.yaml", "invalid") == resp
         assert k8s.load_authenticator_config(P / "kubeconf.yaml", "invalid") == resp
