@@ -844,8 +844,7 @@ class TestK8sKubeconfig:
     @mock.patch.object(k8s, "load_minikube_config")
     @mock.patch.object(k8s, "load_kind_config")
     @mock.patch.object(k8s, "load_eks_config")
-    @mock.patch.object(k8s, "load_gke_config")
-    def test_load_auto_config(self, m_gke, m_eks, m_kind, m_mini, m_incluster):
+    def test_load_auto_config(self, m_eks, m_kind, m_mini, m_incluster):
         """`load_auto_config` must pick the first successful configuration."""
         fun = k8s.load_auto_config
 
@@ -853,7 +852,6 @@ class TestK8sKubeconfig:
         m_mini.return_value = (K8sConfig(), False)
         m_kind.return_value = (K8sConfig(), False)
         m_eks.return_value = (K8sConfig(), False)
-        m_gke.return_value = (K8sConfig(), False)
 
         # Incluster returns a non-zero value.
         kubeconf, context = Filepath("kubeconf"), "context"
@@ -875,13 +873,8 @@ class TestK8sKubeconfig:
         assert fun(kubeconf, context) == m_eks.return_value
         m_eks.assert_called_once_with(kubeconf, context, False)
 
-        # Incluster & Minikube & KIND & EKS fail but GKE succeeds.
-        m_eks.return_value = (K8sConfig(), True)
-        assert fun(kubeconf, context) == m_gke.return_value
-        m_gke.assert_called_once_with(kubeconf, context, False)
-
         # All fail.
-        m_gke.return_value = (K8sConfig(), True)
+        m_eks.return_value = (K8sConfig(), True)
         assert fun(kubeconf, context) == (K8sConfig(), True)
 
     def test_load_minikube_config_ok(self):
@@ -910,9 +903,6 @@ class TestK8sKubeconfig:
         # explicit context must return the same information.
         assert expected == k8s.load_minikube_config(fname, None)
 
-        # Try to load a GKE context - must fail.
-        assert k8s.load_minikube_config(fname, "gke") == (K8sConfig(), True)
-
     def test_load_kind_config_ok(self):
         # Load the K8s configuration for a Kind cluster.
         fname = Filepath("tests/support/kubeconf.yaml")
@@ -938,14 +928,15 @@ class TestK8sKubeconfig:
         assert ret.client_cert.crt.exists()
         assert ret.client_cert.key.exists()
 
-        # Try to load a GKE context - must fail.
-        assert k8s.load_kind_config(fname, "gke") == (K8sConfig(), True)
-
     def test_load_kind_config_invalid_context_err(self, tmp_path):
         """Gracefully abort if we cannot parse Kubeconfig."""
         # Valid Kubeconfig file but it has no "invalid" context.
         fname = Filepath("tests/support/kubeconf.yaml")
         assert k8s.load_kind_config(fname, "invalid") == (K8sConfig(), True)
+
+        # Valid Kubeconfig file but not for KinD.
+        fname = Filepath("tests/support/kubeconf.yaml")
+        assert k8s.load_kind_config(fname, "minikube") == (K8sConfig(), True)
 
         # Create a corrupt Kubeconfig file.
         fname = tmp_path / "kubeconfig"
@@ -955,44 +946,6 @@ class TestK8sKubeconfig:
         # Try to load a non-existing file.
         fname = tmp_path / "does-not-exist"
         assert k8s.load_kind_config(fname, None) == (K8sConfig(), True)
-
-    @mock.patch.object(k8s.google.auth, "default")
-    def test_load_gke_config_ok(self, m_google):
-        """Load GKE configuration from demo kubeconfig."""
-        # Skip the Google authentication part.
-        m_google.return_value = (m_google, "project_id")
-        m_google.token = "google token"
-
-        # Load the K8s configuration for "gke" context.
-        fname = Filepath("tests/support/kubeconf.yaml")
-        ret, err = k8s.load_gke_config(fname, "gke")
-        assert not err and isinstance(ret, K8sConfig)
-
-        # The certificate will be in a temporary folder because the `Requests`
-        # library insists on reading it from a file. Here we verify that the
-        # test function did indeed create such a temporary file.
-        assert ret.ca_cert.exists()
-
-        # Verify the expected output.
-        assert ret == K8sConfig(
-            url="https://1.2.3.4",
-            token="google token",
-            ca_cert=ret.ca_cert,
-            client_cert=None,
-            version="",
-            name="clustername-gke",
-        )
-
-        # GKE is not the default context in the demo kubeconf file, which means
-        # this must fail.
-        assert k8s.load_gke_config(fname, None) == (K8sConfig(), True)
-
-        # Try to load a Minikube context - must fail.
-        assert k8s.load_gke_config(fname, "minikube") == (K8sConfig(), True)
-
-        # Pretend the Google client threw an exception.
-        m_google.side_effect = k8s.google.auth.exceptions.DefaultCredentialsError
-        assert k8s.load_gke_config(fname, "gke") == (K8sConfig(), True)
 
     @pytest.mark.parametrize("context", ["eks", "eks-noargs"])
     @mock.patch.object(k8s.subprocess, "run")
@@ -1079,13 +1032,6 @@ class TestK8sKubeconfig:
         assert fun(P / "invalid.yaml", "invalid") == resp
         assert fun(P / "kubeconf.yaml", "invalid") == resp
         assert fun(P / "kubeconf_invalid.yaml", "minkube") == resp
-
-        # GKE
-        assert k8s.load_gke_config(P / "invalid.yaml", None) == resp
-        assert k8s.load_gke_config(P / "invalid.yaml", "invalid") == resp
-        assert k8s.load_gke_config(P / "kubeconf.yaml", "invalid") == resp
-        assert k8s.load_gke_config(P / "kubeconf_invalid.yaml",
-                                   "gke") == resp
 
         # EKS
         assert k8s.load_eks_config(P / "invalid.yaml", None) == resp

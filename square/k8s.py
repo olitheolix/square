@@ -7,14 +7,10 @@ import re
 import ssl
 import subprocess
 import tempfile
-import warnings
 from collections import defaultdict
-from typing import Dict, List, Optional, Set, Tuple, cast
+from typing import Dict, List, Optional, Set, Tuple
 
 import backoff
-import google.auth
-import google.auth.exceptions
-import google.auth.transport.requests
 import httpx
 import yaml
 
@@ -129,69 +125,6 @@ def load_incluster_config(
         client_cert=None,
         version="",
         name="",
-    ), False
-
-
-def load_gke_config(
-        fname: Filepath,
-        context: Optional[str],
-        disable_warnings: bool = False) -> Tuple[K8sConfig, bool]:
-    """Return K8s access config for GKE cluster described in `kubeconfig`.
-
-    Returns None if `kubeconfig` does not exist or could not be parsed.
-
-    Inputs:
-        fname: Filepath
-            Path to kubeconfig file, eg "~/.kube/config.yaml"
-        context: Optional[str]
-            Kubeconf context. Use `None` to select the default context.
-        disable_warnings: bool
-            Whether or not do disable GCloud warnings.
-
-    Returns:
-        Config
-
-    """
-    # Parse the Kubeconfig file.
-    _, _, cluster, err = load_kubeconfig(fname, context)
-    if err:
-        return (K8sConfig(), True)
-
-    # Unpack the self-signed certificate (Google does not register the K8s API
-    # server certificate with a public CA).
-    try:
-        ssl_ca_cert_data = base64.b64decode(cluster["certificate-authority-data"])
-    except KeyError:
-        logit.debug(f"Context {context} in <{fname}> is not a GKE config")
-        return (K8sConfig(), True)
-
-    # Save the certificate to a temporary file because Httpx expects it that way.
-    _, tmp = tempfile.mkstemp(text=False)
-    fname_cacert = Filepath(tmp)
-    fname_cacert.write_bytes(ssl_ca_cert_data)
-
-    # Use Google's auth library to create an access token. If that fails we
-    # are not dealing with a GKE clusters and return without credentials.
-    with warnings.catch_warnings(record=disable_warnings):
-        try:
-            cred, _ = google.auth.default(
-                scopes=['https://www.googleapis.com/auth/cloud-platform']
-            )
-            cred.refresh(google.auth.transport.requests.Request())
-            token = cred.token
-        except google.auth.exceptions.DefaultCredentialsError as e:
-            logit.error(str(e))
-            return (K8sConfig(), True)
-
-    # Return the config data.
-    logit.info("Assuming Google cluster.")
-    return K8sConfig(
-        url=cluster["server"],
-        token=cast(str, token),
-        ca_cert=fname_cacert,
-        client_cert=None,
-        version="",
-        name=cluster["name"],
     ), False
 
 
@@ -393,7 +326,8 @@ def load_auto_config(
     the first one with a match. The order is as follows:
 
     1) `load_incluster_config`
-    2) `load_gke_config`
+    1) `load_minikube_config`
+    2) `load_eks_config`
 
     Inputs:
         fname: Filepath
@@ -424,11 +358,6 @@ def load_auto_config(
     if not err:
         return conf, False
     logit.debug("EKS config failed")
-
-    conf, err = load_gke_config(fname, context, disable_warnings)
-    if not err:
-        return conf, False
-    logit.debug("GKE config failed")
 
     logit.error(f"Could not find a valid configuration in <{fname}>")
     return (K8sConfig(), True)
@@ -694,7 +623,7 @@ def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     # If we are talking to GKE, the version string may now be "1.10+". It
     # simply indicates that GKE is running version 1.10.x. We need to remove
     # the "+" because the version string is important in `square`, for instance
-    # to determines which URLs to contact, which fields are valid.
+    # to determine which URLs to contact.
     version = version.replace("+", "")
 
     # Return an updated `K8sconfig` tuple.
