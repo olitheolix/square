@@ -1170,9 +1170,9 @@ class TestMainOptions:
     def test_make_plan(self, m_plan, m_align, m_down, m_load, config, kube_creds):
         """Basic test.
 
-        This function does hardly anything to begin with, so we will merely
-        verify it calls the correct functions with the correct arguments and
-        handles errors correctly.
+        The `make_plan` function is almost devoid of logic has thus little
+        scope for tests. This test will therefore only verify that it calls the
+        expected functions with the correct arguments and handles errors.
 
         """
         k8sconfig: K8sConfig = kube_creds

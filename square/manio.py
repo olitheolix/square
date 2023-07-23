@@ -128,8 +128,7 @@ def unpack_k8s_resource_list(manifest_list: dict,
                              selectors: Selectors) -> Tuple[SquareManifests, bool]:
     """Return only those entries from `manifest_list` that match the `selectors`.
 
-    The `manifest_list` must be a K8s List item, eg `DeploymentList` or
-    `NamespaceList`.
+    The `manifest_list` must be a K8s List, eg `DeploymentList` or `NamespaceList`.
 
     Input:
         manifest_list: dict
@@ -972,8 +971,8 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifests, boo
                 manifest_list, err = square.k8s.get(k8sconfig.client, resource.url)
                 assert not err and manifest_list is not None
 
-                # Parse the K8s List (eg DeploymentList, NamespaceList, ...) into a
-                # Dict[MetaManifest, dict] dictionary.
+                # Parse the K8s List (eg `DeploymentList`, `NamespaceList`, ...) into a
+                # `SquareManifests` (ie `Dict[MetaManifest, dict]`) structure.
                 manifests, err = unpack_k8s_resource_list(manifest_list, config.selectors)
                 assert not err and manifests is not None
 

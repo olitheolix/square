@@ -170,7 +170,7 @@ def match_api_version(
         config: Square configuration.
         k8sconfig: K8sConfig
         local: SquareManifests
-            Should be output from `load_manifest` or `load`.
+            Should be output from `manio.load_manifests` or `manio.load`.
         server: SquareManifests
             Should be output from `manio.download`.
 
@@ -242,7 +242,7 @@ def run_user_callback(config: Config,
         plan_patch: List[MetaManifest]
             The list of meta manifests that currently require a patch.
         local: SquareManifests
-            Should be output from `load_manifest` or `load`.
+            Should be output from `manio.load_manifests` or `manio.load`.
         server: SquareManifests
             Should be output from `manio.download`.
 
@@ -278,7 +278,7 @@ def compile_plan(
         k8sconfig: K8sConfig,
         local: SquareManifests,
         server: SquareManifests) -> Tuple[DeploymentPlan, bool]:
-    """Return the `DeploymentPlan` to transition K8s to the `local` state.
+    """Return the `DeploymentPlan` that would propagate the `local` state to K8s.
 
     The deployment plan is a named tuple. It specifies which resources to
     create, patch and delete to ensure that the state of K8s matches that
@@ -288,7 +288,7 @@ def compile_plan(
         config: Square configuration.
         k8sconfig: K8sConfig
         local: SquareManifests
-            Should be output from `load_manifest` or `load`.
+            Should be output from `manio.load_manifests` or `manio.load`.
         server: SquareManifests
             Should be output from `manio.download`.
 
