@@ -161,7 +161,7 @@ def load_authenticator_config(fname: Filepath,
         args = user["exec"].get("args", [])
         env_kubeconf = user["exec"].get("env", [])
     except KeyError:
-        logit.debug(f"Context {context} in <{fname}> is not an EKS config")
+        logit.debug(f"Context {context} in <{fname}> does not use authenticator app")
         return (K8sConfig(), True)
 
     # Convert a None value (valid value in YAML) to an empty list of env vars.
@@ -176,7 +176,7 @@ def load_authenticator_config(fname: Filepath,
     cmd_args = [cmd] + args
     env_kubeconf = {_["name"]: _["value"] for _ in env_kubeconf}
     env.update(env_kubeconf)
-    logit.debug(f"Requesting EKS certificate: {cmd_args} with envs: {env_kubeconf}")
+    logit.debug(f"Authenticator app: {cmd_args} with envs: {env_kubeconf}")
 
     # Pre-format the command for the log message.
     log_cmd = (
@@ -200,7 +200,7 @@ def load_authenticator_config(fname: Filepath,
         return (K8sConfig(), True)
 
     # Return the Kubernetes access configuration.
-    logit.info("Assuming EKS cluster.")
+    logit.info("Assuming generic cluster.")
     return K8sConfig(
         url=cluster["server"],
         token=token,
@@ -319,7 +319,7 @@ def load_auto_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
 
     1) `load_incluster_config`
     1) `load_minikube_config`
-    2) `load_eks_config`
+    2) `load_authenticator_config`
 
     Inputs:
         fname: Filepath
@@ -349,7 +349,7 @@ def load_auto_config(fname: Filepath, context: Optional[str]) -> Tuple[K8sConfig
     conf, err = load_authenticator_config(fname, context)
     if not err:
         return conf, False
-    logit.debug("EKS config failed")
+    logit.debug("Authenticator config failed")
 
     logit.error(f"Could not find a valid configuration in <{fname}>")
     return (K8sConfig(), True)

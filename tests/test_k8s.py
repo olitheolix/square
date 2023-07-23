@@ -844,14 +844,14 @@ class TestK8sKubeconfig:
     @mock.patch.object(k8s, "load_minikube_config")
     @mock.patch.object(k8s, "load_kind_config")
     @mock.patch.object(k8s, "load_authenticator_config")
-    def test_load_auto_config(self, m_eks, m_kind, m_mini, m_incluster):
+    def test_load_auto_config(self, m_auth, m_kind, m_mini, m_incluster):
         """`load_auto_config` must pick the first successful configuration."""
         fun = k8s.load_auto_config
 
         m_incluster.return_value = (K8sConfig(), False)
         m_mini.return_value = (K8sConfig(), False)
         m_kind.return_value = (K8sConfig(), False)
-        m_eks.return_value = (K8sConfig(), False)
+        m_auth.return_value = (K8sConfig(), False)
 
         # Incluster returns a non-zero value.
         kubeconf, context = Filepath("kubeconf"), "context"
@@ -868,13 +868,13 @@ class TestK8sKubeconfig:
         assert fun(kubeconf, context) == m_kind.return_value
         m_kind.assert_called_once_with(kubeconf, context)
 
-        # Incluster & Minikube & KIND fail but EKS succeeds.
+        # Incluster & Minikube & KIND fail but authenticator succeeds.
         m_kind.return_value = (K8sConfig(), True)
-        assert fun(kubeconf, context) == m_eks.return_value
-        m_eks.assert_called_once_with(kubeconf, context)
+        assert fun(kubeconf, context) == m_auth.return_value
+        m_auth.assert_called_once_with(kubeconf, context)
 
         # All fail.
-        m_eks.return_value = (K8sConfig(), True)
+        m_auth.return_value = (K8sConfig(), True)
         assert fun(kubeconf, context) == (K8sConfig(), True)
 
     def test_load_minikube_config_ok(self):
@@ -990,7 +990,7 @@ class TestK8sKubeconfig:
 
     @mock.patch.object(k8s.subprocess, "run")
     def test_load_authenticator_config_err(self, m_run):
-        """Load EKS configuration from demo kubeconfig."""
+        """Load K8s configuration from demo kubeconfig."""
         # Valid kubeconfig file.
         fname = Filepath("tests/support/kubeconf.yaml")
         err_resp = (K8sConfig(), True)
@@ -1033,7 +1033,7 @@ class TestK8sKubeconfig:
         assert fun(P / "kubeconf.yaml", "invalid") == resp
         assert fun(P / "kubeconf_invalid.yaml", "minkube") == resp
 
-        # EKS
+        # Generic cluster using external authenticator app.
         assert k8s.load_authenticator_config(P / "invalid.yaml", None) == resp
         assert k8s.load_authenticator_config(P / "invalid.yaml", "invalid") == resp
         assert k8s.load_authenticator_config(P / "kubeconf.yaml", "invalid") == resp
