@@ -928,24 +928,27 @@ class TestK8sKubeconfig:
         assert ret.client_cert.crt.exists()
         assert ret.client_cert.key.exists()
 
-    def test_load_kind_config_invalid_context_err(self, tmp_path):
-        """Gracefully abort if we cannot parse Kubeconfig."""
+    @pytest.mark.parametrize("kubetype", ["kind", "minkube"])
+    def test_load_minkube_kind_config_invalid_context_err(self, kubetype, tmp_path):
+        """Gracefully abort if we cannot parse Minkube & KinD credentials."""
+        fun = k8s.load_kind_config if kubetype == "kind" else k8s.load_minikube_config
+
         # Valid Kubeconfig file but it has no "invalid" context.
         fname = Filepath("tests/support/kubeconf.yaml")
-        assert k8s.load_kind_config(fname, "invalid") == (K8sConfig(), True)
+        assert fun(fname, "invalid") == (K8sConfig(), True)
 
         # Valid Kubeconfig file but not for KinD.
         fname = Filepath("tests/support/kubeconf.yaml")
-        assert k8s.load_kind_config(fname, "minikube") == (K8sConfig(), True)
+        assert fun(fname, "gke") == (K8sConfig(), True)
 
         # Create a corrupt Kubeconfig file.
         fname = tmp_path / "kubeconfig"
         fname.write_text("")
-        assert k8s.load_kind_config(fname, None) == (K8sConfig(), True)
+        assert fun(fname, None) == (K8sConfig(), True)
 
         # Try to load a non-existing file.
         fname = tmp_path / "does-not-exist"
-        assert k8s.load_kind_config(fname, None) == (K8sConfig(), True)
+        assert fun(fname, None) == (K8sConfig(), True)
 
     @pytest.mark.parametrize("context", ["aks", "eks", "gke"])
     @mock.patch.object(k8s.subprocess, "run")
