@@ -1,10 +1,7 @@
-import pathlib
+from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from pydantic import BaseModel, Field
-
-# All files in Square have this type.
-Filepath = pathlib.Path
 
 # Square will first save/deploy the resources in this list in this order.
 # Afterwards it will move on to all those resources not in this list. The order
@@ -40,8 +37,8 @@ DEFAULT_PRIORITIES = (
 #                                  Kubernetes
 # -----------------------------------------------------------------------------
 class K8sClientCert(NamedTuple):
-    crt: Filepath = Filepath()
-    key: Filepath = Filepath()
+    crt: Path = Path()
+    key: Path = Path()
 
 
 class MetaManifest(NamedTuple):
@@ -76,7 +73,7 @@ class K8sConfig(NamedTuple):
 
     # Certificate authority credentials and self signed client certificate.
     # Used to authenticate to eg GKE.
-    ca_cert: Filepath = Filepath()
+    ca_cert: Path = Path()
     client_cert: Optional[K8sClientCert] = None
 
     # A persistent session from the "requests" library for this cluster.
@@ -221,10 +218,10 @@ Filters = Dict[str, FiltersKind]
 class Config(BaseModel):
     """Uniform interface into top level Square API."""
     # Path to local manifests eg "./foo"
-    folder: Filepath
+    folder: Path
 
     # Path to Kubernetes credentials.
-    kubeconfig: Filepath
+    kubeconfig: Path
 
     # Kubernetes context (use `None` to use the default).
     kubecontext: Optional[str] = None
@@ -251,6 +248,6 @@ class Config(BaseModel):
 # -----------------------------------------------------------------------------
 #                                 Miscellaneous
 # -----------------------------------------------------------------------------
-LocalManifests = Dict[Filepath, Tuple[MetaManifest, dict]]
-LocalManifestLists = Dict[Filepath, List[Tuple[MetaManifest, dict]]]
+LocalManifests = Dict[Path, Tuple[MetaManifest, dict]]
+LocalManifestLists = Dict[Path, List[Tuple[MetaManifest, dict]]]
 SquareManifests = Dict[MetaManifest, dict]

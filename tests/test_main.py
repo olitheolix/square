@@ -1,8 +1,8 @@
 import copy
 import os
-import pathlib
 import types
 import unittest.mock as mock
+from pathlib import Path
 from typing import Generator, Tuple
 
 import pytest
@@ -17,18 +17,18 @@ import square.square as sq
 from square import DEFAULT_CONFIG_FILE
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, Filepath, GroupBy, JsonPatch, Selectors,
+    DeploymentPlan, GroupBy, JsonPatch, Selectors,
 )
 
 from .test_helpers import make_manifest
 
 # Location of test configuration.
-TEST_CONFIG_FNAME = pathlib.Path(__file__).parent / "support/config.yaml"
+TEST_CONFIG_FNAME = Path(__file__).parent / "support/config.yaml"
 
 
 @pytest.fixture
 def fname_param_config(tmp_path) -> Generator[
-        Tuple[Filepath, types.SimpleNamespace, Config], None, None]:
+        Tuple[Path, types.SimpleNamespace, Config], None, None]:
     """Parsed command line args to produce the default configuration.
 
     The return values are what `parse_commandline_args` would return, as well
@@ -90,7 +90,7 @@ def fname_param_config(tmp_path) -> Generator[
         priorities=DEFAULT_PRIORITIES,
     )
 
-    cwd = pathlib.Path.cwd()
+    cwd = Path.cwd()
     os.chdir(tmp_path)
     yield fname_square, params, config
     os.chdir(cwd)
@@ -105,8 +105,8 @@ class TestResourceCleanup:
         # Expand an empty list of `Selectors.kinds` to the full range of
         # available K8s resources that Square could manage.
         cfg = Config(
-            folder=pathlib.Path('/tmp'),
-            kubeconfig=Filepath(),
+            folder=Path('/tmp'),
+            kubeconfig=Path(),
             kubecontext=None,
             selectors=Selectors(
                 kinds=set(),
@@ -122,8 +122,8 @@ class TestResourceCleanup:
         assert not err and ret.selectors.kinds == set(k8sconfig.kinds)
 
         cfg = Config(
-            folder=pathlib.Path('/tmp'),
-            kubeconfig=Filepath(),
+            folder=Path('/tmp'),
+            kubeconfig=Path(),
             kubecontext=None,
             selectors=Selectors(
                 kinds={"svc", "Deployment"},
@@ -141,8 +141,8 @@ class TestResourceCleanup:
     def test_expand_all_kinds_err_config(self):
         """Abort if the kubeconfig file does not exist."""
         cfg = Config(
-            folder=pathlib.Path('/tmp'),
-            kubeconfig=Filepath("/does/not/exist"),
+            folder=Path('/tmp'),
+            kubeconfig=Path("/does/not/exist"),
             kubecontext=None,
             selectors=Selectors(
                 kinds=set(),
@@ -212,7 +212,7 @@ class TestMain:
         # it must point to a valid file.
         # ---------------------------------------------------------------------
         param = types.SimpleNamespace(
-            configfile=Filepath("tests/support/config.yaml"),
+            configfile=Path("tests/support/config.yaml"),
 
             # Must override this and point it to a dummy file or
             # `compile_config` will complain it does not exist.
@@ -232,7 +232,7 @@ class TestMain:
         cfg, err = main.compile_config(param)
         assert not err
 
-        assert cfg.folder == Filepath("tests/support").absolute() / "some/path"
+        assert cfg.folder == Path("tests/support").absolute() / "some/path"
         assert cfg.kubeconfig == kubeconfig_override
         assert cfg.kubecontext is None
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
@@ -258,14 +258,14 @@ class TestMain:
             kubecontext="kubecontext-override",
             groupby=["kind", "label=foo", "ns"],
             priorities=["Namespace", "Deployment"],
-            configfile=Filepath("tests/support/config.yaml"),
+            configfile=Path("tests/support/config.yaml"),
         )
 
         # Translate command line arguments into `Config`.
         cfg, err = main.compile_config(param)
         assert not err
 
-        assert cfg.folder == Filepath(param.folder)
+        assert cfg.folder == Path(param.folder)
         assert cfg.kubeconfig == kubeconfig_override
         assert cfg.kubecontext == "kubecontext-override"
         assert cfg.priorities == ["Namespace", "Deployment"]
@@ -299,19 +299,19 @@ class TestMain:
         param.configfile = str(TEST_CONFIG_FNAME)
         param.folder = "some/where"
         cfg, err = main.compile_config(param)
-        assert not err and cfg.folder == Filepath("some/where")
+        assert not err and cfg.folder == Path("some/where")
 
         # No config file and no "--folder": manifest folder must be CWD.
         param.configfile = None
         param.folder = None
         cfg, err = main.compile_config(param)
-        assert not err and cfg.folder == Filepath.cwd() / "foo" / "bar"
+        assert not err and cfg.folder == Path.cwd() / "foo" / "bar"
 
         # No config file and "--folder some/where": must point to `some/where`.
         param.configfile = None
         param.folder = "some/where"
         cfg, err = main.compile_config(param)
-        assert not err and cfg.folder == Filepath("some/where")
+        assert not err and cfg.folder == Path("some/where")
 
     def test_compile_config_dot_square(self, fname_param_config):
         """Folder location.
@@ -323,7 +323,7 @@ class TestMain:
         _, param, _ = fname_param_config
         param.configfile = None
 
-        assert Filepath(".square.yaml").exists()
+        assert Path(".square.yaml").exists()
 
         # User specified "--no-config": use `.square.yaml` if it exists.
         param.no_config = False
@@ -337,8 +337,8 @@ class TestMain:
         assert not err and cfg.kubecontext is None
 
         # User did not specify "--no-config": use `.square.yaml` if it exists.
-        Filepath(".square.yaml").rename(".square.yaml.bak")
-        assert not Filepath(".square.yaml").exists()
+        Path(".square.yaml").rename(".square.yaml.bak")
+        assert not Path(".square.yaml").exists()
         param.no_config = False
         cfg, err = main.compile_config(param)
         assert not err and cfg.kubecontext is None
@@ -454,7 +454,7 @@ class TestMain:
 
                 if envvar:
                     assert not err
-                    assert cfg.kubeconfig == Filepath(os.getenv("KUBECONFIG", ""))
+                    assert cfg.kubeconfig == Path(os.getenv("KUBECONFIG", ""))
                 else:
                     assert err
 
@@ -496,7 +496,7 @@ class TestMain:
     def test_compile_config_missing_config_file(self, fname_param_config):
         """Abort if the config file is missing or invalid."""
         _, param, _ = fname_param_config
-        param.configfile = Filepath("/does/not/exist.yaml")
+        param.configfile = Path("/does/not/exist.yaml")
         _, err = main.compile_config(param)
         assert err
 
@@ -506,8 +506,8 @@ class TestMain:
         param.kubeconfig += "does-not-exist"
         assert main.compile_config(param) == (
             Config(
-                folder=Filepath(""),
-                kubeconfig=Filepath(""),
+                folder=Path(""),
+                kubeconfig=Path(""),
                 kubecontext=None,
                 selectors=Selectors(),
                 groupby=GroupBy(),
@@ -519,8 +519,8 @@ class TestMain:
         _, param, _ = fname_param_config
 
         err_resp = Config(
-            folder=Filepath(""),
-            kubeconfig=Filepath(""),
+            folder=Path(""),
+            kubeconfig=Path(""),
             kubecontext=None,
             selectors=Selectors(),
             groupby=GroupBy(),
@@ -810,8 +810,8 @@ class TestMain:
             assert param.groupby == ["ns", "label=foo", "label=bar"]
 
         expected = Config(
-            folder=Filepath(""),
-            kubeconfig=Filepath(""),
+            folder=Path(""),
+            kubeconfig=Path(""),
             kubecontext=None,
             selectors=Selectors(),
             groupby=GroupBy(),

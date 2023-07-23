@@ -1,6 +1,5 @@
 import json
 import os
-import pathlib
 import random
 import sys
 import time
@@ -14,7 +13,7 @@ import yaml
 
 import square.k8s as k8s
 import square.square
-from square.dtypes import Filepath, K8sConfig, K8sResource, MetaManifest
+from square.dtypes import K8sConfig, K8sResource, MetaManifest
 
 from .test_helpers import kind_available
 
@@ -309,7 +308,7 @@ class TestUrlPathBuilder:
 
         if not kind_available():
             pytest.skip()
-        kubeconfig = Filepath("/tmp/kubeconfig-kind.yaml")
+        kubeconfig = Path("/tmp/kubeconfig-kind.yaml")
 
         # Create a genuine K8s config from our integration test cluster.
         k8sconfig, err = k8s.cluster_config(kubeconfig, None)
@@ -831,7 +830,7 @@ class TestK8sKubeconfig:
     @mock.patch.object(k8s, "version")
     @mock.patch.object(k8s, "compile_api_endpoints")
     def test_cluster_config(self, m_compile_endpoints, m_version, m_load_auto, k8sconfig):
-        kubeconfig = Filepath("kubeconfig")
+        kubeconfig = Path("kubeconfig")
         kubecontext = None
 
         m_load_auto.return_value = (k8sconfig, False)
@@ -854,7 +853,7 @@ class TestK8sKubeconfig:
         m_auth.return_value = (K8sConfig(), False)
 
         # Authenticator succeeds.
-        kubeconf, context = Filepath("kubeconf"), "context"
+        kubeconf, context = Path("kubeconf"), "context"
         assert fun(kubeconf, context) == m_auth.return_value
         m_auth.assert_called_once_with(kubeconf, context)
 
@@ -879,16 +878,16 @@ class TestK8sKubeconfig:
 
     def test_load_minikube_config_ok(self):
         # Load the K8s configuration for "minikube" context.
-        fname = Filepath("tests/support/kubeconf.yaml")
+        fname = Path("tests/support/kubeconf.yaml")
 
         # Verify the expected output.
         ref = K8sConfig(
             url="https://192.168.0.177:8443",
             token="",
-            ca_cert=Filepath("ca.crt"),
+            ca_cert=Path("ca.crt"),
             client_cert=k8s.K8sClientCert(
-                crt=Filepath("client.crt"),
-                key=Filepath("client.key"),
+                crt=Path("client.crt"),
+                key=Path("client.key"),
             ),
             version="",
             name="minikube",
@@ -896,8 +895,8 @@ class TestK8sKubeconfig:
         expected = (ref, False)
         assert k8s.load_minikube_config(fname, "minikube") == expected
 
-        # Function must also accept pathlib.Path instances.
-        assert expected == k8s.load_minikube_config(pathlib.Path(fname), None)
+        # Function must also accept `Path` instances.
+        assert expected == k8s.load_minikube_config(Path(fname), None)
 
         # Minikube also happens to be the default context, so not supplying an
         # explicit context must return the same information.
@@ -905,7 +904,7 @@ class TestK8sKubeconfig:
 
     def test_load_kind_config_ok(self):
         # Load the K8s configuration for a Kind cluster.
-        fname = Filepath("tests/support/kubeconf.yaml")
+        fname = Path("tests/support/kubeconf.yaml")
 
         ret, err = k8s.load_kind_config(fname, "kind")
         assert not err
@@ -914,8 +913,8 @@ class TestK8sKubeconfig:
         assert ret.version == ""
         assert ret.name == "kind"
 
-        # Function must also accept pathlib.Path instances.
-        ret, err = k8s.load_kind_config(pathlib.Path(fname), "kind")
+        # Function must also accept `Path` instances.
+        ret, err = k8s.load_kind_config(Path(fname), "kind")
         assert not err
         assert ret.url == "https://localhost:8443"
         assert ret.token == ""
@@ -934,11 +933,11 @@ class TestK8sKubeconfig:
         fun = k8s.load_kind_config if kubetype == "kind" else k8s.load_minikube_config
 
         # Valid Kubeconfig file but it has no "invalid" context.
-        fname = Filepath("tests/support/kubeconf.yaml")
+        fname = Path("tests/support/kubeconf.yaml")
         assert fun(fname, "invalid") == (K8sConfig(), True)
 
         # Valid Kubeconfig file but not for KinD.
-        fname = Filepath("tests/support/kubeconf.yaml")
+        fname = Path("tests/support/kubeconf.yaml")
         assert fun(fname, "gke") == (K8sConfig(), True)
 
         # Create a corrupt Kubeconfig file.
@@ -967,7 +966,7 @@ class TestK8sKubeconfig:
         m_run.return_value = types.SimpleNamespace(stdout=token.encode("utf8"))
 
         # Load the K8s configuration for the current `context`.
-        fname = Filepath("tests/support/kubeconf.yaml")
+        fname = Path("tests/support/kubeconf.yaml")
         ret, err = k8s.load_authenticator_config(fname, context)
         assert not err and isinstance(ret, K8sConfig)
 
@@ -1008,7 +1007,7 @@ class TestK8sKubeconfig:
     def test_load_authenticator_config_err(self, m_run):
         """Load K8s configuration from demo kubeconfig."""
         # Valid kubeconfig file.
-        fname = Filepath("tests/support/kubeconf.yaml")
+        fname = Path("tests/support/kubeconf.yaml")
         err_resp = (K8sConfig(), True)
 
         # Pretend the `aws-iam-authenticator` binary does not exist.
@@ -1043,7 +1042,7 @@ class TestK8sKubeconfig:
     def test_load_all_supported_kubeconfig_styles(self, m_run):
         """Verify that we can load every config style from our Kubeconfig specimen."""
         # Kubeconfig specimen.
-        fname = Filepath("tests/support/kubeconf.yaml")
+        fname = Path("tests/support/kubeconf.yaml")
 
         # Mock the call to the external authenticator and make it return a token.
         token = yaml.dump({"status": {"token": "token"}})
@@ -1062,7 +1061,7 @@ class TestK8sKubeconfig:
 
         """
         # Convenience.
-        P = Filepath("tests/support")
+        P = Path("tests/support")
 
         # Expected failure response.
         resp = (K8sConfig(), True)

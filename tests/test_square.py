@@ -1,6 +1,7 @@
 import copy
 import random
 import unittest.mock as mock
+from pathlib import Path
 from typing import cast
 
 import square.cfgfile
@@ -10,8 +11,8 @@ import square.manio as manio
 import square.square as sq
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, DeploymentPlanMeta, Filepath, GroupBy, JsonPatch,
-    K8sConfig, KindName, MetaManifest, Selectors, SquareManifests,
+    DeploymentPlan, DeploymentPlanMeta, GroupBy, JsonPatch, K8sConfig,
+    KindName, MetaManifest, Selectors, SquareManifests,
 )
 from square.k8s import resource
 
@@ -103,8 +104,8 @@ class TestBasic:
     def test_translate_resource_kinds_simple(self, k8sconfig):
         """Translate various spellings in `selectors.kinds`"""
         cfg = Config(
-            folder=Filepath('/tmp'),
-            kubeconfig=Filepath(),
+            folder=Path('/tmp'),
+            kubeconfig=Path(),
             kubecontext=None,
             groupby=GroupBy(),
             priorities=["ns", "DEPLOYMENT"],
@@ -143,8 +144,8 @@ class TestBasic:
                  "ns", "namespace/foo",
                  "unknown-a", "unknown-b/foo"}
         cfg = Config(
-            folder=Filepath('/tmp'),
-            kubeconfig=Filepath(),
+            folder=Path('/tmp'),
+            kubeconfig=Path(),
             kubecontext=None,
             groupby=GroupBy(),
             priorities=[],

@@ -2,38 +2,36 @@ import base64
 import json
 import logging
 import os
-import pathlib
 import re
 import ssl
 import subprocess
 import tempfile
 from collections import defaultdict
+from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
 import backoff
 import httpx
 import yaml
 
-from square.dtypes import (
-    Filepath, K8sClientCert, K8sConfig, K8sResource, MetaManifest,
-)
+from square.dtypes import K8sClientCert, K8sConfig, K8sResource, MetaManifest
 
-FNAME_TOKEN = Filepath("/var/run/secrets/kubernetes.io/serviceaccount/token")
-FNAME_CERT = Filepath("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+FNAME_TOKEN = Path("/var/run/secrets/kubernetes.io/serviceaccount/token")
+FNAME_CERT = Path("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
 
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
 
 
-def load_kubeconfig(kubeconf_path: Filepath,
+def load_kubeconfig(kubeconf_path: Path,
                     context: Optional[str]) -> Tuple[str, dict, dict, bool]:
     """Return user name as well as user- and cluster information.
 
     Return None on error.
 
     Inputs:
-        kubeconf_path: Filepath
+        kubeconf_path: Path
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: Optional[str]
             Kubeconf context. Use `None` to select the default context.
@@ -88,8 +86,8 @@ def load_kubeconfig(kubeconf_path: Filepath,
 
 
 def load_incluster_config(
-        fname_token: Filepath = FNAME_TOKEN,
-        fname_cert: Filepath = FNAME_CERT) -> Tuple[K8sConfig, bool]:
+        fname_token: Path = FNAME_TOKEN,
+        fname_cert: Path = FNAME_CERT) -> Tuple[K8sConfig, bool]:
     """Return K8s access config from Pod service account.
 
     Returns None if we are not running in a Pod.
@@ -103,8 +101,8 @@ def load_incluster_config(
     """
     # These exist inside every Kubernetes pod.
     server_ip = os.getenv('KUBERNETES_PORT_443_TCP_ADDR', None)
-    fname_cert = pathlib.Path(fname_cert)
-    fname_token = pathlib.Path(fname_token)
+    fname_cert = Path(fname_cert)
+    fname_token = Path(fname_token)
 
     # Sanity checks: URL and service account must exist, or we are not running
     # inside a Pod.
@@ -128,14 +126,14 @@ def load_incluster_config(
     ), False
 
 
-def load_authenticator_config(kubeconf_path: Filepath,
+def load_authenticator_config(kubeconf_path: Path,
                               context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Return K8s config based on authenticator app specified in `kubeconfig`.
 
     Returns None if `kubeconfig` does not exist or could not be parsed.
 
     Inputs:
-        kubeconf_path: Filepath
+        kubeconf_path: Path
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: Optional[str]
             Kubeconf context. Use `None` to select the default context.
@@ -171,7 +169,7 @@ def load_authenticator_config(kubeconf_path: Filepath,
 
     # Save the certificate to a temporary file because Httpx expects it that way.
     tmp = tempfile.mkstemp(text=False)[1]
-    ssl_ca_cert = Filepath(tmp)
+    ssl_ca_cert = Path(tmp)
     ssl_ca_cert.write_bytes(ssl_ca_cert_data)
 
     # Compile the name, arguments and env vars for the command specified in kubeconf.
@@ -213,14 +211,14 @@ def load_authenticator_config(kubeconf_path: Filepath,
     ), False
 
 
-def load_minikube_config(kubeconf_path: Filepath,
+def load_minikube_config(kubeconf_path: Path,
                          context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Load minikube configuration from `fname`.
 
     Return None on error.
 
     Inputs:
-        kubeconf_path: Filepath
+        kubeconf_path: Path
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: Optional[str]
             Kubeconf context. Use `None` to select the default context.
@@ -238,8 +236,8 @@ def load_minikube_config(kubeconf_path: Filepath,
     # to the HTTP client of our choice when we create the session.
     try:
         client_cert = K8sClientCert(
-            crt=Filepath(user["client-certificate"]),
-            key=Filepath(user["client-key"]),
+            crt=Path(user["client-certificate"]),
+            key=Path(user["client-key"]),
         )
 
         # Return the Kubernetes access configuration.
@@ -247,7 +245,7 @@ def load_minikube_config(kubeconf_path: Filepath,
         return K8sConfig(
             url=cluster["server"],
             token="",
-            ca_cert=Filepath(cluster["certificate-authority"]),
+            ca_cert=Path(cluster["certificate-authority"]),
             client_cert=client_cert,
             version="",
             name=cluster["name"],
@@ -257,7 +255,7 @@ def load_minikube_config(kubeconf_path: Filepath,
         return (K8sConfig(), True)
 
 
-def load_kind_config(kubeconf_path: Filepath,
+def load_kind_config(kubeconf_path: Path,
                      context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Load Kind configuration from `fname`.
 
@@ -270,7 +268,7 @@ def load_kind_config(kubeconf_path: Filepath,
     Return None on error.
 
     Inputs:
-        kubeconf_path: Filepath
+        kubeconf_path: Path
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: Optional[str]
             Kubeconf context. Use `None` to select the default context.
@@ -290,7 +288,7 @@ def load_kind_config(kubeconf_path: Filepath,
         client_crt = base64.b64decode(user["client-certificate-data"]).decode()
         client_key = base64.b64decode(user["client-key-data"]).decode()
         client_ca = base64.b64decode(cluster["certificate-authority-data"]).decode()
-        path = Filepath(tempfile.mkdtemp())
+        path = Path(tempfile.mkdtemp())
         p_client_crt = path / "kind-client.crt"
         p_client_key = path / "kind-client.key"
         p_ca = path / "kind.ca"
@@ -316,7 +314,7 @@ def load_kind_config(kubeconf_path: Filepath,
         return (K8sConfig(), True)
 
 
-def load_auto_config(kubeconf_path: Filepath,
+def load_auto_config(kubeconf_path: Path,
                      context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Automagically find and load the correct K8s configuration.
 
@@ -329,7 +327,7 @@ def load_auto_config(kubeconf_path: Filepath,
     4) `load_minikube_config`
 
     Inputs:
-        kubeconf_path: Filepath
+        kubeconf_path: Path
             Path to kubeconfig file, eg "~/.kube/config.yaml"
         context: Optional[str]
             Kubeconf context. Use `None` to select the default context.
@@ -631,7 +629,7 @@ def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
 
 
 def cluster_config(
-        kubeconfig: Filepath,
+        kubeconfig: Path,
         context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Return web session to K8s API.
 
