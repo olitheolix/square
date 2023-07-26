@@ -1167,14 +1167,8 @@ class TestMainOptions:
     @mock.patch.object(manio, "download")
     @mock.patch.object(manio, "align_serviceaccount")
     @mock.patch.object(sq, "compile_plan")
-    def test_make_plan(self, m_plan, m_align, m_down, m_load, config, kube_creds):
-        """Basic test.
-
-        The `make_plan` function is almost devoid of logic has thus little
-        scope for tests. This test will therefore only verify that it calls the
-        expected functions with the correct arguments and handles errors.
-
-        """
+    def test_make_plan_calls(self, m_plan, m_align, m_down, m_load, config, kube_creds):
+        """Verify that `make_plan` calls the right functions with the right arguments."""
         k8sconfig: K8sConfig = kube_creds
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
@@ -1205,6 +1199,119 @@ class TestMainOptions:
         # Make `load` fail.
         m_load.return_value = (None, None, True)
         assert sq.make_plan(config) == err_resp
+
+    @mock.patch.object(manio, "load_manifests")
+    @mock.patch.object(manio, "download")
+    def test_make_plan_no_labels(self, m_down, m_load, config, kube_creds):
+        """Mock the available local/server manifests and verify the plan.
+
+        This test does not use any label selectors because there are dedicated
+        tests to cover various edge cases.
+
+        """
+        # Define a single resource.
+        meta_pod1 = MetaManifest('v1', 'Pod', "ns1", "pod-1")
+        man_pod1 = make_manifest("Pod", "ns1", "pod-1")
+        meta_pod2 = MetaManifest('v1', 'Pod', "ns1", "pod-2")
+        man_pod2 = make_manifest("Pod", "ns1", "pod-2")
+
+        # Local and server manifests are in sync.
+        loc: SquareManifests = {meta_pod1: man_pod1}
+        srv: SquareManifests = {meta_pod1: man_pod1}
+        m_load.return_value = (loc, {}, False)
+        m_down.return_value = (srv, False)
+
+        plan, err = sq.make_plan(config)
+        assert not err
+        assert plan.create == [] and plan.patch == [] and plan.delete == []
+
+        # Pod 1 exists only locally whereas Pod 2 exists only on the cluster.
+        # The plan must therefore suggest to create Pod 1 and delete Pod 2.
+        loc: SquareManifests = {meta_pod1: man_pod1}
+        srv: SquareManifests = {meta_pod2: man_pod2}
+        m_load.return_value = (loc, {}, False)
+        m_down.return_value = (srv, False)
+
+        plan, err = sq.make_plan(config)
+        assert not err
+        assert plan.patch == []
+        assert len(plan.create) == len(plan.delete) == 1
+
+        assert plan.create[0].meta == meta_pod1
+        assert plan.delete[0].meta == meta_pod2
+
+        # Pod 1 exists locally and on the server, but their content differs.
+        # Square must propose a single PATCH.
+        loc: SquareManifests = {meta_pod1: man_pod1}
+        srv: SquareManifests = copy.deepcopy(loc)
+        loc[meta_pod1]["spec"]["foo"] = "foo"
+        srv[meta_pod1]["spec"]["bar"] = "bar"
+        m_load.return_value = (loc, {}, False)
+        m_down.return_value = (srv, False)
+
+        plan, err = sq.make_plan(config)
+        assert not err
+        assert len(plan.create) == len(plan.delete) == 0
+        assert len(plan.patch) == 1
+        assert plan.patch[0].meta == meta_pod1
+
+    @mock.patch.object(manio, "load_manifests")
+    @mock.patch.object(manio, "download")
+    def test_make_plan_with_labels(self, m_down, m_load, config, kube_creds):
+        """Mock the available local/server manifests and verify the plan.
+
+        This test does not use any label selectors because there are dedicated
+        tests to cover various edge cases.
+
+        """
+        # Valid deployment plan.
+        plan = DeploymentPlan(create=[], patch=[], delete=[])
+
+        # Define a single resource.
+        meta_pod1 = MetaManifest('v1', 'Pod', "ns1", "pod-1")
+        man_pod1 = make_manifest("Pod", "ns1", "pod-1")
+        meta_pod2 = MetaManifest('v1', 'Pod', "ns1", "pod-2")
+        man_pod2 = make_manifest("Pod", "ns1", "pod-2")
+
+        # Local and server manifests are in sync.
+        loc: SquareManifests = {meta_pod1: man_pod1}
+        srv: SquareManifests = {meta_pod1: man_pod1}
+        m_load.return_value = (loc, {}, False)
+        m_down.return_value = (srv, False)
+
+        plan, err = sq.make_plan(config)
+        assert not err
+        assert plan.create == [] and plan.patch == [] and plan.delete == []
+
+        # Pod 1 exists only locally whereas Pod 2 exists only on the cluster.
+        # The plan must therefore suggest to create Pod 1 and delete Pod 2.
+        loc: SquareManifests = {meta_pod1: man_pod1}
+        srv: SquareManifests = {meta_pod2: man_pod2}
+        m_load.return_value = (loc, {}, False)
+        m_down.return_value = (srv, False)
+
+        plan, err = sq.make_plan(config)
+        assert not err
+        assert plan.patch == []
+        assert len(plan.create) == len(plan.delete) == 1
+
+        assert plan.create[0].meta == meta_pod1
+        assert plan.delete[0].meta == meta_pod2
+
+        # Pod 1 exists locally and on the server, but their content differs.
+        # Square must propose a single PATCH.
+        loc: SquareManifests = {meta_pod1: man_pod1}
+        srv: SquareManifests = copy.deepcopy(loc)
+        loc[meta_pod1]["spec"]["foo"] = "foo"
+        srv[meta_pod1]["spec"]["bar"] = "bar"
+        m_load.return_value = (loc, {}, False)
+        m_down.return_value = (srv, False)
+
+        plan, err = sq.make_plan(config)
+        assert not err
+        assert len(plan.create) == len(plan.delete) == 0
+        assert len(plan.patch) == 1
+        assert plan.patch[0].meta == meta_pod1
 
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
