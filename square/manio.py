@@ -47,12 +47,16 @@ def make_meta(manifest: dict) -> MetaManifest:
     )
 
 
-def select(manifest: dict, selectors: Selectors) -> bool:
+def select(manifest: dict, selectors: Selectors,
+           match_labels: bool = True) -> bool:
     """Return `False` unless `manifest` satisfies _all_ `selectors`.
 
     Inputs:
         manifests: dict
-        selectors: Selectors,
+        selectors: Selectors
+        match_labels: bool
+            Skip label matching if `False`. This flag does not affect KIND or
+            Namespace matching.
 
     Returns:
         bool: `True` iff the resource matches all selectors.
@@ -111,7 +115,7 @@ def select(manifest: dict, selectors: Selectors) -> bool:
         return False
 
     # The manifest must match all label selectors to be included.
-    if label_selectors:
+    if label_selectors and match_labels:
         # Convert the labels dictionary into a Set of (key, value) tuples. We can
         # then use set-logic to determine if the manifest has the necessary labels.
         labels = set(labels.items())
