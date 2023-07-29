@@ -737,11 +737,11 @@ def pick_manifests_for_plan(
 
     sel_local = {
         meta: man for meta, man in local.items()
-        if manio.select(man, selectors)
+        if manio.select(man, selectors, True)
     }
     sel_server = {
         meta: man for meta, man in server.items()
-        if manio.select(man, selectors)
+        if manio.select(man, selectors, True)
     }
     return sel_local, sel_server
 
