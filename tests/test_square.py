@@ -2,7 +2,7 @@ import copy
 import random
 import unittest.mock as mock
 from pathlib import Path
-from typing import cast
+from typing import List, cast
 
 import square.cfgfile
 import square.k8s as k8s
@@ -1242,6 +1242,30 @@ class TestMainOptions:
             ret = sq.pick_manifests_for_plan(loc, srv, selectors)
             assert ret[idx] == {}
 
+    def test_pick_manifests_for_plan_same_resource_different_labels(self):
+        """Must retain only the manifests that match the selectors."""
+        # Define the same Pod resource but with different labels.
+        meta_pod = MetaManifest('v1', 'Pod', "ns1", "pod-1")
+        man_loc = make_manifest("Pod", "ns1", "pod-1", labels={"app": "local"})
+        man_srv = make_manifest("Pod", "ns1", "pod-1", labels={"app": "server"})
+
+        # The same Pod exists locally and on the server but with different labels.
+        loc: SquareManifests = {meta_pod: man_loc}
+        srv: SquareManifests = {meta_pod: man_srv}
+
+        # Selector matches neither manifest: must return nothing.
+        selectors = Selectors(kinds={"Pod"}, labels=["app=does-not-match"])
+        s_loc, s_srv = sq.pick_manifests_for_plan(loc, srv, selectors)
+        assert s_loc == s_srv == {}
+
+        # Label selectors match either local, or server or both manifests. In
+        # all cases, Square must have included in its list of manifests for
+        # which to compute a plan.
+        for labels in ([], ["app=local"], ["app=server"]):
+            selectors = Selectors(kinds={"Pod"}, labels=labels)
+            s_loc, s_srv = sq.pick_manifests_for_plan(loc, srv, selectors)
+            assert s_loc == loc and s_srv == srv
+
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
     @mock.patch.object(sq, "pick_manifests_for_plan")
@@ -1374,22 +1398,11 @@ class TestMainOptions:
         assert plan.create == plan.delete == plan.patch == []
 
         # Label selector matches local and server: Square must PATCH.
-        config.selectors.labels = []
-        plan, err = sq.make_plan(config)
-        assert not err
-        assert plan.create == [] and plan.delete == [] and len(plan.patch) == 1
-
-        # Label selector matches local but not server: Square must CREATE.
-        config.selectors.labels = ["app=local"]
-        plan, err = sq.make_plan(config)
-        assert not err
-        assert len(plan.create) == 1 and (plan.delete == plan.patch == [])
-
-        # Label selector matches server but not local: Square must DELETE.
-        config.selectors.labels = ["app=server"]
-        plan, err = sq.make_plan(config)
-        assert not err
-        assert plan.create == [] and len(plan.delete) == 1 and plan.patch == []
+        for labels in ([], ["app=local"], ["app=server"]):
+            config.selectors.labels = cast(List[str], labels)
+            plan, err = sq.make_plan(config)
+            assert not err
+            assert plan.create == [] and plan.delete == [] and len(plan.patch) == 1
 
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")

@@ -534,18 +534,24 @@ class TestYamlManifestIO:
             "m0.yaml": [(meta[0], dply[0]), (meta[1], dply[1])],
             "m2.yaml": [(meta[2], dply[2])],
         }
-        # Generic selector that matches all manifests in this test.
-        selectors = Selectors(kinds={"Deployment"}, labels=["cluster=test"])
-        assert manio.parse(fdata_test_in, selectors) == (expected, False)
+        # Generic selector that matches all manifests in this test. Function
+        # must ignore label selectors.
+        for labels in ([], ["cluster=test"]):
+            selectors = Selectors(kinds={"Deployment"}, labels=labels)
+            assert manio.parse(fdata_test_in, selectors) == (expected, False)
 
-        # Same as before, but this time with the explicit namespace.
-        selectors = Selectors(kinds={"Deployment"}, namespaces=["namespace"],
-                              labels=["cluster=test"])
-        assert manio.parse(fdata_test_in, selectors) == (expected, False)
+        # Same as before, but this time with an explicit namespace. Function
+        # must ignore label selectors.
+        for labels in ([], ["cluster=test"]):
+            selectors = Selectors(kinds={"Deployment"},
+                                  namespaces=["namespace"],
+                                  labels=labels)
+            assert manio.parse(fdata_test_in, selectors) == (expected, False)
 
-        # Must match nothing because no resource has a "cluster=foo" label.
+        # Must match the same resources because the function must not apply
+        # label matching, only KIND and namespace.
         selectors = Selectors(kinds={"Deployment"}, labels=["cluster=foo"])
-        assert manio.parse(fdata_test_in, selectors) == ({}, False)
+        assert manio.parse(fdata_test_in, selectors) == (expected, False)
 
         # Must match nothing because we do not have a namespace "blah".
         selectors = Selectors(kinds={"Deployment"}, namespaces=["blah"],
@@ -556,12 +562,6 @@ class TestYamlManifestIO:
         selectors = Selectors(kinds={"blah"}, namespaces=["namespace"],
                               labels=["cluster=test"])
         assert manio.parse(fdata_test_in, selectors) == ({}, False)
-
-        # Must match exactly one deployment due to label selector.
-        selectors = Selectors(kinds={"Deployment"}, namespaces=["namespace"],
-                              labels=["app=d_1"])
-        expected = {"m0.yaml": [(meta[1], dply[1])]}
-        assert manio.parse(fdata_test_in, selectors) == (expected, False)
 
     def test_parse_err(self):
         """Intercept YAML decoding errors."""

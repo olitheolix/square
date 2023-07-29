@@ -230,8 +230,14 @@ def parse(file_yaml: Dict[Path, str],
             # file ends with a "---" string.
             manifests = [_ for _ in manifests if _ is not None]
 
-            # Retain only those manifests that satisfy the selectors.
-            manifests = [_ for _ in manifests if select(_, selectors, True)]
+            # Retain only those manifests with the correct KIND and namespace.
+            # The caller must match the labels themselves. This is necessary to
+            # line up resources that exist both locally and on the server but
+            # have incompatible labels. If we excluded them here then Square
+            # would think the resource does not exist and try to create it
+            # when, in fact, it should be patched.
+            # See `square.{make_plan, get_resources}` for details.
+            manifests = [_ for _ in manifests if select(_, selectors, False)]
 
             # Convert List[manifest] into List[(MetaManifest, manifest)].
             # Abort if `make_meta` throws a KeyError which happens if `file_yaml`
