@@ -323,11 +323,11 @@ class TestMainGet:
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestKindName:
-    def test_api_get_kind_name_resource(self, tmp_path):
-        """Get a ConfigMap specified by its `configmap/name` selector.
+    def test_api_plan_kind_name_resource(self, tmp_path):
+        """Plan a ConfigMap specified by its `configmap/name` selector.
 
-        In this test we will plan against an empty local manifest folder, which
-        means Square every only want to delete anything; no patching or creating.
+        This test plans against an empty local folder. Square must therefore
+        never suggest to create or patch resources, only delete them.
 
         """
         # Only show INFO and above or otherwise this test will produce a
@@ -344,7 +344,7 @@ class TestKindName:
         )
 
         # ----------------------------------------------------------------------
-        # Must find 7 Configmaps in our two test namespaces.
+        # Must find 8 Configmaps in our two test namespaces.
         # ----------------------------------------------------------------------
         config.selectors = Selectors(
             kinds={"Configmap"},
@@ -395,7 +395,7 @@ class TestKindName:
         for meta in metas:
             assert meta.kind == "ConfigMap" and meta.name == "demoapp-1"
 
-    def test_main_get_kind_name_resource(self, tmp_path):
+    def test_cli_plan_kind_name_resource(self, tmp_path):
         """Use CLI to fetch a specific resource name.
 
         This test will actually fetch two different ConfigMap names. The first
