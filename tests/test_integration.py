@@ -474,7 +474,7 @@ class TestLabels:
         assert len(plan.delete) == 8
 
         # ----------------------------------------------------------------------
-        # Must find only 6 Configmaps with label `app=demoapp-1`.
+        # Must find only 5 Configmaps with label `app=demoapp-1`.
         # ----------------------------------------------------------------------
         config.selectors = Selectors(
             kinds={"Configmap"},
@@ -483,7 +483,7 @@ class TestLabels:
         )
         plan, err = square.plan(config)
         assert not err and plan.create == plan.patch == []
-        assert len(plan.delete) == 6
+        assert len(plan.delete) == 5
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")

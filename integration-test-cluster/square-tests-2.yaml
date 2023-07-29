@@ -39,7 +39,7 @@ metadata:
   name: demo-configmap-2
   namespace: square-tests-2
   labels:
-    app: demoapp-1
+    app: demoapp-2
 
 ---
 
