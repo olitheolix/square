@@ -24,7 +24,7 @@ def main():
     kubeconfig, kubecontext = Path(os.environ["KUBECONFIG"]), None
 
     # Optional: Set log level (0 = ERROR, 1 = WARNING, 2 = INFO, 3 = DEBUG).
-    square.square.setup_logging(3)
+    square.square.setup_logging(1)
 
     # Populate the `Config` structure. All primary functions, ie `get`, `plan`
     # and `apply` need one.
