@@ -65,7 +65,7 @@ class TestHelpers:
         assert manio.make_meta(manifest) == expected
 
     def test_select(self):
-        """Prune a list of manifests based on namespace and resource."""
+        """Select manifest based on `Selector`."""
         # Convenience.
         select = manio.select
         Sel = Selectors
@@ -168,6 +168,26 @@ class TestHelpers:
         # Must select all other Secret that match the selector.
         manifest = make_manifest(kind, ns, "some-secret")
         assert select(manifest, Sel(kinds={kind}, namespaces=[ns])) is True
+
+    def test_select_ignore_labels(self):
+        """The `select` function must ignore `labels` when asked."""
+        # Convenience.
+        select = manio.select
+
+        # Create a Pod manifest.
+        manifest = make_manifest("Pod", "ns", "mypod", labels={"foo": "bar"})
+
+        # Selector matches the pod labels. It must therefore not matter if
+        # `match_labels` is set or not.
+        sel = Selectors(kinds={"Pod"}, labels=["foo=bar"])
+        assert select(manifest, sel, match_labels=True) is True
+        assert select(manifest, sel, match_labels=False) is True
+
+        # Selector does not match the pod labels. The function must only report
+        # a match when we disable label matching.
+        sel = Selectors(kinds={"Pod"}, labels=["wrong=label"])
+        assert select(manifest, sel, match_labels=True) is False
+        assert select(manifest, sel, match_labels=False) is True
 
     def test_select_kind_name(self):
         """Verify `select` if not only KIND but also NAME was specified."""
