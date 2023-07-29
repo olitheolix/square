@@ -1,15 +1,9 @@
-"""Use Square as a library.
+"""Use Square as a library in your own code.
 
-This example leverages the Square library to import manifests from a server,
-create a plan and then apply it.
-
-Start the KinD cluster, then run this script from the parent directory like so:
-
-  $ cd integration-test-cluster; ./start_cluster.sh; cd ..
-  $ PYTHONPATH=`pwd` pipenv run python examples/as_library.py
+This example will download some manifests from the KinD integration test
+server, create a plan and then apply it.
 
 """
-import os
 from pathlib import Path
 
 import square
@@ -17,12 +11,12 @@ from square.dtypes import Config, GroupBy, Selectors
 
 
 def main():
+    # Specify path to Kubernetes credentials.
+    kubeconfig, kubecontext = Path("/tmp/kubeconfig-kind.yaml"), None
+
     # ----------------------------------------------------------------------
     #                                 Setup
     # ----------------------------------------------------------------------
-    # Kubernetes credentials.
-    kubeconfig, kubecontext = Path(os.environ["KUBECONFIG"]), None
-
     # Optional: Set log level (0 = ERROR, 1 = WARNING, 2 = INFO, 3 = DEBUG).
     square.square.setup_logging(1)
 
