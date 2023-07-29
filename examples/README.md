@@ -1,7 +1,7 @@
 # Use Square As A Library
 The Square command is only a thin wrapper around the Square library. You
 can also use Square programmatically from within your own Python projects. See
-[as_library.py](as_library.py) for an example
+[basic_workflow.py](basic_workflow.py) for an example
 
 # Deploy Square
 This example is only useful if you want to run Square inside your cluster. You

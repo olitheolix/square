@@ -460,7 +460,7 @@ Deleting NAMESPACE None/dummy
 # Use It As A Library
 You can also use *Square* as a library. In fact, the CLI commands explained
 here are just thin wrappers around that library. See
-[here](examples/as_library.py) for how to build a basic version of the CLI with
+[here](examples/basic_workflow.py) for how to build a basic version of the CLI with
 only a few lines of code.
 
 # Automated Tests
