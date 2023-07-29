@@ -13,7 +13,7 @@ import square.main
 import square.manio as manio
 from square.dtypes import Config, GroupBy, K8sConfig, Selectors
 
-from .test_helpers import kind_available
+from .test_helpers import kind_available, make_manifest
 
 # Bake a `kubectl` command that uses the kubeconfig file for the KIND cluster.
 # We need to wrap this into a try/except block because CircleCI does not have
@@ -441,7 +441,7 @@ class TestKindName:
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestLabels:
-    def test_api_plan_labels_empty_local(self, tmp_path):
+    def test_api_plan_labels_simple(self, tmp_path):
         """Plan ConfigMaps based on labels.
 
         This test plans against an empty local folder. Square must therefore
@@ -484,6 +484,143 @@ class TestLabels:
         plan, err = square.plan(config)
         assert not err and plan.create == plan.patch == []
         assert len(plan.delete) == 5
+
+    def test_api_plan_labels_local_and_remote(self, tmp_path):
+        """Plan ConfigMaps based on labels.
+
+        This test creates local dummy manifests to verify that Square selects
+        only the manifests with matching labels.
+
+        """
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        # Populate the `Config` structure. All main functions expect this.
+        config = Config(
+            kubecontext=None,
+            kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
+
+            # Store manifests in this folder.
+            folder=tmp_path / 'manifests',
+        )
+
+        # Must find and try to delete our only Configmaps with label `app=demoapp-2`.
+        config.selectors = Selectors(
+            kinds={"Configmap"},
+            namespaces=["square-tests-1", "square-tests-2"],
+            labels=["app=demoapp-2"],
+        )
+        plan, err = square.plan(config)
+        assert not err and plan.create == plan.patch == []
+        assert len(plan.delete) == 1
+
+        # Sanity check: we do not have a ConfigMap with label "app=new"
+        config.selectors = Selectors(
+            kinds={"Configmap"},
+            namespaces=["square-tests-1", "square-tests-2"],
+            labels=["app=new"],
+        )
+        plan, err = square.plan(config)
+        assert not err and plan.create == plan.patch == plan.delete == []
+
+        # ----------------------------------------------------------------------
+        # Create local manifest for a new ConfigMap with labels.
+        # ----------------------------------------------------------------------
+        manifest_new = make_manifest(
+            kind="ConfigMap", namespace="square-tests-1",
+            name="new", labels={"app": "new"}
+        )
+        manifest_foo = make_manifest(
+            kind="ConfigMap", namespace="square-tests-1",
+            name="foo", labels={"app": "foo"}
+        )
+        config.folder.mkdir()
+        fname = config.folder / "manifest.yaml"
+        fname.write_text(yaml.dump_all([manifest_new, manifest_foo]))
+
+        # Square must now try to create the one ConfigMap where the labels match.
+        plan, err = square.plan(config)
+        assert not err and plan.patch == plan.delete == []
+        assert len(plan.create) == 1
+
+        # Sanity check: Square must try to create both manifest if we remove
+        # the label selectors.
+        config.selectors.labels.clear()
+        plan, err = square.plan(config)
+        assert not err and plan.patch == []
+        assert len(plan.create) == 2
+
+    def test_api_plan_same_resource_different_labels(self, tmp_path):
+        """Plan a ConfigMaps that has different local and remote labels."""
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        # Test will only manipulate this one ConfigMap.
+        cm_ns = "square-tests-2"
+        cm_name = "demo-configmap-2"
+
+        # Populate the `Config` structure. All main functions expect this.
+        config = Config(
+            kubecontext=None,
+            kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
+
+            # Store manifests in this folder.
+            folder=tmp_path / 'manifests',
+        )
+
+        # Define path to local ConfigMap manifest. The test will create it later.
+        config.folder.mkdir()
+        fname = config.folder / "manifest.yaml"
+
+        # ----------------------------------------------------------------------
+        # No local ConfigMap manifest.
+        # ----------------------------------------------------------------------
+        config.selectors = Selectors(
+            kinds={"Configmap"},
+            namespaces=[cm_ns],
+            labels=["app=demoapp-2"],
+        )
+        plan, err = square.plan(config)
+        assert not err
+        assert plan.create == plan.patch == []
+        assert len(plan.delete) == 1
+        assert plan.delete[0].meta.name == cm_name
+
+        # ----------------------------------------------------------------------
+        # Local ConfigMap has same `app` label as server.
+        # ----------------------------------------------------------------------
+        manifest = make_manifest(
+            kind="ConfigMap", namespace=cm_ns,
+            name=cm_name, labels={"app": "demoapp-2"}
+        )
+        fname.write_text(yaml.dump_all([manifest]))
+        plan, err = square.plan(config)
+        assert not err and plan.create == plan.delete == [] and len(plan.patch) == 1
+
+        # ----------------------------------------------------------------------
+        # Local ConfigMap has different `app` label than server.
+        # ----------------------------------------------------------------------
+        manifest = make_manifest(
+            kind="ConfigMap", namespace=cm_ns,
+            name=cm_name, labels={"app": "local"}
+        )
+        fname.write_text(yaml.dump_all([manifest]))
+
+        # Selector matches local manifest: Square must try to create one ConfigMap.
+        config.selectors.labels = ["app=local"]
+        plan, err = square.plan(config)
+        assert not err
+        assert plan.patch == plan.delete == []
+        assert len(plan.create) == 1
+
+        # Selector matches server manifest: Square must try to delete one ConfigMap.
+        config.selectors.labels = ["app=demoapp-2"]
+        plan, err = square.plan(config)
+        assert not err
+        assert plan.create == plan.patch == []
+        assert len(plan.delete) == 1
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
