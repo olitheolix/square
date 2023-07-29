@@ -81,7 +81,7 @@ class TestHelpers:
         kinds = ({"Namespace"}, {"Deployment", "Namespace"})
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
             sel = Sel(kinds=kind, namespaces=ns, labels=cast(List[str], lab))
-            assert select(manifest, sel) is True
+            assert select(manifest, sel, True) is True
 
         # Function must reject these because the selectors match only partially.
         selectors = [
@@ -91,11 +91,11 @@ class TestHelpers:
             Sel(kinds={"Namespace"}, namespaces=["ns0"], labels=["app=a", "env=x"]),
         ]
         for sel in selectors:
-            assert select(manifest, sel) is False
+            assert select(manifest, sel, True) is False
 
         # Reject the manifest if the selector does not specify at least one "kind".
-        assert select(manifest, Sel(kinds={"Namespace"})) is True
-        assert select(manifest, Sel()) is False
+        assert select(manifest, Sel(kinds={"Namespace"}), True) is True
+        assert select(manifest, Sel(), True) is False
 
         # ---------------------------------------------------------------------
         #                      Deployment Manifest
@@ -106,7 +106,7 @@ class TestHelpers:
         namespaces = (["my-ns"], ["my-ns", "other-ns"])
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
             sel = Sel(kinds=kind, namespaces=ns, labels=cast(List[str], lab))
-            assert select(manifest, sel) is True
+            assert select(manifest, sel, True) is True
 
         # Function must reject these because the selectors match only partially.
         selectors = [
@@ -116,11 +116,11 @@ class TestHelpers:
             Sel(kinds={"Deployment"}, namespaces=["ns0"], labels=["app=a", "env=x"]),
         ]
         for sel in selectors:
-            assert select(manifest, sel) is False
+            assert select(manifest, sel, True) is False
 
         # Reject the manifest if the selector does not specify at least one "kind".
-        assert select(manifest, Sel(kinds={"Deployment"})) is True
-        assert select(manifest, Sel()) is False
+        assert select(manifest, Sel(kinds={"Deployment"}), True) is True
+        assert select(manifest, Sel(), True) is False
 
         # ---------------------------------------------------------------------
         #                      ClusterRole Manifest
@@ -131,7 +131,7 @@ class TestHelpers:
         namespaces = (["my-ns"], ["my-ns", "other-ns"])
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
             sel = Sel(kinds=kind, namespaces=ns, labels=cast(List[str], lab))
-            assert select(manifest, sel) is True
+            assert select(manifest, sel, True) is True
 
         # Function must reject these because the selectors match only partially.
         selectors = [
@@ -140,10 +140,10 @@ class TestHelpers:
             Sel(kinds={"Clusterrole"}, namespaces=["ns0"], labels=["app=a", "env=x"]),
         ]
         for sel in selectors:
-            assert select(manifest, sel) is False
+            assert select(manifest, sel, True) is False
 
         # Reject the manifest if the selector does not specify at least one "kind".
-        assert select(manifest, Sel()) is False
+        assert select(manifest, Sel(), True) is False
 
         # ---------------------------------------------------------------------
         #                    Default Service Account
@@ -151,11 +151,11 @@ class TestHelpers:
         # Must always ignore "default" service account.
         kind, ns = "ServiceAccount", "ns1"
         manifest = make_manifest(kind, ns, "default")
-        assert select(manifest, Sel(kinds={kind}, namespaces=[ns])) is False
+        assert select(manifest, Sel(kinds={kind}, namespaces=[ns]), True) is False
 
         # Must select all other Secret that match the selector.
         manifest = make_manifest(kind, ns, "some-service-account")
-        assert select(manifest, Sel(kinds={kind}, namespaces=[ns])) is True
+        assert select(manifest, Sel(kinds={kind}, namespaces=[ns]), True) is True
 
         # ---------------------------------------------------------------------
         #                      Default Token Secret
@@ -163,11 +163,11 @@ class TestHelpers:
         # Must always ignore "default-token-*" Secrets.
         kind, ns = "Secret", "ns1"
         manifest = make_manifest(kind, ns, "default-token-12345")
-        assert select(manifest, Sel(kinds={kind}, namespaces=[ns])) is False
+        assert select(manifest, Sel(kinds={kind}, namespaces=[ns]), True) is False
 
         # Must select all other Secret that match the selector.
         manifest = make_manifest(kind, ns, "some-secret")
-        assert select(manifest, Sel(kinds={kind}, namespaces=[ns])) is True
+        assert select(manifest, Sel(kinds={kind}, namespaces=[ns]), True) is True
 
     def test_select_ignore_labels(self):
         """The `select` function must ignore `labels` when asked."""
@@ -198,22 +198,22 @@ class TestHelpers:
         # Must be selected because it is a Pod.
         for namespaces in ([], ["ns"]):
             selector = Selectors(kinds={"Pod"}, namespaces=namespaces)
-            assert select(manifest, selector) is True
+            assert select(manifest, selector, True) is True
 
         # Must be selected because it is uniquely specified Pod.
         for namespaces in ([], ["ns"]):
             selector = Selectors(kinds={"Pod/app"}, namespaces=namespaces)
-            assert select(manifest, selector) is True
+            assert select(manifest, selector, True) is True
 
         # Must not select it because it is not the uniquely specified Pod.
         for namespaces in ([], ["ns"]):
             selector = Selectors(kinds={"Pod/foo"}, namespaces=namespaces)
-            assert select(manifest, selector) is False
+            assert select(manifest, selector, True) is False
 
         # Must be selected because it is covered by "Pod".
         for namespaces in ([], ["ns"]):
             selector = Selectors(kinds={"Pod/foo", "Pod"}, namespaces=namespaces)
-            assert select(manifest, selector) is True
+            assert select(manifest, selector, True) is True
 
         # Must never select the manifest if the namespace is wrong.
         selectors = [
@@ -223,7 +223,7 @@ class TestHelpers:
             Selectors(kinds={"Pod/foo", "Pod"}, namespaces=["wrong"]),
         ]
         for selector in selectors:
-            assert select(manifest, selector) is False
+            assert select(manifest, selector, True) is False
 
 
 class TestUnpackParse:

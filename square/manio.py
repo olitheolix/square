@@ -48,7 +48,7 @@ def make_meta(manifest: dict) -> MetaManifest:
 
 
 def select(manifest: dict, selectors: Selectors,
-           match_labels: bool = True) -> bool:
+           match_labels: bool) -> bool:
     """Return `False` unless `manifest` satisfies _all_ `selectors`.
 
     Inputs:
@@ -231,7 +231,7 @@ def parse(file_yaml: Dict[Path, str],
             manifests = [_ for _ in manifests if _ is not None]
 
             # Retain only those manifests that satisfy the selectors.
-            manifests = [_ for _ in manifests if select(_, selectors)]
+            manifests = [_ for _ in manifests if select(_, selectors, True)]
 
             # Convert List[manifest] into List[(MetaManifest, manifest)].
             # Abort if `make_meta` throws a KeyError which happens if `file_yaml`
@@ -320,7 +320,7 @@ def sync(local_manifests: LocalManifestLists,
     # Only retain server manifests that match the selectors.
     server_manifests = {
         meta: manifest for meta, manifest in server_manifests.items()
-        if select(manifest, selectors)
+        if select(manifest, selectors, True)
     }
 
     # Add all local manifests that do not match the selectors to the server
@@ -330,7 +330,7 @@ def sync(local_manifests: LocalManifestLists,
     # the diffs.
     for fname, manifests in local_manifests.items():
         for meta, manifest in manifests:
-            if select(manifest, selectors):
+            if select(manifest, selectors, True):
                 continue
             server_manifests[meta] = manifest
 
