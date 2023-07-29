@@ -2,6 +2,7 @@ import copy
 import time
 import unittest.mock as mock
 from pathlib import Path
+from typing import Dict, cast
 
 import httpx
 import pytest
@@ -575,7 +576,7 @@ class TestLabels:
         fname = config.folder / "manifest.yaml"
 
         # ----------------------------------------------------------------------
-        # No local ConfigMap manifest.
+        # No local ConfigMap manifest: Square must plan to DELETE the ConfigMap.
         # ----------------------------------------------------------------------
         config.selectors = Selectors(
             kinds={"Configmap"},
@@ -589,38 +590,22 @@ class TestLabels:
         assert plan.delete[0].meta.name == cm_name
 
         # ----------------------------------------------------------------------
-        # Local ConfigMap has same `app` label as server.
+        # ConfigMap exists both locally and on server, but with different
+        # labels. Square must plan to patch it regardless of whether the labels
+        # match only the local or server manifest (or both).
         # ----------------------------------------------------------------------
-        manifest = make_manifest(
-            kind="ConfigMap", namespace=cm_ns,
-            name=cm_name, labels={"app": "demoapp-2"}
-        )
-        fname.write_text(yaml.dump_all([manifest]))
-        plan, err = square.plan(config)
-        assert not err and plan.create == plan.delete == [] and len(plan.patch) == 1
-
-        # ----------------------------------------------------------------------
-        # Local ConfigMap has different `app` label than server.
-        # ----------------------------------------------------------------------
-        manifest = make_manifest(
-            kind="ConfigMap", namespace=cm_ns,
-            name=cm_name, labels={"app": "local"}
-        )
-        fname.write_text(yaml.dump_all([manifest]))
-
-        # Selector matches local manifest: Square must try to create one ConfigMap.
-        config.selectors.labels = ["app=local"]
-        plan, err = square.plan(config)
-        assert not err
-        assert plan.patch == plan.delete == []
-        assert len(plan.create) == 1
-
-        # Selector matches server manifest: Square must try to delete one ConfigMap.
-        config.selectors.labels = ["app=demoapp-2"]
-        plan, err = square.plan(config)
-        assert not err
-        assert plan.create == plan.patch == []
-        assert len(plan.delete) == 1
+        for labels in ({}, {"app": "local"}, {"app": "demoapp-2"}):
+            manifest = make_manifest(
+                kind="ConfigMap", namespace=cm_ns,
+                name=cm_name, labels=cast(Dict[str, str], labels),
+            )
+            fname.write_text(yaml.dump_all([manifest]))
+            plan, err = square.plan(config)
+            assert not err
+            assert plan.create == plan.delete == []
+            assert len(plan.patch) == 1
+            assert plan.patch[0].meta.name == cm_name
+            assert plan.patch[0].meta.namespace == cm_ns
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")

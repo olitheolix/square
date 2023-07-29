@@ -735,14 +735,43 @@ def pick_manifests_for_plan(
         selectors: Selectors) -> Tuple[SquareManifests, SquareManifests]:
     """Return the subset of `local` and `server` that satisfy the `selectors`."""
 
+    # Compile the server manifests that match the selectors.
     sel_local = {
         meta: man for meta, man in local.items()
         if manio.select(man, selectors, True)
     }
+
+    # Compile the local manifests that match the selectors.
     sel_server = {
         meta: man for meta, man in server.items()
         if manio.select(man, selectors, True)
     }
+
+    # Every selected resource which exists both locally and on the server
+    # *must* be included in both `sel_{local, server}`.
+    #
+    # This is a subtle point: if a resource exists both locally and on the
+    # server then Square will plan a PATCH, as expected. However, if the
+    # resource has different labels locally than on the server, and those
+    # labels are part of the `Selectors`, then it is possible that only the
+    # local or server side resource makes it into `sel_{local,server}`. If that
+    # happens, Square will produce a plan that either CREATEs or DELETEs the
+    # resource because it thinks the manifest is missing on the server or
+    # locally, respectively. This will produce an error when Square applies the
+    # plan and tries to create a resource that already exists (happy case), or
+    # delete that resource from the server (probably not a happy case).
+    #
+    # To avoid this scenario, we will ensure that the intersection of selected
+    # local manifests and server manifests is included in the selected server
+    # manifests. Similarly, the intersection of all selected server manifests
+    # with the full set of local manifests must be included in the set of
+    # selected local manifests.
+    missing_sel_server = {_ for _ in sel_local if _ in server and _ not in sel_server}
+    sel_server |= {_: server[_] for _ in missing_sel_server}
+
+    missing_sel_local = {_ for _ in sel_server if _ in local and _ not in sel_local}
+    sel_local |= {_: local[_] for _ in missing_sel_local}
+
     return sel_local, sel_server
 
 
