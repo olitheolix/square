@@ -1393,6 +1393,49 @@ class TestMainOptions:
 
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
+    def test_make_plan_kind_name(self, m_down, m_load, config, kube_creds):
+        """Mock the available local/server manifests and verify the plan.
+
+        The server and local manifests both declare the same Pod resource but
+        with different labels.
+
+        """
+        # Define the same resource twice but with different labels.
+        meta_pod1 = MetaManifest('v1', 'Pod', "ns1", "pod-1")
+        meta_pod2 = MetaManifest('v1', 'Pod', "ns1", "pod-2")
+        man_pod1 = make_manifest("Pod", "ns1", "pod-1")
+        man_pod2 = make_manifest("Pod", "ns1", "pod-2")
+
+        # The same Pod resource exists both locally and on the server but with
+        # different labels.
+        loc: SquareManifests = {meta_pod1: man_pod1, meta_pod2: man_pod2}
+        srv: SquareManifests = {}
+        m_load.return_value = (loc, {}, False)
+        m_down.return_value = (srv, False)
+
+        # Selector matches both pods: Square must plan to create both.
+        config.selectors = Selectors(kinds={"Pod"})
+        plan, err = sq.make_plan(config)
+        assert not err
+        assert plan.patch == plan.delete == []
+        assert len(plan.create) == 2
+
+        # Selector matches only one pods: Square must plan to create it.
+        config.selectors = Selectors(kinds={"Pod/pod-1"})
+        plan, err = sq.make_plan(config)
+        assert not err
+        assert plan.patch == plan.delete == []
+        assert len(plan.create) == 1
+        assert plan.create[0].meta.name == "pod-1"
+
+        # Selector matches no pods: Square must plan nothing.
+        config.selectors = Selectors(kinds={"Pod/pod-1"})
+        plan, err = sq.make_plan(config)
+        assert not err
+        assert plan.patch == plan.patch == plan.delete == []
+
+    @mock.patch.object(manio, "load_manifests")
+    @mock.patch.object(manio, "download")
     @mock.patch.object(sq, "match_api_version")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
