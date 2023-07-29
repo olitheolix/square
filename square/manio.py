@@ -124,23 +124,21 @@ def select(manifest: dict, selectors: Selectors) -> bool:
     return True
 
 
-def unpack_k8s_resource_list(manifest_list: dict,
-                             selectors: Selectors) -> Tuple[SquareManifests, bool]:
-    """Return only those entries from `manifest_list` that match the `selectors`.
+def unpack_k8s_resource_list(manifest_list: dict) -> Tuple[SquareManifests, bool]:
+    """Convert the K8s `manifest_list` into a `SquareManifest` type.
 
     The `manifest_list` must be a K8s List, eg `DeploymentList` or `NamespaceList`.
 
     Input:
         manifest_list: dict
             K8s response from GET request for eg `deployments`.
-        selectors: Selectors
 
     Returns:
         SquareManifests
 
     """
-    # Ensure the server manifests have the essential fields. If not then
-    # something is seriously wrong.
+    # Ensure the server manifests have the essential fields. Something is
+    # seriously wrong if not.
     must_have = ("apiVersion", "kind", "items")
     missing = [key for key in must_have if key not in manifest_list]
     if len(missing) > 0:
@@ -161,8 +159,7 @@ def unpack_k8s_resource_list(manifest_list: dict,
     # Convenience.
     apiversion = manifest_list["apiVersion"]
 
-    # Compile the manifests into a {MetaManifest: Manifest} dictionary. Skip
-    # all the manifests that do not match the `selectors`.
+    # Compile the manifests into a {MetaManifest: Manifest} dictionary.
     manifests = {}
     for manifest in manifest_list["items"]:
         # The "kind" key is missing from the manifest when K8s returns them in
@@ -171,8 +168,7 @@ def unpack_k8s_resource_list(manifest_list: dict,
         manifest = copy.deepcopy(manifest)
         manifest["kind"] = kind
         manifest['apiVersion'] = apiversion
-        if select(manifest, selectors):
-            manifests[make_meta(manifest)] = manifest
+        manifests[make_meta(manifest)] = manifest
     return (manifests, False)
 
 
@@ -973,7 +969,7 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifests, boo
 
                 # Parse the K8s List (eg `DeploymentList`, `NamespaceList`, ...) into a
                 # `SquareManifests` (ie `Dict[MetaManifest, dict]`) structure.
-                manifests, err = unpack_k8s_resource_list(manifest_list, config.selectors)
+                manifests, err = unpack_k8s_resource_list(manifest_list)
                 assert not err and manifests is not None
 
                 # Strip off the fields defined in `config.filters`.

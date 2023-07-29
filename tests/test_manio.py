@@ -207,7 +207,7 @@ class TestHelpers:
 
 
 class TestUnpackParse:
-    def test_unpack_k8s_resource_list_without_selectors_ok(self):
+    def test_unpack_k8s_resource_list_ok(self):
         """Convert eg a `DeploymentList` into a Python dict of `Deployments`."""
         # Demo manifests for this test.
         manifests_withkind = [
@@ -221,9 +221,6 @@ class TestUnpackParse:
         for manifest in manifests_nokind:
             del manifest["kind"]
 
-        # Generic selector that matches all manifests in this test.
-        selectors = Selectors(kinds={"Deployment"})
-
         # The actual DeploymentList returned from K8s.
         manifest_list = {
             'apiVersion': 'apps/v1',
@@ -233,7 +230,7 @@ class TestUnpackParse:
 
         # Parse the DeploymentList into a dict. The keys are ManifestTuples and
         # the values are the Deployments (*not* DeploymentList) manifests.
-        data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
+        data, err = manio.unpack_k8s_resource_list(manifest_list)
         assert err is False
 
         # The test function must not have modified our original dictionaries,
@@ -256,65 +253,6 @@ class TestUnpackParse:
             assert src == data[out_key]
             assert src is not data[out_key]
 
-    def test_unpack_k8s_resource_list_with_selectors_ok(self):
-        """Function must correctly apply the `selectors`."""
-        # Demo manifests.
-        manifests = [
-            make_manifest('Deployment', f'ns_{_}', f'name_{_}',
-                          {"cluster": "testing", "app": f"d_{_}"})
-            for _ in range(3)
-        ]
-
-        # The actual DeploymentList returned from K8s.
-        manifest_list = {
-            'apiVersion': 'apps/v1',
-            'kind': 'DeploymentList',
-            'items': manifests,
-        }
-
-        # Select all.
-        for ns in ([], ["ns_0", "ns_1", "ns_2"]):
-            ns = cast(List[str], ns)
-            selectors = Selectors(kinds={"Deployment"}, namespaces=ns)
-            data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
-            assert err is False and data == {
-                MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_0'): manifests[0],
-                MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
-                MetaManifest('apps/v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
-            }
-
-        # Must select nothing because no resource is in the "foo" namespace.
-        selectors = Selectors(kinds={"Deployment"}, namespaces=["foo"])
-        data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
-        assert err is False and data == {}
-
-        # Must select nothing because we have no resource kind "foo".
-        selectors = Selectors(kinds={"foo"})
-        data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
-        assert err is False and data == {}
-
-        # Must select the Deployment in the "ns_1" namespace.
-        selectors = Selectors(kinds={"Deployment"}, namespaces=["ns_1"])
-        data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
-        assert err is False and data == {
-            MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
-        }
-
-        # Must select the Deployment in the "ns_1" & "ns_2" namespace.
-        selectors = Selectors(kinds={"Deployment"}, namespaces=["ns_1", "ns_2"])
-        data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
-        assert err is False and data == {
-            MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
-            MetaManifest('apps/v1', 'Deployment', 'ns_2', 'name_2'): manifests[2],
-        }
-
-        # Must select the second Deployment due to label selector.
-        selectors = Selectors(kinds={"Deployment"}, labels=["app=d_1"])
-        data, err = manio.unpack_k8s_resource_list(manifest_list, selectors)
-        assert err is False and data == {
-            MetaManifest('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests[1],
-        }
-
     def test_unpack_k8s_resource_list_invalid_list_manifest(self):
         """The input manifest must have `apiVersion`, `kind` and `items`.
 
@@ -322,30 +260,27 @@ class TestUnpackParse:
         `DeploymentList`.
 
         """
-        # Generic selector that matches all manifests in this test.
-        selectors = Selectors(kinds={"Deployment"})
-
         # Valid input.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList', 'items': []}
-        ret = manio.unpack_k8s_resource_list(src, selectors)
+        ret = manio.unpack_k8s_resource_list(src)
         assert ret == ({}, False)
 
         # Missing `apiVersion`.
         src = {'kind': 'DeploymentList', 'items': []}
-        assert manio.unpack_k8s_resource_list(src, selectors) == ({}, True)
+        assert manio.unpack_k8s_resource_list(src) == ({}, True)
 
         # Missing `kind`.
         src = {'apiVersion': 'v1', 'items': []}
-        assert manio.unpack_k8s_resource_list(src, selectors) == ({}, True)
+        assert manio.unpack_k8s_resource_list(src) == ({}, True)
 
         # Missing `items`.
         src = {'apiVersion': 'v1', 'kind': 'DeploymentList'}
-        assert manio.unpack_k8s_resource_list(src, selectors) == ({}, True)
+        assert manio.unpack_k8s_resource_list(src) == ({}, True)
 
         # All fields present but `kind` does not end in List (case sensitive).
         for invalid_kind in ('Deploymentlist', 'Deployment'):
             src_invalid = {'apiVersion': 'v1', 'kind': invalid_kind, 'items': []}
-            assert manio.unpack_k8s_resource_list(src_invalid, selectors) == ({}, True)
+            assert manio.unpack_k8s_resource_list(src_invalid) == ({}, True)
 
 
 class TestYamlManifestIO:
@@ -1528,7 +1463,7 @@ class TestSync:
         groupby = GroupBy(order=["ns", "blah"], label="")
         assert fun(meta, man, groupby) == (Path(), True)
 
-    def test_sync_modify_selective_kind_and_namespace_ok(self, k8sconfig):
+    def test_sync_modify_select_kind_and_namespace_ok(self, k8sconfig):
         """Add, modify and delete a few manifests.
 
         Create fake inputs for the test function, namely local- and remote
@@ -2132,100 +2067,6 @@ class TestDownloadManifests:
         assert m_get.call_args_list == [
             mock.call(k8sconfig.client, res_dply_0.url),
             mock.call(k8sconfig.client, res_ns_0.url),
-        ]
-
-    @mock.patch.object(k8s, 'get')
-    def test_download_kind_name(self, m_get, config, k8sconfig):
-        """Special case: user specified explicit kind/name selectors.
-
-        The test only mocks the K8s API call. All other functions actually run.
-
-        """
-        man_ns0 = make_manifest("Namespace", None, "ns0")
-        man_ns1 = make_manifest("Namespace", None, "ns1")
-        man_dp0 = make_manifest("Deployment", "ns0", "d0")
-        man_dp1 = make_manifest("Deployment", "ns1", "d1")
-
-        # Resource URLs (not namespaced).
-        res_ns, err1 = resource(k8sconfig, MetaManifest("", "Namespace", None, ""))
-        res_deploy, err2 = resource(k8sconfig, MetaManifest("", "Deployment", None, ""))
-        assert not any([err1, err2])
-        del err1, err2
-
-        # Create mocked K8s for a NamespaceList and DeploymentList (all namespaces).
-        l_ns = {
-            'apiVersion': 'v1',
-            'kind': 'NamespaceList',
-            "items": [man_ns0, man_ns1],
-        }
-        l_dply = {
-            'apiVersion': 'apps/v1',
-            'kind': 'DeploymentList',
-            "items": [man_dp0, man_dp1],
-        }
-
-        # Convenience: create meta manifest and stripped K8s manifests for our
-        # demo resources. This will make the test more readable.
-        meta_ns0 = manio.make_meta(man_ns0)
-        meta_dp0 = manio.make_meta(man_dp0)
-        meta_dp1 = manio.make_meta(man_dp1)
-
-        manstrip_ns0 = manio.strip(k8sconfig, man_ns0, {})[0]
-        manstrip_dp0 = manio.strip(k8sconfig, man_dp0, {})[0]
-        manstrip_dp1 = manio.strip(k8sconfig, man_dp1, {})[0]
-
-        # ----------------------------------------------------------------------
-        # Ask for a single specific deployment.
-        # ----------------------------------------------------------------------
-        m_get.reset_mock()
-        m_get.side_effect = [(l_dply, False)]
-        config.selectors = Selectors(kinds={"Deployment/d0"})
-        expected = {meta_dp0: manstrip_dp0}
-        assert manio.download(config, k8sconfig) == (expected, False)
-        assert m_get.call_args_list == [
-            mock.call(k8sconfig.client, res_deploy.url),
-        ]
-
-        # ----------------------------------------------------------------------
-        # Ask for two specific deployments.
-        # ----------------------------------------------------------------------
-        m_get.reset_mock()
-        m_get.side_effect = [(l_dply, False)]
-        config.selectors = Selectors(kinds={"Deployment/d0", "Deployment/d1"})
-        expected = {meta_dp0: manstrip_dp0, meta_dp1: manstrip_dp1}
-        assert manio.download(config, k8sconfig) == (expected, False)
-        assert m_get.call_args_list == [
-            mock.call(k8sconfig.client, res_deploy.url),
-        ]
-
-        # ----------------------------------------------------------------------
-        # Ask for a specific deployment as well as all deployments.
-        # This must make one call to the deployment endpoint and return all.
-        # ----------------------------------------------------------------------
-        m_get.reset_mock()
-        m_get.side_effect = [(l_dply, False)]
-        config.selectors = Selectors(kinds={"Deployment/d0", "Deployment"})
-        expected = {meta_dp0: manstrip_dp0, meta_dp1: manstrip_dp1}
-        assert manio.download(config, k8sconfig) == (expected, False)
-        assert m_get.call_args_list == [
-            mock.call(k8sconfig.client, res_deploy.url),
-        ]
-
-        # ----------------------------------------------------------------------
-        # Ask for all deployments and a specific namespace.
-        # This must make two calls, one the deployment and namespace endpoint,
-        # respectively.
-        # ----------------------------------------------------------------------
-        m_get.reset_mock()
-        m_get.side_effect = [(l_dply, False), (l_ns, False)]
-        config.selectors = Selectors(kinds={"Deployment", "Namespace/ns0"})
-        expected = {meta_dp0: manstrip_dp0,
-                    meta_dp1: manstrip_dp1,
-                    meta_ns0: manstrip_ns0}
-        assert manio.download(config, k8sconfig) == (expected, False)
-        assert m_get.call_args_list == [
-            mock.call(k8sconfig.client, res_deploy.url),
-            mock.call(k8sconfig.client, res_ns.url),
         ]
 
     @mock.patch.object(k8s, 'get')
