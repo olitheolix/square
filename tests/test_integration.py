@@ -440,6 +440,53 @@ class TestKindName:
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
+class TestLabels:
+    def test_api_plan_labels_empty_local(self, tmp_path):
+        """Plan ConfigMaps based on labels.
+
+        This test plans against an empty local folder. Square must therefore
+        never suggest to create or patch resources, only delete them.
+
+        """
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        # Populate the `Config` structure. All main functions expect this.
+        config = Config(
+            kubecontext=None,
+            kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
+
+            # Store manifests in this folder.
+            folder=tmp_path / 'manifests',
+        )
+
+        # ----------------------------------------------------------------------
+        # Must find 8 Configmaps without label selectors.
+        # ----------------------------------------------------------------------
+        config.selectors = Selectors(
+            kinds={"Configmap"},
+            namespaces=["square-tests-1", "square-tests-2"],
+            labels=[],
+        )
+        plan, err = square.plan(config)
+        assert not err and plan.create == plan.patch == []
+        assert len(plan.delete) == 8
+
+        # ----------------------------------------------------------------------
+        # Must find only 6 Configmaps with label `app=demoapp-1`.
+        # ----------------------------------------------------------------------
+        config.selectors = Selectors(
+            kinds={"Configmap"},
+            namespaces=["square-tests-1", "square-tests-2"],
+            labels=["app=demoapp-1"],
+        )
+        plan, err = square.plan(config)
+        assert not err and plan.create == plan.patch == []
+        assert len(plan.delete) == 6
+
+
+@pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestMainPlan:
     def test_main_plan(self, tmp_path):
         """PLAN all cluster resources."""
