@@ -729,6 +729,23 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     return False
 
 
+def pick_manifests_for_plan(
+        local: SquareManifests,
+        server: SquareManifests,
+        selectors: Selectors) -> Tuple[SquareManifests, SquareManifests]:
+    """Return the subset of `local` and `server` that satisfy the `selectors`."""
+
+    sel_local = {
+        meta: man for meta, man in local.items()
+        if manio.select(man, selectors)
+    }
+    sel_server = {
+        meta: man for meta, man in server.items()
+        if manio.select(man, selectors)
+    }
+    return sel_local, sel_server
+
+
 def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
     """Return the deployment plan.
 
@@ -756,6 +773,12 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         # Download manifests from K8s.
         server, err = manio.download(cfg, k8sconfig)
         assert not err
+
+        # Retain only those manifests that satisfy the selectors.
+        # NOTE: we can already be certain that `local` and `server`
+        # contain only the desired resource KINDs and namespaces, but the label
+        # selectors have not been applied yet.
+        local, server = pick_manifests_for_plan(local, server, cfg.selectors)
 
         # Align non-plannable fields, like the ServiceAccount tokens.
         local_meta, err = manio.align_serviceaccount(local, server)

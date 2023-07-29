@@ -1163,11 +1163,92 @@ class TestMainOptions:
             m_sort.return_value = [], True
             assert sq.apply_plan(config, plan) is True
 
+    def test_pick_manifests_for_plan_different_resources(self):
+        """Use an orthogonal set of manifests for server and client.
+
+        The function must pick out the correct manifests based on the
+        KIND and NAMESPACE selectors. We will not use any labels here.
+
+        """
+        # Define two Pods and a Service.
+        meta_ns1_pod1 = MetaManifest('v1', 'Pod', "ns1", "pod-1")
+        meta_ns2_pod2 = MetaManifest('v1', 'Pod', "ns2", "pod-2")
+        meta_ns1_svc1 = MetaManifest('v1', 'Service', "ns1", "svc-1")
+        man_ns1_pod1 = make_manifest("Pod", "ns1", "pod-1")
+        man_ns2_pod2 = make_manifest("Pod", "ns2", "pod-2")
+        man_ns1_svc1 = make_manifest("Service", "ns1", "svc-1")
+
+        # Set of manifests we will have on either the server or locally.
+        square_manifests = {
+            meta_ns1_pod1: man_ns1_pod1,
+            meta_ns2_pod2: man_ns2_pod2,
+            meta_ns1_svc1: man_ns1_svc1,
+        }
+
+        # The `idx` is purely so swap local and server manifests. This is
+        # because the current test only supplies either server manifests or
+        # local manifests to ensure that the set of manifests is orthogonal.
+        for idx in (0, 1):
+            loc, srv = (square_manifests, {}) if idx == 0 else ({}, square_manifests)
+
+            # Select all Pods and Services in all namespaces.
+            selectors = Selectors(kinds={"Pod", "Service"}, namespaces=[])
+            ret = sq.pick_manifests_for_plan(loc, srv, selectors)
+            assert ret[idx] == {
+                meta_ns1_pod1: man_ns1_pod1,
+                meta_ns2_pod2: man_ns2_pod2,
+                meta_ns1_svc1: man_ns1_svc1,
+            }
+
+            # Select all Pods and Services in namespace "ns1".
+            selectors = Selectors(kinds={"Pod", "Service"}, namespaces=["ns1"])
+            ret = sq.pick_manifests_for_plan(loc, srv, selectors)
+            assert ret[idx] == {
+                meta_ns1_pod1: man_ns1_pod1,
+                meta_ns1_svc1: man_ns1_svc1,
+            }
+
+            # Select all Pods and Services in namespace "ns2".
+            selectors = Selectors(kinds={"Pod", "Service"}, namespaces=["ns2"])
+            ret = sq.pick_manifests_for_plan(loc, srv, selectors)
+            assert ret[idx] == {
+                meta_ns2_pod2: man_ns2_pod2,
+            }
+
+            # Select all Pods in all namespaces.
+            selectors = Selectors(kinds={"Pod"}, namespaces=[])
+            ret = sq.pick_manifests_for_plan(loc, srv, selectors)
+            assert ret[idx] == {
+                meta_ns1_pod1: man_ns1_pod1,
+                meta_ns2_pod2: man_ns2_pod2,
+            }
+
+            # Select all Pods in namespace "ns1".
+            selectors = Selectors(kinds={"Pod"}, namespaces=["ns1"])
+            ret = sq.pick_manifests_for_plan(loc, srv, selectors)
+            assert ret[idx] == {
+                meta_ns1_pod1: man_ns1_pod1,
+            }
+
+            # Select all Pods in namespace "ns2".
+            selectors = Selectors(kinds={"Pod"}, namespaces=["ns2"])
+            ret = sq.pick_manifests_for_plan(loc, srv, selectors)
+            assert ret[idx] == {
+                meta_ns2_pod2: man_ns2_pod2,
+            }
+
+            # Select all Services in namespace "ns2".
+            selectors = Selectors(kinds={"Service"}, namespaces=["ns2"])
+            ret = sq.pick_manifests_for_plan(loc, srv, selectors)
+            assert ret[idx] == {}
+
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
+    @mock.patch.object(sq, "pick_manifests_for_plan")
     @mock.patch.object(manio, "align_serviceaccount")
     @mock.patch.object(sq, "compile_plan")
-    def test_make_plan_calls(self, m_plan, m_align, m_down, m_load, config, kube_creds):
+    def test_make_plan_calls(self, m_plan, m_align, m_pick, m_down, m_load,
+                             config, kube_creds):
         """Verify that `make_plan` calls the right functions with the right arguments."""
         k8sconfig: K8sConfig = kube_creds
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
@@ -1178,6 +1259,7 @@ class TestMainOptions:
         # All auxiliary functions will succeed.
         m_load.return_value = ("local", None, False)
         m_down.return_value = ("server", False)
+        m_pick.return_value = ("local", "server")
         m_plan.return_value = (plan, False)
         m_align.side_effect = lambda loc_man, _: (loc_man, False)
 
@@ -1186,6 +1268,8 @@ class TestMainOptions:
         assert not err and isinstance(plan, DeploymentPlan)
         m_load.assert_called_once_with(config.folder, config.selectors)
         m_down.assert_called_once_with(config, k8sconfig)
+        assert m_pick.called and m_pick.call_count == 1
+        m_pick.assert_called_once_with("local", "server", config.selectors)
         m_plan.assert_called_once_with(config, k8sconfig, "local", "server")
 
         # Make `compile_plan` fail.
@@ -1209,6 +1293,9 @@ class TestMainOptions:
         tests to cover various edge cases.
 
         """
+        # Select all Pods in all namespaces. Ignore labels.
+        config.selectors = Selectors(kinds={"Pod"}, namespaces=[], labels=[])
+
         # Define a single resource.
         meta_pod1 = MetaManifest('v1', 'Pod', "ns1", "pod-1")
         man_pod1 = make_manifest("Pod", "ns1", "pod-1")
@@ -1235,6 +1322,7 @@ class TestMainOptions:
         plan, err = sq.make_plan(config)
         assert not err
         assert plan.patch == []
+        assert len(plan.create) == 1
         assert len(plan.create) == len(plan.delete) == 1
 
         assert plan.create[0].meta == meta_pod1
@@ -1257,61 +1345,51 @@ class TestMainOptions:
 
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
-    def test_make_plan_with_labels(self, m_down, m_load, config, kube_creds):
+    def test_make_plan_different_labels(self, m_down, m_load, config, kube_creds):
         """Mock the available local/server manifests and verify the plan.
 
-        This test does not use any label selectors because there are dedicated
-        tests to cover various edge cases.
+        The server and local manifests both declare the same Pod resource but
+        with different labels.
 
         """
-        # Valid deployment plan.
-        plan = DeploymentPlan(create=[], patch=[], delete=[])
+        # Select all Pods in all namespaces. We will set labels below.
+        config.selectors = Selectors(kinds={"Pod"}, namespaces=[])
 
-        # Define a single resource.
-        meta_pod1 = MetaManifest('v1', 'Pod', "ns1", "pod-1")
-        man_pod1 = make_manifest("Pod", "ns1", "pod-1")
-        meta_pod2 = MetaManifest('v1', 'Pod', "ns1", "pod-2")
-        man_pod2 = make_manifest("Pod", "ns1", "pod-2")
+        # Define the same resource twice but with different labels.
+        meta_pod = MetaManifest('v1', 'Pod', "ns1", "pod-1")
+        man_loc = make_manifest("Pod", "ns1", "pod-1", labels={"app": "local"})
+        man_srv = make_manifest("Pod", "ns1", "pod-1", labels={"app": "server"})
 
-        # Local and server manifests are in sync.
-        loc: SquareManifests = {meta_pod1: man_pod1}
-        srv: SquareManifests = {meta_pod1: man_pod1}
+        # The same Pod resource exists both locally and on the server but with
+        # different labels.
+        loc: SquareManifests = {meta_pod: man_loc}
+        srv: SquareManifests = {meta_pod: man_srv}
         m_load.return_value = (loc, {}, False)
         m_down.return_value = (srv, False)
 
+        # Label selector matches neither local nor server: Square must do nothing.
+        config.selectors.labels = ["app=unknown"]
         plan, err = sq.make_plan(config)
         assert not err
-        assert plan.create == [] and plan.patch == [] and plan.delete == []
+        assert plan.create == plan.delete == plan.patch == []
 
-        # Pod 1 exists only locally whereas Pod 2 exists only on the cluster.
-        # The plan must therefore suggest to create Pod 1 and delete Pod 2.
-        loc: SquareManifests = {meta_pod1: man_pod1}
-        srv: SquareManifests = {meta_pod2: man_pod2}
-        m_load.return_value = (loc, {}, False)
-        m_down.return_value = (srv, False)
-
+        # Label selector matches local and server: Square must PATCH.
+        config.selectors.labels = []
         plan, err = sq.make_plan(config)
         assert not err
-        assert plan.patch == []
-        assert len(plan.create) == len(plan.delete) == 1
+        assert plan.create == [] and plan.delete == [] and len(plan.patch) == 1
 
-        assert plan.create[0].meta == meta_pod1
-        assert plan.delete[0].meta == meta_pod2
-
-        # Pod 1 exists locally and on the server, but their content differs.
-        # Square must propose a single PATCH.
-        loc: SquareManifests = {meta_pod1: man_pod1}
-        srv: SquareManifests = copy.deepcopy(loc)
-        loc[meta_pod1]["spec"]["foo"] = "foo"
-        srv[meta_pod1]["spec"]["bar"] = "bar"
-        m_load.return_value = (loc, {}, False)
-        m_down.return_value = (srv, False)
-
+        # Label selector matches local but not server: Square must CREATE.
+        config.selectors.labels = ["app=local"]
         plan, err = sq.make_plan(config)
         assert not err
-        assert len(plan.create) == len(plan.delete) == 0
-        assert len(plan.patch) == 1
-        assert plan.patch[0].meta == meta_pod1
+        assert len(plan.create) == 1 and (plan.delete == plan.patch == [])
+
+        # Label selector matches server but not local: Square must DELETE.
+        config.selectors.labels = ["app=server"]
+        plan, err = sq.make_plan(config)
+        assert not err
+        assert plan.create == [] and len(plan.delete) == 1 and plan.patch == []
 
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
