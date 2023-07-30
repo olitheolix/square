@@ -51,6 +51,14 @@ jobs:
       - name: Unit and Integration Tests
         run: pytest --cov=square --cov-report=term-missing --cov-report=xml --cov-fail-under=100
 
+      - name: Setup PYTHONPATH environment variable
+        run: echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+
+      - name: Run Examples
+        working-directory: ./examples
+        run: |
+          python basic_workflow.py
+
       - uses: codecov/codecov-action@v3
         with:
           file: ./coverage.xml
@@ -60,7 +68,7 @@ jobs:
           verbose: false
 
   # ----------------------------------------------------------------------------
-  # Run only the unit tests on Windows because we cannot run KinD there.
+  # Skip integration tests on Windows since we cannot run KinD there.
   # ----------------------------------------------------------------------------
   windows:
     runs-on: windows-latest
@@ -80,7 +88,7 @@ jobs:
           pytest --cov=square --ignore=tests/test_integration.py
 
   # ----------------------------------------------------------------------------
-  # Run only the unit tests on OSX because we cannot run KinD there.
+  # Skip integration tests on OSX since we cannot run KinD there.
   # ----------------------------------------------------------------------------
   macos:
     runs-on: macos-latest
