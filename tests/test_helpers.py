@@ -361,7 +361,7 @@ def k8s_apis(config: K8sConfig):
 def make_manifest(kind: str, namespace: str | None, name: str | None,
                   labels: Dict[str, str] = {}) -> dict:
     # Try to find the resource `kind` and lift its associated `apiVersion`.
-    apis = k8s_apis(K8sConfig(version="1.15"))
+    apis = k8s_apis(K8sConfig(version="1.26"))
     try:
         apiVersion = apis[(kind, "")].apiVersion  # type: ignore
     except KeyError:
