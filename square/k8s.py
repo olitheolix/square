@@ -690,12 +690,12 @@ def parse_api_group(api_version, url, resp) -> Tuple[List[K8sResource], Dict[str
         name = _res["name"]
         verbs = list(sorted(_res["verbs"]))
 
-        # Ignore resource like "services/status". We only care for "services".
+        # Ignore resources like "services/status". We only care for "services".
         if "/" in name:
             logit.debug(f"Ignore resource <{name}>: has a slash ('/') in its name")
             return False
 
-        # Square can only man age the resource if it can be read, modified and
+        # Square can only manage the resource if it can be read, modified and
         # deleted. Here we check if `res` has the respective verbs.
         minimal_verbs = {"create", "delete", "get", "list", "patch", "update"}
         if not minimal_verbs.issubset(set(verbs)):
