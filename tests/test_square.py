@@ -1281,9 +1281,11 @@ class TestMainOptions:
         plan = DeploymentPlan(create=[], patch=[], delete=[])
 
         # All auxiliary functions will succeed.
-        m_load.return_value = ("local", None, False)
-        m_down.return_value = ("server", False)
-        m_pick.return_value = ("local", "server")
+        local = {MetaManifest("v1", "Pod", "default", "local"): {"local": "manifest"}}
+        server = {MetaManifest("v1", "Pod", "default", "server"): {"server": "manifest"}}
+        m_load.return_value = (local, None, False)
+        m_down.return_value = (server, False)
+        m_pick.return_value = (local, server)
         m_plan.return_value = (plan, False)
         m_align.side_effect = lambda loc_man, _: (loc_man, False)
 
@@ -1293,8 +1295,8 @@ class TestMainOptions:
         m_load.assert_called_once_with(config.folder, config.selectors)
         m_down.assert_called_once_with(config, k8sconfig)
         assert m_pick.called and m_pick.call_count == 1
-        m_pick.assert_called_once_with("local", "server", config.selectors)
-        m_plan.assert_called_once_with(config, k8sconfig, "local", "server")
+        m_pick.assert_called_once_with(local, server, config.selectors)
+        m_plan.assert_called_once_with(config, k8sconfig, local, server)
 
         # Make `compile_plan` fail.
         m_plan.return_value = (None, True)
