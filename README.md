@@ -62,8 +62,8 @@ Command line arguments take precedence over the values defined in `.square.yaml`
 # Plan the resources based on `.square.yaml`.
 square plan
 
-# Limit the plan to the `default` namespace.
-square plan -n default
+# Limit the plan to the `default` and `foo` namespaces.
+square plan -n default foo
 
 # Limit the plan to ConfigMaps and Deployments only.
 square plan configmap deployment
