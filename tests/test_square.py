@@ -551,8 +551,8 @@ class TestMatchApiVersions:
         """Test various cases where the function must not do anything.
 
         There are two cases where it must not download a resource form K8s again:
-          1) Local/Server use identical API endpoints the resource.
-          2) Resource exists either on server or locally but not both.
+          1) Local/Server use identical API endpoints for the same resource.
+          2) Resource exists either on server or locally, but not both.
 
         """
         fun = square.square.match_api_version
@@ -571,9 +571,9 @@ class TestMatchApiVersions:
         assert not err and srv == local_in
         assert not m_fetch.called
 
-        # Local- and server manifests have identical Service resource but two
-        # completely different deployments. Must not sync anything because the
-        # deployments are actually different resources.
+        # Local- and server manifests have identical Service resources but use
+        # two different API endpoints for two different Deployments. Must not
+        # sync any API versions because the Deployments are unrelated.
         local_in = {
             MetaManifest("v1", "Service", "svc-name", "ns1"): {"ns": "loc"},
             MetaManifest("apps/v1", "Deployment", "ns", "foo"): {"dply": "loc"},
@@ -587,7 +587,7 @@ class TestMatchApiVersions:
         assert not m_fetch.called
 
         # Local- and server manifests have matching Deployments in two
-        # different namespaces.
+        # namespaces. Function must therefore not match anything.
         local_in: SquareManifests = {
             MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy": "1"},
             MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy": "2"},
