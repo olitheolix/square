@@ -613,7 +613,7 @@ class TestUrlPathBuilder:
         assert k8s.compile_api_endpoints(k8sconfig) is True
 
         # Sample return value for `https://k8s.com/apis`
-        fake_api = json.loads(open("support/apis-v1-15.json").read())
+        fake_api = json.loads(open("tests/support/apis-v1-15.json").read())
 
         # Pretend to be the K8s API and return the requested data from our
         # recorded set of responses.
