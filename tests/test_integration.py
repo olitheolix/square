@@ -460,16 +460,17 @@ class TestLabels:
 
             # Store manifests in this folder.
             folder=tmp_path / 'manifests',
+
+            selectors=Selectors(
+                kinds={"Configmap"},
+            )
         )
 
         # ----------------------------------------------------------------------
         # Must find 8 Configmaps without label selectors.
         # ----------------------------------------------------------------------
-        config.selectors = Selectors(
-            kinds={"Configmap"},
-            namespaces=["square-tests-1", "square-tests-2"],
-            labels=[],
-        )
+        config.selectors.labels = []
+        config.selectors.namespaces = ["square-tests-1", "square-tests-2"]
         plan, err = square.plan(config)
         assert not err and plan.create == plan.patch == []
         assert len(plan.delete) == 8
@@ -477,11 +478,9 @@ class TestLabels:
         # ----------------------------------------------------------------------
         # Must find only 5 Configmaps with label `app=demoapp-1`.
         # ----------------------------------------------------------------------
-        config.selectors = Selectors(
-            kinds={"Configmap"},
-            namespaces=["square-tests-1", "square-tests-2"],
-            labels=["app=demoapp-1"],
-        )
+        config.selectors.namespaces = ["square-tests-1", "square-tests-2"]
+        config.selectors.labels = ["app=demoapp-1"]
+
         plan, err = square.plan(config)
         assert not err and plan.create == plan.patch == []
         assert len(plan.delete) == 5
@@ -504,24 +503,22 @@ class TestLabels:
 
             # Store manifests in this folder.
             folder=tmp_path / 'manifests',
+
+            selectors=Selectors(kinds={"Configmap"}),
         )
 
         # Must find and try to delete our only Configmaps with label `app=demoapp-2`.
-        config.selectors = Selectors(
-            kinds={"Configmap"},
-            namespaces=["square-tests-1", "square-tests-2"],
-            labels=["app=demoapp-2"],
-        )
+        config.selectors.namespaces = ["square-tests-1", "square-tests-2"]
+        config.selectors.labels = ["app=demoapp-2"]
+
         plan, err = square.plan(config)
         assert not err and plan.create == plan.patch == []
         assert len(plan.delete) == 1
 
         # Sanity check: we do not have a ConfigMap with label "app=new"
-        config.selectors = Selectors(
-            kinds={"Configmap"},
-            namespaces=["square-tests-1", "square-tests-2"],
-            labels=["app=new"],
-        )
+        config.selectors.namespaces = ["square-tests-1", "square-tests-2"]
+        config.selectors.labels = ["app=new"]
+
         plan, err = square.plan(config)
         assert not err and plan.create == plan.patch == plan.delete == []
 
@@ -733,7 +730,8 @@ class TestMainPlan:
             selectors=Selectors(
                 kinds={"HorizontalPodAutoscaler"},
                 namespaces=["test-hpa"],
-                labels=[]),
+                labels=[]
+            ),
         )
 
         # Copy the manifest with the namespace and the two HPAs to the temporary path.
