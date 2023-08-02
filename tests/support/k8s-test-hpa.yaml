@@ -1,6 +1,5 @@
-# This namespace will hold an HPA beta resource that does not match the
-# preferred API reported by K8s. The primary purpose of this resource is to test
-# custom `apiVersion` in the manifest.
+# This namespace contains HPAs from different API versions. The primary purpose
+# of this resource is to test custom `apiVersion` in the manifest.
 
 apiVersion: v1
 kind: Namespace
@@ -27,17 +26,17 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: sts-eu
+    name: hpav1
   targetCPUUtilizationPercentage: 45
 
 ---
 
-apiVersion: autoscaling/v2beta2
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   labels:
-    app: hpav2beta2
-  name: hpav2beta2
+    app: hpav2
+  name: hpav2
   namespace: test-hpa
 spec:
   maxReplicas: 10
@@ -59,4 +58,4 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: hpav2beta2
+    name: hpav2

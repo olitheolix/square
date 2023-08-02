@@ -412,11 +412,11 @@ class TestMatchApiVersions:
     def test_match_api_version_basic(self, m_fetch, k8sconfig):
         """Square must use the API version declared in local manifests.
 
-        In this case, we have an HPA resource. The local manifest uses
-        v2beta1 whereas K8s will have automatically converted it to the latest
-        version, which happens to be v2 for K8s 1.24.
+        In this case, we have an HPA resource. The local manifest uses v1
+        whereas K8s will have automatically converted it to the latest version,
+        which happens to be v2 for K8s 1.26.
 
-        This test verifies that Square requests the manifest from the `v2beta`
+        This test verifies that Square requests the manifest from the `v1`
         endpoint as specified in the manifest, even though K8s stores it in
         `v2` format.
 
@@ -425,7 +425,7 @@ class TestMatchApiVersions:
 
         # Create local and server manifests. Both specify the same HPA resource
         # but with different `apiVersions`.
-        meta_deploy_loc = MetaManifest("autoscaling/v2beta1", hpa, "ns", "name")
+        meta_deploy_loc = MetaManifest("autoscaling/v1", hpa, "ns", "name")
         meta_deploy_srv = MetaManifest("autoscaling/v2", hpa, "ns", "name")
         local: SquareManifests = {
             MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "loc"},
@@ -442,12 +442,13 @@ class TestMatchApiVersions:
         m_fetch.return_value = (meta_deploy_loc, {"new": "srv"}, False)
         del err
 
-        # Test function must have interrogated the `autoscaling/v2beta1`
-        # endpoint to fetch the HPA manifest.
+        # Test function must have interrogated the `autoscaling/v1` as
+        # specified in the local manifest, even though K8s also serves
+        # it from `autoscaling/v2`.
         srv, err = square.square.match_api_version(k8sconfig, local, server_in)
         assert not err and srv == {
             MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "srv"},
-            MetaManifest("autoscaling/v2beta1", hpa, "ns", "name"): {"new": "srv"},
+            MetaManifest("autoscaling/v1", hpa, "ns", "name"): {"new": "srv"},
         }
 
         # Must have downloaded the deployments.
@@ -464,32 +465,32 @@ class TestMatchApiVersions:
         hpa = "HorizontalPodAutoscaler"
 
         # Create local and server manifests. Both specify the same HPAs
-        # but K8s and the local manifests uses different `apiVersions`.
+        # but K8s and the local manifests use different `apiVersions`.
         local: SquareManifests = {
-            MetaManifest("autoscaling/v2", hpa, "name", "ns1"): {"hpa": "1"},
-            MetaManifest("autoscaling/v2beta2", hpa, "name", "ns2"): {"hpa": "2"},
+            MetaManifest("autoscaling/v1", hpa, "name", "ns1"): {"hpa": "1"},
+            MetaManifest("autoscaling/v2", hpa, "name", "ns2"): {"hpa": "2"},
         }
         server_in: SquareManifests = {
             # Same as in `local`
-            MetaManifest("autoscaling/v2", hpa, "name", "ns1"): {"hpa": "1"},
+            MetaManifest("autoscaling/v1", hpa, "name", "ns1"): {"hpa": "1"},
 
             # Different than in `local`.
-            MetaManifest("autoscaling/v2", hpa, "name", "ns2"): {"hpa": "2"},
+            MetaManifest("autoscaling/v1", hpa, "name", "ns2"): {"hpa": "2"},
         }
 
         # Mock the resource download to supply it from the correct API endpoint.
-        meta = MetaManifest("autoscaling/v2beta2", hpa, "name", "ns2")
+        meta = MetaManifest("autoscaling/v2", hpa, "name", "ns2")
         assert meta in local
         resource, err = k8s.resource(k8sconfig, meta)
         assert not err
         m_fetch.return_value = (meta, {"new-hpa": "2"}, False)
         del err
 
-        # Test function must interrogate `autoscaling/v2beta2` for the HPA manifest.
+        # Test function must interrogate `autoscaling/v2` for the HPA manifest.
         srv, err = square.square.match_api_version(k8sconfig, local, server_in)
         assert not err and srv == {
-            MetaManifest("autoscaling/v2", hpa, "name", "ns1"): {"hpa": "1"},
-            MetaManifest("autoscaling/v2beta2", hpa, "name", "ns2"): {"new-hpa": "2"},
+            MetaManifest("autoscaling/v1", hpa, "name", "ns1"): {"hpa": "1"},
+            MetaManifest("autoscaling/v2", hpa, "name", "ns2"): {"new-hpa": "2"},
         }
 
         # Must have downloaded the deployments.
@@ -514,7 +515,7 @@ class TestMatchApiVersions:
             MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"loc-hpa": "2"},
 
             # This one exists on the server but with a different API version.
-            MetaManifest("autoscaling/v2beta1", hpa, "ns", "name-3"): {"loc-hpa": "3"},
+            MetaManifest("autoscaling/v1", hpa, "ns", "name-3"): {"loc-hpa": "3"},
         }
         server_in: SquareManifests = {
             # These two exist locally with the same API version.
@@ -526,21 +527,21 @@ class TestMatchApiVersions:
         }
 
         # Mock the resource download to supply it from the correct API endpoint.
-        meta = MetaManifest("autoscaling/v2beta1", hpa, "ns", "name-3")
+        meta = MetaManifest("autoscaling/v1", hpa, "ns", "name-3")
         resource, err = k8s.resource(k8sconfig, meta)
         assert not err
         m_fetch.return_value = (meta, {"new-hpa": "3"}, False)
         del err
 
-        # Test function must used the API version specified in the local
-        # manifest to fetch the HPA "name-3".
+        # Test function must have used the API version `v1` as specified in the
+        # local manifest to fetch the "name-3" HPA.
         srv, err = square.square.match_api_version(k8sconfig, local_in, server_in)
         assert not err and srv == {
             MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"srv-hpa": "1"},
             MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"srv-hpa": "2"},
 
             # This must have been downloaded.
-            MetaManifest("autoscaling/v2beta1", hpa, "ns", "name-3"): {"new-hpa": "3"},
+            MetaManifest("autoscaling/v1", hpa, "ns", "name-3"): {"new-hpa": "3"},
         }
 
         # Must have downloaded exactly one deployment, namely `name-3`.

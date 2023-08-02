@@ -279,7 +279,7 @@ class TestMainGet:
         assert len(list(tmp_path.rglob("*.yaml"))) == 0
 
     def test_nonpreferred_api(self, tmp_path):
-        """Sync `autoscaling/v1` and `autoscaling/v2beta` at the same time.
+        """Sync `autoscaling/v1` and `autoscaling/v2` at the same time.
 
         This test is designed to verify that Square will interrogate the
         correct K8s endpoint versions to download the manifest.
@@ -309,7 +309,7 @@ class TestMainGet:
 
         # ---------------------------------------------------------------------
         # Deploy two HPAs into the same namespace. One HPA will use
-        # `autoscaling/v1` whereas the other uses `autoscaling/v2beta2`.
+        # `autoscaling/v1` whereas the other uses `autoscaling/v2`.
         # ---------------------------------------------------------------------
         sh.kubectl("apply", "--kubeconfig", config.kubeconfig,  # type: ignore
                    "-f", str(man_path))
@@ -712,7 +712,7 @@ class TestMainPlan:
         assert plan_4.create == plan_4.patch == plan_4.delete == []
 
     def test_nondefault_resources(self, tmp_path):
-        """Manage an `autoscaling/v1` and `autoscaling/v2beta` at the same time.
+        """Manage an `autoscaling/{v1,v2}` resource at the same time.
 
         This test is designed to verify that Square will interrogate the
         correct K8s endpoint versions to compute the plan for a resource.
@@ -741,8 +741,8 @@ class TestMainPlan:
         assert len(manifests) == 3
 
         # ---------------------------------------------------------------------
-        # Deploy the resources: one namespace with two HPAs in it. On will be
-        # deployed via `autoscaling/v1` the other via `autoscaling/v2beta2`.
+        # Deploy the resources: one namespace with two HPAs, deployed via
+        # `autoscaling/v1` and `autoscaling/v2`, respectively.
         # ---------------------------------------------------------------------
         sh.kubectl("apply", "--kubeconfig", config.kubeconfig,  # type: ignore
                    "-f", str(man_path))
@@ -757,12 +757,12 @@ class TestMainPlan:
         del plan_1
 
         # ---------------------------------------------------------------------
-        # Modify the v2beta2 HPA manifest and verify that Square now wants to
+        # Modify the autoscaling/v2 HPA and verify that Square now wants to
         # patch that resource.
         # ---------------------------------------------------------------------
         # Make a change to the manifest and save it.
         tmp_manifests = copy.deepcopy(manifests)
-        assert tmp_manifests[2]["apiVersion"] == "autoscaling/v2beta2"
+        assert tmp_manifests[2]["apiVersion"] == "autoscaling/v2"
         tmp_manifests[2]["spec"]["metrics"][0]["external"]["metric"]["name"] = "foo"
         man_path.write_text(yaml.dump_all(tmp_manifests))
 
@@ -770,8 +770,8 @@ class TestMainPlan:
         plan_2, err = square.square.make_plan(config)
         assert not err
         assert plan_2.create == plan_2.delete == [] and len(plan_2.patch) == 1
-        assert plan_2.patch[0].meta.name == "hpav2beta2"
-        assert plan_2.patch[0].meta.apiVersion == "autoscaling/v2beta2"
+        assert plan_2.patch[0].meta.name == "hpav2"
+        assert plan_2.patch[0].meta.apiVersion == "autoscaling/v2"
         del plan_2
 
         # ---------------------------------------------------------------------
@@ -785,7 +785,7 @@ class TestMainPlan:
         plan_3, err = square.square.make_plan(config)
         assert not err
         assert plan_3.create == plan_3.patch == [] and len(plan_3.delete) == 2
-        assert {_.meta.name for _ in plan_3.delete} == {"hpav1", "hpav2beta2"}
+        assert {_.meta.name for _ in plan_3.delete} == {"hpav1", "hpav2"}
         assert not square.square.apply_plan(config, plan_3)
         del plan_3
 
@@ -799,9 +799,9 @@ class TestMainPlan:
         plan_4, err = square.square.make_plan(config)
         assert not err
         assert plan_4.delete == plan_4.patch == [] and len(plan_4.create) == 2
-        assert {_.meta.name for _ in plan_4.create} == {"hpav1", "hpav2beta2"}
+        assert {_.meta.name for _ in plan_4.create} == {"hpav1", "hpav2"}
         assert {_.meta.apiVersion for _ in plan_4.create} == {
-            "autoscaling/v1", "autoscaling/v2beta2"
+            "autoscaling/v1", "autoscaling/v2"
         }
         assert not square.square.apply_plan(config, plan_4)
         del plan_4
@@ -818,7 +818,7 @@ class TestMainPlan:
         # Manually change the API version of one of the HPAs.
         tmp_manifests = copy.deepcopy(manifests)
         assert tmp_manifests[1]["apiVersion"] == "autoscaling/v1"
-        tmp_manifests[1]["apiVersion"] = "autoscaling/v2beta2"
+        tmp_manifests[1]["apiVersion"] = "autoscaling/v2"
         man_path.write_text(yaml.dump_all(tmp_manifests))
 
         # Square must now produce a single non-empty patch.
@@ -826,4 +826,4 @@ class TestMainPlan:
         assert not err
         assert plan_6.delete == plan_6.create == [] and len(plan_6.patch) == 1
         assert plan_6.patch[0].meta.name == "hpav1"
-        assert plan_6.patch[0].meta.apiVersion == "autoscaling/v2beta2"
+        assert plan_6.patch[0].meta.apiVersion == "autoscaling/v2"
