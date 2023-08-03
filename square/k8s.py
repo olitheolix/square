@@ -360,7 +360,7 @@ def load_auto_config(kubeconf_path: Path,
     return (K8sConfig(), True)
 
 
-def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[httpx.Client, bool]:
+def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[httpx.AsyncClient, bool]:
     """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
     cafile = None if str(k8sconfig.ca_cert) == "." else k8sconfig.ca_cert
@@ -374,14 +374,14 @@ def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[httpx.Client, bool]:
 
     # Construct the HttpX client.
     try:
-        client = httpx.Client(verify=ssl_context, cert=cert)  # type: ignore
+        client = httpx.AsyncClient(verify=ssl_context, cert=cert)  # type: ignore
     except ssl.SSLError:
         logit.error("Invalid certificates")
-        return httpx.Client(), True
+        return httpx.AsyncClient(), True
     except FileNotFoundError:
         # If the certificate files do not exist then we have a bug somewhere.
         logit.error("Bug: certificate files do not exist")
-        return httpx.Client(), True
+        return httpx.AsyncClient(), True
 
     # Add the bearer token if we have one.
     if k8sconfig.token != "":
@@ -474,7 +474,7 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
     return resource, False
 
 
-def request(
+async def request(
         client,
         method: str,
         url: str,
@@ -500,8 +500,8 @@ def request(
     max_tries = 21
     web_exceptions = (httpx.RequestError, )
 
-    def on_backoff(details):
-        """Log a warning whenever we retry."""
+    async def on_backoff(details):
+        """Log a warning on each retry."""
         tries, exc = details["tries"], details["exception"]
         logit.warning(
             f"Backing off on {url}. Attempt {tries}/{max_tries-1}. "
@@ -531,12 +531,13 @@ def request(
                           logger=None,  # type: ignore
                           jitter=None,  # type: ignore
                           )
-    def _call(*args, **kwargs):
-        return client.request(method, url, json=payload, headers=headers, timeout=30)
+    async def _call(*args, **kwargs):
+        return await client.request(method, url, json=payload,
+                                    headers=headers, timeout=30)
 
-    # Make the web request via our backoff/retry handler.
+    # Make the HTTP request via our backoff/retry handler.
     try:
-        ret = _call()
+        ret = await _call()
     except web_exceptions as err:
         logit.error(f"{err} ({method} {url})")
         return ({}, True)
@@ -561,44 +562,44 @@ def request(
     return (response, ret.status_code)
 
 
-def delete(client, url: str, payload: dict) -> Tuple[dict, bool]:
+async def delete(client, url: str, payload: dict) -> Tuple[dict, bool]:
     """Make DELETE requests to K8s (see `k8s_request`)."""
-    resp, code = request(client, 'DELETE', url, payload, headers=None)
+    resp, code = await request(client, 'DELETE', url, payload, headers=None)
     err = (code not in (200, 202))
     if err:
         logit.error(f"{code} - DELETE - {url} - {resp}")
     return (resp, err)
 
 
-def get(client, url: str) -> Tuple[dict, bool]:
+async def get(client, url: str) -> Tuple[dict, bool]:
     """Make GET requests to K8s (see `request`)."""
-    resp, code = request(client, 'GET', url, payload=None, headers=None)
+    resp, code = await request(client, 'GET', url, payload=None, headers=None)
     err = (code != 200)
     if err:
         logit.error(f"{code} - GET - {url} - {resp}")
     return (resp, err)
 
 
-def patch(client, url: str, payload: List[Dict[str, str]]) -> Tuple[dict, bool]:
+async def patch(client, url: str, payload: List[Dict[str, str]]) -> Tuple[dict, bool]:
     """Make PATCH requests to K8s (see `request`)."""
     headers = {'Content-Type': 'application/json-patch+json'}
-    resp, code = request(client, 'PATCH', url, payload, headers)
+    resp, code = await request(client, 'PATCH', url, payload, headers)
     err = (code != 200)
     if err:
         logit.error(f"{code} - PATCH - {url} - {resp}")
     return (resp, err)
 
 
-def post(client, url: str, payload: dict) -> Tuple[dict, bool]:
+async def post(client, url: str, payload: dict) -> Tuple[dict, bool]:
     """Make POST requests to K8s (see `request`)."""
-    resp, code = request(client, 'POST', url, payload, headers=None)
+    resp, code = await request(client, 'POST', url, payload, headers=None)
     err = (code != 201)
     if err:
         logit.error(f"{code} - POST - {url} - {resp}")
     return (resp, err)
 
 
-def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
+async def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     """Return copy of `k8sconfig` but with current Kubernetes version.
 
     All other fields in the provided `k8sconfig` will remain the same.
@@ -612,7 +613,7 @@ def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     """
     # Ask the K8s API for its version and check for errors.
     url = f"{k8sconfig.url}/version"
-    resp, err = get(k8sconfig.client, url)
+    resp, err = await get(k8sconfig.client, url)
     if err or resp is None:
         logit.error(f"Could not interrogate {k8sconfig.name} ({url})")
         return (K8sConfig(), True)
@@ -626,7 +627,7 @@ def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     return (k8sconfig, False)
 
 
-def cluster_config(
+async def cluster_config(
         kubeconfig: Path,
         context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Return the `K8sConfig` to connect to the API.
@@ -661,11 +662,11 @@ def cluster_config(
         assert k8sconfig.client
 
         # Contact the K8s API to update version field in `k8sconfig`.
-        k8sconfig, err = version(k8sconfig)
+        k8sconfig, err = await version(k8sconfig)
         assert not err and k8sconfig
 
         # Populate the `k8sconfig.apis` field.
-        err = compile_api_endpoints(k8sconfig)
+        err = await compile_api_endpoints(k8sconfig)
         assert not err
     except AssertionError:
         return (K8sConfig(), True)
@@ -732,7 +733,7 @@ def parse_api_group(api_version, url, resp) -> Tuple[List[K8sResource], Dict[str
     return (group_urls, short2kind)
 
 
-def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
+async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
     """Populate `k8sconfig.apis` with all the K8s endpoints`.
 
     NOTE: This will purge the existing content in `k8sconfig.apis`.
@@ -758,7 +759,7 @@ def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
 
     """
     # Compile the list of all K8s API groups that this K8s instance knows about.
-    resp, err = get(k8sconfig.client, f"{k8sconfig.url}/apis")
+    resp, err = await get(k8sconfig.client, f"{k8sconfig.url}/apis")
     if err:
         logit.error(f"Could not interrogate {k8sconfig.name} ({k8sconfig.url}/apis)")
         return True
@@ -810,7 +811,7 @@ def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
     group_urls: Dict[Tuple[str, str, str], List[K8sResource]] = {}
     for group_name, ver_url in apigroups.items():
         for api_version, url in ver_url:
-            resp, err = get(k8sconfig.client, f"{k8sconfig.url}/{url}")
+            resp, err = await get(k8sconfig.client, f"{k8sconfig.url}/{url}")
             if err:
                 msg = f"Could not interrogate {k8sconfig.name} ({k8sconfig.url}/{url})"
                 logit.error(msg)

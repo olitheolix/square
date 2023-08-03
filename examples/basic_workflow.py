@@ -4,13 +4,14 @@ This example will download some manifests from the KinD integration test
 server, create a plan and then apply it.
 
 """
+import asyncio
 from pathlib import Path
 
 import square
 from square.dtypes import Config, GroupBy, Selectors
 
 
-def main():
+async def main():
     # Specify path to Kubernetes credentials.
     kubeconfig, kubecontext = Path("/tmp/kubeconfig-kind.yaml"), None
 
@@ -45,20 +46,20 @@ def main():
     #          Import resources, create a plan and then apply it
     # ----------------------------------------------------------------------
     # Download the manifests into the `folder` defined earlier.
-    err = square.get(config)
+    err = await square.get(config)
     assert not err
 
     # Create the plan and show it.
     # NOTE: the plan will be clean since we only just downloaded the manifests.
-    plan, err = square.plan(config)
+    plan, err = await square.plan(config)
     assert not err
     square.show_plan(plan)
 
     # Apply the plan.
     # NOTE: will do nothing because the plan was clean.
-    err = square.apply_plan(config, plan)
+    err = await square.apply_plan(config, plan)
     assert not err
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

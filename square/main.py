@@ -303,7 +303,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     return cfg, False
 
 
-def apply_plan(cfg: Config, confirm_string: Optional[str]) -> bool:
+async def apply_plan(cfg: Config, confirm_string: Optional[str]) -> bool:
     """Update K8s to match the specifications in `local_manifests`.
 
     Create a deployment plan that will transition the K8s state
@@ -318,7 +318,7 @@ def apply_plan(cfg: Config, confirm_string: Optional[str]) -> bool:
     """
     try:
         # Obtain the plan.
-        plan, err = square.square.make_plan(cfg)
+        plan, err = await square.square.make_plan(cfg)
         assert not err and plan
 
         # Exit prematurely if there are no changes to apply.
@@ -337,7 +337,7 @@ def apply_plan(cfg: Config, confirm_string: Optional[str]) -> bool:
         print()
 
         # Apply the plan.
-        assert not square.square.apply_plan(cfg, plan)
+        assert not await square.square.apply_plan(cfg, plan)
     except AssertionError:
         return True
 
@@ -345,7 +345,7 @@ def apply_plan(cfg: Config, confirm_string: Optional[str]) -> bool:
     return False
 
 
-def expand_all_kinds(cfg: Config) -> Tuple[Config, bool]:
+async def expand_all_kinds(cfg: Config) -> Tuple[Config, bool]:
     """Replace an empty `cfg.selector.kinds` with all available resources.
 
     Does nothing if `cfg.selectors.kinds` is non-empty.
@@ -356,7 +356,7 @@ def expand_all_kinds(cfg: Config) -> Tuple[Config, bool]:
         return cfg, False
 
     # Create a K8sConfig instance because it will contain all the info we need.
-    k8sconfig, err = square.k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
+    k8sconfig, err = await square.k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
     if err:
         return (cfg, True)
 
@@ -379,7 +379,7 @@ def show_info(cfg: Config) -> bool:
     return False
 
 
-def main() -> int:
+async def main() -> int:
     param = parse_commandline_args()
 
     # Print version information and quit.
@@ -404,7 +404,7 @@ def main() -> int:
 
     # Create Square configuration from command line arguments.
     cfg, err1 = compile_config(param)
-    cfg, err2 = expand_all_kinds(cfg)
+    cfg, err2 = await expand_all_kinds(cfg)
     if err1 or err2:
         return 1
 
@@ -412,12 +412,12 @@ def main() -> int:
     if param.info:
         err = show_info(cfg)
     elif param.parser == "get":
-        err = square.square.get_resources(cfg)
+        err = await square.square.get_resources(cfg)
     elif param.parser == "plan":
-        plan, err = square.square.make_plan(cfg)
+        plan, err = await square.square.make_plan(cfg)
         square.square.show_plan(plan)
     elif param.parser == "apply":
-        err = apply_plan(cfg, "yes")
+        err = await apply_plan(cfg, "yes")
     else:
         logit.error(f"Unknown command <{param.parser}>")
         return 1

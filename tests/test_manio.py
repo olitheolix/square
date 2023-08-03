@@ -1984,7 +1984,7 @@ class TestSync:
 
 class TestDownloadManifests:
     @mock.patch.object(k8s, 'get')
-    def test_download_ok(self, m_get, config, k8sconfig):
+    async def test_download_ok(self, m_get, config, k8sconfig):
         """Download two kinds of manifests: Deployments and Namespaces.
 
         The test only mocks the K8s API call. All other functions run normally.
@@ -2034,7 +2034,7 @@ class TestDownloadManifests:
         ]
         expected = {make_meta(_): manio.strip(k8sconfig, _, {})[0] for _ in meta}
         config.selectors = Selectors(kinds={"Namespace", "Deployment", "Unknown"})
-        ret = manio.download(config, k8sconfig)
+        ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_args_list == [
             mock.call(k8sconfig.client, res_deploy.url),
@@ -2056,7 +2056,7 @@ class TestDownloadManifests:
         ]
         config.selectors = Selectors(kinds={"Namespace", "Deployment"},
                                      namespaces=["ns0", "ns1"])
-        ret = manio.download(config, k8sconfig)
+        ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_args_list == [
             mock.call(k8sconfig.client, res_dply_0.url),
@@ -2082,7 +2082,7 @@ class TestDownloadManifests:
         }
         config.selectors = Selectors(kinds={"Namespace", "Deployment"},
                                      namespaces=["ns0"])
-        ret = manio.download(config, k8sconfig)
+        ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_args_list == [
             mock.call(k8sconfig.client, res_dply_0.url),
@@ -2090,7 +2090,7 @@ class TestDownloadManifests:
         ]
 
     @mock.patch.object(k8s, 'get')
-    def test_download_err(self, m_get, config, k8sconfig):
+    async def test_download_err(self, m_get, config, k8sconfig):
         """Simulate a download error."""
         # A valid NamespaceList with one element.
         man_list_ns = {
@@ -2111,7 +2111,7 @@ class TestDownloadManifests:
 
         # Run test function and verify it returns an error and no data, despite
         # a successful `NamespaceList` download.
-        ret = manio.download(config, k8sconfig)
+        ret = await manio.download(config, k8sconfig)
         assert ret == ({}, True)
         assert m_get.call_args_list == [
             mock.call(k8sconfig.client, res_deploy.url),
@@ -2119,7 +2119,7 @@ class TestDownloadManifests:
         ]
 
     @mock.patch.object(k8s, 'get')
-    def test_download_single(self, m_get, k8sconfig):
+    async def test_download_single(self, m_get, k8sconfig):
         """Download a single manifest.
 
         The test only mocks the K8s API call.
@@ -2137,9 +2137,9 @@ class TestDownloadManifests:
         assert not err
 
         # Test function must successfully download the resource.
-        assert manio.download_single(k8sconfig, res) == (meta, manifest, False)
+        assert await manio.download_single(k8sconfig, res) == (meta, manifest, False)
 
         # Simulate a download error.
         m_get.return_value = (manifest, True)
-        ret = manio.download_single(k8sconfig, res)
+        ret = await manio.download_single(k8sconfig, res)
         assert ret == (MetaManifest("", "", "", ""), {}, True)

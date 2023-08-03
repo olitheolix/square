@@ -207,7 +207,7 @@ class TestBasic:
         for name in invalid:
             assert not sq.valid_label(name)
 
-    def test_sanity_check_labels(self, config):
+    async def test_sanity_check_labels(self, config):
         """Main entry point functions must abort if any labels are invalid."""
         # Dummy plan.
         plan = DeploymentPlan(tuple(), tuple(), tuple())
@@ -221,9 +221,9 @@ class TestBasic:
         ]
         for labels in invalid_labels:
             config.selectors.labels = labels
-            assert sq.get_resources(config) is True
-            assert sq.apply_plan(config, plan) is True
-            assert sq.make_plan(config) == (plan, True)
+            assert await sq.get_resources(config) is True
+            assert await sq.apply_plan(config, plan) is True
+            assert await sq.make_plan(config) == (plan, True)
 
 
 class TestPartition:
@@ -409,7 +409,7 @@ class TestPatchK8s:
 
 class TestMatchApiVersions:
     @mock.patch.object(square.manio, "download_single")
-    def test_match_api_version_basic(self, m_fetch, k8sconfig):
+    async def test_match_api_version_basic(self, m_fetch, k8sconfig):
         """Square must use the API version declared in local manifests.
 
         In this case, we have an HPA resource. The local manifest uses v1
@@ -445,7 +445,7 @@ class TestMatchApiVersions:
         # Test function must have interrogated the `autoscaling/v1` as
         # specified in the local manifest, even though K8s also serves
         # it from `autoscaling/v2`.
-        srv, err = square.square.match_api_version(k8sconfig, local, server_in)
+        srv, err = await square.square.match_api_version(k8sconfig, local, server_in)
         assert not err and srv == {
             MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "srv"},
             MetaManifest("autoscaling/v1", hpa, "ns", "name"): {"new": "srv"},
@@ -455,7 +455,7 @@ class TestMatchApiVersions:
         m_fetch.assert_called_once_with(k8sconfig, resource)
 
     @mock.patch.object(square.manio, "download_single")
-    def test_match_api_version_namespace(self, m_fetch, k8sconfig):
+    async def test_match_api_version_namespace(self, m_fetch, k8sconfig):
         """Square must use the API version declared in local manifests.
 
         This is the same as `test_match_api_version_basic` except it operates
@@ -487,7 +487,7 @@ class TestMatchApiVersions:
         del err
 
         # Test function must interrogate `autoscaling/v2` for the HPA manifest.
-        srv, err = square.square.match_api_version(k8sconfig, local, server_in)
+        srv, err = await square.square.match_api_version(k8sconfig, local, server_in)
         assert not err and srv == {
             MetaManifest("autoscaling/v1", hpa, "name", "ns1"): {"hpa": "1"},
             MetaManifest("autoscaling/v2", hpa, "name", "ns2"): {"new-hpa": "2"},
@@ -497,7 +497,7 @@ class TestMatchApiVersions:
         m_fetch.assert_called_once_with(k8sconfig, resource)
 
     @mock.patch.object(square.manio, "download_single")
-    def test_match_api_version_multi(self, m_fetch, k8sconfig):
+    async def test_match_api_version_multi(self, m_fetch, k8sconfig):
         """Mix matching and mis-matching API version for same resources.
 
         A trivial extension to `test_match_api_version_namespace` where we use
@@ -535,7 +535,7 @@ class TestMatchApiVersions:
 
         # Test function must have used the API version `v1` as specified in the
         # local manifest to fetch the "name-3" HPA.
-        srv, err = square.square.match_api_version(k8sconfig, local_in, server_in)
+        srv, err = await square.square.match_api_version(k8sconfig, local_in, server_in)
         assert not err and srv == {
             MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"srv-hpa": "1"},
             MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"srv-hpa": "2"},
@@ -548,7 +548,7 @@ class TestMatchApiVersions:
         m_fetch.assert_called_once_with(k8sconfig, resource)
 
     @mock.patch.object(square.manio, "download_single")
-    def test_match_api_version_nothing_to_do(self, m_fetch, k8sconfig):
+    async def test_match_api_version_nothing_to_do(self, m_fetch, k8sconfig):
         """Test various cases where the function must not do anything.
 
         There are two cases where it must not download a resource form K8s again:
@@ -559,7 +559,7 @@ class TestMatchApiVersions:
         fun = square.square.match_api_version
 
         # Must not have downloaded anything.
-        srv, err = fun(k8sconfig, {}, {})
+        srv, err = await fun(k8sconfig, {}, {})
         assert not err and srv == {}
         assert not m_fetch.called
 
@@ -568,7 +568,7 @@ class TestMatchApiVersions:
             MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "loc"},
             MetaManifest("apps/v1", "Deployment", "ns", "name"): {"dply": "loc"},
         }
-        srv, err = fun(k8sconfig, local_in, local_in)
+        srv, err = await fun(k8sconfig, local_in, local_in)
         assert not err and srv == local_in
         assert not m_fetch.called
 
@@ -583,7 +583,7 @@ class TestMatchApiVersions:
             MetaManifest("v1", "Service", "svc-name", "ns1"): {"ns": "srv"},
             MetaManifest("extensions/v1beta1", "Deployment", "ns", "bar"): {"orig": "srv"},  # noqa
         }
-        srv, err = fun(k8sconfig, local_in, server_in)
+        srv, err = await fun(k8sconfig, local_in, server_in)
         assert not err and srv == server_in
         assert not m_fetch.called
 
@@ -597,7 +597,7 @@ class TestMatchApiVersions:
             MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy": "1"},
             MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy": "1"},
         }
-        srv, err = fun(k8sconfig, local_in, server_in)
+        srv, err = await fun(k8sconfig, local_in, server_in)
         assert not err and srv == server_in
         assert not m_fetch.called
 
@@ -746,7 +746,7 @@ class TestPlan:
         ret, err = sq.sort_plan(config, plan)
         assert err and ret == plan
 
-    def test_compile_plan_create_delete_ok(self, config, k8sconfig):
+    async def test_compile_plan_create_delete_ok(self, config, k8sconfig):
         """Test a plan that creates and deletes resource, but not patch any.
 
         To do this, the local and server resources are all distinct. As a
@@ -799,12 +799,12 @@ class TestPlan:
                 DeltaDelete(meta[4], res[4].url + "/" + str(meta[4].name), del_opts),
             ],
         )
-        ret, err = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
+        ret, err = await sq.compile_plan(config, k8sconfig, loc_man, srv_man)
         assert ret.create == expected.create
         assert (ret, err) == (expected, False)
 
     @mock.patch.object(sq, "match_api_version")
-    def test_compile_plan_create_delete_err(self, m_part, config, k8sconfig):
+    async def test_compile_plan_create_delete_err(self, m_part, config, k8sconfig):
         """Simulate `resource` errors."""
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
@@ -823,7 +823,7 @@ class TestPlan:
         # We must not be able to compile a plan because of the `resource` error.
         with mock.patch.object(sq.k8s, "resource") as m_url:
             m_url.return_value = (None, True)
-            assert sq.compile_plan(config, k8sconfig, man, man) == err_resp
+            assert await sq.compile_plan(config, k8sconfig, man, man) == err_resp
 
         # Pretend we only have to "delete" resources, and then trigger the
         # `resource` error in its code path.
@@ -833,9 +833,9 @@ class TestPlan:
         )
         with mock.patch.object(sq.k8s, "resource") as m_url:
             m_url.return_value = (None, True)
-            assert sq.compile_plan(config, k8sconfig, man, man) == err_resp
+            assert await sq.compile_plan(config, k8sconfig, man, man) == err_resp
 
-    def test_compile_plan_patch_no_diff(self, config, k8sconfig):
+    async def test_compile_plan_patch_no_diff(self, config, k8sconfig):
         """The plan must be empty if the local and server manifests are too."""
         # Define two namespaces with 1 deployment in each.
         meta = [
@@ -850,9 +850,9 @@ class TestPlan:
         src = {_: make_manifest(_.kind, _.namespace, _.name) for _ in meta}
 
         expected = DeploymentPlan(create=[], patch=[], delete=[])
-        assert sq.compile_plan(config, k8sconfig, src, src) == (expected, False)
+        assert await sq.compile_plan(config, k8sconfig, src, src) == (expected, False)
 
-    def test_compile_plan_invalid_api_version(self, config, k8sconfig):
+    async def test_compile_plan_invalid_api_version(self, config, k8sconfig):
         """Test a plan that patches no resources.
 
         The local and server manifests are identical except for the API
@@ -869,10 +869,10 @@ class TestPlan:
         src = {_: make_manifest(_.kind, _.namespace, _.name) for _ in meta}
 
         # The plan must fail because the API group is invalid.
-        ret = sq.compile_plan(config, k8sconfig, src, src)
+        ret = await sq.compile_plan(config, k8sconfig, src, src)
         assert ret == (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
-    def test_compile_plan_patch_with_diff(self, config, k8sconfig):
+    async def test_compile_plan_patch_with_diff(self, config, k8sconfig):
         """Test a plan that patches all resources.
 
         To do this, the local and server resources are identical. As a
@@ -903,13 +903,13 @@ class TestPlan:
             patch=[DeltaPatch(meta, diff_str, patch)],
             delete=[]
         )
-        ret = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
+        ret = await sq.compile_plan(config, k8sconfig, loc_man, srv_man)
         assert ret == (expected, False)
 
     @mock.patch.object(sq, "partition_manifests")
     @mock.patch.object(manio, "diff")
     @mock.patch.object(sq, "make_patch")
-    def test_compile_plan_err(self, m_apply, m_plan, m_part, config, k8sconfig):
+    async def test_compile_plan_err(self, m_apply, m_plan, m_part, config, k8sconfig):
         """Use mocks for the internal function calls to simulate errors."""
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
@@ -924,20 +924,20 @@ class TestPlan:
 
         # Simulate an error in `partition_manifests`.
         m_part.return_value = (None, True)
-        assert sq.compile_plan(config, k8sconfig, loc_man, srv_man) == err_resp
+        assert await sq.compile_plan(config, k8sconfig, loc_man, srv_man) == err_resp
 
         # Simulate an error in `diff`.
         m_part.return_value = (plan, False)
         m_plan.return_value = (None, True)
-        assert sq.compile_plan(config, k8sconfig, loc_man, srv_man) == err_resp
+        assert await sq.compile_plan(config, k8sconfig, loc_man, srv_man) == err_resp
 
         # Simulate an error in `make_patch`.
         m_part.return_value = (plan, False)
         m_plan.return_value = ("some string", False)
         m_apply.return_value = (None, True)
-        assert sq.compile_plan(config, k8sconfig, loc_man, srv_man) == err_resp
+        assert await sq.compile_plan(config, k8sconfig, loc_man, srv_man) == err_resp
 
-    def test_compile_plan_err_strip(self, config, k8sconfig):
+    async def test_compile_plan_err_strip(self, config, k8sconfig):
         """Abort if any of the manifests cannot be stripped."""
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
@@ -956,9 +956,9 @@ class TestPlan:
         error = {meta_error: man_error}
 
         # Must handle errors from `manio.strip`.
-        assert sq.compile_plan(config, k8sconfig, valid, error) == err_resp
-        assert sq.compile_plan(config, k8sconfig, error, valid) == err_resp
-        assert sq.compile_plan(config, k8sconfig, error, error) == err_resp
+        assert await sq.compile_plan(config, k8sconfig, valid, error) == err_resp
+        assert await sq.compile_plan(config, k8sconfig, error, valid) == err_resp
+        assert await sq.compile_plan(config, k8sconfig, error, error) == err_resp
 
     def test_run_user_callback(self, config):
         """Safeguard the call to the user supplied callback function.
@@ -1024,7 +1024,7 @@ class TestPlan:
         assert sq.run_user_callback(config, [meta], local, server)
         del cb3, local, server
 
-    def test_compile_plan_patch_user_callback(self, config, k8sconfig):
+    async def test_compile_plan_patch_user_callback(self, config, k8sconfig):
         """Test a plan that uses a custom callback function for patches.
 
         The client and server have the same resource but one requires a patch.
@@ -1053,14 +1053,14 @@ class TestPlan:
         # Create the plan without a user callback. This must produce a patch
         # because there is a difference between the local and remote manifests.
         config.patch_callback = None
-        ret, err = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
+        ret, err = await sq.compile_plan(config, k8sconfig, loc_man, srv_man)
         assert not err and ret.create == ret.delete == [] and len(ret.patch) == 1
 
         # Repeat the test with a callback function. Our test CB will overwrite
         # the local one with that from the server, which means there will be
         # nothing to patch.
         config.patch_callback = cb1
-        ret = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
+        ret = await sq.compile_plan(config, k8sconfig, loc_man, srv_man)
         assert ret == (DeploymentPlan(create=[], patch=[], delete=[]), False)
 
         # Verify that there were no side effects even though the
@@ -1073,7 +1073,7 @@ class TestPlan:
             1 / 0               # type: ignore
 
         config.patch_callback = cb2
-        _, err = sq.compile_plan(config, k8sconfig, loc_man, srv_man)
+        _, err = await sq.compile_plan(config, k8sconfig, loc_man, srv_man)
         assert err
 
 
@@ -1081,7 +1081,7 @@ class TestMainOptions:
     @mock.patch.object(k8s, "post")
     @mock.patch.object(k8s, "patch")
     @mock.patch.object(k8s, "delete")
-    def test_apply_plan(self, m_delete, m_apply, m_post, config, kube_creds):
+    async def test_apply_plan(self, m_delete, m_apply, m_post, config, kube_creds):
         """Simulate a successful resource update (add, patch, delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -1122,7 +1122,7 @@ class TestMainOptions:
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
         reset_mocks()
-        assert sq.apply_plan(config, plan) is False
+        assert await sq.apply_plan(config, plan) is False
         m_post.assert_called_once_with("k8s_client", "create_url", {"create": "man"})
         m_apply.assert_called_once_with("k8s_client", patch.url, patch.ops)
         m_delete.assert_called_once_with("k8s_client", "delete_url", {"delete": "man"})
@@ -1137,7 +1137,7 @@ class TestMainOptions:
 
         # Call test function and verify that it did not try to apply
         # the empty plan.
-        assert sq.apply_plan(config, empty_plan) is False
+        assert await sq.apply_plan(config, empty_plan) is False
         assert not m_post.called
         assert not m_apply.called
         assert not m_delete.called
@@ -1149,20 +1149,20 @@ class TestMainOptions:
 
         # Make `delete` fail.
         m_delete.return_value = (None, True)
-        assert sq.apply_plan(config, plan) is True
+        assert await sq.apply_plan(config, plan) is True
 
         # Make `patch` fail.
         m_apply.return_value = (None, True)
-        assert sq.apply_plan(config, plan) is True
+        assert await sq.apply_plan(config, plan) is True
 
         # Make `post` fail.
         m_post.return_value = (None, True)
-        assert sq.apply_plan(config, plan) is True
+        assert await sq.apply_plan(config, plan) is True
 
         # Make `sort_plan` fail.
         with mock.patch.object(sq, "sort_plan") as m_sort:
             m_sort.return_value = [], True
-            assert sq.apply_plan(config, plan) is True
+            assert await sq.apply_plan(config, plan) is True
 
     def test_pick_manifests_for_plan_different_resources(self):
         """Use an orthogonal set of manifests for server and client.
@@ -1272,8 +1272,8 @@ class TestMainOptions:
     @mock.patch.object(sq, "pick_manifests_for_plan")
     @mock.patch.object(manio, "align_serviceaccount")
     @mock.patch.object(sq, "compile_plan")
-    def test_make_plan_calls(self, m_plan, m_align, m_pick, m_down, m_load,
-                             config, kube_creds):
+    async def test_make_plan_calls(self, m_plan, m_align, m_pick, m_down, m_load,
+                                   config, kube_creds):
         """Verify that `make_plan` calls the right functions with the right arguments."""
         k8sconfig: K8sConfig = kube_creds
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
@@ -1291,7 +1291,7 @@ class TestMainOptions:
         m_align.side_effect = lambda loc_man, _: (loc_man, False)
 
         # A successful DIFF only computes and prints the plan.
-        plan, err = sq.make_plan(config)
+        plan, err = await sq.make_plan(config)
         assert not err and isinstance(plan, DeploymentPlan)
         m_load.assert_called_once_with(config.folder, config.selectors)
         m_down.assert_called_once_with(config, k8sconfig)
@@ -1301,19 +1301,19 @@ class TestMainOptions:
 
         # Make `compile_plan` fail.
         m_plan.return_value = (None, True)
-        assert sq.make_plan(config) == err_resp
+        assert await sq.make_plan(config) == err_resp
 
         # Make `download_manifests` fail.
         m_down.return_value = (None, True)
-        assert sq.make_plan(config) == err_resp
+        assert await sq.make_plan(config) == err_resp
 
         # Make `load` fail.
         m_load.return_value = (None, None, True)
-        assert sq.make_plan(config) == err_resp
+        assert await sq.make_plan(config) == err_resp
 
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
-    def test_make_plan_no_labels(self, m_down, m_load, config, kube_creds):
+    async def test_make_plan_no_labels(self, m_down, m_load, config, kube_creds):
         """Mock the available local/server manifests and verify the plan.
 
         This test does not use any label selectors because there are dedicated
@@ -1335,7 +1335,7 @@ class TestMainOptions:
         m_load.return_value = (loc, {}, False)
         m_down.return_value = (srv, False)
 
-        plan, err = sq.make_plan(config)
+        plan, err = await sq.make_plan(config)
         assert not err
         assert plan.create == [] and plan.patch == [] and plan.delete == []
 
@@ -1346,7 +1346,7 @@ class TestMainOptions:
         m_load.return_value = (loc, {}, False)
         m_down.return_value = (srv, False)
 
-        plan, err = sq.make_plan(config)
+        plan, err = await sq.make_plan(config)
         assert not err
         assert plan.patch == []
         assert len(plan.create) == 1
@@ -1364,7 +1364,7 @@ class TestMainOptions:
         m_load.return_value = (loc, {}, False)
         m_down.return_value = (srv, False)
 
-        plan, err = sq.make_plan(config)
+        plan, err = await sq.make_plan(config)
         assert not err
         assert len(plan.create) == len(plan.delete) == 0
         assert len(plan.patch) == 1
@@ -1372,7 +1372,7 @@ class TestMainOptions:
 
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
-    def test_make_plan_different_labels(self, m_down, m_load, config, kube_creds):
+    async def test_make_plan_different_labels(self, m_down, m_load, config, kube_creds):
         """Mock the available local/server manifests and verify the plan.
 
         The server and local manifests both declare the same Pod resource but
@@ -1396,20 +1396,20 @@ class TestMainOptions:
 
         # Label selector matches neither local nor server: Square must do nothing.
         config.selectors.labels = ["app=unknown"]
-        plan, err = sq.make_plan(config)
+        plan, err = await sq.make_plan(config)
         assert not err
         assert plan.create == plan.delete == plan.patch == []
 
         # Label selector matches local and server: Square must PATCH.
         for labels in ([], ["app=local"], ["app=server"]):
             config.selectors.labels = cast(List[str], labels)
-            plan, err = sq.make_plan(config)
+            plan, err = await sq.make_plan(config)
             assert not err
             assert plan.create == [] and plan.delete == [] and len(plan.patch) == 1
 
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
-    def test_make_plan_kind_name(self, m_down, m_load, config, kube_creds):
+    async def test_make_plan_kind_name(self, m_down, m_load, config, kube_creds):
         """Mock the available local/server manifests and verify the plan.
 
         The server and local manifests both declare the same Pod resource but
@@ -1431,14 +1431,14 @@ class TestMainOptions:
 
         # Selector matches both pods: Square must plan to create both.
         config.selectors = Selectors(kinds={"Pod"})
-        plan, err = sq.make_plan(config)
+        plan, err = await sq.make_plan(config)
         assert not err
         assert plan.patch == plan.delete == []
         assert len(plan.create) == 2
 
         # Selector matches only one pods: Square must plan to create it.
         config.selectors = Selectors(kinds={"Pod/pod-1"})
-        plan, err = sq.make_plan(config)
+        plan, err = await sq.make_plan(config)
         assert not err
         assert plan.patch == plan.delete == []
         assert len(plan.create) == 1
@@ -1446,7 +1446,7 @@ class TestMainOptions:
 
         # Selector matches no pods: Square must plan nothing.
         config.selectors = Selectors(kinds={"Pod/pod-1"})
-        plan, err = sq.make_plan(config)
+        plan, err = await sq.make_plan(config)
         assert not err
         assert plan.patch == plan.patch == plan.delete == []
 
@@ -1455,8 +1455,8 @@ class TestMainOptions:
     @mock.patch.object(sq, "match_api_version")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
-    def test_get_resources(self, m_save, m_sync, m_mapi, m_down,
-                           m_load, kube_creds, config):
+    async def test_get_resources(self, m_save, m_sync, m_mapi, m_down,
+                                 m_load, kube_creds, config):
         """Basic test.
 
         The `get_resource` function is more of a linear script than anything
@@ -1481,7 +1481,7 @@ class TestMainOptions:
         load_selectors = Selectors(kinds=k8sconfig.kinds, labels=[], namespaces=[])
 
         # Call test function and verify it passed the correct arguments.
-        assert sq.get_resources(config) is False
+        assert await sq.get_resources(config) is False
         m_load.assert_called_once_with(config.folder, load_selectors)
         m_down.assert_called_once_with(config, k8sconfig)
         m_mapi.assert_called_once_with(k8sconfig, "local_meta", "server")
@@ -1491,16 +1491,16 @@ class TestMainOptions:
 
         # Simulate an error with `manio.save`.
         m_save.return_value = (None, True)
-        assert sq.get_resources(config) is True
+        assert await sq.get_resources(config) is True
 
         # Simulate an error with `manio.sync`.
         m_sync.return_value = (None, True)
-        assert sq.get_resources(config) is True
+        assert await sq.get_resources(config) is True
 
         # Simulate an error in `download_manifests`.
         m_down.return_value = (None, True)
-        assert sq.get_resources(config) is True
+        assert await sq.get_resources(config) is True
 
         # Simulate an error in `load`.
         m_load.return_value = (None, None, True)
-        assert sq.get_resources(config) is True
+        assert await sq.get_resources(config) is True
