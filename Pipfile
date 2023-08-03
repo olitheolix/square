@@ -23,6 +23,7 @@ pytest-pycodestyle = "*"
 sh = "*"
 types-pyyaml = "*"
 respx = "*"
+pytest-asyncio = "*"
 
 [requires]
 python_version = "3.10"
