@@ -39,8 +39,8 @@ class TestBasic:
         # Converting a DotDict back via `dict` is possible but does not act
         # recursively.
         ddict_undo = dict(ddict)
-        assert type(ddict_undo) == dict
-        assert type(ddict_undo["foo0"]) != dict  # <- Still a `DotDict`!
+        assert type(ddict_undo) is dict
+        assert type(ddict_undo["foo0"]) is not dict  # <- Still a `DotDict`!
         assert src == ddict_undo
         del ddict_undo
 
@@ -48,8 +48,8 @@ class TestBasic:
         # function which operates recursively and will ensure that the
         # sub-dicts are also converted back to plain Python dicts.
         ddict_undo = dd.undo(ddict)
-        assert type(ddict_undo) == dict
-        assert type(ddict_undo["foo0"]) == dict  # <- Now a plain `dict`!
+        assert type(ddict_undo) is dict
+        assert type(ddict_undo["foo0"]) is dict  # <- Now a plain `dict`!
         assert src == ddict_undo
 
     def test_make_deepcopy(self):
