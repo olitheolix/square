@@ -928,7 +928,7 @@ def save(folder: Path,
     return save_files(folder, out_final)
 
 
-def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifests, bool]:
+async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifests, bool]:
     """Download and return the resources that match `selectors`.
 
     Set `selectors.namespace` to `None` to download the resources from all
@@ -974,7 +974,7 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifests, boo
 
             try:
                 # Download the resource manifests for the current `kind` from K8s.
-                manifest_list, err = square.k8s.get(k8sconfig.client, resource.url)
+                manifest_list, err = await square.k8s.get(k8sconfig.client, resource.url)
                 assert not err and manifest_list is not None
 
                 # Parse the K8s List (eg `DeploymentList`, `NamespaceList`, ...) into a
@@ -1006,8 +1006,8 @@ def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifests, boo
     return (server_manifests, False)
 
 
-def download_single(k8sconfig: K8sConfig,
-                    resource: K8sResource) -> Tuple[MetaManifest, dict, bool]:
+async def download_single(k8sconfig: K8sConfig,
+                          resource: K8sResource) -> Tuple[MetaManifest, dict, bool]:
     """Similar to `download(...)` but only for a single Kubernetes `resource`.
 
     Inputs:
@@ -1020,7 +1020,7 @@ def download_single(k8sconfig: K8sConfig,
     """
     try:
         # Download the resource.
-        manifest, err = square.k8s.get(k8sconfig.client, resource.url)
+        manifest, err = await square.k8s.get(k8sconfig.client, resource.url)
         assert not err
 
         manifest, _, err = strip(k8sconfig, manifest, {})

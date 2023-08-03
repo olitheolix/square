@@ -153,7 +153,7 @@ def partition_manifests(
     return (plan, False)
 
 
-def match_api_version(
+async def match_api_version(
         k8sconfig: K8sConfig,
         local: SquareManifests,
         server: SquareManifests) -> Tuple[SquareManifests, bool]:
@@ -217,7 +217,7 @@ def match_api_version(
         assert not err
 
         # Download all resources of the current kind.
-        meta, manifest, err = manio.download_single(k8sconfig, resource)
+        meta, manifest, err = await manio.download_single(k8sconfig, resource)
         assert not err
 
         # Add the resource to the `server` dict. This will have been one of
@@ -273,7 +273,7 @@ def run_user_callback(config: Config,
     return False
 
 
-def compile_plan(
+async def compile_plan(
         config: Config,
         k8sconfig: K8sConfig,
         local: SquareManifests,
@@ -304,7 +304,7 @@ def compile_plan(
 
     # Replace the server resources fetched from K8s' preferred endpoint with
     # those from the endpoint declared in the local manifest.
-    server, err = match_api_version(k8sconfig, local, server)
+    server, err = await match_api_version(k8sconfig, local, server)
     assert not err
 
     # Strip the unwanted sections from the manifests before we compute patches.
@@ -668,7 +668,7 @@ def valid_label(label: str) -> bool:
         return False
 
 
-def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
+async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     """Update K8s resources according to the `plan`.
 
     Inputs:
@@ -688,7 +688,7 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     plan, plan_err = sort_plan(cfg, plan)
 
     # Get an HttpX client to talk to the K8s API.
-    k8sconfig, k8s_err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
+    k8sconfig, k8s_err = await k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
 
     # Abort if we could not get the plan or establish the K8s session.
     if plan_err or k8s_err:
@@ -701,7 +701,7 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     for data_c in plan.create:
         msg_res = f"{data_c.meta.kind.upper()} {data_c.meta.namespace}/{data_c.meta.name}"
         print(f"Creating {msg_res}")
-        _, err = k8s.post(k8sconfig.client, data_c.url, data_c.manifest)
+        _, err = await k8s.post(k8sconfig.client, data_c.url, data_c.manifest)
         if err:
             logit.error(f"Could not patch {msg_res}")
             return True
@@ -711,7 +711,7 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     for meta, patch in patches:
         msg_res = f"{meta.kind.upper()} {meta.namespace}/{meta.name}"
         print(f"Patching {msg_res}")
-        _, err = k8s.patch(k8sconfig.client, patch.url, patch.ops)
+        _, err = await k8s.patch(k8sconfig.client, patch.url, patch.ops)
         if err:
             logit.error(f"Could not patch {msg_res}")
             return True
@@ -720,7 +720,7 @@ def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     for data_d in plan.delete:
         msg_res = f"{data_d.meta.kind.upper()} {data_d.meta.namespace}/{data_d.meta.name}"
         print(f"Deleting {msg_res}")
-        _, err = k8s.delete(k8sconfig.client, data_d.url, data_d.manifest)
+        _, err = await k8s.delete(k8sconfig.client, data_d.url, data_d.manifest)
         if err:
             logit.error(f"Could not patch {msg_res}")
             return True
@@ -775,7 +775,7 @@ def pick_manifests_for_plan(
     return sel_local, sel_server
 
 
-def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
+async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
     """Return the deployment plan.
 
     Returns:
@@ -789,7 +789,7 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
 
     try:
         # Get an HttpX client to talk to the K8s API.
-        k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
+        k8sconfig, err = await k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
         assert not err
 
         # Convert "Selectors.kinds" to their canonical names.
@@ -800,7 +800,7 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         assert not err
 
         # Download manifests from K8s.
-        server, err = manio.download(cfg, k8sconfig)
+        server, err = await manio.download(cfg, k8sconfig)
         assert not err
 
         # Retain only those manifests that satisfy the selectors.
@@ -814,7 +814,7 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         assert not err
 
         # Create deployment plan.
-        plan, err = compile_plan(cfg, k8sconfig, local_meta, server)
+        plan, err = await compile_plan(cfg, k8sconfig, local_meta, server)
         assert not err and plan
     except AssertionError:
         return (DeploymentPlan(tuple(), tuple(), tuple()), True)
@@ -823,7 +823,7 @@ def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
     return (plan, False)
 
 
-def get_resources(cfg: Config) -> bool:
+async def get_resources(cfg: Config) -> bool:
     """Download all K8s manifests and merge them into local files."""
     # Sanity check labels.
     if not all([valid_label(_) for _ in cfg.selectors.labels]):
@@ -832,7 +832,7 @@ def get_resources(cfg: Config) -> bool:
 
     try:
         # Get an HttpX client to talk to the K8s API.
-        k8sconfig, err = k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
+        k8sconfig, err = await k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
         assert not err
 
         # Convert "Selectors.kinds" to their canonical names.
@@ -852,12 +852,12 @@ def get_resources(cfg: Config) -> bool:
         del load_selectors
 
         # Download manifests from K8s.
-        server, err = manio.download(cfg, k8sconfig)
+        server, err = await manio.download(cfg, k8sconfig)
         assert not err
 
         # Replace the server resources fetched from K8s' preferred endpoint with
         # the one from the endpoint referenced in the local manifest.
-        server, err = match_api_version(k8sconfig, local_meta, server)
+        server, err = await match_api_version(k8sconfig, local_meta, server)
         assert not err
 
         # Sync the server manifests into the local manifests. All this happens in

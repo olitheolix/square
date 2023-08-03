@@ -27,7 +27,7 @@ except sh.CommandNotFound:
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestBasic:
-    def test_cluster_config(self):
+    async def test_cluster_config(self):
         """Basic success/failure test for K8s configuration."""
         # Only show INFO and above or otherwise this test will produce a
         # humongous amount of logs from all the K8s calls.
@@ -38,14 +38,14 @@ class TestBasic:
         fname = Path("/tmp/kubeconfig-kind.yaml")
 
         # Must produce a valid K8s configuration.
-        cfg, err = fun(fname, None)
+        cfg, err = await fun(fname, None)
         assert not err and isinstance(cfg, K8sConfig)
 
         # Must not return a Kubernetes configuration if we could not create a
         # HttpX client.
         with mock.patch.object(square.k8s, "create_httpx_client") as m_client:
-            m_client.return_value = (httpx.Client(), True)
-            assert fun(fname, None) == (K8sConfig(), True)
+            m_client.return_value = (httpx.AsyncClient(), True)
+            assert await fun(fname, None) == (K8sConfig(), True)
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
@@ -58,7 +58,7 @@ class TestMainGet:
         assert kubectl is not None
         kubectl("apply", "-f", str(integration_test_manifest_path))
 
-    def test_main_get(self, tmp_path):
+    async def test_main_get(self, tmp_path):
         """GET all cluster resources."""
         # The "square-tests" namespace must have these manifests.
         non_namespaced = [
@@ -97,7 +97,7 @@ class TestMainGet:
         # resources, it must contain some files.
         assert len(list(tmp_path.rglob("*.yaml"))) == 0
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
 
         # The integration test cluster has these namespaces, which means Square
         # must have created equivalent folders.
@@ -120,7 +120,7 @@ class TestMainGet:
             assert (tmp_path / "_global_" / "demoapp-1" / f"{kind}.yaml").exists()
             assert not (tmp_path / "_global_" / "demoapp-1" / f"{kind}.yaml").is_dir()
 
-    def test_main_get_single_namespace(self, tmp_path):
+    async def test_main_get_single_namespace(self, tmp_path):
         """Sync individual resources in single namespace.
 
         This test will use `kubectl` to delete some resources.
@@ -143,14 +143,14 @@ class TestMainGet:
         # Sync Deployments: must create "deployment.yaml".
         args = ("square.py", "get", "deploy", *common_args)
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 1
         assert (man_path / "deployment.yaml").exists()
 
         # Sync Ingresses: must add "ingress.yaml".
         args = ("square.py", "get", "ingress", *common_args)
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 2
         assert (man_path / "deployment.yaml").exists()
         assert (man_path / "ingress.yaml").exists()
@@ -161,7 +161,7 @@ class TestMainGet:
         kubectl("delete", "deploy", "demoapp-1", "-n", "square-tests-1")
         args = ("square.py", "get", "ingress", *common_args)
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 2
         assert (man_path / "deployment.yaml").exists()
         assert (man_path / "ingress.yaml").exists()
@@ -172,11 +172,11 @@ class TestMainGet:
         # because we have no deployments anymore.
         args = ("square.py", "get", "deploy", *common_args)
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 1
         assert (man_path / "ingress.yaml").exists()
 
-    def test_main_get_both_namespaces(self, tmp_path):
+    async def test_main_get_both_namespaces(self, tmp_path):
         """Sync individual resources across two namespaces.
 
         This test will use `kubectl` to delete some resources.
@@ -211,7 +211,7 @@ class TestMainGet:
                 *common_args)
 
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 1
         assert (man_path / "_other.yaml").exists()
 
@@ -230,7 +230,7 @@ class TestMainGet:
         kubectl("delete", "ingress", "demoapp-1", "-n", "square-tests-1")
         args = ("square.py", "get", "ingress", "-n", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
         assert load_manifests(man_path) == {
             ('Deployment', 'square-tests-1', 'demoapp-1'),
             ('Deployment', 'square-tests-2', 'demoapp-1'),
@@ -248,7 +248,7 @@ class TestMainGet:
         args = ("square.py", "get", "ingress",
                 "-n", "square-tests-1", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
         assert load_manifests(man_path) == {
             ('Deployment', 'square-tests-1', 'demoapp-1'),
             ('Deployment', 'square-tests-2', 'demoapp-1'),
@@ -262,7 +262,7 @@ class TestMainGet:
         args = ("square.py", "get", "deploy",
                 "-n", "square-tests-1", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
         assert load_manifests(man_path) == {
             ('Ingress', 'square-tests-2', 'demoapp-1'),
         }
@@ -275,10 +275,10 @@ class TestMainGet:
         args = ("square.py", "get", "ingress",
                 "-n", "square-tests-1", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 0
 
-    def test_nonpreferred_api(self, tmp_path):
+    async def test_nonpreferred_api(self, tmp_path):
         """Sync `autoscaling/v1` and `autoscaling/v2` at the same time.
 
         This test is designed to verify that Square will interrogate the
@@ -318,13 +318,13 @@ class TestMainGet:
         # Sync all manifests. This must do nothing. In particular, it must not
         # change the `apiVersion` of either HPA.
         # ---------------------------------------------------------------------
-        assert not square.square.get_resources(config)
+        assert not await square.square.get_resources(config)
         assert list(yaml.safe_load_all(man_path.read_text())) == manifests
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestKindName:
-    def test_api_plan_kind_name_resource(self, tmp_path):
+    async def test_api_plan_kind_name_resource(self, tmp_path):
         """Plan a ConfigMap specified by its `configmap/name` selector.
 
         This test plans against an empty local folder. Square must therefore
@@ -351,7 +351,7 @@ class TestKindName:
             kinds={"Configmap"},
             namespaces=["square-tests-1", "square-tests-2"]
         )
-        plan, err = square.plan(config)
+        plan, err = await square.plan(config)
         assert not err
         assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 8
 
@@ -362,7 +362,7 @@ class TestKindName:
             kinds={"Configmap"},
             namespaces=["square-tests-1"]
         )
-        plan, err = square.plan(config)
+        plan, err = await square.plan(config)
         assert not err
         assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 3
 
@@ -374,7 +374,7 @@ class TestKindName:
             namespaces=["square-tests-1"]
         )
 
-        plan, err = square.plan(config)
+        plan, err = await square.plan(config)
         assert not err
         assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 1
         meta = [_.meta for _ in plan.delete][0]
@@ -388,7 +388,7 @@ class TestKindName:
             namespaces=[]
         )
 
-        plan, err = square.plan(config)
+        plan, err = await square.plan(config)
         assert not err
         assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 2
         metas = [_.meta for _ in plan.delete]
@@ -396,7 +396,7 @@ class TestKindName:
         for meta in metas:
             assert meta.kind == "ConfigMap" and meta.name == "demoapp-1"
 
-    def test_cli_plan_kind_name_resource(self, tmp_path):
+    async def test_cli_plan_kind_name_resource(self, tmp_path):
         """Use CLI to fetch a specific resource name.
 
         This test will actually fetch two different ConfigMap names. The first
@@ -419,7 +419,7 @@ class TestKindName:
         # in the demo cluster.
         args = ("square.py", "get", "configmap/demo-configmap-1", *common_args)
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
 
         man = list(yaml.safe_load_all(man_path.read_text()))
         assert len(man) == 2
@@ -433,7 +433,7 @@ class TestKindName:
         # one in the demo cluster.
         args = ("square.py", "get", "configmap/demo-configmap-2", *common_args)
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
 
         man = list(yaml.safe_load_all((tmp_path / "_other.yaml").read_text()))
         assert len(man) == 1
@@ -442,7 +442,7 @@ class TestKindName:
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestLabels:
-    def test_api_plan_labels_simple(self, tmp_path):
+    async def test_api_plan_labels_simple(self, tmp_path):
         """Plan ConfigMaps based on labels.
 
         This test plans against an empty local folder. Square must therefore
@@ -471,7 +471,7 @@ class TestLabels:
         # ----------------------------------------------------------------------
         config.selectors.labels = []
         config.selectors.namespaces = ["square-tests-1", "square-tests-2"]
-        plan, err = square.plan(config)
+        plan, err = await square.plan(config)
         assert not err and plan.create == plan.patch == []
         assert len(plan.delete) == 8
 
@@ -481,11 +481,11 @@ class TestLabels:
         config.selectors.namespaces = ["square-tests-1", "square-tests-2"]
         config.selectors.labels = ["app=demoapp-1"]
 
-        plan, err = square.plan(config)
+        plan, err = await square.plan(config)
         assert not err and plan.create == plan.patch == []
         assert len(plan.delete) == 5
 
-    def test_api_plan_labels_local_and_remote(self, tmp_path):
+    async def test_api_plan_labels_local_and_remote(self, tmp_path):
         """Plan ConfigMaps based on labels.
 
         This test creates local dummy manifests to verify that Square selects
@@ -511,7 +511,7 @@ class TestLabels:
         config.selectors.namespaces = ["square-tests-1", "square-tests-2"]
         config.selectors.labels = ["app=demoapp-2"]
 
-        plan, err = square.plan(config)
+        plan, err = await square.plan(config)
         assert not err and plan.create == plan.patch == []
         assert len(plan.delete) == 1
 
@@ -519,7 +519,7 @@ class TestLabels:
         config.selectors.namespaces = ["square-tests-1", "square-tests-2"]
         config.selectors.labels = ["app=new"]
 
-        plan, err = square.plan(config)
+        plan, err = await square.plan(config)
         assert not err and plan.create == plan.patch == plan.delete == []
 
         # ----------------------------------------------------------------------
@@ -538,18 +538,18 @@ class TestLabels:
         fname.write_text(yaml.dump_all([manifest_new, manifest_foo]))
 
         # Square must now try to create the one ConfigMap where the labels match.
-        plan, err = square.plan(config)
+        plan, err = await square.plan(config)
         assert not err and plan.patch == plan.delete == []
         assert len(plan.create) == 1
 
         # Sanity check: Square must try to create both manifest if we remove
         # the label selectors.
         config.selectors.labels.clear()
-        plan, err = square.plan(config)
+        plan, err = await square.plan(config)
         assert not err and plan.patch == []
         assert len(plan.create) == 2
 
-    def test_api_plan_same_resource_different_labels(self, tmp_path):
+    async def test_api_plan_same_resource_different_labels(self, tmp_path):
         """Plan a ConfigMaps that has different local and remote labels."""
         # Only show INFO and above or otherwise this test will produce a
         # humongous amount of logs from all the K8s calls.
@@ -580,7 +580,7 @@ class TestLabels:
             namespaces=[cm_ns],
             labels=["app=demoapp-2"],
         )
-        plan, err = square.plan(config)
+        plan, err = await square.plan(config)
         assert not err
         assert plan.create == plan.patch == []
         assert len(plan.delete) == 1
@@ -597,7 +597,7 @@ class TestLabels:
                 name=cm_name, labels=cast(Dict[str, str], labels),
             )
             fname.write_text(yaml.dump_all([manifest]))
-            plan, err = square.plan(config)
+            plan, err = await square.plan(config)
             assert not err
             assert plan.create == plan.delete == []
             assert len(plan.patch) == 1
@@ -607,7 +607,7 @@ class TestLabels:
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestMainPlan:
-    def test_main_plan(self, tmp_path):
+    async def test_main_plan(self, tmp_path):
         """PLAN all cluster resources."""
         # Command line arguments.
         args = (
@@ -618,9 +618,9 @@ class TestMainPlan:
 
         # Merely verify that the program does not break.
         with mock.patch("sys.argv", args):
-            square.main.main()
+            assert await square.main.main() == 0
 
-    def test_workflow(self, tmp_path):
+    async def test_workflow(self, tmp_path):
         """Delete and restore full namespace with Square.
 
         We will use `kubectl` to create a new namespace and populate it with
@@ -664,7 +664,7 @@ class TestMainPlan:
         # Create a plan for "square-tests". The plan must delete all resources
         # because we have not downloaded any manifests yet.
         # ---------------------------------------------------------------------
-        plan_1, err = square.square.make_plan(config)
+        plan_1, err = await square.square.make_plan(config)
         assert not err
         assert plan_1.create == plan_1.patch == [] and len(plan_1.delete) > 0
 
@@ -672,17 +672,17 @@ class TestMainPlan:
         # Backup all resources. A plan against that backup must be empty.
         # ---------------------------------------------------------------------
         assert not (config.folder / "_other.yaml").exists()
-        err = square.square.get_resources(config)
+        err = await square.square.get_resources(config)
         assert not err and (config.folder / "_other.yaml").exists()
 
-        plan_2, err = square.square.make_plan(config)
+        plan_2, err = await square.square.make_plan(config)
         assert not err
         assert plan_2.create == plan_2.patch == plan_2.delete == []
 
         # ---------------------------------------------------------------------
         # Apply the first plan to delete all resources including the namespace.
         # ---------------------------------------------------------------------
-        assert not square.square.apply_plan(config, plan_1)
+        assert not await square.square.apply_plan(config, plan_1)
 
         # ---------------------------------------------------------------------
         # Wait until K8s has deleted the namespace.
@@ -700,18 +700,18 @@ class TestMainPlan:
         # ---------------------------------------------------------------------
         # Use backup manifests to restore the namespace.
         # ---------------------------------------------------------------------
-        plan_3, err = square.square.make_plan(config)
+        plan_3, err = await square.square.make_plan(config)
         assert not err
         assert plan_3.patch == plan_3.delete == [] and len(plan_3.create) > 0
 
         # Apply the new plan.
-        assert not square.square.apply_plan(config, plan_3)
+        assert not await square.square.apply_plan(config, plan_3)
 
-        plan_4, err = square.square.make_plan(config)
+        plan_4, err = await square.square.make_plan(config)
         assert not err
         assert plan_4.create == plan_4.patch == plan_4.delete == []
 
-    def test_nondefault_resources(self, tmp_path):
+    async def test_nondefault_resources(self, tmp_path):
         """Manage an `autoscaling/{v1,v2}` resource at the same time.
 
         This test is designed to verify that Square will interrogate the
@@ -751,7 +751,7 @@ class TestMainPlan:
         # The plan must be empty because Square must have interrogated the
         # correct API endpoints for each HPA.
         # ---------------------------------------------------------------------
-        plan_1, err = square.square.make_plan(config)
+        plan_1, err = await square.square.make_plan(config)
         assert not err
         assert plan_1.create == plan_1.patch == plan_1.delete == []
         del plan_1
@@ -767,7 +767,7 @@ class TestMainPlan:
         man_path.write_text(yaml.dump_all(tmp_manifests))
 
         # The plan must report one patch.
-        plan_2, err = square.square.make_plan(config)
+        plan_2, err = await square.square.make_plan(config)
         assert not err
         assert plan_2.create == plan_2.delete == [] and len(plan_2.patch) == 1
         assert plan_2.patch[0].meta.name == "hpav2"
@@ -782,11 +782,11 @@ class TestMainPlan:
         man_path.write_text(yaml.dump_all(tmp_manifests))
 
         # Square must now want to delete both HPAs.
-        plan_3, err = square.square.make_plan(config)
+        plan_3, err = await square.square.make_plan(config)
         assert not err
         assert plan_3.create == plan_3.patch == [] and len(plan_3.delete) == 2
         assert {_.meta.name for _ in plan_3.delete} == {"hpav1", "hpav2"}
-        assert not square.square.apply_plan(config, plan_3)
+        assert not await square.square.apply_plan(config, plan_3)
         del plan_3
 
         # ---------------------------------------------------------------------
@@ -796,18 +796,18 @@ class TestMainPlan:
         man_path.write_text(yaml.dump_all(manifests))
 
         # Create a plan. That plan must want to restore both HPAs.
-        plan_4, err = square.square.make_plan(config)
+        plan_4, err = await square.square.make_plan(config)
         assert not err
         assert plan_4.delete == plan_4.patch == [] and len(plan_4.create) == 2
         assert {_.meta.name for _ in plan_4.create} == {"hpav1", "hpav2"}
         assert {_.meta.apiVersion for _ in plan_4.create} == {
             "autoscaling/v1", "autoscaling/v2"
         }
-        assert not square.square.apply_plan(config, plan_4)
+        assert not await square.square.apply_plan(config, plan_4)
         del plan_4
 
         # Apply the plan.
-        plan_5, err = square.square.make_plan(config)
+        plan_5, err = await square.square.make_plan(config)
         assert not err
         assert plan_5.create == plan_5.patch == plan_5.delete == []
         del plan_5
@@ -822,7 +822,7 @@ class TestMainPlan:
         man_path.write_text(yaml.dump_all(tmp_manifests))
 
         # Square must now produce a single non-empty patch.
-        plan_6, err = square.square.make_plan(config)
+        plan_6, err = await square.square.make_plan(config)
         assert not err
         assert plan_6.delete == plan_6.create == [] and len(plan_6.patch) == 1
         assert plan_6.patch[0].meta.name == "hpav1"

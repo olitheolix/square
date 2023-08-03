@@ -98,7 +98,7 @@ def fname_param_config(tmp_path) -> Generator[
 
 class TestResourceCleanup:
     @mock.patch.object(sq.k8s, "cluster_config")
-    def test_expand_all_kinds(self, m_cluster, k8sconfig):
+    async def test_expand_all_kinds(self, m_cluster, k8sconfig):
         """Must expand the short names if possible, and leave as is otherwise."""
         m_cluster.side_effect = lambda *args: (k8sconfig, False)
 
@@ -118,7 +118,7 @@ class TestResourceCleanup:
         )
 
         # Do nothing if `Selectors.kinds` is non-empty.
-        ret, err = main.expand_all_kinds(cfg)
+        ret, err = await main.expand_all_kinds(cfg)
         assert not err and ret.selectors.kinds == set(k8sconfig.kinds)
 
         cfg = Config(
@@ -135,10 +135,10 @@ class TestResourceCleanup:
         )
 
         # Convert the resource names to their correct K8s kind.
-        ret, err = main.expand_all_kinds(cfg)
+        ret, err = await main.expand_all_kinds(cfg)
         assert not err and ret == cfg
 
-    def test_expand_all_kinds_err_config(self):
+    async def test_expand_all_kinds_err_config(self):
         """Abort if the kubeconfig file does not exist."""
         cfg = Config(
             folder=Path('/tmp'),
@@ -153,7 +153,7 @@ class TestResourceCleanup:
             priorities=["Namespace", "Deployment"],
         )
 
-        _, err = main.expand_all_kinds(cfg)
+        _, err = await main.expand_all_kinds(cfg)
         assert err
 
 
@@ -566,8 +566,8 @@ class TestMain:
     @mock.patch.object(sq, "make_plan")
     @mock.patch.object(main, "apply_plan")
     @mock.patch.object(sq.k8s, "cluster_config")
-    def test_main_valid_options(self, m_cluster, m_apply, m_plan, m_get,
-                                fname_param_config, k8sconfig):
+    async def test_main_valid_options(self, m_cluster, m_apply, m_plan, m_get,
+                                      fname_param_config, k8sconfig):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
@@ -594,7 +594,7 @@ class TestMain:
                 "--namespace", "default",
             )
             with mock.patch("sys.argv", args):
-                assert main.main() == 0
+                assert await main.main() == 0
             del args
 
         # These two deviate from the values in `tests/support/config.yaml`.
@@ -622,7 +622,7 @@ class TestMain:
                 "--info",
             )
             with mock.patch("sys.argv", args):
-                assert main.main() == 0
+                assert await main.main() == 0
             del args
 
         # These two deviate from the values in `tests/support/config.yaml`.
@@ -634,13 +634,13 @@ class TestMain:
         assert not m_apply.called
         assert not m_plan.called
 
-    def test_main_version(self):
+    async def test_main_version(self):
         """Simulate "version" command."""
         with mock.patch("sys.argv", ("square.py", "version")):
-            assert main.main() == 0
+            assert await main.main() == 0
 
     @mock.patch.object(sq, "k8s")
-    def test_main_invalid_option(self, m_k8s):
+    async def test_main_invalid_option(self, m_k8s):
         """Simulate a missing or unknown option.
 
         Either way, the program must abort with a non-zero exit code.
@@ -649,20 +649,21 @@ class TestMain:
         # Do not pass any option.
         with mock.patch("sys.argv", ["square.py"]):
             with pytest.raises(SystemExit) as err:
-                main.main()
+                await main.main()
             assert err.value.code == 2
 
         # Pass an invalid option.
         with mock.patch("sys.argv", ["square.py", "invalid-option"]):
             with pytest.raises(SystemExit) as err:
-                main.main()
+                await main.main()
             assert err.value.code == 2
 
     @mock.patch.object(sq, "k8s")
     @mock.patch.object(sq, "get_resources")
     @mock.patch.object(sq, "make_plan")
     @mock.patch.object(sq, "apply_plan")
-    def test_main_nonzero_exit_on_error(self, m_apply, m_plan, m_get, m_k8s, k8sconfig):
+    async def test_main_nonzero_exit_on_error(self, m_apply, m_plan, m_get,
+                                              m_k8s, k8sconfig):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
@@ -683,12 +684,12 @@ class TestMain:
         # Simulate all input options.
         for option in ["get", "plan", "apply"]:
             with mock.patch("sys.argv", ["square.py", option, "ns"]):
-                assert main.main() == 1
+                assert await main.main() == 1
 
     @mock.patch.object(main, "parse_commandline_args")
     @mock.patch.object(k8s, "cluster_config")
-    def test_main_invalid_option_in_main(self, m_cluster, m_cmd, k8sconfig,
-                                         fname_param_config):
+    async def test_main_invalid_option_in_main(self, m_cluster, m_cmd, k8sconfig,
+                                               fname_param_config):
         """Simulate an option that `square` does not know about.
 
         This is a somewhat pathological test and exists primarily to close some
@@ -703,28 +704,28 @@ class TestMain:
         # Simulate an invalid Square command.
         param.parser = "invalid"
         m_cmd.return_value = param
-        assert main.main() == 1
+        assert await main.main() == 1
 
         # Force a configuration error due to the absence of K8s credentials.
         param.kubeconfig += "does-not-exist"
         m_cmd.return_value = param
-        assert main.main() == 1
+        assert await main.main() == 1
 
     @mock.patch.object(sq, "k8s")
-    def test_main_version_error(self, m_k8s):
+    async def test_main_version_error(self, m_k8s):
         """Program must abort if it cannot get the version from K8s."""
         # Mock all calls to the K8s API.
         m_k8s.cluster_config.return_value = (None, True)
 
         with mock.patch("sys.argv", ["square.py", "get", "deploy"]):
-            assert main.main() == 1
+            assert await main.main() == 1
 
-    def test_main_create_default_config_file(self, tmp_path):
+    async def test_main_create_default_config_file(self, tmp_path):
         """Create a copy of the default config config in the specified folder."""
         folder = tmp_path / "folder"
 
         with mock.patch("sys.argv", ["square.py", "config", "--folder", str(folder)]):
-            assert main.main() == 0
+            assert await main.main() == 0
 
         fname = (folder / ".square.yaml")
         assert DEFAULT_CONFIG_FILE.read_text() == fname.read_text()
@@ -884,7 +885,7 @@ class TestMain:
 class TestApplyPlan:
     @mock.patch.object(sq, "make_plan")
     @mock.patch.object(sq, "apply_plan")
-    def test_apply_plan(self, m_apply, m_plan, config):
+    async def test_apply_plan(self, m_apply, m_plan, config):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -921,17 +922,17 @@ class TestApplyPlan:
 
         # Function must not apply the plan without the user's confirmation.
         with mock.patch.object(main, 'input', lambda _: "no"):
-            assert fun(config, "yes") is True
+            assert await fun(config, "yes") is True
         assert not m_apply.called
 
         # Function must apply the plan if the user confirms it.
         with mock.patch.object(main, 'input', lambda _: "yes"):
-            assert fun(config, "yes") is False
+            assert await fun(config, "yes") is False
         m_apply.assert_called_once_with(config, plan)
 
         # Repeat with disabled security question.
         m_apply.reset_mock()
-        assert fun(config, None) is False
+        assert await fun(config, None) is False
         m_apply.assert_called_once_with(config, plan)
 
         # -----------------------------------------------------------------
@@ -942,7 +943,7 @@ class TestApplyPlan:
         m_plan.return_value = (DeploymentPlan(create=[], patch=[], delete=[]), False)
 
         with mock.patch.object(main, 'input', lambda _: "yes"):
-            assert fun(config, "yes") is False
+            assert await fun(config, "yes") is False
         assert not m_apply.called
 
         # -----------------------------------------------------------------
@@ -951,4 +952,4 @@ class TestApplyPlan:
         # Make `apply_plan` fail.
         m_plan.return_value = (plan, False)
         m_apply.return_value = (None, True)
-        assert fun(config, None) is True
+        assert await fun(config, None) is True

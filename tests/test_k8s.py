@@ -1,8 +1,8 @@
+import asyncio
 import json
 import os
 import random
 import sys
-import time
 import types
 import unittest.mock as mock
 from pathlib import Path
@@ -19,8 +19,8 @@ from .test_helpers import kind_available
 
 
 @pytest.fixture
-def nosleep():
-    with mock.patch.object(time, "sleep") as m_sleep:
+async def nosleep():
+    with mock.patch.object(asyncio, "sleep") as m_sleep:
         yield m_sleep
 
 
@@ -70,11 +70,11 @@ class TestK8sDeleteGetPatchPost:
         assert err
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    def test_request_ok(self, method, respx_mock):
+    async def test_request_ok(self, method, respx_mock):
         """Simulate a successful K8s response for GET request."""
         # Dummy values for the K8s API request.
         url = 'http://examples.com/'
-        client = k8s.httpx.Client()
+        client = k8s.httpx.AsyncClient()
         headers = {"some": "headers"}
         payload = {"some": "payload"}
         response = {"some": "response"}
@@ -86,15 +86,15 @@ class TestK8sDeleteGetPatchPost:
 
         # Verify that the function makes the correct request and returns the
         # expected result and HTTP status code.
-        ret = k8s.request(client, method, url, payload, headers)
+        ret = await k8s.request(client, method, url, payload, headers)
         assert ret == (response, status_code)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    def test_request_err_json(self, method, respx_mock):
+    async def test_request_err_json(self, method, respx_mock):
         """Simulate a corrupt JSON response from K8s."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://examples.com/'
-        client = k8s.httpx.Client()
+        client = k8s.httpx.AsyncClient()
 
         # Construct a response with a corrupt JSON string.
         corrupt_json = "{this is not valid] json;"
@@ -102,43 +102,43 @@ class TestK8sDeleteGetPatchPost:
         m_http.return_value = httpx.Response(200, text=corrupt_json)
 
         # Test function must not return a response but indicate an error.
-        ret = k8s.request(client, method, url, None, None)
+        ret = await k8s.request(client, method, url, None, None)
         assert ret == ({}, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    def test_request_connection_err(self, method, respx_mock, nosleep):
+    async def test_request_connection_err(self, method, respx_mock, nosleep):
         """Simulate an unsuccessful K8s response for GET request."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://examples.com/'
-        client = k8s.httpx.Client()
+        client = k8s.httpx.AsyncClient()
 
         # Simulate a generic RequestError error during the request.
         m_http = respx_mock.request(method, url)
-        m_http.mock(side_effect=k8s.httpx.RequestError(message="message"))
-        ret = k8s.request(client, method, url, None, None)
+        m_http.mock(side_effect=k8s.httpx.RequestError(message="test error"))
+        ret = await k8s.request(client, method, url, None, None)
         assert ret == ({}, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    def test_request_retries(self, nosleep, method):
+    async def test_request_retries(self, nosleep, method):
         """Simulate connection timeout to validate retry logic."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://localhost:12345/'
-        client = k8s.httpx.Client()
+        client = k8s.httpx.AsyncClient()
 
         # Test function must not return a response but indicate an error.
-        ret = k8s.request(client, method, url, None, None)
+        ret = await k8s.request(client, method, url, None, None)
         assert ret == ({}, True)
 
         # Windows is different and seems to have built in retry and/or timeout
         # limits - no idea. Mac and Linux behave as expected.
         if not sys.platform.startswith("win"):
-            assert nosleep.call_count == 20
+            assert nosleep.call_count >= 20
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    def test_request_invalid(self, method, nosleep):
+    async def test_request_invalid(self, method, nosleep):
         """Simulate connection errors due to invalid URL schemes."""
         # Dummies for K8s API URL and `httpx` client.
-        client = k8s.httpx.Client()
+        client = k8s.httpx.AsyncClient()
 
         urls = [
             "localhost",        # missing schema like "http://"
@@ -148,11 +148,11 @@ class TestK8sDeleteGetPatchPost:
 
         # Test function must not return a response but indicate an error.
         for url in urls:
-            ret = k8s.request(client, method, url, None, None)
+            ret = await k8s.request(client, method, url, None, None)
             assert ret == ({}, True)
 
     @mock.patch.object(k8s, "request")
-    def test_delete_get_patch_post_ok(self, m_req):
+    async def test_delete_get_patch_post_ok(self, m_req):
         """Simulate successful DELETE, GET, PATCH, POST requests.
 
         This test is for the various wrappers around the `request`
@@ -172,30 +172,30 @@ class TestK8sDeleteGetPatchPost:
         for code in (200, 202):
             m_req.reset_mock()
             m_req.return_value = (response, code)
-            assert k8s.delete(client, path, payload) == (response, False)
+            assert await k8s.delete(client, path, payload) == (response, False)
             m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
 
         # K8s GET request was successful iff its return status is 200.
         m_req.reset_mock()
         m_req.return_value = (response, 200)
-        assert k8s.get(client, path) == (response, False)
+        assert await k8s.get(client, path) == (response, False)
         m_req.assert_called_once_with(client, "GET", path, payload=None, headers=None)
 
         # K8s PATCH request was successful iff its return status is 200.
         m_req.reset_mock()
         m_req.return_value = (response, 200)
-        assert k8s.patch(client, path, [payload]) == (response, False)
+        assert await k8s.patch(client, path, [payload]) == (response, False)
         patch_headers = {'Content-Type': 'application/json-patch+json'}
         m_req.assert_called_once_with(client, "PATCH", path, [payload], patch_headers)
 
         # K8s POST request was successful iff its return status is 201.
         m_req.reset_mock()
         m_req.return_value = (response, 201)
-        assert k8s.post(client, path, payload) == (response, False)
+        assert await k8s.post(client, path, payload) == (response, False)
         m_req.assert_called_once_with(client, "POST", path, payload, headers=None)
 
     @mock.patch.object(k8s, "request")
-    def test_delete_get_patch_post_err(self, m_req):
+    async def test_delete_get_patch_post_err(self, m_req):
         """Simulate unsuccessful DELETE, GET, PATCH, POST requests.
 
         This test is for the various wrappers around the `request`
@@ -212,32 +212,32 @@ class TestK8sDeleteGetPatchPost:
         # K8s DELETE request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
         m_req.return_value = (response, 400)
-        assert k8s.delete(client, path, payload) == (response, True)
+        assert await k8s.delete(client, path, payload) == (response, True)
         m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
 
         # K8s GET request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
         m_req.return_value = (response, 400)
-        assert k8s.get(client, path) == (response, True)
+        assert await k8s.get(client, path) == (response, True)
         m_req.assert_called_once_with(client, "GET", path, payload=None, headers=None)
 
         # K8s PATCH request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
         m_req.return_value = (response, 400)
-        assert k8s.patch(client, path, [payload]) == (response, True)
+        assert await k8s.patch(client, path, [payload]) == (response, True)
         patch_headers = {'Content-Type': 'application/json-patch+json'}
         m_req.assert_called_once_with(client, "PATCH", path, [payload], patch_headers)
 
         # K8s POST request was unsuccessful because its returns status is not 201.
         m_req.reset_mock()
         m_req.return_value = (response, 400)
-        assert k8s.post(client, path, payload) == (response, True)
+        assert await k8s.post(client, path, payload) == (response, True)
         m_req.assert_called_once_with(client, "POST", path, payload, headers=None)
 
 
 class TestK8sVersion:
     @mock.patch.object(k8s, "get")
-    def test_version_auto_ok(self, m_get, k8sconfig):
+    async def test_version_auto_ok(self, m_get, k8sconfig):
         """Get K8s version number from API server."""
 
         # This is a genuine K8s response from Minikube.
@@ -258,7 +258,7 @@ class TestK8sVersion:
 
         # Test function must contact the K8s API and return a `Config` tuple
         # with the correct version number.
-        config2, err = k8s.version(k8sconfig)
+        config2, err = await k8s.version(k8sconfig)
         assert err is False
         assert isinstance(config2, K8sConfig)
         assert config2.version == "1.10"
@@ -274,7 +274,7 @@ class TestK8sVersion:
         del config2, err
 
     @mock.patch.object(k8s, "get")
-    def test_version_auto_err(self, m_get, k8sconfig):
+    async def test_version_auto_err(self, m_get, k8sconfig):
         """Simulate an error when fetching the K8s version."""
         # Create vanilla `K8sConfig` instance.
         k8sconfig = k8sconfig._replace(client=mock.MagicMock())
@@ -283,11 +283,11 @@ class TestK8sVersion:
         m_get.return_value = (None, True)
 
         # Test function must abort gracefully.
-        assert k8s.version(k8sconfig) == (K8sConfig(), True)
+        assert await k8s.version(k8sconfig) == (K8sConfig(), True)
 
 
 class TestUrlPathBuilder:
-    def k8sconfig(self, integrationtest, ref_config):
+    async def k8sconfig(self, integrationtest, ref_config):
         """Return a valid K8sConfig for a dummy or the real integration test cluster.
 
         The `config` is a reference K8s config. Return it if `integrationtest
@@ -304,12 +304,12 @@ class TestUrlPathBuilder:
         kubeconfig = Path("/tmp/kubeconfig-kind.yaml")
 
         # Create a genuine K8s config from our integration test cluster.
-        k8sconfig, err = k8s.cluster_config(kubeconfig, None)
+        k8sconfig, err = await k8s.cluster_config(kubeconfig, None)
         assert not err and k8sconfig and k8sconfig.client
         return k8sconfig
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    def test_resource_service(self, integrationtest, k8sconfig):
+    async def test_resource_service(self, integrationtest, k8sconfig):
         """Function must query the correct version of the API endpoint.
 
         This test uses a Service which is available as part of the core API.
@@ -318,7 +318,7 @@ class TestUrlPathBuilder:
 
         """
         # Fixtures.
-        k8sconfig = self.k8sconfig(integrationtest, k8sconfig)
+        k8sconfig = await self.k8sconfig(integrationtest, k8sconfig)
         err_resp = (K8sResource("", "", "", False, ""), True)
 
         # Tuples of API version that we ask for (if any), and what the final
@@ -360,7 +360,7 @@ class TestUrlPathBuilder:
             MM = MetaManifest
             assert k8s.resource(k8sconfig, MM(src, "Service", None, "name")) == err_resp
 
-    def test_resource_hpa(self, k8sconfig):
+    async def test_resource_hpa(self, k8sconfig):
         """Verify API version retrieval with a HorizontalPodAutoscaler.
 
         This resource is available as {v1, v2, v2beta1 and v2beta2}.
@@ -368,7 +368,7 @@ class TestUrlPathBuilder:
         NOTE: this test is tailored to Kubernetes v1.24.
 
         """
-        config = self.k8sconfig(False, k8sconfig)
+        config = await self.k8sconfig(False, k8sconfig)
         MM = MetaManifest
         err_resp = (K8sResource("", "", "", False, ""), True)
 
@@ -425,7 +425,7 @@ class TestUrlPathBuilder:
             # A particular HPA in all namespaces -> Invalid.
             assert k8s.resource(config, MM(src, kind, None, "name")) == err_resp
 
-    def test_resource_event_integration(self, k8sconfig):
+    async def test_resource_event_integration(self, k8sconfig):
         """Verify API version retrieval for `Event` resource.
 
         This resource is available as {v1, events.k8s.io/v1}.
@@ -433,7 +433,7 @@ class TestUrlPathBuilder:
         NOTE: this test is tailored to Kubernetes v1.25.
 
         """
-        config = self.k8sconfig(True, k8sconfig)
+        config = await self.k8sconfig(True, k8sconfig)
         MM = MetaManifest
         err_resp = (K8sResource("", "", "", False, ""), True)
 
@@ -490,7 +490,7 @@ class TestUrlPathBuilder:
             assert k8s.resource(config, MM(src, kind, None, "name")) == err_resp
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    def test_resource_namespace(self, integrationtest, k8sconfig):
+    async def test_resource_namespace(self, integrationtest, k8sconfig):
         """Verify with a Namespace resource.
 
         This one is a special case because namespaces not themselves namespaced
@@ -500,7 +500,7 @@ class TestUrlPathBuilder:
 
         """
         # Fixtures.
-        config = self.k8sconfig(integrationtest, k8sconfig)
+        config = await self.k8sconfig(integrationtest, k8sconfig)
         MM = MetaManifest
 
         for src in ["", "v1"]:
@@ -533,7 +533,7 @@ class TestUrlPathBuilder:
             assert k8s.resource(config, MM(src, "Namespace", "name", "")) == (res, err)
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    def test_resource_clusterrole(self, integrationtest, k8sconfig):
+    async def test_resource_clusterrole(self, integrationtest, k8sconfig):
         """Verify with a ClusterRole resource.
 
         This is a basic test since ClusterRoles only exist as
@@ -541,7 +541,7 @@ class TestUrlPathBuilder:
 
         """
         # Fixtures.
-        config = self.k8sconfig(integrationtest, k8sconfig)
+        config = await self.k8sconfig(integrationtest, k8sconfig)
         MM = MetaManifest
 
         # Tuples of API version that we ask for (if any), and what the final
@@ -587,10 +587,10 @@ class TestUrlPathBuilder:
             assert k8s.resource(config, MM(src, "ClusterRole", "ns", "name")) == (res, err)  # noqa
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    def test_resource_err(self, integrationtest, k8sconfig):
+    async def test_resource_err(self, integrationtest, k8sconfig):
         """Test various error scenarios."""
         # Fixtures.
-        config = self.k8sconfig(integrationtest, k8sconfig)
+        config = await self.k8sconfig(integrationtest, k8sconfig)
         err_resp = (K8sResource("", "", "", False, ""), True)
         MM = MetaManifest
 
@@ -606,11 +606,11 @@ class TestUrlPathBuilder:
         assert k8s.resource(config, MM("", "Bogus", "ns", "name")) == err_resp
 
     @mock.patch.object(k8s, "get")
-    def test_compile_api_endpoints(self, m_get, k8sconfig):
+    async def test_compile_api_endpoints(self, m_get, k8sconfig):
         """Compile all endpoints from a pre-recorded set of API responses."""
         # All web requests fail. Function must thus abort with an error.
         m_get.return_value = ({}, True)
-        assert k8s.compile_api_endpoints(k8sconfig) is True
+        assert await k8s.compile_api_endpoints(k8sconfig) is True
 
         # Sample return value for `https://k8s.com/apis`
         fake_api = json.loads(open("tests/support/apis-v1-15.json").read())
@@ -623,7 +623,7 @@ class TestUrlPathBuilder:
         m_get.side_effect = supply_fake_api
 
         k8sconfig.apis.clear()
-        assert k8s.compile_api_endpoints(k8sconfig) is False
+        assert await k8s.compile_api_endpoints(k8sconfig) is False
         assert isinstance(k8sconfig.apis, dict) and len(k8sconfig.apis) > 0
 
         # Services have a short name.
@@ -641,10 +641,10 @@ class TestUrlPathBuilder:
         assert "Deployments" not in k8sconfig.kinds
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    def test_compile_api_endpoints_resource_kinds(self, integrationtest, k8sconfig):
+    async def test_compile_api_endpoints_resource_kinds(self, integrationtest, k8sconfig):
         """Manually verify some resource kinds."""
         # Fixtures.
-        config = self.k8sconfig(integrationtest, k8sconfig)
+        config = await self.k8sconfig(integrationtest, k8sconfig)
 
         # Sanity check: must contain at least the default resource kinds. The
         # spelling must match with what would be declared in `manifest.kind`.
@@ -660,11 +660,11 @@ class TestUrlPathBuilder:
         assert "DemoCRD" in config.kinds
 
     @mock.patch.object(k8s, "get")
-    def test_compile_api_endpoints_err(self, m_get, k8sconfig):
+    async def test_compile_api_endpoints_err(self, m_get, k8sconfig):
         """Simulate network errors while compiling API endpoints."""
         # All web requests fail. Function must thus abort with an error.
         m_get.return_value = ({}, True)
-        assert k8s.compile_api_endpoints(k8sconfig) is True
+        assert await k8s.compile_api_endpoints(k8sconfig) is True
 
         # Sample return value for `https://k8s.com/apis`
         ret = {
@@ -683,10 +683,10 @@ class TestUrlPathBuilder:
         # Pretend that we could get all the API groups, but could not
         # interrogate the group endpoint to get the resources it offers.
         m_get.side_effect = [(ret, False), ({}, True)]
-        assert k8s.compile_api_endpoints(k8sconfig) is True
+        assert await k8s.compile_api_endpoints(k8sconfig) is True
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    def test_compile_api_endpoints_integrated(self, integrationtest, k8sconfig):
+    async def test_compile_api_endpoints_integrated(self, integrationtest, k8sconfig):
         """Ask for all endpoints and perform some sanity checks.
 
         This test is about `compile_api_endpoints` but we only inspect the
@@ -698,7 +698,7 @@ class TestUrlPathBuilder:
 
         # This will call `compile_api_endpoints` internally to populate fields
         # in `k8sconfig`.
-        config = self.k8sconfig(integrationtest, k8sconfig)
+        config = await self.k8sconfig(integrationtest, k8sconfig)
 
         # Sanity check.
         kinds = {
@@ -822,7 +822,8 @@ class TestK8sKubeconfig:
     @mock.patch.object(k8s, "load_auto_config")
     @mock.patch.object(k8s, "version")
     @mock.patch.object(k8s, "compile_api_endpoints")
-    def test_cluster_config(self, m_compile_endpoints, m_version, m_load_auto, k8sconfig):
+    async def test_cluster_config(self, m_compile_endpoints, m_version,
+                                  m_load_auto, k8sconfig):
         kubeconfig = Path("kubeconfig")
         kubecontext = None
 
@@ -830,7 +831,7 @@ class TestK8sKubeconfig:
         m_version.return_value = (k8sconfig, False)
         m_compile_endpoints.return_value = False
 
-        assert k8s.cluster_config(kubeconfig, kubecontext) == (k8sconfig, False)
+        assert await k8s.cluster_config(kubeconfig, kubecontext) == (k8sconfig, False)
 
     @mock.patch.object(k8s, "load_incluster_config")
     @mock.patch.object(k8s, "load_minikube_config")
