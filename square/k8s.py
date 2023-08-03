@@ -509,13 +509,19 @@ def request(
         )
 
     """
-    Use linear backoff. The backoff is not exponential because the most
-    prevalent use case for this backoff we have seen so far is to wait for
-    new resource endpoints to become available. These may take a few seconds,
-    or tens of seconds to do so. If we used an exponential strategy we may
-    end up waiting for a very long time for no good reason. The time between
-    backoffs is fairly large to avoid hammering the API. Jitter is disabled
-    because the irregular intervals are irritating in an interactive tool.
+    Configure linear backoff.
+
+    Exponential backoff proved problematic in practice because the most likely
+    retry reason has been waiting for CRDs, at least for me. CRDs can take a
+    few seconds, even tens of seconds to become available. With an exponential
+    strategy we may thus wait for a very long time if we just missed and now
+    have to wait exponentially longer.
+
+    A linear strategy avoids this. However, the time between backoffs is
+    deliberately large to avoid hammering the API.
+
+    Jitter is disabled because it proved irritating in an interactive tool.
+
     """
     @backoff.on_exception(backoff.constant, web_exceptions,
                           max_tries=max_tries,
