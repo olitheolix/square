@@ -888,20 +888,20 @@ def save(folder: Path,
     # Sort the manifest in each file by priority. Ignore the error flag because
     # `sort_manifests` always succeeds.
     # out: Dict[Path, List[dict]]
-    out, _ = sort_manifests(manifests, priority)
+    sorted_manifests, _ = sort_manifests(manifests, priority)
 
-    # Ignore all files without manifests, ie empty files.
-    out_nonempty = {k: v for k, v in out.items() if len(v) > 0}
-
-    # Ignore all hidden files.
-    out_not_hidden = {k: v for k, v in out_nonempty.items() if not k.name.startswith(".")}
+    # Ignore all empty and hidden files.
+    sorted_manifests = {
+        fname: manifests for fname, manifests in sorted_manifests.items()
+        if len(manifests) > 0 and not fname.name.startswith(".")
+    }
 
     # Convert all manifest dicts into YAML strings.
-    out_final: Dict[Path, str] = {}
+    ret: Dict[Path, str] = {}
     fname: Path = Path()
     try:
-        for fname, man in out_not_hidden.items():
-            out_final[fname] = yaml.dump_all(man, default_flow_style=False, Dumper=Dumper)
+        for fname, man in sorted_manifests.items():
+            ret[fname] = yaml.dump_all(man, default_flow_style=False, Dumper=Dumper)
     except yaml.YAMLError as e:
         logit.error(
             f"YAML error. Cannot create <{fname}>: {e.args[0]} <{str(e.args[1])}>"
@@ -909,7 +909,7 @@ def save(folder: Path,
         return True
 
     # Save the files to disk.
-    return save_files(folder, out_final)
+    return save_files(folder, ret)
 
 
 async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifests, bool]:
