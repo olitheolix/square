@@ -103,7 +103,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install Square With Python 3.10
+      - name: Install Square
         run: |
           # Install Poetry and build the Python package.
           pip install poetry==1.5.1
