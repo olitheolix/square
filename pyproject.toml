@@ -2,12 +2,17 @@
 name = "kubernetes-square"
 version = "1.5.1"
 description = ""
+readme = "README.md"
 authors = ["Oliver Nagy <olitheolix@gmail.com>"]
 packages = [
     { include = "square" },
 ]
 include = ["resources/defaultconfig.yaml"]
-
+classifiers = [
+    "Topic :: Kubernetes :: Build Tools",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
 
 [tool.poetry.dependencies]
 backoff = "*"
