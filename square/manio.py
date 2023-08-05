@@ -467,7 +467,7 @@ def diff(local: dict, server: dict) -> Tuple[str, bool]:
 def strip(
     k8sconfig: K8sConfig,
     manifest: dict,
-    manifest_filters: Filters,
+    filters: Filters,
 ) -> Tuple[dict, bool]:
     """Remove unwanted entries from `manifest` according to the `filters`.
 
@@ -494,7 +494,12 @@ def strip(
         return ret_err
     except AssertionError:
         return ret_err
+    del k8sconfig
 
+    return filter_manifest(copy.deepcopy(manifest), filters)
+
+
+def filter_manifest(manifest: dict, manifest_filters: Filters) -> Tuple[dict, bool]:
     def _update(filters: FiltersKind, manifest: dict):
         """Recursively traverse the `manifest` and prune it according to `filters`.
 
@@ -551,12 +556,11 @@ def strip(
     default_filter = square.DEFAULT_CONFIG.filters["_common_"]
     filters: FiltersKind = manifest_filters.get(kind, default_filter)
     if not square.cfgfile.valid(filters):
-        return ret_err
+        return {}, True
 
     # Remove the keys from the `manifest` according to `filters`.
-    out_manifest = copy.deepcopy(manifest)
-    _update(filters, out_manifest)
-    return (out_manifest, False)
+    _update(filters, manifest)
+    return manifest, False
 
 
 def align_serviceaccount(
