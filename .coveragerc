@@ -17,7 +17,7 @@ omit =
     tests/*
     delme*
     square/__main__.py
-    runme.py
+    pyinstaller_entrypoint.py
 
 [html]
 directory = htmlcov
