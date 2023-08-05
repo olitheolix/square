@@ -553,8 +553,8 @@ def strip(
     # Pick the first one that matches.
     kind = manifest["kind"]
 
-    default_filter = cast(Filters, square.DEFAULT_CONFIG.filters["_common_"])
-    filters: FiltersKind = cast(FiltersKind, manifest_filters.get(kind, default_filter))
+    default_filter = square.DEFAULT_CONFIG.filters["_common_"]
+    filters: FiltersKind = manifest_filters.get(kind, default_filter)
     if not square.cfgfile.valid(filters):
         return ret_err
 
