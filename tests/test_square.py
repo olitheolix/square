@@ -960,7 +960,25 @@ class TestPlan:
         assert await sq.compile_plan(config, k8sconfig, error, valid) == err_resp
         assert await sq.compile_plan(config, k8sconfig, error, error) == err_resp
 
-    def test_run_user_callback(self, config):
+    def test_call_external_function(self):
+        """Test various scenarios when calling a user supplied function."""
+        def cb(data: str):
+            assert data == "foo"
+            return ("it", "worked")
+
+        fun = sq.call_external_function
+
+        # Well behaved.
+        assert fun(cb, dict(data="foo")) == (("it", "worked"), False)
+
+        # Function will raise an exception.
+        assert fun(cb, dict(data="bar")) == (None, True)
+
+        # Wrong call signature.
+        assert fun(cb, {}) == (None, True)
+        assert fun(cb, dict(invalid="bar")) == (None, True)
+
+    def test_run_patch_callback(self, config):
         """Safeguard the call to the user supplied callback function.
 
         This test will define a few callback functions. Some will work as
@@ -986,45 +1004,34 @@ class TestPlan:
         # ----------------------------------------------------------------------
         local, server = get_dummy_manifests()
         config.patch_callback = None
-        assert not sq.run_user_callback(config, [meta], local, server)
+        assert not sq.run_patch_callback(config, [meta], local, server)
         assert local[meta] != server[meta]
         del local, server
 
         # ----------------------------------------------------------------------
-        # Callback is well behaved. It matches the local manifest to the server.
+        # Callback is well behaved and the local manifest to the server.
         # ----------------------------------------------------------------------
-        def cb1(_cfg, _local, _server):
-            return _server, _server
+        def cb1(square_config: Config, local_manifest: dict, server_manifest: dict):
+            return server, server
 
         local, server = get_dummy_manifests()
         config.patch_callback = cb1
-        assert not sq.run_user_callback(config, [meta], local, server)
+        assert not sq.run_patch_callback(config, [meta], local, server)
         assert local[meta] == server[meta]
         del cb1, local, server
 
         # ----------------------------------------------------------------------
         # Callback returns zero instead of two arguments.
         # ----------------------------------------------------------------------
-        def cb2(_cfg, _local, _server):
+        def cb2(square_config: Config, local_manifest: dict, server_manifest: dict):
             return None
 
         local, server = get_dummy_manifests()
         config.patch_callback = cb2
-        assert sq.run_user_callback(config, [meta], local, server)
+        assert sq.run_patch_callback(config, [meta], local, server)
         del cb2, local, server
 
-        # ----------------------------------------------------------------------
-        # Callback triggers an exception (division by zero in this case).
-        # ----------------------------------------------------------------------
-        def cb3(_cfg, _local, _server):
-            1 / 0               # type: ignore
-
-        local, server = get_dummy_manifests()
-        config.patch_callback = cb3
-        assert sq.run_user_callback(config, [meta], local, server)
-        del cb3, local, server
-
-    async def test_compile_plan_patch_user_callback(self, config, k8sconfig):
+    async def test_compile_plan_patch_callback(self, config, k8sconfig):
         """Test a plan that uses a custom callback function for patches.
 
         The client and server have the same resource but one requires a patch.
@@ -1044,11 +1051,11 @@ class TestPlan:
         loc_man_bak = copy.deepcopy(loc_man)
         srv_man_bak = copy.deepcopy(srv_man)
 
-        def cb1(_cfg: Config, _local: dict, _server: dict):
-            assert _cfg == config
-            assert _local == loc_man[meta]
-            assert _server == srv_man[meta]
-            return _server, _server
+        def cb1(square_config: Config, local_manifest: dict, server_manifest: dict):
+            assert square_config == config
+            assert local_manifest == loc_man[meta]
+            assert server_manifest == srv_man[meta]
+            return server_manifest, server_manifest
 
         # Create the plan without a user callback. This must produce a patch
         # because there is a difference between the local and remote manifests.
@@ -1056,9 +1063,8 @@ class TestPlan:
         ret, err = await sq.compile_plan(config, k8sconfig, loc_man, srv_man)
         assert not err and ret.create == ret.delete == [] and len(ret.patch) == 1
 
-        # Repeat the test with a callback function. Our test CB will overwrite
-        # the local one with that from the server, which means there will be
-        # nothing to patch.
+        # Repeat the test with a callback function. Our test CB will match
+        # the local and server manifests and the plan must thus be empty.
         config.patch_callback = cb1
         ret = await sq.compile_plan(config, k8sconfig, loc_man, srv_man)
         assert ret == (DeploymentPlan(create=[], patch=[], delete=[]), False)
@@ -1069,8 +1075,8 @@ class TestPlan:
         assert srv_man == srv_man_bak
 
         # Repeat the test, but this time force an error in the callback function.
-        def cb2(_cfg: Config, _local: dict, _server: dict):
-            1 / 0               # type: ignore
+        def cb2(square_config: Config, local_manifest: dict, server_manifest: dict):
+            raise ValueError()
 
         config.patch_callback = cb2
         _, err = await sq.compile_plan(config, k8sconfig, loc_man, srv_man)
