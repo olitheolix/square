@@ -758,8 +758,8 @@ class TestManifestValidation:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        out, removed, err = manio.strip(k8sconfig, manifest, filters)
-        assert (out, removed, err) == (manifest, {}, False)
+        out, err = manio.strip(k8sconfig, manifest, filters)
+        assert (out, err) == (manifest, False)
         assert isinstance(out, dotdict.DotDict)
         del manifest
 
@@ -783,10 +783,9 @@ class TestManifestValidation:
             },
             "spec": "spec",
         }
-        out, removed, err = manio.strip(k8sconfig, manifest, filters)
+        out, err = manio.strip(k8sconfig, manifest, filters)
         assert not err
         assert out == expected
-        assert removed == {'metadata': {'labels': {'foo': 'remove'}}}
         del manifest
 
         # Valid manifest with all mandatory and *some* optional keys (
@@ -818,13 +817,9 @@ class TestManifestValidation:
             },
             "spec": "keep",
         }
-        out, removed, err = manio.strip(k8sconfig, manifest, filters)
+        out, err = manio.strip(k8sconfig, manifest, filters)
         assert not err
         assert out == expected
-        assert removed == {
-            "metadata": {"labels": {"foo": "remove"}},
-            "status": "remove",
-        }
 
     def test_strip_ambigous_filters(self, k8sconfig):
         """Must cope with filters that specify the same resource multiple times."""
@@ -851,8 +846,8 @@ class TestManifestValidation:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        out, removed, err = manio.strip(k8sconfig, manifest, filters)
-        assert (out, removed, err) == (manifest, {}, False)
+        out, err = manio.strip(k8sconfig, manifest, filters)
+        assert (out, err) == (manifest, False)
         assert isinstance(out, dotdict.DotDict)
         del manifest
 
@@ -877,10 +872,9 @@ class TestManifestValidation:
             },
             "spec": "spec",
         }
-        out, removed, err = manio.strip(k8sconfig, manifest, filters)
+        out, err = manio.strip(k8sconfig, manifest, filters)
         assert not err
         assert out == expected
-        assert removed == {'metadata': {'creationTimestamp': "123"}}
         del manifest
 
         # Valid manifest with a "status" field that must not survive.
@@ -903,12 +897,9 @@ class TestManifestValidation:
             },
             "spec": "keep",
         }
-        out, removed, err = manio.strip(k8sconfig, manifest, filters)
+        out, err = manio.strip(k8sconfig, manifest, filters)
         assert not err
         assert out == expected
-        assert removed == {
-            "status": "remove",
-        }
 
     def test_strip_sub_hierarchies(self, k8sconfig):
         """Remove an entire sub-tree from the manifest."""
@@ -925,20 +916,20 @@ class TestManifestValidation:
         manifest: dict = copy.deepcopy(expected)
 
         manifest["status"] = "string"
-        out, removed, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err and out == expected and removed == {"status": manifest["status"]}
+        out, err = manio.strip(k8sconfig, manifest, filters)
+        assert not err and out == expected
 
         manifest["status"] = None
-        out, removed, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err and out == expected and removed == {"status": manifest["status"]}
+        out, err = manio.strip(k8sconfig, manifest, filters)
+        assert not err and out == expected
 
         manifest["status"] = ["foo", "bar"]
-        out, removed, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err and out == expected and removed == {"status": manifest["status"]}
+        out, err = manio.strip(k8sconfig, manifest, filters)
+        assert not err and out == expected
 
         manifest["status"] = {"foo", "bar"}
-        out, removed, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err and out == expected and removed == {"status": manifest["status"]}
+        out, err = manio.strip(k8sconfig, manifest, filters)
+        assert not err and out == expected
 
     def test_strip_lists_simple(self, k8sconfig):
         """Filter the `NodePort` key from a list of dicts."""
@@ -956,10 +947,9 @@ class TestManifestValidation:
             {"nodePort": 1},
             {"nodePort": 3},
         ]
-        out, removed, err = manio.strip(k8sconfig, manifest, filters)
+        out, err = manio.strip(k8sconfig, manifest, filters)
         assert not err
         assert out == expected
-        assert removed == {"spec": {"ports": [{"nodePort": 1}, {"nodePort": 3}]}}
 
     def test_strip_lists_service(self, k8sconfig):
         """Filter the `NodePort` key from a list of dicts."""
@@ -983,10 +973,9 @@ class TestManifestValidation:
             {"name": "http", "port": 82},
             {"name": "http", "port": 83},
         ]
-        out, removed, err = manio.strip(k8sconfig, manifest, filters)
+        out, err = manio.strip(k8sconfig, manifest, filters)
         assert not err
         assert out == expected
-        assert removed == {"spec": {"ports": [{"nodePort": 1}, {"nodePort": 3}]}}
 
     def test_strip_default_filters(self, k8sconfig):
         """Must fall back to default filters unless otherwise specified.
@@ -1006,8 +995,7 @@ class TestManifestValidation:
         expected["metadata"] = {"name": "name", "namespace": "ns"}
 
         # Must remove the `metadata.uid` field.
-        missing = {"metadata": {"uid": "some-uid"}}
-        assert manio.strip(k8sconfig, manifest, {}) == (expected, missing, False)
+        assert manio.strip(k8sconfig, manifest, {}) == (expected, False)
 
     def test_strip_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
@@ -1016,12 +1004,12 @@ class TestManifestValidation:
 
         # Valid K8s version with unknown resource type.
         manifest = {"apiVersion": "v1", "kind": "Unknown"}
-        assert manio.strip(k8sconfig, manifest, filters) == ({}, {}, True)
+        assert manio.strip(k8sconfig, manifest, filters) == ({}, True)
 
         # Invalid K8s version but valid resource type.
         config = k8sconfig._replace(version="unknown")
         manifest = {"apiVersion": "v1", "kind": "TEST"}
-        assert manio.strip(config, manifest, filters) == ({}, {}, True)
+        assert manio.strip(config, manifest, filters) == ({}, True)
 
         # Invalid filter definition.
         config = k8sconfig._replace(version="unknown")
@@ -1035,7 +1023,7 @@ class TestManifestValidation:
             }
         }
         filters: Filters = {"Service": "should-be-a-list"}              # type: ignore
-        assert manio.strip(config, manifest, filters) == ({}, {}, True)
+        assert manio.strip(config, manifest, filters) == ({}, True)
 
     def test_strip_namespace(self, k8sconfig):
         """Filter NAMESPACE manifests."""
@@ -1045,7 +1033,7 @@ class TestManifestValidation:
             "kind": "Namespace",
             "metadata": {"name": "mandatory"},
         }
-        assert manio.strip(k8sconfig, manifest, {}) == (manifest, {}, False)
+        assert manio.strip(k8sconfig, manifest, {}) == (manifest, False)
         del manifest
 
         # Create invalid manifests that either specify a namespace for a
@@ -1062,7 +1050,7 @@ class TestManifestValidation:
             }
             if resource(k8sconfig, MetaManifest("", kind, None, ""))[0].namespaced:
                 del manifest["metadata"]["namespace"]
-            assert manio.strip(k8sconfig, manifest, {}) == ({}, {}, True)
+            assert manio.strip(k8sconfig, manifest, {}) == ({}, True)
 
     def test_strip_deployment(self, k8sconfig):
         """Filter DEPLOYMENT manifests."""
@@ -1106,22 +1094,9 @@ class TestManifestValidation:
             },
             "spec": "some spec",
         }
-        out, removed, err = manio.strip(k8sconfig, manifest, {})
+        out, err = manio.strip(k8sconfig, manifest, {})
         assert not err
         assert out == expected
-        assert removed == {
-            "metadata": {
-                "annotations": {
-                    "deployment.kubernetes.io/revision": "remove",
-                    "kubectl.kubernetes.io/last-applied-configuration": "remove",
-                },
-                "creationTimestamp": "remove",
-                "resourceVersion": "remove",
-                "selfLink": "remove",
-                "uid": "remove",
-            },
-            "status": "remove",
-        }
 
         # Deployments must have a "metadata.namespace" attribute.
         manifest = {
@@ -1129,7 +1104,7 @@ class TestManifestValidation:
             "kind": "Deployment",
             "metadata": {"name": "mandatory"},
         }
-        assert manio.strip(k8sconfig, manifest, {}) == ({}, {}, True)
+        assert manio.strip(k8sconfig, manifest, {}) == ({}, True)
 
 
 class TestDiff:
