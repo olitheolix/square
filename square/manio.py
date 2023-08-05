@@ -560,8 +560,8 @@ def strip(
 
     # Remove the keys from the `manifest` according to `filters`.
     manifest = copy.deepcopy(manifest)
-    removed = _update(filters, manifest)
-    return (square.dotdict.make(manifest), removed, False)
+    stripped_manifests = _update(filters, manifest)
+    return (square.dotdict.make(manifest), stripped_manifests, False)
 
 
 def align_serviceaccount(
