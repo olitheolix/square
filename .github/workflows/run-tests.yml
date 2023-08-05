@@ -119,6 +119,7 @@ jobs:
         working-directory: ./examples
         run: |
           python basic_workflow.py
+          python import_multiple_clusters.py
 
   build-docker-image:
     runs-on: ubuntu-latest
