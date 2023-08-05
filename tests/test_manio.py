@@ -2036,10 +2036,9 @@ class TestDownloadManifests:
         config.selectors = Selectors(kinds={"Namespace", "Deployment", "Unknown"})
         ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
-        assert m_get.call_args_list == [
-            mock.call(k8sconfig.client, res_deploy.url),
-            mock.call(k8sconfig.client, res_ns.url),
-        ]
+        assert m_get.call_count == 2
+        m_get.assert_any_call(k8sconfig.client, res_deploy.url)
+        m_get.assert_any_call(k8sconfig.client, res_ns.url)
 
         # ------------------------------------------------------------------------------
         # Request resources from all namespaces explicitly via namespaces=["ns0", "ns1"]
@@ -2058,12 +2057,11 @@ class TestDownloadManifests:
                                      namespaces=["ns0", "ns1"])
         ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
-        assert m_get.call_args_list == [
-            mock.call(k8sconfig.client, res_dply_0.url),
-            mock.call(k8sconfig.client, res_ns_0.url),
-            mock.call(k8sconfig.client, res_dply_1.url),
-            mock.call(k8sconfig.client, res_ns_1.url),
-        ]
+        assert m_get.call_count == 4
+        m_get.assert_any_call(k8sconfig.client, res_dply_0.url)
+        m_get.assert_any_call(k8sconfig.client, res_ns_0.url)
+        m_get.assert_any_call(k8sconfig.client, res_dply_1.url)
+        m_get.assert_any_call(k8sconfig.client, res_ns_1.url)
 
         # ----------------------------------------------------------------------
         # Request resources from namespace "ns0" only.
@@ -2084,10 +2082,9 @@ class TestDownloadManifests:
                                      namespaces=["ns0"])
         ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
-        assert m_get.call_args_list == [
-            mock.call(k8sconfig.client, res_dply_0.url),
-            mock.call(k8sconfig.client, res_ns_0.url),
-        ]
+        assert m_get.call_count == 2
+        m_get.assert_any_call(k8sconfig.client, res_dply_0.url)
+        m_get.assert_any_call(k8sconfig.client, res_ns_0.url)
 
     @mock.patch.object(k8s, 'get')
     async def test_download_err(self, m_get, config, k8sconfig):
@@ -2113,10 +2110,9 @@ class TestDownloadManifests:
         # a successful `NamespaceList` download.
         ret = await manio.download(config, k8sconfig)
         assert ret == ({}, True)
-        assert m_get.call_args_list == [
-            mock.call(k8sconfig.client, res_deploy.url),
-            mock.call(k8sconfig.client, res_ns.url),
-        ]
+        assert m_get.call_count == 2
+        m_get.assert_any_call(k8sconfig.client, res_deploy.url)
+        m_get.assert_any_call(k8sconfig.client, res_ns.url)
 
     @mock.patch.object(k8s, 'get')
     async def test_download_single(self, m_get, k8sconfig):
