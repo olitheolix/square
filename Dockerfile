@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Install Pip and Pipenv.
 RUN apt update && apt install -y git
@@ -12,5 +12,5 @@ COPY . /square
 RUN pipenv install --system
 
 # Allow convenient execution of Square in Docker.
-ENTRYPOINT ["python", "runme.py"]
+ENTRYPOINT ["python", "-m", "square"]
 CMD ["-h"]
