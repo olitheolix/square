@@ -5,13 +5,12 @@ import difflib
 import logging
 import multiprocessing
 from pathlib import Path
-from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple, cast
+from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple
 
 import yaml.parser
 import yaml.scanner
 
 import square.cfgfile
-import square.dotdict
 import square.k8s
 from square.dtypes import (
     Config, Filters, FiltersKind, GroupBy, K8sConfig, K8sResource, KindName,
@@ -21,7 +20,6 @@ from square.yaml_io import Dumper, Loader
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
-DotDict = square.dotdict.DotDict
 
 
 def make_meta(manifest: dict) -> MetaManifest:
@@ -458,11 +456,8 @@ def diff(local: dict, server: dict) -> Tuple[str, bool]:
         produce it.
 
     """
-    # Precaution: undo the DotDicts to ensure the YAML parser will accept them.
-    srv = square.dotdict.undo(server)
-    loc = square.dotdict.undo(local)
-    srv_lines = yaml.dump(srv, default_flow_style=False, Dumper=Dumper).splitlines()
-    loc_lines = yaml.dump(loc, default_flow_style=False, Dumper=Dumper).splitlines()
+    srv_lines = yaml.dump(server, default_flow_style=False, Dumper=Dumper).splitlines()
+    loc_lines = yaml.dump(local, default_flow_style=False, Dumper=Dumper).splitlines()
 
     # Compute and return the lines of the diff.
     diff_lines = difflib.unified_diff(srv_lines, loc_lines, lineterm='')
@@ -473,7 +468,7 @@ def strip(
     k8sconfig: K8sConfig,
     manifest: dict,
     manifest_filters: Filters,
-) -> Tuple[DotDict, bool]:
+) -> Tuple[dict, bool]:
     """Remove unwanted entries from `manifest` according to the `filters`.
 
     Inputs:
@@ -487,7 +482,7 @@ def strip(
 
     """
     # Convenience: default return value if an error occurs.
-    ret_err: Tuple[DotDict, bool] = (square.dotdict.make({}), True)
+    ret_err: Tuple[dict, bool] = ({}, True)
 
     # Parse the manifest.
     try:
@@ -561,7 +556,7 @@ def strip(
     # Remove the keys from the `manifest` according to `filters`.
     out_manifest = copy.deepcopy(manifest)
     _update(filters, out_manifest)
-    return (square.dotdict.make(out_manifest), False)
+    return (out_manifest, False)
 
 
 def align_serviceaccount(
@@ -897,26 +892,16 @@ def save(folder: Path,
 
     # Ignore all files without manifests, ie empty files.
     out_nonempty = {k: v for k, v in out.items() if len(v) > 0}
-    del out
-
-    # Ensure that our list of manifests does not contain any `DotDicts`
-    # anymore. This will avoid problems with the YAML serialisation below.
-    out_clean = {
-        fname: [square.dotdict.undo(man) for man in manifests]
-        for fname, manifests in out_nonempty.items()
-    }
-    del out_nonempty
 
     # Ignore all hidden files.
-    out_clean = {k: v for k, v in out_clean.items() if not k.name.startswith(".")}
+    out_not_hidden = {k: v for k, v in out_nonempty.items() if not k.name.startswith(".")}
 
     # Convert all manifest dicts into YAML strings.
     out_final: Dict[Path, str] = {}
     fname: Path = Path()
     try:
-        for fname, v in out_clean.items():
-            out_final[fname] = yaml.dump_all(v, default_flow_style=False,
-                                             Dumper=Dumper)
+        for fname, man in out_not_hidden.items():
+            out_final[fname] = yaml.dump_all(man, default_flow_style=False, Dumper=Dumper)
     except yaml.YAMLError as e:
         logit.error(
             f"YAML error. Cannot create <{fname}>: {e.args[0]} <{str(e.args[1])}>"

@@ -9,7 +9,6 @@ from typing import Any, Dict, List, cast
 import pytest
 import yaml
 
-import square.dotdict as dotdict
 import square.k8s as k8s
 import square.manio as manio
 from square.dtypes import (
@@ -760,7 +759,6 @@ class TestManifestValidation:
         }
         out, err = manio.strip(k8sconfig, manifest, filters)
         assert (out, err) == (manifest, False)
-        assert isinstance(out, dotdict.DotDict)
         del manifest
 
         # Demo manifest. The "labels.foo" matches the filter and must not survive.
@@ -848,7 +846,6 @@ class TestManifestValidation:
         }
         out, err = manio.strip(k8sconfig, manifest, filters)
         assert (out, err) == (manifest, False)
-        assert isinstance(out, dotdict.DotDict)
         del manifest
 
         # Demo manifest. The "labels.creationTimestamp" matches the filter and
@@ -1113,10 +1110,6 @@ class TestDiff:
         # Two valid manifests.
         srv = make_manifest("Deployment", "namespace", "name1")
         loc = make_manifest("Deployment", "namespace", "name2")
-
-        # Test function must able to cope with `DotDicts`.
-        srv = cast(dict, dotdict.make(srv))
-        loc = cast(dict, dotdict.make(loc))
 
         # Diff the manifests. Must not return an error.
         diff_str, err = manio.diff(loc, srv)
