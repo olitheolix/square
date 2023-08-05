@@ -332,9 +332,8 @@ def sync(local_manifests: LocalManifestLists,
 
     # Add all local manifests that do not match the selectors to the server
     # manifests. This will *not* propagate to K8s in any way. However, it will
-    # simplify the logic of this function because local and server manifests
-    # that were not selected will be automatically in sync and not appear in
-    # the diffs.
+    # simplify the logic of this function because the un-selected local/server
+    # manifests will now be automatically in sync.
     for fname, manifests in local_manifests.items():
         for meta, manifest in manifests:
             if select(manifest, selectors, True):
@@ -376,7 +375,7 @@ def sync(local_manifests: LocalManifestLists,
 
     # Iterate over all manifests in all files and drop the resources that do
     # not exist on the server. This will, in effect, delete those resources in
-    # the local files if the caller chose to save them.
+    # the local files if the caller saves them later.
     out_add_mod_del: LocalManifestLists = {}
     for fname, manifests in out_add_mod.items():
         pruned = [(meta, man) for (meta, man) in manifests if meta in server_manifests]
@@ -475,7 +474,7 @@ def strip(
     manifest: dict,
     manifest_filters: Filters,
 ) -> Tuple[DotDict, dict, bool]:
-    """Strip `manifest` according to the filters in `square.cfgfile`.
+    """Remove unwanted entries from `manifest` according to the `filters`.
 
     Inputs:
         k8sconfig: K8sConfig
@@ -504,7 +503,7 @@ def strip(
     def _update(filters: FiltersKind, manifest: dict):
         """Recursively traverse the `manifest` and prune it according to `filters`.
 
-        Returns dict with the excluded keys.
+        Returns the input `manifest` but with the excluded sections.
 
         Raise `KeyError` if an invalid key was found.
 
@@ -549,9 +548,8 @@ def strip(
         return {k: v for k, v in removed.items() if v != {}}
 
     # Look up the filters for the current resource in the following order:
-    # 1) Supplied `filters`
+    # 1) Supplied `manifest_filters`
     # 2) Square default filters for this resource `kind`.
-    # 3) Square default filters that apply to all resource kinds.
     # Pick the first one that matches.
     kind = manifest["kind"]
 
