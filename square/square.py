@@ -232,9 +232,9 @@ def run_patch_callback(config: Config,
                        server: Dict[MetaManifest, dict]) -> bool:
     """Run the user supplied callback function for all manifests to patch.
 
-    This function will run *after* the filters from the `Config` were applied.
+    This function will run *after* the manifests were stripped.
 
-    NOTE: modifies `local` and `server` inplace.
+    NOTE: modifies `local` and `server` dictionaries in-place.
 
     Inputs:
         config: Square configuration.
@@ -246,10 +246,8 @@ def run_patch_callback(config: Config,
             Should be output from `manio.download`.
 
     """
-    # Do nothing and return immediately if the user did not provide a callback.
+    # Convenience.
     cb = config.patch_callback
-    if not cb:
-        return False
 
     # Run user supplied callback for each local/server manifest pair that needs
     # patching. This will update our dict of local/server manifests inplace.
