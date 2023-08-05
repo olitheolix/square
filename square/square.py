@@ -5,7 +5,7 @@ import re
 import sys
 import traceback
 from collections import Counter
-from typing import Collection, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Collection, Dict, List, Optional, Set, Tuple
 
 import colorama
 import jsonpatch
@@ -226,10 +226,10 @@ async def match_api_version(
     return server, False
 
 
-def run_user_callback(config: Config,
-                      plan_patch: List[MetaManifest],
-                      local: Dict[MetaManifest, dict],
-                      server: Dict[MetaManifest, dict]) -> bool:
+def run_patch_callback(config: Config,
+                       plan_patch: List[MetaManifest],
+                       local: Dict[MetaManifest, dict],
+                       server: Dict[MetaManifest, dict]) -> bool:
     """Run the user supplied callback function for all manifests to patch.
 
     This function will run *after* the filters from the `Config` were applied.
@@ -255,10 +255,35 @@ def run_user_callback(config: Config,
     # patching. This will update our dict of local/server manifests inplace.
     try:
         for meta in plan_patch:
-            local[meta], server[meta] = cb(config, local[meta], server[meta])
+            kwargs = dict(
+                square_config=config,
+                local_manifest=local[meta],
+                server_manifest=server[meta]
+            )
+            (local[meta], server[meta]), err = call_external_function(cb, kwargs)
+            assert not err
+    except (ValueError, TypeError, AssertionError):
+        return True
+    return False
+
+
+def call_external_function(fun: Callable, kwargs: dict) -> Tuple[Any, bool]:
+    """Call `fun` with `kwargs` and return the result.
+
+    This function is the equivalent of `return fun(**kwargs)`. However, it will
+    intercept any exceptions raised in `fun`, log them and return with an error
+    without breaking Square in the process.
+
+    Inputs:
+        fun: the function to call
+        kwargs: dict
+
+    """
+    # Run user supplied `fun` and return the result.
+    try:
+        return (fun(**kwargs), False)
     except Exception:
-        # Error in user supplied callback function. Print a hopefully useful
-        # stack trace and the return cleanly with an error.
+        # Log the stack trace and return with an error.
         tb_str = str.join(
             "\n",
             traceback.format_exception(*sys.exc_info())
@@ -268,8 +293,7 @@ def run_user_callback(config: Config,
             "---\n"
             f"{tb_str}---"
         )
-        return True
-    return False
+        return (None, True)
 
 
 async def compile_plan(
@@ -374,7 +398,7 @@ async def compile_plan(
 
     # Run the local/server manifests through a custom callback function that
     # can modify them before Square computes the patch.
-    if run_user_callback(config, list(plan.patch), local, server):
+    if run_patch_callback(config, list(plan.patch), local, server):
         return err_resp
 
     # Iterate over each manifest that needs patching and determine the
