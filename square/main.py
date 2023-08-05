@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import logging
 import os
 from pathlib import Path
@@ -379,7 +380,7 @@ def show_info(cfg: Config) -> bool:
     return False
 
 
-async def main() -> int:
+async def start() -> int:
     param = parse_commandline_args()
 
     # Print version information and quit.
@@ -424,3 +425,7 @@ async def main() -> int:
 
     # Return error code.
     return 1 if err else 0
+
+
+def main():                     # codecov-skip
+    return asyncio.run(start())

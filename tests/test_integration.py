@@ -97,7 +97,7 @@ class TestMainGet:
         # resources, it must contain some files.
         assert len(list(tmp_path.rglob("*.yaml"))) == 0
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
 
         # The integration test cluster has these namespaces, which means Square
         # must have created equivalent folders.
@@ -143,14 +143,14 @@ class TestMainGet:
         # Sync Deployments: must create "deployment.yaml".
         args = ("square.py", "get", "deploy", *common_args)
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 1
         assert (man_path / "deployment.yaml").exists()
 
         # Sync Ingresses: must add "ingress.yaml".
         args = ("square.py", "get", "ingress", *common_args)
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 2
         assert (man_path / "deployment.yaml").exists()
         assert (man_path / "ingress.yaml").exists()
@@ -161,7 +161,7 @@ class TestMainGet:
         kubectl("delete", "deploy", "demoapp-1", "-n", "square-tests-1")
         args = ("square.py", "get", "ingress", *common_args)
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 2
         assert (man_path / "deployment.yaml").exists()
         assert (man_path / "ingress.yaml").exists()
@@ -172,7 +172,7 @@ class TestMainGet:
         # because we have no deployments anymore.
         args = ("square.py", "get", "deploy", *common_args)
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 1
         assert (man_path / "ingress.yaml").exists()
 
@@ -211,7 +211,7 @@ class TestMainGet:
                 *common_args)
 
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 1
         assert (man_path / "_other.yaml").exists()
 
@@ -230,7 +230,7 @@ class TestMainGet:
         kubectl("delete", "ingress", "demoapp-1", "-n", "square-tests-1")
         args = ("square.py", "get", "ingress", "-n", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
         assert load_manifests(man_path) == {
             ('Deployment', 'square-tests-1', 'demoapp-1'),
             ('Deployment', 'square-tests-2', 'demoapp-1'),
@@ -248,7 +248,7 @@ class TestMainGet:
         args = ("square.py", "get", "ingress",
                 "-n", "square-tests-1", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
         assert load_manifests(man_path) == {
             ('Deployment', 'square-tests-1', 'demoapp-1'),
             ('Deployment', 'square-tests-2', 'demoapp-1'),
@@ -262,7 +262,7 @@ class TestMainGet:
         args = ("square.py", "get", "deploy",
                 "-n", "square-tests-1", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
         assert load_manifests(man_path) == {
             ('Ingress', 'square-tests-2', 'demoapp-1'),
         }
@@ -275,7 +275,7 @@ class TestMainGet:
         args = ("square.py", "get", "ingress",
                 "-n", "square-tests-1", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 0
 
     async def test_nonpreferred_api(self, tmp_path):
@@ -419,7 +419,7 @@ class TestKindName:
         # in the demo cluster.
         args = ("square.py", "get", "configmap/demo-configmap-1", *common_args)
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
 
         man = list(yaml.safe_load_all(man_path.read_text()))
         assert len(man) == 2
@@ -433,7 +433,7 @@ class TestKindName:
         # one in the demo cluster.
         args = ("square.py", "get", "configmap/demo-configmap-2", *common_args)
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
 
         man = list(yaml.safe_load_all((tmp_path / "_other.yaml").read_text()))
         assert len(man) == 1
@@ -618,7 +618,7 @@ class TestMainPlan:
 
         # Merely verify that the program does not break.
         with mock.patch("sys.argv", args):
-            assert await square.main.main() == 0
+            assert await square.main.start() == 0
 
     async def test_workflow(self, tmp_path):
         """Delete and restore full namespace with Square.

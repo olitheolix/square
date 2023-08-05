@@ -594,7 +594,7 @@ class TestMain:
                 "--namespace", "default",
             )
             with mock.patch("sys.argv", args):
-                assert await main.main() == 0
+                assert await main.start() == 0
             del args
 
         # These two deviate from the values in `tests/support/config.yaml`.
@@ -622,7 +622,7 @@ class TestMain:
                 "--info",
             )
             with mock.patch("sys.argv", args):
-                assert await main.main() == 0
+                assert await main.start() == 0
             del args
 
         # These two deviate from the values in `tests/support/config.yaml`.
@@ -637,7 +637,7 @@ class TestMain:
     async def test_main_version(self):
         """Simulate "version" command."""
         with mock.patch("sys.argv", ("square.py", "version")):
-            assert await main.main() == 0
+            assert await main.start() == 0
 
     @mock.patch.object(sq, "k8s")
     async def test_main_invalid_option(self, m_k8s):
@@ -649,13 +649,13 @@ class TestMain:
         # Do not pass any option.
         with mock.patch("sys.argv", ["square.py"]):
             with pytest.raises(SystemExit) as err:
-                await main.main()
+                await main.start()
             assert err.value.code == 2
 
         # Pass an invalid option.
         with mock.patch("sys.argv", ["square.py", "invalid-option"]):
             with pytest.raises(SystemExit) as err:
-                await main.main()
+                await main.start()
             assert err.value.code == 2
 
     @mock.patch.object(sq, "k8s")
@@ -684,7 +684,7 @@ class TestMain:
         # Simulate all input options.
         for option in ["get", "plan", "apply"]:
             with mock.patch("sys.argv", ["square.py", option, "ns"]):
-                assert await main.main() == 1
+                assert await main.start() == 1
 
     @mock.patch.object(main, "parse_commandline_args")
     @mock.patch.object(k8s, "cluster_config")
@@ -704,12 +704,12 @@ class TestMain:
         # Simulate an invalid Square command.
         param.parser = "invalid"
         m_cmd.return_value = param
-        assert await main.main() == 1
+        assert await main.start() == 1
 
         # Force a configuration error due to the absence of K8s credentials.
         param.kubeconfig += "does-not-exist"
         m_cmd.return_value = param
-        assert await main.main() == 1
+        assert await main.start() == 1
 
     @mock.patch.object(sq, "k8s")
     async def test_main_version_error(self, m_k8s):
@@ -718,14 +718,14 @@ class TestMain:
         m_k8s.cluster_config.return_value = (None, True)
 
         with mock.patch("sys.argv", ["square.py", "get", "deploy"]):
-            assert await main.main() == 1
+            assert await main.start() == 1
 
     async def test_main_create_default_config_file(self, tmp_path):
         """Create a copy of the default config config in the specified folder."""
         folder = tmp_path / "folder"
 
         with mock.patch("sys.argv", ["square.py", "config", "--folder", str(folder)]):
-            assert await main.main() == 0
+            assert await main.start() == 0
 
         fname = (folder / ".square.yaml")
         assert DEFAULT_CONFIG_FILE.read_text() == fname.read_text()
