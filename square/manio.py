@@ -1000,9 +1000,9 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
 
                 # Return nothing, even if we had downloaded other kinds already.
                 return ({}, True)
-            else:
-                # Copy the manifests into the output dictionary.
-                server_manifests.update(manifests)
+
+            # Copy the manifests into the output dictionary.
+            server_manifests.update(manifests)
     return (server_manifests, False)
 
 
