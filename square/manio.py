@@ -1,3 +1,4 @@
+import asyncio
 import collections
 import copy
 import difflib
@@ -963,30 +964,47 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
     # user wanted which we can get from the `selectors._kinds_names`.
     all_kinds = {_.kind for _ in config.selectors._kinds_names}
 
-    # Download each resource type. Abort at the first error and return nothing.
-    server_manifests: SquareManifests = {}
+    # Compile the co-routines to download all requested resources.
+    coroutines = []
     for namespace in all_namespaces:
-        for kind in sorted(all_kinds):
-            manifests, err = await dl_worker(config, k8sconfig, kind, namespace)
-            if err:
-                return ({}, True)
+        for kind in all_kinds:
+            coroutines.append(_download_worker(config, k8sconfig, kind, namespace))
 
-            # Copy the manifests into the output dictionary.
-            server_manifests.update(manifests)
+    # Schedule all tasks and wait until they have all completed.
+    awaited_tasks = await asyncio.gather(*coroutines)
+
+    # Abort if any task returned with an error.
+    if any((_[1] for _ in awaited_tasks)):
+        return ({}, True)
+
+    # Combine the manifests from each task into a single output dictionary.
+    server_manifests: SquareManifests = {}
+    for manifests, _ in awaited_tasks:
+        server_manifests.update(manifests)
     return (server_manifests, False)
 
 
-async def dl_worker(config: Config, k8sconfig: K8sConfig,
-                    kind: str, namespace: str | None) -> Tuple[SquareManifests, bool]:
-    # Get the K8s URL for the current resource kind or skip it if it does not
-    # exist. We do not treat it as an error but simply return an empty list of manifests.
+async def _download_worker(config: Config, k8sconfig: K8sConfig, kind: str,
+                           namespace: str | None) -> Tuple[SquareManifests, bool]:
+    """Download and return the manifests for the specified `kind` and `namespace`.
+
+    If the `namespace` or `kind` does not exist then the function will return
+    an empty list of manifest but not an error. This has mostly practical
+    reasons because Kubernetes is unfazed when asked about non-existing
+    namespaces or resource, and this function mimics this behaviour.
+
+    Return with an error if the resource could not be downloaded.
+
+    """
+    # Get the K8s URL for the current resource kind or return an empty manifest
+    # list if it does not exist.
     resource, err = square.k8s.resource(k8sconfig, MetaManifest("", kind, namespace, ""))  # noqa
     if err:
         logit.warning(f"Skipping unknown resource <{kind}>")
         return ({}, False)
 
     try:
-        # Download the resource manifests for the current `kind` from K8s.
+        # Download the resource manifests for the current KIND.
         manifest_list, err = await square.k8s.get(k8sconfig.client, resource.url)
         assert not err and manifest_list is not None
 
@@ -995,9 +1013,11 @@ async def dl_worker(config: Config, k8sconfig: K8sConfig,
         manifests, err = unpack_k8s_resource_list(manifest_list)
         assert not err and manifests is not None
 
-        # Strip off the fields defined in `config.filters`.
-        ret = {k: strip(k8sconfig, man, config.filters)
-               for k, man in manifests.items()}
+        # Strip the fields defined in `config.filters`.
+        ret = {
+            k: strip(k8sconfig, man, config.filters)
+            for k, man in manifests.items()
+        }
 
         # Ensure `strip` worked for every manifest.
         err = any((v[2] for v in ret.values()))
