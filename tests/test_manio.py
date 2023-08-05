@@ -728,8 +728,8 @@ class TestYamlManifestIO:
             assert ref == out
 
 
-class TestManifestValidation:
-    def test_strip_generic(self, k8sconfig):
+class TestManifestFiltering:
+    def test_filter_manifests_generic(self):
         """Create a completely fake filter set to test all options.
 
         This test has nothing to do with real world manifests. Its only purpose
@@ -757,8 +757,7 @@ class TestManifestValidation:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        out, err = manio.strip(k8sconfig, manifest, filters)
-        assert (out, err) == (manifest, False)
+        assert manio.filter_manifest(manifest, filters) == (manifest, False)
         del manifest
 
         # Demo manifest. The "labels.foo" matches the filter and must not survive.
@@ -781,9 +780,7 @@ class TestManifestValidation:
             },
             "spec": "spec",
         }
-        out, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err
-        assert out == expected
+        assert manio.filter_manifest(manifest, filters) == (expected, False)
         del manifest
 
         # Valid manifest with all mandatory and *some* optional keys (
@@ -815,11 +812,9 @@ class TestManifestValidation:
             },
             "spec": "keep",
         }
-        out, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err
-        assert out == expected
+        assert manio.filter_manifest(manifest, filters) == (expected, False)
 
-    def test_strip_ambigous_filters(self, k8sconfig):
+    def test_filter_manifest_ambigous_filters(self):
         """Must cope with filters that specify the same resource multiple times."""
         # Define filters for this test.
         _filters: FiltersKind = [
@@ -844,7 +839,7 @@ class TestManifestValidation:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        out, err = manio.strip(k8sconfig, manifest, filters)
+        out, err = manio.filter_manifest(manifest, filters)
         assert (out, err) == (manifest, False)
         del manifest
 
@@ -869,7 +864,7 @@ class TestManifestValidation:
             },
             "spec": "spec",
         }
-        out, err = manio.strip(k8sconfig, manifest, filters)
+        out, err = manio.filter_manifest(manifest, filters)
         assert not err
         assert out == expected
         del manifest
@@ -894,11 +889,9 @@ class TestManifestValidation:
             },
             "spec": "keep",
         }
-        out, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err
-        assert out == expected
+        assert manio.filter_manifest(manifest, filters) == (expected, False)
 
-    def test_strip_sub_hierarchies(self, k8sconfig):
+    def test_filter_manifest_sub_hierarchies(self):
         """Remove an entire sub-tree from the manifest."""
         # Remove the "status" key, irrespective of whether it is a string, dict
         # or list in the actual manifest.
@@ -913,22 +906,18 @@ class TestManifestValidation:
         manifest: dict = copy.deepcopy(expected)
 
         manifest["status"] = "string"
-        out, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err and out == expected
+        assert manio.filter_manifest(manifest, filters) == (expected, False)
 
         manifest["status"] = None
-        out, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err and out == expected
+        assert manio.filter_manifest(manifest, filters) == (expected, False)
 
         manifest["status"] = ["foo", "bar"]
-        out, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err and out == expected
+        assert manio.filter_manifest(manifest, filters) == (expected, False)
 
         manifest["status"] = {"foo", "bar"}
-        out, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err and out == expected
+        assert manio.filter_manifest(manifest, filters) == (expected, False)
 
-    def test_strip_lists_simple(self, k8sconfig):
+    def test_filter_manifest_lists_simple(self):
         """Filter the `NodePort` key from a list of dicts."""
         # Filter the "nodePort" element from the port list.
         filters: Filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
@@ -944,11 +933,9 @@ class TestManifestValidation:
             {"nodePort": 1},
             {"nodePort": 3},
         ]
-        out, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err
-        assert out == expected
+        assert manio.filter_manifest(manifest, filters) == (expected, False)
 
-    def test_strip_lists_service(self, k8sconfig):
+    def test_filter_manifest_lists_service(self):
         """Filter the `NodePort` key from a list of dicts."""
         # Filter the "nodePort" element from the port list.
         filters: Filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
@@ -970,11 +957,9 @@ class TestManifestValidation:
             {"name": "http", "port": 82},
             {"name": "http", "port": 83},
         ]
-        out, err = manio.strip(k8sconfig, manifest, filters)
-        assert not err
-        assert out == expected
+        assert manio.filter_manifest(manifest, filters) == (expected, False)
 
-    def test_strip_default_filters(self, k8sconfig):
+    def test_filter_manifest_default_filters(self):
         """Must fall back to default filters unless otherwise specified.
 
         Here we expect the function to strip out the `metadata.uid` because it
@@ -992,7 +977,18 @@ class TestManifestValidation:
         expected["metadata"] = {"name": "name", "namespace": "ns"}
 
         # Must remove the `metadata.uid` field.
-        assert manio.strip(k8sconfig, manifest, {}) == (expected, False)
+        assert manio.filter_manifest(manifest, {}) == (expected, False)
+
+    def test_filter_manifest_invalid_filters(self):
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {"name": "name", "namespace": "ns"},
+            "spec": "spec",
+        }
+        invalid_filter = {"Service": "invalid-filter"}
+        ret = manio.filter_manifest(manifest, invalid_filter)  # type: ignore
+        assert ret == ({}, True)
 
     def test_strip_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
@@ -1051,7 +1047,7 @@ class TestManifestValidation:
 
     def test_strip_deployment(self, k8sconfig):
         """Filter DEPLOYMENT manifests."""
-        # A valid service manifest with a few optional and irrelevant keys.
+        # A valid DEPLOYMENT manifest with a few optional and irrelevant keys.
         manifest = {
             "apiVersion": "apps/v1",
             "kind": "Deployment",
