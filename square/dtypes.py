@@ -3,6 +3,8 @@ from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from pydantic import BaseModel, Field
 
+import square.callbacks
+
 # Square will first save/deploy the resources in this list in this order.
 # Afterwards it will move on to all those resources not in this list. The order
 # in which it does that is undefined.
@@ -240,7 +242,7 @@ class Config(BaseModel):
 
     # Callable: will be invoked for every local/server manifest that requires
     # patching before the actual patch will be computed.
-    patch_callback: Optional[Callable] = None
+    patch_callback: Callable = square.callbacks.modify_patch_manifests
 
     version: str = ""
 

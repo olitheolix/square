@@ -1000,10 +1000,9 @@ class TestPlan:
             return loc_man, srv_man
 
         # ----------------------------------------------------------------------
-        # No callback function installed.
+        # No custom callback function installed.
         # ----------------------------------------------------------------------
         local, server = get_dummy_manifests()
-        config.patch_callback = None
         assert not sq.run_patch_callback(config, [meta], local, server)
         assert local[meta] != server[meta]
         del local, server
@@ -1057,9 +1056,8 @@ class TestPlan:
             assert server_manifest == srv_man[meta]
             return server_manifest, server_manifest
 
-        # Create the plan without a user callback. This must produce a patch
+        # Create the plan with the default patch callback. This must produce a patch
         # because there is a difference between the local and remote manifests.
-        config.patch_callback = None
         ret, err = await sq.compile_plan(config, k8sconfig, loc_man, srv_man)
         assert not err and ret.create == ret.delete == [] and len(ret.patch) == 1
 
