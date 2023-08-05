@@ -816,7 +816,7 @@ def load_manifests(folder: Path,
 def sort_manifests(
         file_manifests: LocalManifestLists,
         priority: List[str]
-) -> Tuple[Dict[Path, List[dict]], bool]:
+) -> Dict[Path, List[dict]]:
     """Sort the manifests in each `file_manifests` by their `priority`.
 
     The returned data contains only the manifests without the `MetaData`. The
@@ -864,7 +864,7 @@ def sort_manifests(
         # Assign the grouped and sorted list of manifests to the output dict.
         out[fname] = man_clean
 
-    return out, False
+    return out
 
 
 def save(folder: Path,
@@ -885,10 +885,8 @@ def save(folder: Path,
         None
 
     """
-    # Sort the manifest in each file by priority. Ignore the error flag because
-    # `sort_manifests` always succeeds.
-    # out: Dict[Path, List[dict]]
-    sorted_manifests, _ = sort_manifests(manifests, priority)
+    # Sort the manifest in each file by priority.
+    sorted_manifests: Dict[Path, List[dict]] = sort_manifests(manifests, priority)
 
     # Ignore all empty and hidden files.
     sorted_manifests = {

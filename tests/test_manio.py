@@ -368,7 +368,7 @@ class TestYamlManifestIO:
         for _ in range(10):
             for fname in file_manifests:
                 random.shuffle(cast(list, file_manifests[fname]))
-            assert manio.sort_manifests(file_manifests, priority) == (expected, False)
+            assert manio.sort_manifests(file_manifests, priority) == expected
 
     def test_sort_manifests_priority(self):
         """Verify the sorted output for three files with randomly ordered manifests."""
@@ -407,7 +407,7 @@ class TestYamlManifestIO:
         # Shuffle the manifests in each file and verify the sorted output.
         for _ in range(10):
             random.shuffle(cast(list, file_manifests[fname]))
-            assert fun(file_manifests, priority) == (expected, False)
+            assert fun(file_manifests, priority) == expected
 
         # --- Define manifests in the correctly prioritised order.
         priority = ["Service", "Namespace", "Deployment"]
@@ -427,7 +427,7 @@ class TestYamlManifestIO:
         # Shuffle the manifests in each file and verify the sorted output.
         for _ in range(10):
             random.shuffle(file_manifests[fname])
-            assert fun(file_manifests, priority) == (expected, False)
+            assert fun(file_manifests, priority) == expected
 
         # --- Define manifests in the correctly prioritised order.
         priority = ["Service", "Deployment"]
@@ -447,7 +447,7 @@ class TestYamlManifestIO:
         # Shuffle the manifests in each file and verify the sorted output.
         for _ in range(10):
             random.shuffle(file_manifests[fname])
-            assert fun(file_manifests, priority) == (expected, False)
+            assert fun(file_manifests, priority) == expected
 
         # --- Define manifests in the correctly prioritised order.
         sorted_manifests = [
@@ -466,7 +466,7 @@ class TestYamlManifestIO:
         # Shuffle the manifests in each file and verify the sorted output.
         for _ in range(10):
             random.shuffle(file_manifests[fname])
-            assert fun(file_manifests, priority=[]) == (expected, False)
+            assert fun(file_manifests, priority=[]) == expected
 
     def test_parse_noselector_ok(self):
         """Test function must be able to parse the YAML string and compile a dict."""
