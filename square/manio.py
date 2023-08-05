@@ -473,7 +473,7 @@ def strip(
     k8sconfig: K8sConfig,
     manifest: dict,
     manifest_filters: Filters,
-) -> Tuple[DotDict, dict, bool]:
+) -> Tuple[DotDict, bool]:
     """Remove unwanted entries from `manifest` according to the `filters`.
 
     Inputs:
@@ -487,7 +487,7 @@ def strip(
 
     """
     # Convenience: default return value if an error occurs.
-    ret_err: Tuple[DotDict, dict, bool] = (square.dotdict.make({}), {}, True)
+    ret_err: Tuple[DotDict, bool] = (square.dotdict.make({}), True)
 
     # Parse the manifest.
     try:
@@ -559,9 +559,9 @@ def strip(
         return ret_err
 
     # Remove the keys from the `manifest` according to `filters`.
-    manifest = copy.deepcopy(manifest)
-    stripped_manifests = _update(filters, manifest)
-    return (square.dotdict.make(manifest), stripped_manifests, False)
+    out_manifest = copy.deepcopy(manifest)
+    _update(filters, out_manifest)
+    return (square.dotdict.make(out_manifest), False)
 
 
 def align_serviceaccount(
@@ -1018,7 +1018,7 @@ async def _download_worker(config: Config, k8sconfig: K8sConfig, kind: str,
         }
 
         # Ensure `strip` worked for every manifest.
-        err = any((v[2] for v in ret.values()))
+        err = any((v[1] for v in ret.values()))
         assert not err
 
         # Unpack the stripped manifests from the `strip` response.
@@ -1046,7 +1046,7 @@ async def download_single(k8sconfig: K8sConfig,
         manifest, err = await square.k8s.get(k8sconfig.client, resource.url)
         assert not err
 
-        manifest, _, err = strip(k8sconfig, manifest, {})
+        manifest, err = strip(k8sconfig, manifest, {})
         assert not err
     except AssertionError:
         logit.error(f"Could not query {k8sconfig.name} ({k8sconfig.url}/{resource.url})")

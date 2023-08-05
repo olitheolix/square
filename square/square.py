@@ -318,8 +318,8 @@ async def compile_plan(
     }
 
     # Abort if any of the manifests could not be stripped.
-    err_srv = {_[2] for _ in stripped_server.values()}
-    err_loc = {_[2] for _ in stripped_local.values()}
+    err_srv = {_[1] for _ in stripped_server.values()}
+    err_loc = {_[1] for _ in stripped_local.values()}
     if any(err_srv) or any(err_loc):
         logit.error("Could not strip all manifests.")
         return err_resp
