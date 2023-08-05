@@ -931,22 +931,24 @@ def save(folder: Path,
 async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifests, bool]:
     """Download and return the resources that match `selectors`.
 
-    Set `selectors.namespace` to `None` to download the resources from all
-    Kubernetes namespaces.
+    Use `selectors.namespace=None` to download from all namespaces.
 
-    Either returns all the data or an error; never returns partial results.
+    Returns nothing if there was a network error with one or more requests. In
+    other words, either all requests to Kubernetes must succeeded or this
+    function returns an error. However, asking for an unknown resource does not
+    constitute an error, only network failures do.
+
+    For instance, `selectors.kinds = ["namespace", "service", "foo"]` will not
+    return an error even though the list of "foo" manifests will be empty.
 
     Inputs:
         config: Square configuration.
         k8sconfig: K8sConfig
 
     Returns:
-        Dict[MetaManifest, dict]: the K8s manifests from K8s.
+        SquareManifests: the K8s manifests from K8s.
 
     """
-    # Output.
-    server_manifests = {}
-
     # Ensure `namespaces` is always a list to avoid special casing below.
     all_namespaces: Iterable[Optional[str]]
     if not config.selectors.namespaces:
@@ -962,48 +964,51 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
     all_kinds = {_.kind for _ in config.selectors._kinds_names}
 
     # Download each resource type. Abort at the first error and return nothing.
+    server_manifests: SquareManifests = {}
     for namespace in all_namespaces:
         for kind in sorted(all_kinds):
-            # Get the K8s URL for the current resource kind. Ignore this
-            # resource if K8s does not know about it. The reason for that could
-            # be a typo or that it is a Custom Resource that does not (yet) exist.
-            resource, err = square.k8s.resource(k8sconfig, MetaManifest("", kind, namespace, ""))  # noqa
+            manifests, err = await dl_worker(config, k8sconfig, kind, namespace)
             if err:
-                logit.warning(f"Skipping unknown resource <{kind}>")
-                continue
-
-            try:
-                # Download the resource manifests for the current `kind` from K8s.
-                manifest_list, err = await square.k8s.get(k8sconfig.client, resource.url)
-                assert not err and manifest_list is not None
-
-                # Parse the K8s List (eg `DeploymentList`, `NamespaceList`, ...) into a
-                # `SquareManifests` (ie `Dict[MetaManifest, dict]`) structure.
-                manifests, err = unpack_k8s_resource_list(manifest_list)
-                assert not err and manifests is not None
-
-                # Strip off the fields defined in `config.filters`.
-                ret = {k: strip(k8sconfig, man, config.filters)
-                       for k, man in manifests.items()}
-
-                # Ensure `strip` worked for every manifest.
-                err = any((v[2] for v in ret.values()))
-                assert not err
-
-                # Unpack the stripped manifests from the `strip` response. The
-                # "if v[0] is not None" statement exists to satisfy MyPy - we
-                # already know they are not None or otherwise the previous
-                # assert would have failed.
-                manifests = {k: v[0] for k, v in ret.items() if v[0] is not None}
-            except AssertionError:
-                logit.error(f"Could not query <{kind}> from {k8sconfig.name}")
-
-                # Return nothing, even if we had downloaded other kinds already.
                 return ({}, True)
 
             # Copy the manifests into the output dictionary.
             server_manifests.update(manifests)
     return (server_manifests, False)
+
+
+async def dl_worker(config: Config, k8sconfig: K8sConfig,
+                    kind: str, namespace: str | None) -> Tuple[SquareManifests, bool]:
+    # Get the K8s URL for the current resource kind or skip it if it does not
+    # exist. We do not treat it as an error but simply return an empty list of manifests.
+    resource, err = square.k8s.resource(k8sconfig, MetaManifest("", kind, namespace, ""))  # noqa
+    if err:
+        logit.warning(f"Skipping unknown resource <{kind}>")
+        return ({}, False)
+
+    try:
+        # Download the resource manifests for the current `kind` from K8s.
+        manifest_list, err = await square.k8s.get(k8sconfig.client, resource.url)
+        assert not err and manifest_list is not None
+
+        # Parse the K8s List (eg `DeploymentList`, `NamespaceList`, ...) into a
+        # `SquareManifests` (ie `Dict[MetaManifest, dict]`) structure.
+        manifests, err = unpack_k8s_resource_list(manifest_list)
+        assert not err and manifests is not None
+
+        # Strip off the fields defined in `config.filters`.
+        ret = {k: strip(k8sconfig, man, config.filters)
+               for k, man in manifests.items()}
+
+        # Ensure `strip` worked for every manifest.
+        err = any((v[2] for v in ret.values()))
+        assert not err
+
+        # Unpack the stripped manifests from the `strip` response.
+        out: SquareManifests = {k: v[0] for k, v in ret.items()}
+        return (out, False)
+    except AssertionError:
+        logit.error(f"Could not query <{kind}> from {k8sconfig.name}")
+        return ({}, True)
 
 
 async def download_single(k8sconfig: K8sConfig,
