@@ -3,7 +3,7 @@
 block_cipher = None
 
 
-a = Analysis(['runme.py'],
+a = Analysis(['pyinstaller_entrypoint.py'],
              binaries=[],
              datas=[("resources/*", "resources")],
              hiddenimports=[],
