@@ -12,7 +12,6 @@ import jsonpatch
 import yaml
 from colorlog import ColoredFormatter
 
-import square.dotdict as dotdict
 import square.k8s as k8s
 import square.manio as manio
 from square.dtypes import (
@@ -326,8 +325,8 @@ async def compile_plan(
 
     # Unpack the stripped manifests (ie first element in the tuple returned
     # by `manio.strip`).
-    server = {k: dotdict.undo(v[0]) for k, v in stripped_server.items()}
-    local = {k: dotdict.undo(v[0]) for k, v in stripped_local.items()}
+    server = {k: v[0] for k, v in stripped_server.items()}
+    local = {k: v[0] for k, v in stripped_local.items()}
 
     # Partition the set of meta manifests into create/delete/patch groups.
     plan, err = partition_manifests(local, server)
