@@ -294,36 +294,6 @@ def call_external_function(fun: Callable, kwargs: dict) -> Tuple[Any, bool]:
         return (None, True)
 
 
-def cleanup_manifests(
-        config: Config, k8sconfig: K8sConfig,
-        local: SquareManifests,
-        server: SquareManifests) -> Tuple[SquareManifests, SquareManifests, bool]:
-    """Returned cleaned up `local` and `server` manifests."""
-    # Strip the unwanted sections from the manifests before we compute patches.
-    stripped_server = {
-        meta: manio.strip(k8sconfig, man, config.filters)
-        for meta, man in server.items()
-    }
-    stripped_local = {
-        meta: manio.strip(k8sconfig, man, config.filters)
-        for meta, man in local.items()
-    }
-
-    # Abort if any of the manifests could not be stripped.
-    err_srv = {_[1] for _ in stripped_server.values()}
-    err_loc = {_[1] for _ in stripped_local.values()}
-    if any(err_srv) or any(err_loc):
-        logit.error("Could not strip all manifests.")
-        return ({}, {}, True)
-
-    # Unpack the stripped manifests (ie first element in the tuple returned
-    # by `manio.strip`).
-    server = {k: v[0] for k, v in stripped_server.items()}
-    local = {k: v[0] for k, v in stripped_local.items()}
-
-    return local, server, False
-
-
 async def compile_plan(
         config: Config,
         k8sconfig: K8sConfig,
@@ -359,7 +329,7 @@ async def compile_plan(
     assert not err
 
     # Strip the unwanted sections from the manifests before we compute patches.
-    local, server, err = cleanup_manifests(config, k8sconfig, local, server)
+    local, server, err = manio.cleanup_manifests(config, k8sconfig, local, server)
     if err:
         return err_resp
 
@@ -897,7 +867,7 @@ async def get_resources(cfg: Config) -> bool:
         assert not err
 
         # Remove all unwanted entries from the manifests.
-        _, server, err = cleanup_manifests(cfg, k8sconfig, {}, server)
+        _, server, err = manio.cleanup_manifests(cfg, k8sconfig, {}, server)
         assert not err
 
         # Sync the server manifests into the local manifests. All this happens in

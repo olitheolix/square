@@ -13,6 +13,7 @@ import square.k8s as k8s
 import square.manio as manio
 from square.dtypes import (
     Filters, GroupBy, LocalManifestLists, MetaManifest, Selectors,
+    SquareManifests,
 )
 from square.k8s import resource
 
@@ -823,6 +824,68 @@ class TestStrip:
             "metadata": {"name": "mandatory"},
         }
         assert manio.strip(k8sconfig, manifest, {}) == ({}, True)
+
+    def test_cleanup_manifests(self, config, k8sconfig):
+        """Run some basic tests."""
+        # Convenience.
+        fun = manio.cleanup_manifests
+
+        man_loc = make_manifest("ClusterRole", None, "name")
+        meta_loc = manio.make_meta(man_loc)
+        man_srv = make_manifest("Service", "ns", "name")
+        meta_srv = manio.make_meta(man_srv)
+        local: SquareManifests = {meta_loc: man_loc}
+        server: SquareManifests = {meta_srv: man_srv}
+
+        # Must do nothing with empty inputs.
+        assert fun(config, k8sconfig, {}, {}) == ({}, {}, False)
+
+        # Must return input verbatim because the default filters have no effect
+        # on our dummy manifest.
+        assert fun(config, k8sconfig, local, server) == (local, server, False)
+
+        # Add an annotation to our manifest and try again. This must once again
+        # do nothing because the default filters do not touch the annotations.
+        man_loc["metadata"]["annotations"] = {"foo": "bar"}
+        assert fun(config, k8sconfig, local, server) == (local, server, False)
+        assert man_loc["metadata"]["annotations"] == {"foo": "bar"}
+
+        # ----------------------------------------------------------------------
+        # Change the filter to remove all annotations. This time, the returned
+        # manifest must not have its annotations anymore but they must still be
+        # present in the original.
+        # ----------------------------------------------------------------------
+        man_loc["metadata"]["annotations"] = {"foo": "bar"}
+        config.filters = {"ClusterRole": [{"metadata": ["annotations"]}]}
+        ret_loc, ret_srv, err = fun(config, k8sconfig, local, server)
+        assert not err
+
+        # Annotations must have been removed in the output.
+        assert "annotations" not in ret_loc[meta_loc]["metadata"]
+
+        # Annotations must still be present in the input dictionary.
+        assert "annotations" in man_loc["metadata"]
+
+        # Must not have touched the `server` since it did not have any
+        # annotations.
+        assert ret_srv == server
+
+    def test_cleanup_manifests_err(self, config, k8sconfig):
+        """Force an error during a manifest cleanup."""
+        # Convenience.
+        fun = manio.cleanup_manifests
+
+        # Create valid test input.
+        man = make_manifest("ClusterRole", None, "name")
+        meta = manio.make_meta(man)
+        server: SquareManifests = {meta: man}
+
+        # Valid input.
+        assert fun(config, k8sconfig, {}, server) == ({}, server, False)
+
+        # Remove an essential key from the input manifest to force an error.
+        del man["apiVersion"]
+        assert fun(config, k8sconfig, {}, server) == ({}, {}, True)
 
 
 class TestDiff:

@@ -1510,7 +1510,7 @@ class TestMainOptions:
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
     @mock.patch.object(sq, "match_api_version")
-    @mock.patch.object(sq, "cleanup_manifests")
+    @mock.patch.object(manio, "cleanup_manifests")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
     async def test_get_resources(self, m_save, m_sync, m_clean, m_mapi,
