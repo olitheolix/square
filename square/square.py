@@ -853,33 +853,33 @@ async def get_resources(cfg: Config) -> bool:
         load_selectors = Selectors(kinds=k8sconfig.kinds, labels=[], namespaces=[])
 
         # Load manifests from local files.
-        local_meta, local_path, err = manio.load_manifests(cfg.folder, load_selectors)
+        local_meta, local_man, err = manio.load_manifests(cfg.folder, load_selectors)
         assert not err
         del load_selectors
 
         # Download manifests from K8s.
-        server, err = await manio.download(cfg, k8sconfig)
+        server_man, err = await manio.download(cfg, k8sconfig)
         assert not err
 
         # Replace the server resources fetched from K8s' preferred endpoint with
         # the one from the endpoint referenced in the local manifest.
-        server, err = await match_api_version(k8sconfig, local_meta, server)
+        server_man, err = await match_api_version(k8sconfig, local_meta, server_man)
         assert not err
 
         # Sync the server manifests into the local manifests. All this happens in
-        # memory and no files will be modified here - see `manio.save` in the next step.
-        synced_manifests, err = manio.sync(local_path, server, cfg.selectors, cfg.groupby)
+        # memory and no files will be modified here - see `manio.save` below.
+        synced_man, err = manio.sync(local_man, server_man, cfg.selectors, cfg.groupby)
         assert not err
 
         # Remove all unwanted entries from the manifests.
-        for path in synced_manifests:
-            sm: SquareManifests = dict(synced_manifests[path])
+        for path in synced_man:
+            sm: SquareManifests = dict(synced_man[path])
             _, sm, err = manio.cleanup_manifests(cfg, k8sconfig, {}, sm)
             assert not err
-            synced_manifests[path] = list(sm.items())
+            synced_man[path] = list(sm.items())
 
         # Write the new manifest files.
-        err = manio.save(cfg.folder, synced_manifests, cfg.priorities)
+        err = manio.save(cfg.folder, synced_man, cfg.priorities)
         assert not err
     except AssertionError:
         return True
