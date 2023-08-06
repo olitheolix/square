@@ -425,33 +425,33 @@ class TestMatchApiVersions:
 
         # Create local and server manifests. Both specify the same HPA resource
         # but with different `apiVersions`.
-        meta_deploy_loc = MetaManifest("autoscaling/v1", hpa, "ns", "name")
-        meta_deploy_srv = MetaManifest("autoscaling/v2", hpa, "ns", "name")
-        local: SquareManifests = {
-            MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "loc"},
-            meta_deploy_loc: {"dply": "loc"},
-        }
-        server_in: SquareManifests = {
-            MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "srv"},
-            meta_deploy_srv: {"orig": "srv"},
-        }
+        man_hpa_loc = make_manifest(hpa, "ns", "name")
+        man_hpa_srv_v1 = make_manifest(hpa, "ns", "name")
+        man_hpa_srv_v2 = make_manifest(hpa, "ns", "name")
+        man_hpa_loc.update(dict(apiVersion="autoscaling/v1", src="loc"))
+        man_hpa_srv_v1.update(dict(apiVersion="autoscaling/v1", src="srv"))
+        man_hpa_srv_v2.update(dict(apiVersion="autoscaling/v2", src="srv"))
+        meta_hpa_loc = manio.make_meta(man_hpa_loc)
+        meta_hpa_srv_v1 = manio.make_meta(man_hpa_srv_v1)
+        meta_hpa_srv_v2 = manio.make_meta(man_hpa_srv_v2)
+        local: SquareManifests = {meta_hpa_loc: man_hpa_loc}
+        server: SquareManifests = {meta_hpa_srv_v2: man_hpa_srv_v2}
 
-        # Mock the resource download to supply it from the correct API endpoint.
-        resource, err = k8s.resource(k8sconfig, meta_deploy_loc)
-        assert not err
-        m_fetch.return_value = (meta_deploy_loc, {"new": "srv"}, False)
-        del err
+        # Mock the resource download. If the function works correctly it will
+        # have fetched it from the `autoscaling/v1` endpoint as specified in
+        # the local manifest. We will verify that later.
+        m_fetch.return_value = (meta_hpa_srv_v1, man_hpa_srv_v1, False)
 
         # Test function must have interrogated the `autoscaling/v1` as
-        # specified in the local manifest, even though K8s also serves
-        # it from `autoscaling/v2`.
-        srv, err = await square.square.match_api_version(k8sconfig, local, server_in)
-        assert not err and srv == {
-            MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "srv"},
-            MetaManifest("autoscaling/v1", hpa, "ns", "name"): {"new": "srv"},
-        }
+        # specified in the *local* manifest, even though K8s serves
+        # it from `autoscaling/v2` by default.
+        srv, err = await square.square.match_api_version(k8sconfig, local, server)
+        assert not err and srv == {meta_hpa_srv_v1: man_hpa_srv_v1}
 
-        # Must have downloaded the deployments.
+        # Must have downloaded the HPAs from the `autoscaling/v1` endpoint
+        # because that is what the local manifest specified.
+        resource, err = k8s.resource(k8sconfig, meta_hpa_loc)
+        assert not err
         m_fetch.assert_called_once_with(k8sconfig, resource)
 
     @mock.patch.object(square.manio, "download_single")
@@ -466,34 +466,49 @@ class TestMatchApiVersions:
 
         # Create local and server manifests. Both specify the same HPAs
         # but K8s and the local manifests use different `apiVersions`.
-        local: SquareManifests = {
-            MetaManifest("autoscaling/v1", hpa, "name", "ns1"): {"hpa": "1"},
-            MetaManifest("autoscaling/v2", hpa, "name", "ns2"): {"hpa": "2"},
-        }
-        server_in: SquareManifests = {
-            # Same as in `local`
-            MetaManifest("autoscaling/v1", hpa, "name", "ns1"): {"hpa": "1"},
+        man_hpa_ns1_loc = make_manifest(hpa, "ns1", "name-1")
+        man_hpa_ns2_loc = make_manifest(hpa, "ns2", "name-2")
+        man_hpa_ns1_srv = make_manifest(hpa, "ns1", "name-1")
+        man_hpa_ns2_srv_v1 = make_manifest(hpa, "ns2", "name-2")
+        man_hpa_ns2_srv_v2 = make_manifest(hpa, "ns2", "name-2")
 
-            # Different than in `local`.
-            MetaManifest("autoscaling/v1", hpa, "name", "ns2"): {"hpa": "2"},
+        # All but the local HPA in NS1 are from the v2 endpoint.
+        man_hpa_ns1_loc.update(dict(apiVersion="autoscaling/v2", src="loc"))
+        man_hpa_ns2_loc.update(dict(apiVersion="autoscaling/v1", src="loc"))
+        man_hpa_ns1_srv.update(dict(apiVersion="autoscaling/v2", src="srv"))
+        man_hpa_ns2_srv_v1.update(dict(apiVersion="autoscaling/v1", src="srv"))
+        man_hpa_ns2_srv_v2.update(dict(apiVersion="autoscaling/v2", src="srv"))
+
+        meta_hpa_ns1_loc = manio.make_meta(man_hpa_ns1_loc)
+        meta_hpa_ns1_srv = manio.make_meta(man_hpa_ns1_srv)
+        meta_hpa_ns2_loc = manio.make_meta(man_hpa_ns2_loc)
+        meta_hpa_ns2_srv_v1 = manio.make_meta(man_hpa_ns2_srv_v1)
+        meta_hpa_ns2_srv_v2 = manio.make_meta(man_hpa_ns2_srv_v2)
+        local: SquareManifests = {
+            meta_hpa_ns1_loc: man_hpa_ns1_loc,
+            meta_hpa_ns2_loc: man_hpa_ns2_loc,
+        }
+        server: SquareManifests = {
+            meta_hpa_ns1_srv: man_hpa_ns1_srv,
+            meta_hpa_ns2_srv_v2: man_hpa_ns2_srv_v2,
         }
 
         # Mock the resource download to supply it from the correct API endpoint.
-        meta = MetaManifest("autoscaling/v2", hpa, "name", "ns2")
-        assert meta in local
-        resource, err = k8s.resource(k8sconfig, meta)
-        assert not err
-        m_fetch.return_value = (meta, {"new-hpa": "2"}, False)
-        del err
+        m_fetch.return_value = (meta_hpa_ns2_srv_v1, man_hpa_ns2_srv_v1, False)
 
-        # Test function must interrogate `autoscaling/v2` for the HPA manifest.
-        srv, err = await square.square.match_api_version(k8sconfig, local, server_in)
+        # Test function must return the updated manifests. Here we verify that
+        # it does indeed return the new `server` manifests. We will verify that
+        # those came from the correct endpoint afterwards.
+        srv, err = await square.square.match_api_version(k8sconfig, local, server)
         assert not err and srv == {
-            MetaManifest("autoscaling/v1", hpa, "name", "ns1"): {"hpa": "1"},
-            MetaManifest("autoscaling/v2", hpa, "name", "ns2"): {"new-hpa": "2"},
+            meta_hpa_ns1_srv: man_hpa_ns1_srv,
+            meta_hpa_ns2_srv_v1: man_hpa_ns2_srv_v1,
         }
 
-        # Must have downloaded the deployments.
+        # Test function must have made only one call because only one HPA
+        # specified a different endpoint than the server.
+        resource, err = k8s.resource(k8sconfig, meta_hpa_ns2_loc)
+        assert not err
         m_fetch.assert_called_once_with(k8sconfig, resource)
 
     @mock.patch.object(square.manio, "download_single")
@@ -508,55 +523,93 @@ class TestMatchApiVersions:
         """
         hpa = "HorizontalPodAutoscaler"
 
-        # Create local and server manifests for HPAs.
-        local_in: SquareManifests = {
-            # These two exist on server with the same API version.
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"loc-hpa": "1"},
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"loc-hpa": "2"},
+        # Create local and server manifests. The second local HPA uses the
+        # old `autoscaling/v1` endpoint, whereas all other use `v2`.
+        man_hpa_1_loc = make_manifest(hpa, "ns", "name-1")
+        man_hpa_2_loc = make_manifest(hpa, "ns", "name-2")
+        man_hpa_3_loc = make_manifest(hpa, "ns", "name-3")
+        man_hpa_1_srv = make_manifest(hpa, "ns", "name-1")
+        man_hpa_2_srv_v1 = make_manifest(hpa, "ns", "name-2")
+        man_hpa_2_srv_v2 = make_manifest(hpa, "ns", "name-2")
+        man_hpa_3_srv = make_manifest(hpa, "ns", "name-3")
 
-            # This one exists on the server but with a different API version.
-            MetaManifest("autoscaling/v1", hpa, "ns", "name-3"): {"loc-hpa": "3"},
+        man_hpa_1_loc.update(dict(apiVersion="autoscaling/v2", src="loc"))
+        man_hpa_2_loc.update(dict(apiVersion="autoscaling/v1", src="loc"))
+        man_hpa_3_loc.update(dict(apiVersion="autoscaling/v2", src="loc"))
+        man_hpa_1_srv.update(dict(apiVersion="autoscaling/v2", src="srv"))
+        man_hpa_2_srv_v1.update(dict(apiVersion="autoscaling/v1", src="srv"))
+        man_hpa_2_srv_v2.update(dict(apiVersion="autoscaling/v2", src="srv"))
+        man_hpa_3_srv.update(dict(apiVersion="autoscaling/v2", src="srv"))
+
+        meta_hpa_1_loc = manio.make_meta(man_hpa_1_loc)
+        meta_hpa_2_loc = manio.make_meta(man_hpa_2_loc)
+        meta_hpa_3_loc = manio.make_meta(man_hpa_3_srv)
+        meta_hpa_1_srv = manio.make_meta(man_hpa_1_srv)
+        meta_hpa_2_srv_v1 = manio.make_meta(man_hpa_2_srv_v1)
+        meta_hpa_2_srv_v2 = manio.make_meta(man_hpa_2_srv_v2)
+        meta_hpa_3_srv = manio.make_meta(man_hpa_3_srv)
+
+        local: SquareManifests = {
+            meta_hpa_1_loc: man_hpa_1_loc,
+            meta_hpa_2_loc: man_hpa_2_loc,
+            meta_hpa_3_loc: man_hpa_3_loc,
         }
-        server_in: SquareManifests = {
-            # These two exist locally with the same API version.
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"srv-hpa": "1"},
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"srv-hpa": "2"},
-
-            # This one exists locally but with a different API version.
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-3"): {"loc-hpa": "3"},
+        server: SquareManifests = {
+            meta_hpa_1_srv: man_hpa_1_srv,
+            meta_hpa_2_srv_v2: man_hpa_2_srv_v2,
+            meta_hpa_3_srv: man_hpa_3_srv,
         }
 
         # Mock the resource download to supply it from the correct API endpoint.
-        meta = MetaManifest("autoscaling/v1", hpa, "ns", "name-3")
-        resource, err = k8s.resource(k8sconfig, meta)
-        assert not err
-        m_fetch.return_value = (meta, {"new-hpa": "3"}, False)
-        del err
+        m_fetch.return_value = (meta_hpa_2_srv_v1, man_hpa_2_srv_v1, False)
 
-        # Test function must have used the API version `v1` as specified in the
-        # local manifest to fetch the "name-3" HPA.
-        srv, err = await square.square.match_api_version(k8sconfig, local_in, server_in)
+        # Test function must return the updated manifests. Here we verify that
+        # it does indeed return the new `server` manifests. We will verify that
+        # those came from the correct endpoint afterwards.
+        srv, err = await square.square.match_api_version(k8sconfig, local, server)
         assert not err and srv == {
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-1"): {"srv-hpa": "1"},
-            MetaManifest("autoscaling/v2", hpa, "ns", "name-2"): {"srv-hpa": "2"},
+            meta_hpa_1_srv: man_hpa_1_srv,
+            meta_hpa_2_srv_v1: man_hpa_2_srv_v1,
 
             # This must have been downloaded.
-            MetaManifest("autoscaling/v1", hpa, "ns", "name-3"): {"new-hpa": "3"},
+            meta_hpa_3_srv: man_hpa_3_srv,
         }
 
-        # Must have downloaded exactly one deployment, namely `name-3`.
+        # Test function must have made only one call because only one HPA
+        # specified a different endpoint than the server.
+        resource, err = k8s.resource(k8sconfig, meta_hpa_2_loc)
+        assert not err
         m_fetch.assert_called_once_with(k8sconfig, resource)
 
     @mock.patch.object(square.manio, "download_single")
     async def test_match_api_version_nothing_to_do(self, m_fetch, k8sconfig):
         """Test various cases where the function must not do anything.
 
-        There are two cases where it must not download a resource form K8s again:
-          1) Local/Server use identical API endpoints for the same resource.
-          2) Resource exists either on server or locally, but not both.
+        There are two cases where it must not re-download a resource from K8s:
+          1) Local/Server manifests all use the same API endpoint.
+          2) Resource exists either only on the server or locally, but not both.
 
         """
         fun = square.square.match_api_version
+        hpa = "HorizontalPodAutoscaler"
+        svc = "ServicePodAutoscaler"
+
+        man_svc_1_loc = make_manifest(svc, "ns", "svc-1")
+        man_svc_1_srv = make_manifest(svc, "ns", "svc-1")
+        man_hpa_1_loc = make_manifest(hpa, "ns", "hpa-1")
+        man_hpa_1_srv = make_manifest(hpa, "ns", "name-1")
+        man_hpa_2_srv = make_manifest(hpa, "ns", "name-2")
+
+        man_svc_1_loc.update(dict(apiVersion="v1", src="loc"))
+        man_svc_1_srv.update(dict(apiVersion="v1", src="srv"))
+        man_hpa_1_loc.update(dict(apiVersion="autoscaling/v1", src="loc"))
+        man_hpa_1_srv.update(dict(apiVersion="autoscaling/v2", src="srv"))
+        man_hpa_2_srv.update(dict(apiVersion="autoscaling/v2", src="srv"))
+
+        meta_svc_1_loc = manio.make_meta(man_svc_1_loc)
+        meta_svc_1_srv = manio.make_meta(man_svc_1_srv)
+        meta_hpa_1_loc = manio.make_meta(man_hpa_1_loc)
+        meta_hpa_2_srv = manio.make_meta(man_hpa_2_srv)
 
         # Must not have downloaded anything.
         srv, err = await fun(k8sconfig, {}, {})
@@ -564,41 +617,41 @@ class TestMatchApiVersions:
         assert not m_fetch.called
 
         # Local and server manifests are identical - must not synchronise anything.
-        local_in: SquareManifests = {
-            MetaManifest("v1", "Namespace", None, "ns1"): {"ns": "loc"},
-            MetaManifest("apps/v1", "Deployment", "ns", "name"): {"dply": "loc"},
+        local: SquareManifests = {
+            meta_svc_1_loc: man_svc_1_loc,
+            meta_hpa_1_loc: man_hpa_1_loc,
         }
-        srv, err = await fun(k8sconfig, local_in, local_in)
-        assert not err and srv == local_in
+        srv, err = await fun(k8sconfig, local, local)
+        assert not err and srv == local
         assert not m_fetch.called
 
         # Local- and server manifests have identical Service resources but use
-        # two different API endpoints for two different Deployments. Must not
-        # sync any API versions because the Deployments are unrelated.
-        local_in = {
-            MetaManifest("v1", "Service", "svc-name", "ns1"): {"ns": "loc"},
-            MetaManifest("apps/v1", "Deployment", "ns", "foo"): {"dply": "loc"},
+        # two different API endpoints for two different HPAs. Must not
+        # sync any API versions since the HPAs are unrelated.
+        local: SquareManifests = {
+            meta_svc_1_loc: man_svc_1_loc,
+            meta_hpa_1_loc: man_hpa_1_loc,
         }
-        server_in = {
-            MetaManifest("v1", "Service", "svc-name", "ns1"): {"ns": "srv"},
-            MetaManifest("extensions/v1beta1", "Deployment", "ns", "bar"): {"orig": "srv"},  # noqa
+        server: SquareManifests = {
+            meta_svc_1_srv: man_svc_1_srv,
+            meta_hpa_2_srv: man_hpa_2_srv,
         }
-        srv, err = await fun(k8sconfig, local_in, server_in)
-        assert not err and srv == server_in
+        srv, err = await fun(k8sconfig, local, server)
+        assert not err and srv == server
         assert not m_fetch.called
 
         # Local- and server manifests have matching Deployments in two
         # namespaces. Function must therefore not match anything.
-        local_in: SquareManifests = {
-            MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy": "1"},
-            MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy": "2"},
+        local: SquareManifests = {
+            meta_svc_1_loc: man_svc_1_loc,
+            meta_hpa_1_loc: man_hpa_1_loc,
         }
-        server_in: SquareManifests = {
-            MetaManifest("apps/v1beta1", "Deployment", "name", "ns1"): {"deploy": "1"},
-            MetaManifest("apps/v1beta2", "Deployment", "name", "ns2"): {"deploy": "1"},
+        server: SquareManifests = {
+            meta_svc_1_loc: man_svc_1_srv,
+            meta_hpa_1_loc: man_hpa_1_srv,
         }
-        srv, err = await fun(k8sconfig, local_in, server_in)
-        assert not err and srv == server_in
+        srv, err = await fun(k8sconfig, local, server)
+        assert not err and srv == server
         assert not m_fetch.called
 
 
