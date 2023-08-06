@@ -12,7 +12,7 @@ import yaml
 import square.k8s as k8s
 import square.manio as manio
 from square.dtypes import (
-    Filters, GroupBy, LocalManifestLists, MetaManifest, Selectors,
+    Config, Filters, GroupBy, LocalManifestLists, MetaManifest, Selectors,
     SquareManifests,
 )
 from square.k8s import resource
@@ -730,29 +730,32 @@ class TestYamlManifestIO:
 
 
 class TestStrip:
-    def test_run_cleanup_callback_invalid_version_kind(self, k8sconfig):
+    def test_run_cleanup_callback_invalid_version_kind(self, config: Config, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
         # Minimally valid filters for fake resource kind "TEST".
         filters: Filters = {"TEST": ["metadata"]}
+        config.filters = filters
 
         # Valid K8s version with unknown resource type.
         manifest = {"apiVersion": "v1", "kind": "Unknown"}
-        assert manio.run_cleanup_callback(k8sconfig, manifest, filters) == ({}, True)
+        assert manio.run_cleanup_callback(config, k8sconfig, manifest) == ({}, True)
 
         # Invalid K8s version but valid resource type.
         config = k8sconfig._replace(version="unknown")
         manifest = {"apiVersion": "v1", "kind": "TEST"}
-        assert manio.run_cleanup_callback(config, manifest, filters) == ({}, True)
+        assert manio.run_cleanup_callback(config, k8sconfig, manifest) == ({}, True)
 
-    def test_run_cleanup_callback_namespace(self, k8sconfig):
+    def test_run_cleanup_callback_namespace(self, config, k8sconfig):
         """Filter NAMESPACE manifests."""
+        fun = manio.run_cleanup_callback
+
         # Valid: a namespace manifest without a `metadata.namespace` field.
         manifest: dict = {
             "apiVersion": "v1",
             "kind": "Namespace",
             "metadata": {"name": "mandatory"},
         }
-        assert manio.run_cleanup_callback(k8sconfig, manifest, {}) == (manifest, False)
+        assert fun(config, k8sconfig, manifest) == (manifest, False)
         del manifest
 
         # Create invalid manifests that either specify a namespace for a
@@ -769,9 +772,9 @@ class TestStrip:
             }
             if resource(k8sconfig, MetaManifest("", kind, None, ""))[0].namespaced:
                 del manifest["metadata"]["namespace"]
-            assert manio.run_cleanup_callback(k8sconfig, manifest, {}) == ({}, True)
+            assert fun(config, k8sconfig, manifest) == ({}, True)
 
-    def test_run_cleanup_callback_deployment(self, k8sconfig):
+    def test_run_cleanup_callback_deployment(self, config, k8sconfig):
         """Filter DEPLOYMENT manifests."""
         # A valid DEPLOYMENT manifest with a few optional and irrelevant keys.
         manifest = {
@@ -813,7 +816,7 @@ class TestStrip:
             },
             "spec": "some spec",
         }
-        out, err = manio.run_cleanup_callback(k8sconfig, manifest, {})
+        out, err = manio.run_cleanup_callback(config, k8sconfig, manifest)
         assert not err
         assert out == expected
 
@@ -823,7 +826,7 @@ class TestStrip:
             "kind": "Deployment",
             "metadata": {"name": "mandatory"},
         }
-        assert manio.run_cleanup_callback(k8sconfig, manifest, {}) == ({}, True)
+        assert manio.run_cleanup_callback(config, k8sconfig, manifest) == ({}, True)
 
     def test_cleanup_manifests(self, config, k8sconfig):
         """Run some basic tests."""
@@ -1785,13 +1788,15 @@ class TestDownloadManifests:
             (l_ns, False),
             (l_dply, False),
         ]
-        expected = {make_meta(_): run_cleanup_callback(k8sconfig, _, {})[0]for _ in meta}
+        cb = run_cleanup_callback
+        expected = {make_meta(_): cb(config, k8sconfig, _)[0] for _ in meta}
         config.selectors = Selectors(kinds={"Namespace", "Deployment", "Unknown"})
         ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_count == 2
         m_get.assert_any_call(k8sconfig.client, res_deploy.url)
         m_get.assert_any_call(k8sconfig.client, res_ns.url)
+        del cb
 
         # ------------------------------------------------------------------------------
         # Request resources from all namespaces explicitly via namespaces=["ns0", "ns1"]
@@ -1828,8 +1833,8 @@ class TestDownloadManifests:
             (l_dply_0, False),
         ]
         expected = {
-            make_meta(meta[0]): run_cleanup_callback(k8sconfig, meta[0], {})[0],
-            make_meta(meta[2]): run_cleanup_callback(k8sconfig, meta[2], {})[0],
+            make_meta(meta[0]): run_cleanup_callback(config, k8sconfig, meta[0])[0],
+            make_meta(meta[2]): run_cleanup_callback(config, k8sconfig, meta[2])[0],
         }
         config.selectors = Selectors(kinds={"Namespace", "Deployment"},
                                      namespaces=["ns0"])

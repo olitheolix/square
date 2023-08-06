@@ -14,8 +14,8 @@ import square.callbacks
 import square.cfgfile
 import square.k8s
 from square.dtypes import (
-    Config, Filters, GroupBy, K8sConfig, KindName, LocalManifestLists,
-    MetaManifest, Selectors, SquareManifests,
+    Config, GroupBy, K8sConfig, KindName, LocalManifestLists, MetaManifest,
+    Selectors, SquareManifests,
 )
 from square.yaml_io import Dumper, Loader
 
@@ -475,11 +475,11 @@ def cleanup_manifests(
 
     # Strip the unwanted sections from the manifests before we compute patches.
     stripped_server = {
-        meta: run_cleanup_callback(k8sconfig, man, config.filters)
+        meta: run_cleanup_callback(config, k8sconfig, man)
         for meta, man in server.items()
     }
     stripped_local = {
-        meta: run_cleanup_callback(k8sconfig, man, config.filters)
+        meta: run_cleanup_callback(config, k8sconfig, man)
         for meta, man in local.items()
     }
 
@@ -499,17 +499,16 @@ def cleanup_manifests(
 
 
 def run_cleanup_callback(
-    k8sconfig: K8sConfig,
-    manifest: dict,
-    filters: Filters,
+        config: Config,
+        k8sconfig: K8sConfig,
+        manifest: dict,
 ) -> Tuple[dict, bool]:
     """Remove unwanted entries from `manifest` according to the `filters`.
 
     Inputs:
+        config: Config
         k8sconfig: K8sConfig
         manifest: dict
-        filters: Dict[str, list]
-            See tests for examples
 
     Returns:
         dict, dict: (stripped manifest, removed keys).
@@ -530,7 +529,7 @@ def run_cleanup_callback(
         return ret_err
     del k8sconfig
 
-    return square.callbacks.cleanup_manifest(manifest, filters), False
+    return square.callbacks.cleanup_manifest(manifest, config.filters), False
 
 
 def align_serviceaccount(
