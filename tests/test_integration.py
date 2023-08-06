@@ -852,10 +852,15 @@ class TestCallbacks:
         # Square is supposed to download the manifests into this file.
         man_path = config.folder / "_other.yaml"
 
+        call_count = 0
+
         def add_label_callback(square_config: Config, manifest: dict) -> dict:
             """Add a dummy label to every downloaded manifest."""
             manifest["metadata"]["labels"] = manifest["metadata"].get("labels", {})
             manifest["metadata"]["labels"]["integration-test-demo"] = "works"
+
+            nonlocal call_count
+            call_count += 1
             return manifest
 
         config.clean_callback = add_label_callback
@@ -865,3 +870,6 @@ class TestCallbacks:
         manifests = list(yaml.safe_load_all(man_path.read_text()))
         for manifest in manifests:
             assert manifest["metadata"]["labels"]["integration-test-demo"] == "works"
+
+        # Callback must have run twice, once for each of the two ConfigMaps.
+        assert call_count == 2
