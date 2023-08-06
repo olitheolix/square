@@ -43,3 +43,6 @@ square = 'square.main:main'
 [build-system]
 requires = ["poetry>=1.2"]
 build-backend = "poetry.masonry.api"
+
+[tool.ruff]
+line-length = 90
