@@ -529,7 +529,7 @@ def run_cleanup_callback(
         return ret_err
     del k8sconfig
 
-    return square.callbacks.cleanup_manifest(manifest, config.filters), False
+    return square.callbacks.cleanup_manifest(config, manifest), False
 
 
 def align_serviceaccount(
