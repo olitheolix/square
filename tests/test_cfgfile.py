@@ -159,8 +159,7 @@ class TestMainGet:
         defaults = copy.deepcopy(square.DEFAULT_CONFIG.filters["_common_"])
         assert cfgfile.merge(defaults, []) == defaults
 
-        # Merge a simple custom filter `custom` into the default exclusion filter
-        # definition.
+        # Merge a `custom` filter into the default exclusion filters.
         custom = [{"foo": ["bar"]}]
         expected = [
             {"foo": ["bar"]},
