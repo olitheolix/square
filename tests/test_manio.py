@@ -2049,29 +2049,3 @@ class TestDownloadManifests:
         assert m_get.call_count == 2
         m_get.assert_any_call(k8sconfig.client, res_deploy.url)
         m_get.assert_any_call(k8sconfig.client, res_ns.url)
-
-    @mock.patch.object(k8s, 'get')
-    async def test_download_single(self, m_get, k8sconfig):
-        """Download a single manifest.
-
-        The test only mocks the K8s API call.
-
-        """
-        manifest = make_manifest("Deployment", "ns", "name")
-        meta = manio.make_meta(manifest)
-        assert meta == MetaManifest("apps/v1", "Deployment", "ns", "name")
-
-        # Mock the K8s response to return a valid manifest.
-        m_get.return_value = (manifest, False)
-
-        # Resource URLs.
-        res, err = resource(k8sconfig, meta)
-        assert not err
-
-        # Test function must successfully download the resource.
-        assert await manio.download_single(k8sconfig, res) == (meta, manifest, False)
-
-        # Simulate a download error.
-        m_get.return_value = (manifest, True)
-        ret = await manio.download_single(k8sconfig, res)
-        assert ret == (MetaManifest("", "", "", ""), {}, True)

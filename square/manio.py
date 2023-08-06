@@ -13,7 +13,7 @@ import yaml.scanner
 import square.cfgfile
 import square.k8s
 from square.dtypes import (
-    Config, Filters, FiltersKind, GroupBy, K8sConfig, K8sResource, KindName,
+    Config, Filters, FiltersKind, GroupBy, K8sConfig, KindName,
     LocalManifestLists, MetaManifest, Selectors, SquareManifests,
 )
 from square.yaml_io import Dumper, Loader
@@ -1012,29 +1012,3 @@ async def _download_worker(config: Config, k8sconfig: K8sConfig, kind: str,
     except AssertionError:
         logit.error(f"Could not query <{kind}> from {k8sconfig.name}")
         return ({}, True)
-
-
-async def download_single(k8sconfig: K8sConfig,
-                          resource: K8sResource) -> Tuple[MetaManifest, dict, bool]:
-    """Similar to `download(...)` but only for a single Kubernetes `resource`.
-
-    Inputs:
-        k8sconfig: K8sConfig
-        resource: K8sResource
-
-    Returns:
-        MetaManifest, manifest: the K8s (meta)manifest.
-
-    """
-    try:
-        # Download the resource.
-        manifest, err = await square.k8s.get(k8sconfig.client, resource.url)
-        assert not err
-
-        manifest, err = strip(k8sconfig, manifest, {})
-        assert not err
-    except AssertionError:
-        logit.error(f"Could not query {k8sconfig.name} ({k8sconfig.url}/{resource.url})")
-        return (MetaManifest("", "", "", ""), {}, True)
-
-    return (make_meta(manifest), manifest, False)
