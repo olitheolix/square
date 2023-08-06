@@ -213,9 +213,14 @@ async def match_api_version(
         resource, err = k8s.resource(k8sconfig, meta)
         assert not err
 
-        # Download all resources of the current kind.
-        meta, manifest, err = await manio.download_single(k8sconfig, resource)
+        # Download the resource.
+        manifest, err = await k8s.get(k8sconfig.client, resource.url)
         assert not err
+
+        manifest, err = manio.strip(k8sconfig, manifest, {})
+        assert not err
+
+        meta = manio.make_meta(manifest)
 
         # Add the resource to the `server` dict. This will have been one of
         # those we deleted a few lines earlier.

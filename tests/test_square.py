@@ -408,8 +408,8 @@ class TestPatchK8s:
 
 
 class TestMatchApiVersions:
-    @mock.patch.object(square.manio, "download_single")
-    async def test_match_api_version_basic(self, m_fetch, k8sconfig):
+    @mock.patch.object(k8s, "get")
+    async def test_match_api_version_basic(self, m_get, k8sconfig):
         """Square must use the API version declared in local manifests.
 
         In this case, we have an HPA resource. The local manifest uses v1
@@ -440,7 +440,7 @@ class TestMatchApiVersions:
         # Mock the resource download. If the function works correctly it will
         # have fetched it from the `autoscaling/v1` endpoint as specified in
         # the local manifest. We will verify that later.
-        m_fetch.return_value = (meta_hpa_srv_v1, man_hpa_srv_v1, False)
+        m_get.return_value = (man_hpa_srv_v1, False)
 
         # Test function must have interrogated the `autoscaling/v1` as
         # specified in the *local* manifest, even though K8s serves
@@ -452,10 +452,10 @@ class TestMatchApiVersions:
         # because that is what the local manifest specified.
         resource, err = k8s.resource(k8sconfig, meta_hpa_loc)
         assert not err
-        m_fetch.assert_called_once_with(k8sconfig, resource)
+        m_get.assert_called_once_with(k8sconfig.client, resource.url)
 
-    @mock.patch.object(square.manio, "download_single")
-    async def test_match_api_version_namespace(self, m_fetch, k8sconfig):
+    @mock.patch.object(k8s, "get")
+    async def test_match_api_version_namespace(self, m_get, k8sconfig):
         """Square must use the API version declared in local manifests.
 
         This is the same as `test_match_api_version_basic` except it operates
@@ -494,7 +494,7 @@ class TestMatchApiVersions:
         }
 
         # Mock the resource download to supply it from the correct API endpoint.
-        m_fetch.return_value = (meta_hpa_ns2_srv_v1, man_hpa_ns2_srv_v1, False)
+        m_get.return_value = (man_hpa_ns2_srv_v1, False)
 
         # Test function must return the updated manifests. Here we verify that
         # it does indeed return the new `server` manifests. We will verify that
@@ -509,10 +509,10 @@ class TestMatchApiVersions:
         # specified a different endpoint than the server.
         resource, err = k8s.resource(k8sconfig, meta_hpa_ns2_loc)
         assert not err
-        m_fetch.assert_called_once_with(k8sconfig, resource)
+        m_get.assert_called_once_with(k8sconfig.client, resource.url)
 
-    @mock.patch.object(square.manio, "download_single")
-    async def test_match_api_version_multi(self, m_fetch, k8sconfig):
+    @mock.patch.object(k8s, "get")
+    async def test_match_api_version_multi(self, m_get, k8sconfig):
         """Mix matching and mis-matching API version for same resources.
 
         A trivial extension to `test_match_api_version_namespace` where we use
@@ -561,7 +561,7 @@ class TestMatchApiVersions:
         }
 
         # Mock the resource download to supply it from the correct API endpoint.
-        m_fetch.return_value = (meta_hpa_2_srv_v1, man_hpa_2_srv_v1, False)
+        m_get.return_value = (man_hpa_2_srv_v1, False)
 
         # Test function must return the updated manifests. Here we verify that
         # it does indeed return the new `server` manifests. We will verify that
@@ -579,10 +579,10 @@ class TestMatchApiVersions:
         # specified a different endpoint than the server.
         resource, err = k8s.resource(k8sconfig, meta_hpa_2_loc)
         assert not err
-        m_fetch.assert_called_once_with(k8sconfig, resource)
+        m_get.assert_called_once_with(k8sconfig.client, resource.url)
 
-    @mock.patch.object(square.manio, "download_single")
-    async def test_match_api_version_nothing_to_do(self, m_fetch, k8sconfig):
+    @mock.patch.object(k8s, "get")
+    async def test_match_api_version_nothing_to_do(self, m_get, k8sconfig):
         """Test various cases where the function must not do anything.
 
         There are two cases where it must not re-download a resource from K8s:
@@ -614,7 +614,7 @@ class TestMatchApiVersions:
         # Must not have downloaded anything.
         srv, err = await fun(k8sconfig, {}, {})
         assert not err and srv == {}
-        assert not m_fetch.called
+        assert not m_get.called
 
         # Local and server manifests are identical - must not synchronise anything.
         local: SquareManifests = {
@@ -623,7 +623,7 @@ class TestMatchApiVersions:
         }
         srv, err = await fun(k8sconfig, local, local)
         assert not err and srv == local
-        assert not m_fetch.called
+        assert not m_get.called
 
         # Local- and server manifests have identical Service resources but use
         # two different API endpoints for two different HPAs. Must not
@@ -638,7 +638,7 @@ class TestMatchApiVersions:
         }
         srv, err = await fun(k8sconfig, local, server)
         assert not err and srv == server
-        assert not m_fetch.called
+        assert not m_get.called
 
         # Local- and server manifests have matching Deployments in two
         # namespaces. Function must therefore not match anything.
@@ -652,7 +652,7 @@ class TestMatchApiVersions:
         }
         srv, err = await fun(k8sconfig, local, server)
         assert not err and srv == server
-        assert not m_fetch.called
+        assert not m_get.called
 
 
 class TestPlan:
