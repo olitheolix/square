@@ -951,7 +951,7 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
     coroutines = []
     for namespace in all_namespaces:
         for kind in all_kinds:
-            coroutines.append(_download_worker(config, k8sconfig, kind, namespace))
+            coroutines.append(_download_worker(k8sconfig, kind, namespace))
 
     # Schedule all tasks and wait until they have all completed.
     awaited_tasks = await asyncio.gather(*coroutines)
@@ -967,12 +967,12 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
     return (server_manifests, False)
 
 
-async def _download_worker(config: Config, k8sconfig: K8sConfig, kind: str,
+async def _download_worker(k8sconfig: K8sConfig, kind: str,
                            namespace: str | None) -> Tuple[SquareManifests, bool]:
     """Download and return the manifests for the specified `kind` and `namespace`.
 
     If the `namespace` or `kind` does not exist then the function will return
-    an empty list of manifest but not an error. This has mostly practical
+    an empty list of manifests but not an error. This has mostly practical
     reasons because Kubernetes is unfazed when asked about non-existing
     namespaces or resource, and this function mimics this behaviour.
 
@@ -995,20 +995,7 @@ async def _download_worker(config: Config, k8sconfig: K8sConfig, kind: str,
         # `SquareManifests` (ie `Dict[MetaManifest, dict]`) structure.
         manifests, err = unpack_k8s_resource_list(manifest_list)
         assert not err and manifests is not None
-
-        # Strip the fields defined in `config.filters`.
-        ret = {
-            k: strip(k8sconfig, man, config.filters)
-            for k, man in manifests.items()
-        }
-
-        # Ensure `strip` worked for every manifest.
-        err = any((v[1] for v in ret.values()))
-        assert not err
-
-        # Unpack the stripped manifests from the `strip` response.
-        out: SquareManifests = {k: v[0] for k, v in ret.items()}
-        return (out, False)
+        return manifests, False
     except AssertionError:
         logit.error(f"Could not query <{kind}> from {k8sconfig.name}")
         return ({}, True)
