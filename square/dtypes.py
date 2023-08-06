@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 import square.callbacks
 
@@ -245,6 +245,42 @@ class Config(BaseModel):
     patch_callback: Callable = square.callbacks.modify_patch_manifests
 
     version: str = ""
+
+    @field_validator('filters')
+    @classmethod
+    def validate_filters(cls, filters: Filters) -> Filters:
+        # The top level filter structure must be a Dict that denotes a resource
+        # type, eg `{"Deployment": [...], "Service": [...]}`.
+        for k, v in filters.items():
+            if k == "" or not isinstance(k, str):
+                raise ValueError(f"Dict key <{k}> must be a non-empty string")
+            validate_subfilters(v)
+        return filters
+
+
+def validate_subfilters(filter_list):
+    """Recursively verify that every element in `filter_list` is valid."""
+    if not isinstance(filter_list, list):
+        raise ValueError(f"<{filter_list}> must be a list")
+
+    for el in filter_list:
+        if not isinstance(el, (dict, str)):
+            raise ValueError(f"<{el}> must be a string or dict")
+
+        if el == "":
+            raise ValueError("Strings must be non-empty")
+
+        # All dicts must contain exactly one non-empty key.
+        if isinstance(el, dict):
+            if "" in el or len(el) != 1:
+                raise ValueError(f"<{el}> must have exactly one key")
+
+            key = list(el)[0]
+            if not isinstance(key, str):
+                raise ValueError(f"Dict key <{key}> must be a string")
+
+            # Recursively check the dictionary values.
+            validate_subfilters(el[key])
 
 
 # -----------------------------------------------------------------------------
