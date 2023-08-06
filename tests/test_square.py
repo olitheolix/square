@@ -1519,7 +1519,7 @@ class TestMainOptions:
 
         The `get_resource` function is more of a linear script than anything
         else. We merely need to verify it calls the correct functions with the
-        correct arguments and aborts if any errors occur.
+        correct arguments and aborts at the first error.
 
         """
         k8sconfig: K8sConfig = kube_creds
@@ -1530,8 +1530,8 @@ class TestMainOptions:
         m_load.return_value = ("local_meta", "local_path", False)
         m_down.return_value = ("server", False)
         m_mapi.return_value = ("matched", False)
-        m_clean.return_value = ({}, "matched-clean", False)
-        m_sync.return_value = ("synced", False)
+        m_sync.return_value = ({"path": [("meta", "manifest")]}, False)
+        m_clean.return_value = ({}, {"meta": "manifest-clean"}, False)
         m_save.return_value = False
 
         # `manio.load` must have been called with a wildcard selector to ensure
@@ -1544,10 +1544,12 @@ class TestMainOptions:
         m_load.assert_called_once_with(config.folder, load_selectors)
         m_down.assert_called_once_with(config, k8sconfig)
         m_mapi.assert_called_once_with(k8sconfig, "local_meta", "server")
-        m_clean.assert_called_once_with(config, k8sconfig, {}, "matched")
-        m_sync.assert_called_once_with("local_path", "matched-clean",
+        m_sync.assert_called_once_with("local_path", "matched",
                                        config.selectors, config.groupby)
-        m_save.assert_called_once_with(config.folder, "synced", config.priorities)
+        m_clean.assert_called_once_with(
+            config, k8sconfig, {}, {"meta": "manifest"})
+        m_save.assert_called_once_with(
+            config.folder, {"path": [("meta", "manifest-clean")]}, config.priorities)
 
         # Simulate an error with `manio.save`.
         m_save.return_value = (None, True)
