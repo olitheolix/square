@@ -46,6 +46,8 @@ def k8sconfig() -> Generator[K8sConfig, None, None]:
     cfg.short2kind["secret"] = "Secret"
     cfg.short2kind["ns"] = "Namespace"
     cfg.short2kind["namespace"] = "Namespace"
+    cfg.short2kind["hpa"] = "HorizontalPodAutoscaler"
+    cfg.short2kind["cm"] = "ConfigMap"
 
     # The set of canonical K8s resources we support.
     cfg.kinds.update({_ for _ in cfg.short2kind.values()})
