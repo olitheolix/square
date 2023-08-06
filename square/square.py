@@ -180,11 +180,11 @@ async def match_api_version(
     server = copy.deepcopy(server)
 
     # Find the resources that exist in local manifests and on K8s. The
-    # resources are identical if their MetaManifest are identical save for the
+    # resources are identical if their MetaManifests are identical save for the
     # `apiVersion` field.
-    mm_loc = {meta._replace(apiVersion=""): meta for meta in local}
-    mm_srv = {meta._replace(apiVersion=""): meta for meta in server}
-    meta_overlap = set(mm_loc.keys()) & set(mm_srv.keys())
+    meta_noapi_loc = {meta._replace(apiVersion=""): meta for meta in local}
+    meta_noapi_srv = {meta._replace(apiVersion=""): meta for meta in server}
+    meta_overlap = set(meta_noapi_loc.keys()) & set(meta_noapi_srv.keys())
 
     # Iterate over all the resources that exist on both the server and locally,
     # even though they may use different API versions.
@@ -192,13 +192,13 @@ async def match_api_version(
     for meta in meta_overlap:
         # Lookup the full MetaManifest for the local and server resource.
         # NOTE: meta_{loc,srv} are identical except possibly for the `apiVersion` field.
-        meta_loc = mm_loc[meta]
-        meta_srv = mm_srv[meta]
+        meta_loc = meta_noapi_loc[meta]
+        meta_srv = meta_noapi_srv[meta]
 
-        # Do nothing if the `apiVersions` match because we can already compute a
-        # plan for it. However, if the `apiVersions` differ then we will
-        # replace entry in `server` with the one fetched from the correct K8s
-        # endpoint (see next section).
+        # Do nothing if the `apiVersions` match because we can already compute
+        # a plan for it. However, if the `apiVersions` differ then we will
+        # replace the old `server` entry with the new one fetched from the
+        # correct K8s endpoint (see next section).
         if meta_loc != meta_srv:
             del server[meta_srv]
             to_download.append(meta_loc)
@@ -206,11 +206,13 @@ async def match_api_version(
                 f"Using non-default {meta.kind.upper()} endpoint "
                 f"<{meta_loc.apiVersion}>"
             )
+        del meta, meta_loc, meta_srv
+    del meta_noapi_loc, meta_noapi_srv, meta_overlap
 
     # Re-fetch the resources we already got but this time from the correct endpoint.
-    for meta in to_download:
+    for meta_loc in to_download:
         # Construct the correct K8sResource.
-        resource, err = k8s.resource(k8sconfig, meta)
+        resource, err = k8s.resource(k8sconfig, meta_loc)
         assert not err
 
         # Download the resource.
@@ -220,11 +222,9 @@ async def match_api_version(
         manifest, err = manio.strip(k8sconfig, manifest, {})
         assert not err
 
-        meta = manio.make_meta(manifest)
-
         # Add the resource to the `server` dict. This will have been one of
         # those we deleted a few lines earlier.
-        server[meta] = manifest
+        server[manio.make_meta(manifest)] = manifest
 
     return server, False
 
