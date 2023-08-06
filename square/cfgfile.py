@@ -18,44 +18,8 @@ import yaml
 
 from square.dtypes import Config
 
-from .dtypes import FiltersKind
-
 # Convenience.
 logit = logging.getLogger("square")
-
-
-def valid(filters: FiltersKind) -> bool:
-    """Return `True` iff `filters` is valid."""
-    return _valid(filters)
-
-
-def _valid(filters) -> bool:
-    """Return `True` iff `filters` is valid."""
-    if not isinstance(filters, list):
-        logit.error(f"<{filters}> must be a list")
-        return False
-
-    # Iterate over all fields of all K8s resource type.
-    for el in filters:
-        # All entries must be either strings or dicts of lists.
-        if isinstance(el, dict):
-            if len(el) != 1:
-                logit.error(f"<{el}> must have exactly one key")
-                return False
-            value = list(el.values())[0]
-
-            # Recursively check the dictionary values.
-            if not _valid(value):
-                logit.error(f"<{value}> is invalid")
-                return False
-        elif isinstance(el, str):
-            if el == "":
-                logit.error("Strings must be non-empty")
-                return False
-        else:
-            logit.error(f"<{el}> must be a string or dict")
-            return False
-    return True
 
 
 def merge(src: list, dst: list) -> list:
