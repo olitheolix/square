@@ -465,6 +465,36 @@ def diff(local: dict, server: dict) -> Tuple[str, bool]:
     return (str.join("\n", diff_lines), False)
 
 
+def cleanup_manifests(
+        config: Config, k8sconfig: K8sConfig,
+        local: SquareManifests,
+        server: SquareManifests) -> Tuple[SquareManifests, SquareManifests, bool]:
+    """Returned cleaned up `local` and `server` manifests."""
+    # Strip the unwanted sections from the manifests before we compute patches.
+    stripped_server = {
+        meta: strip(k8sconfig, man, config.filters)
+        for meta, man in server.items()
+    }
+    stripped_local = {
+        meta: strip(k8sconfig, man, config.filters)
+        for meta, man in local.items()
+    }
+
+    # Abort if any of the manifests could not be stripped.
+    err_srv = {_[1] for _ in stripped_server.values()}
+    err_loc = {_[1] for _ in stripped_local.values()}
+    if any(err_srv) or any(err_loc):
+        logit.error("Could not strip all manifests.")
+        return ({}, {}, True)
+
+    # Unpack the stripped manifests (ie first element in the tuple returned
+    # by `manio.strip`).
+    server = {k: v[0] for k, v in stripped_server.items()}
+    local = {k: v[0] for k, v in stripped_local.items()}
+
+    return local, server, False
+
+
 def strip(
     k8sconfig: K8sConfig,
     manifest: dict,
@@ -475,7 +505,7 @@ def strip(
     Inputs:
         k8sconfig: K8sConfig
         manifest: dict
-        manifest_filters: Dict[str, list]
+        filters: Dict[str, list]
             See tests for examples
 
     Returns:
