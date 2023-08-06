@@ -9,6 +9,7 @@ from typing import Dict, List, cast
 import pytest
 import yaml
 
+import square.callbacks
 import square.k8s as k8s
 import square.manio as manio
 from square.dtypes import (
@@ -729,7 +730,7 @@ class TestYamlManifestIO:
             assert ref == out
 
 
-class TestStrip:
+class TestCleanupCallback:
     def test_run_cleanup_callback_invalid_version_kind(self, config: Config, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
         # Minimally valid filters for fake resource kind "TEST".
@@ -889,6 +890,29 @@ class TestStrip:
         # Remove an essential key from the input manifest to force an error.
         del man["apiVersion"]
         assert fun(config, k8sconfig, {}, server) == ({}, {}, True)
+
+    def test_cleanup_manifests_runtime_error(self, config, k8sconfig):
+        """Gracefully abort if the callback function is ill behaved."""
+        # Convenience.
+        fun = manio.cleanup_manifests
+
+        # Create valid test input.
+        man = make_manifest("ClusterRole", None, "name")
+        meta = manio.make_meta(man)
+        server: SquareManifests = {meta: man}
+
+        # Must succeed.
+        assert fun(config, k8sconfig, {}, server) == ({}, server, False)
+
+        # Mock the callback function and force it to raise an exception.
+        with mock.patch.object(square.callbacks, "cleanup_manifest") as m_clean:
+            m_clean.side_effect = RuntimeError
+            assert fun(config, k8sconfig, {}, server) == ({}, {}, True)
+
+        # Mock the callback function and force it to return wrong number of arguments.
+        with mock.patch.object(square.callbacks, "cleanup_manifest") as m_clean:
+            m_clean.return_value = (None, {}, "foo")
+            assert fun(config, k8sconfig, {}, server) == ({}, {}, True)
 
 
 class TestDiff:
