@@ -301,7 +301,7 @@ class TestMainGet:
             ),
         )
 
-        # Copy the manifest with the namespace and the two HPAs to the temporary path.
+        # Copy the manifest with the namespace and HPAs to a temporary path.
         manifests = list(yaml.safe_load_all(open("tests/support/k8s-test-hpa.yaml")))
         man_path = tmp_path / "manifest.yaml"
         man_path.write_text(yaml.dump_all(manifests))
