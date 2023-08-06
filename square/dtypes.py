@@ -2,8 +2,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from pydantic import BaseModel, Field, field_validator
-
-import square.callbacks
+from typing_extensions import Annotated
 
 # Square will first save/deploy the resources in this list in this order.
 # Afterwards it will move on to all those resources not in this list. The order
@@ -242,7 +241,10 @@ class Config(BaseModel):
 
     # Callable: will be invoked for every local/server manifest that requires
     # patching before the actual patch will be computed.
-    patch_callback: Callable = square.callbacks.modify_patch_manifests
+    patch_callback: Annotated[
+        Callable,
+        Field(validate_default=True)
+    ] = lambda: None  # codecov-skip
 
     version: str = ""
 
@@ -256,6 +258,12 @@ class Config(BaseModel):
                 raise ValueError(f"Dict key <{k}> must be a non-empty string")
             validate_subfilters(v)
         return filters
+
+    @field_validator("patch_callback")
+    @classmethod
+    def default_patch_callback(cls, _) -> Callable:
+        import square.callbacks
+        return square.callbacks.modify_patch_manifests
 
 
 def validate_subfilters(filter_list):

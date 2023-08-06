@@ -8,6 +8,7 @@ import pytest
 import yaml
 
 import square
+import square.callbacks
 import square.cfgfile as cfgfile
 from square.dtypes import DEFAULT_PRIORITIES, Config
 
@@ -212,7 +213,7 @@ class TestFilters:
 
 
 class TestModels:
-    def test_config(self):
+    def test_config_basic(self):
         kwargs = dict(kubeconfig=Path(), folder=Path('/tmp'))
 
         # The top level entry must always be a dict.
@@ -258,3 +259,8 @@ class TestModels:
         for filters in invalid_filters:
             with pytest.raises(pydantic.ValidationError):
                 Config(**kwargs, filters=filters)  # type: ignore
+
+    def test_config_callbacks(self, tmp_path):
+        """Verify that default callbacks were setup correctly."""
+        cfg = Config(kubeconfig=Path(tmp_path), folder=tmp_path)
+        assert cfg.patch_callback == square.callbacks.modify_patch_manifests
