@@ -594,7 +594,7 @@ class TestMatchApiVersions:
         """
         fun = square.square.match_api_version
         hpa = "HorizontalPodAutoscaler"
-        svc = "ServicePodAutoscaler"
+        svc = "Service"
 
         man_svc_1_loc = make_manifest(svc, "ns", "svc-1")
         man_svc_1_srv = make_manifest(svc, "ns", "svc-1")
