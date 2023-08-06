@@ -757,7 +757,7 @@ class TestManifestFiltering:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        assert manio.filter_manifest(manifest, filters) == (manifest, False)
+        assert manio.filter_manifest(manifest, filters) == manifest
         del manifest
 
         # Demo manifest. The "labels.foo" matches the filter and must not survive.
@@ -780,7 +780,7 @@ class TestManifestFiltering:
             },
             "spec": "spec",
         }
-        assert manio.filter_manifest(manifest, filters) == (expected, False)
+        assert manio.filter_manifest(manifest, filters) == expected
         del manifest
 
         # Valid manifest with all mandatory and *some* optional keys (
@@ -812,7 +812,7 @@ class TestManifestFiltering:
             },
             "spec": "keep",
         }
-        assert manio.filter_manifest(manifest, filters) == (expected, False)
+        assert manio.filter_manifest(manifest, filters) == expected
 
     def test_filter_manifest_ambigous_filters(self):
         """Must cope with filters that specify the same resource multiple times."""
@@ -839,8 +839,7 @@ class TestManifestFiltering:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        out, err = manio.filter_manifest(manifest, filters)
-        assert (out, err) == (manifest, False)
+        assert manio.filter_manifest(manifest, filters) == manifest
         del manifest
 
         # Demo manifest. The "labels.creationTimestamp" matches the filter and
@@ -864,9 +863,7 @@ class TestManifestFiltering:
             },
             "spec": "spec",
         }
-        out, err = manio.filter_manifest(manifest, filters)
-        assert not err
-        assert out == expected
+        assert manio.filter_manifest(manifest, filters) == expected
         del manifest
 
         # Valid manifest with a "status" field that must not survive.
@@ -889,7 +886,7 @@ class TestManifestFiltering:
             },
             "spec": "keep",
         }
-        assert manio.filter_manifest(manifest, filters) == (expected, False)
+        assert manio.filter_manifest(manifest, filters) == expected
 
     def test_filter_manifest_sub_hierarchies(self):
         """Remove an entire sub-tree from the manifest."""
@@ -906,16 +903,16 @@ class TestManifestFiltering:
         manifest: dict = copy.deepcopy(expected)
 
         manifest["status"] = "string"
-        assert manio.filter_manifest(manifest, filters) == (expected, False)
+        assert manio.filter_manifest(manifest, filters) == expected
 
         manifest["status"] = None
-        assert manio.filter_manifest(manifest, filters) == (expected, False)
+        assert manio.filter_manifest(manifest, filters) == expected
 
         manifest["status"] = ["foo", "bar"]
-        assert manio.filter_manifest(manifest, filters) == (expected, False)
+        assert manio.filter_manifest(manifest, filters) == expected
 
         manifest["status"] = {"foo", "bar"}
-        assert manio.filter_manifest(manifest, filters) == (expected, False)
+        assert manio.filter_manifest(manifest, filters) == expected
 
     def test_filter_manifest_lists_simple(self):
         """Filter the `NodePort` key from a list of dicts."""
@@ -933,7 +930,7 @@ class TestManifestFiltering:
             {"nodePort": 1},
             {"nodePort": 3},
         ]
-        assert manio.filter_manifest(manifest, filters) == (expected, False)
+        assert manio.filter_manifest(manifest, filters) == expected
 
     def test_filter_manifest_lists_service(self):
         """Filter the `NodePort` key from a list of dicts."""
@@ -957,7 +954,7 @@ class TestManifestFiltering:
             {"name": "http", "port": 82},
             {"name": "http", "port": 83},
         ]
-        assert manio.filter_manifest(manifest, filters) == (expected, False)
+        assert manio.filter_manifest(manifest, filters) == expected
 
     def test_filter_manifest_default_filters(self):
         """Must fall back to default filters unless otherwise specified.
@@ -977,18 +974,7 @@ class TestManifestFiltering:
         expected["metadata"] = {"name": "name", "namespace": "ns"}
 
         # Must remove the `metadata.uid` field.
-        assert manio.filter_manifest(manifest, {}) == (expected, False)
-
-    def test_filter_manifest_invalid_filters(self):
-        manifest = {
-            "apiVersion": "v1",
-            "kind": "Service",
-            "metadata": {"name": "name", "namespace": "ns"},
-            "spec": "spec",
-        }
-        invalid_filter = {"Service": "invalid-filter"}
-        ret = manio.filter_manifest(manifest, invalid_filter)  # type: ignore
-        assert ret == ({}, True)
+        assert manio.filter_manifest(manifest, {}) == expected
 
     def test_strip_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
@@ -1002,20 +988,6 @@ class TestManifestFiltering:
         # Invalid K8s version but valid resource type.
         config = k8sconfig._replace(version="unknown")
         manifest = {"apiVersion": "v1", "kind": "TEST"}
-        assert manio.strip(config, manifest, filters) == ({}, True)
-
-        # Invalid filter definition.
-        config = k8sconfig._replace(version="unknown")
-        manifest = {
-            "apiVersion": "v1",
-            "kind": "Service",
-            "metadata": {
-                "name": "name",
-                "namespace": "ns",
-                "uid": "some-uid"
-            }
-        }
-        filters: Filters = {"Service": "should-be-a-list"}              # type: ignore
         assert manio.strip(config, manifest, filters) == ({}, True)
 
     def test_strip_namespace(self, k8sconfig):
