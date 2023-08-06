@@ -13,6 +13,7 @@ import yaml.scanner
 import square.callbacks
 import square.cfgfile
 import square.k8s
+import square.square
 from square.dtypes import (
     Config, GroupBy, K8sConfig, KindName, LocalManifestLists, MetaManifest,
     Selectors, SquareManifests,
@@ -511,7 +512,7 @@ def run_cleanup_callback(
         manifest: dict
 
     Returns:
-        dict, dict: (stripped manifest, removed keys).
+        dict: clean manifest
 
     """
     # Convenience: default return value if an error occurs.
@@ -529,7 +530,18 @@ def run_cleanup_callback(
         return ret_err
     del k8sconfig
 
-    return square.callbacks.cleanup_manifest(config, manifest), False
+    # Convenience.
+    cb = square.callbacks.cleanup_manifest
+
+    # Run cleanup callback.
+    kwargs = dict(square_config=config, manifest=manifest)
+    try:
+        clean_manifest, err = square.square.call_external_function(cb, kwargs)
+        assert not err
+        assert isinstance(clean_manifest, dict)
+    except (TypeError, AssertionError):
+        return {}, True
+    return clean_manifest, False
 
 
 def align_serviceaccount(
