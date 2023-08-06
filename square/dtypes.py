@@ -239,8 +239,6 @@ class Config(BaseModel):
     # Define which fields to skip for which resource.
     filters: Filters = {}
 
-    version: str = ""
-
     # Callable: will be invoked for every local/server manifest that requires
     # patching before the actual patch will be computed.
     patch_callback: Annotated[

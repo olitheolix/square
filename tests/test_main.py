@@ -65,10 +65,6 @@ def fname_param_config(tmp_path) -> Generator[
     # Ensure the dummy kubeconfig file exists.
     config.kubeconfig.write_text("")
 
-    # Override the version because this one is difficult (and pointless) to
-    # compare in tests.
-    config.version = ""
-
     params = types.SimpleNamespace(
         # Not in config file - command line arguments only.
         parser="get",
