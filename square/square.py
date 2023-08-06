@@ -899,6 +899,10 @@ async def get_resources(cfg: Config) -> bool:
         server, err = await match_api_version(k8sconfig, local_meta, server)
         assert not err
 
+        # Remove all unwanted entries from the manifests.
+        _, server, err = cleanup_manifests(cfg, k8sconfig, {}, server)
+        assert not err
+
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see `manio.save` in the next step.
         synced_manifests, err = manio.sync(local_path, server, cfg.selectors, cfg.groupby)

@@ -1510,10 +1510,11 @@ class TestMainOptions:
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
     @mock.patch.object(sq, "match_api_version")
+    @mock.patch.object(sq, "cleanup_manifests")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
-    async def test_get_resources(self, m_save, m_sync, m_mapi, m_down,
-                                 m_load, kube_creds, config):
+    async def test_get_resources(self, m_save, m_sync, m_clean, m_mapi,
+                                 m_down, m_load, kube_creds, config):
         """Basic test.
 
         The `get_resource` function is more of a linear script than anything
@@ -1529,6 +1530,7 @@ class TestMainOptions:
         m_load.return_value = ("local_meta", "local_path", False)
         m_down.return_value = ("server", False)
         m_mapi.return_value = ("matched", False)
+        m_clean.return_value = ({}, "matched-clean", False)
         m_sync.return_value = ("synced", False)
         m_save.return_value = False
 
@@ -1542,7 +1544,8 @@ class TestMainOptions:
         m_load.assert_called_once_with(config.folder, load_selectors)
         m_down.assert_called_once_with(config, k8sconfig)
         m_mapi.assert_called_once_with(k8sconfig, "local_meta", "server")
-        m_sync.assert_called_once_with("local_path", "matched",
+        m_clean.assert_called_once_with(config, k8sconfig, {}, "matched")
+        m_sync.assert_called_once_with("local_path", "matched-clean",
                                        config.selectors, config.groupby)
         m_save.assert_called_once_with(config.folder, "synced", config.priorities)
 
