@@ -264,3 +264,4 @@ class TestModels:
         """Verify that default callbacks were setup correctly."""
         cfg = Config(kubeconfig=Path(tmp_path), folder=tmp_path)
         assert cfg.patch_callback == square.callbacks.modify_patch_manifests
+        assert cfg.clean_callback == square.callbacks.cleanup_manifest

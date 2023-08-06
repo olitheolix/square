@@ -9,7 +9,6 @@ from typing import Dict, List, cast
 import pytest
 import yaml
 
-import square.callbacks
 import square.k8s as k8s
 import square.manio as manio
 from square.dtypes import (
@@ -891,7 +890,7 @@ class TestCleanupCallback:
         del man["apiVersion"]
         assert fun(config, k8sconfig, {}, server) == ({}, {}, True)
 
-    def test_cleanup_manifests_runtime_error(self, config, k8sconfig):
+    def test_cleanup_manifests_runtime_error(self, config: Config, k8sconfig):
         """Gracefully abort if the callback function is ill behaved."""
         # Convenience.
         fun = manio.cleanup_manifests
@@ -904,15 +903,19 @@ class TestCleanupCallback:
         # Must succeed.
         assert fun(config, k8sconfig, {}, server) == ({}, server, False)
 
-        # Mock the callback function and force it to raise an exception.
-        with mock.patch.object(square.callbacks, "cleanup_manifest") as m_clean:
-            m_clean.side_effect = RuntimeError
-            assert fun(config, k8sconfig, {}, server) == ({}, {}, True)
+        # Callback raises an exception.
+        def cb_exception(square_config, manifest):
+            raise RuntimeError()
 
-        # Mock the callback function and force it to return wrong number of arguments.
-        with mock.patch.object(square.callbacks, "cleanup_manifest") as m_clean:
-            m_clean.return_value = (None, {}, "foo")
-            assert fun(config, k8sconfig, {}, server) == ({}, {}, True)
+        config.clean_callback = cb_exception
+        assert fun(config, k8sconfig, {}, server) == ({}, {}, True)
+
+        # Callback provides too many return values.
+        def cb_invalid_return_values(square_config, manifest):
+            return (None, {}, "foo")
+
+        config.clean_callback = cb_invalid_return_values
+        assert fun(config, k8sconfig, {}, server) == ({}, {}, True)
 
 
 class TestDiff:

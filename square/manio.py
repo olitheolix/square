@@ -530,15 +530,12 @@ def run_cleanup_callback(
         return ret_err
     del k8sconfig
 
-    # Convenience.
-    cb = square.callbacks.cleanup_manifest
-
     # Run cleanup callback.
+    cb = config.clean_callback
     kwargs = dict(square_config=config, manifest=manifest)
     try:
         clean_manifest, err = square.square.call_external_function(cb, kwargs)
-        assert not err
-        assert isinstance(clean_manifest, dict)
+        assert not err and isinstance(clean_manifest, dict)
     except (TypeError, AssertionError):
         return {}, True
     return clean_manifest, False

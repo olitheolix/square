@@ -239,6 +239,8 @@ class Config(BaseModel):
     # Define which fields to skip for which resource.
     filters: Filters = {}
 
+    version: str = ""
+
     # Callable: will be invoked for every local/server manifest that requires
     # patching before the actual patch will be computed.
     patch_callback: Annotated[
@@ -246,7 +248,10 @@ class Config(BaseModel):
         Field(validate_default=True)
     ] = lambda: None  # codecov-skip
 
-    version: str = ""
+    clean_callback: Annotated[
+        Callable,
+        Field(validate_default=True)
+    ] = lambda: None  # codecov-skip
 
     @field_validator('filters')
     @classmethod
@@ -264,6 +269,12 @@ class Config(BaseModel):
     def default_patch_callback(cls, _) -> Callable:
         import square.callbacks
         return square.callbacks.modify_patch_manifests
+
+    @field_validator("clean_callback")
+    @classmethod
+    def default_clean_callback(cls, _) -> Callable:
+        import square.callbacks
+        return square.callbacks.cleanup_manifest
 
 
 def validate_subfilters(filter_list):
