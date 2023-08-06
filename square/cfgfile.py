@@ -117,12 +117,13 @@ def load(fname: Path) -> Tuple[Config, bool]:
         logit.error(msg)
         return err_resp
 
-    # Parse the configuration into `ConfigFile` structure.
+    # Parse the configuration into `Config` structure.
     try:
         cfg = Config.model_validate(raw)
 
-        # Explicitly access the computed `_kinds_names` attribute because
-        # Pydantic will not compute it until it is accessed.
+        # Explicitly access the computed attributes since Pydantic will not
+        # create and validate until accessed and we want all the error checking
+        # to happen here.
         cfg.selectors._kinds_names
         cfg.selectors._kinds_only
     except (pydantic.ValidationError, TypeError) as e:
@@ -134,7 +135,7 @@ def load(fname: Path) -> Tuple[Config, bool]:
     cfg.filters = {k: merge(common, v) for k, v in cfg.filters.items()}
     cfg.filters["_common_"] = common
 
-    # Ensure the path is an absolute path.
+    # Ensure the path is absolute.
     cfg.folder = fname.parent.absolute() / cfg.folder
 
     return cfg, False
