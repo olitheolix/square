@@ -4,7 +4,7 @@ from typing import Any, Dict
 import square
 import square.callbacks
 import square.callbacks as callbacks
-from square.dtypes import Config, Filters, FiltersKind
+from square.dtypes import Config, FiltersKind
 
 
 class TestCallbacks:
@@ -23,7 +23,7 @@ class TestCallbacks:
 
 
 class TestManifestFiltering:
-    def test_cleanup_manifest_generic(self):
+    def test_cleanup_manifest_generic(self, config):
         """Create a completely fake filter set to test all options.
 
         This test has nothing to do with real world manifests. Its only purpose
@@ -41,7 +41,7 @@ class TestManifestFiltering:
             "status",
             {"spec": [{"ports": ["nodePort"]}]},
         ]
-        filters: Filters = {"Service": _filters}
+        config.filters = {"Service": _filters}
 
         # Demo manifest. None of its keys matches the filter and
         # `strip` must therefore not remove anything.
@@ -51,7 +51,7 @@ class TestManifestFiltering:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        assert callbacks.cleanup_manifest(manifest, filters) == manifest
+        assert callbacks.cleanup_manifest(config, manifest) == manifest
         del manifest
 
         # Demo manifest. The "labels.foo" matches the filter and must not survive.
@@ -74,7 +74,7 @@ class TestManifestFiltering:
             },
             "spec": "spec",
         }
-        assert callbacks.cleanup_manifest(manifest, filters) == expected
+        assert callbacks.cleanup_manifest(config, manifest) == expected
         del manifest
 
         # Valid manifest with all mandatory and *some* optional keys (
@@ -106,9 +106,9 @@ class TestManifestFiltering:
             },
             "spec": "keep",
         }
-        assert callbacks.cleanup_manifest(manifest, filters) == expected
+        assert callbacks.cleanup_manifest(config, manifest) == expected
 
-    def test_cleanup_manifest_ambigous_filters(self):
+    def test_cleanup_manifest_ambigous_filters(self, config):
         """Must cope with filters that specify the same resource multiple times."""
         # Define filters for this test.
         _filters: FiltersKind = [
@@ -123,7 +123,7 @@ class TestManifestFiltering:
             {"status": [{"foo": ["bar"]}]},
             "status",
         ]
-        filters: Filters = {"Service": _filters}
+        config.filters = {"Service": _filters}
 
         # Demo manifest. None of its keys matches the filter and
         # `strip` must therefore not remove anything.
@@ -133,7 +133,7 @@ class TestManifestFiltering:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        assert callbacks.cleanup_manifest(manifest, filters) == manifest
+        assert callbacks.cleanup_manifest(config, manifest) == manifest
         del manifest
 
         # Demo manifest. The "labels.creationTimestamp" matches the filter and
@@ -157,7 +157,7 @@ class TestManifestFiltering:
             },
             "spec": "spec",
         }
-        assert callbacks.cleanup_manifest(manifest, filters) == expected
+        assert callbacks.cleanup_manifest(config, manifest) == expected
         del manifest
 
         # Valid manifest with a "status" field that must not survive.
@@ -180,13 +180,13 @@ class TestManifestFiltering:
             },
             "spec": "keep",
         }
-        assert callbacks.cleanup_manifest(manifest, filters) == expected
+        assert callbacks.cleanup_manifest(config, manifest) == expected
 
-    def test_cleanup_manifest_sub_hierarchies(self):
+    def test_cleanup_manifest_sub_hierarchies(self, config):
         """Remove an entire sub-tree from the manifest."""
         # Remove the "status" key, irrespective of whether it is a string, dict
         # or list in the actual manifest.
-        filters: Filters = {"Service": ["status"]}
+        config.filters = {"Service": ["status"]}
 
         # Minimally valid manifest.
         expected = {
@@ -197,21 +197,21 @@ class TestManifestFiltering:
         manifest: dict = copy.deepcopy(expected)
 
         manifest["status"] = "string"
-        assert callbacks.cleanup_manifest(manifest, filters) == expected
+        assert callbacks.cleanup_manifest(config, manifest) == expected
 
         manifest["status"] = None
-        assert callbacks.cleanup_manifest(manifest, filters) == expected
+        assert callbacks.cleanup_manifest(config, manifest) == expected
 
         manifest["status"] = ["foo", "bar"]
-        assert callbacks.cleanup_manifest(manifest, filters) == expected
+        assert callbacks.cleanup_manifest(config, manifest) == expected
 
         manifest["status"] = {"foo", "bar"}
-        assert callbacks.cleanup_manifest(manifest, filters) == expected
+        assert callbacks.cleanup_manifest(config, manifest) == expected
 
-    def test_cleanup_manifest_lists_simple(self):
+    def test_cleanup_manifest_lists_simple(self, config):
         """Filter the `NodePort` key from a list of dicts."""
         # Filter the "nodePort" element from the port list.
-        filters: Filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
+        config.filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
 
         expected = {
             "apiVersion": "v1",
@@ -224,12 +224,12 @@ class TestManifestFiltering:
             {"nodePort": 1},
             {"nodePort": 3},
         ]
-        assert callbacks.cleanup_manifest(manifest, filters) == expected
+        assert callbacks.cleanup_manifest(config, manifest) == expected
 
-    def test_cleanup_manifest_lists_service(self):
+    def test_cleanup_manifest_lists_service(self, config):
         """Filter the `NodePort` key from a list of dicts."""
         # Filter the "nodePort" element from the port list.
-        filters: Filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
+        config.filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
 
         expected: dict = {
             "apiVersion": "v1",
@@ -248,9 +248,9 @@ class TestManifestFiltering:
             {"name": "http", "port": 82},
             {"name": "http", "port": 83},
         ]
-        assert callbacks.cleanup_manifest(manifest, filters) == expected
+        assert callbacks.cleanup_manifest(config, manifest) == expected
 
-    def test_cleanup_manifest_default_filters(self):
+    def test_cleanup_manifest_default_filters(self, config):
         """Must fall back to default filters unless otherwise specified.
 
         Here we expect the function to strip out the `metadata.uid` because it
@@ -268,4 +268,4 @@ class TestManifestFiltering:
         expected["metadata"] = {"name": "name", "namespace": "ns"}
 
         # Must remove the `metadata.uid` field.
-        assert callbacks.cleanup_manifest(manifest, {}) == expected
+        assert callbacks.cleanup_manifest(config, manifest)

@@ -2,7 +2,7 @@ import logging
 from typing import Tuple
 
 import square
-from square.dtypes import Config, Filters, FiltersKind
+from square.dtypes import Config, FiltersKind
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
@@ -38,7 +38,7 @@ def modify_patch_manifests(square_config: "Config",
     return local_manifest, server_manifest
 
 
-def cleanup_manifest(manifest: dict, manifest_filters: Filters) -> dict:
+def cleanup_manifest(square_config: Config, manifest: dict) -> dict:
     def _update(filters: FiltersKind, manifest: dict):
         """Recursively traverse the `manifest` and prune it according to `filters`.
 
@@ -93,7 +93,7 @@ def cleanup_manifest(manifest: dict, manifest_filters: Filters) -> dict:
     kind = manifest["kind"]
 
     default_filter = square.DEFAULT_CONFIG.filters["_common_"]
-    filters: FiltersKind = manifest_filters.get(kind, default_filter)
+    filters: FiltersKind = square_config.filters.get(kind, default_filter)
 
     # Remove the keys from the `manifest` according to `filters`.
     _update(filters, manifest)
