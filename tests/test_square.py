@@ -4,6 +4,8 @@ import unittest.mock as mock
 from pathlib import Path
 from typing import List, cast
 
+import yaml
+
 import square.cfgfile
 import square.k8s as k8s
 import square.manio
@@ -1513,8 +1515,8 @@ class TestMainOptions:
     @mock.patch.object(manio, "cleanup_manifests")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
-    async def test_get_resources(self, m_save, m_sync, m_clean, m_mapi,
-                                 m_down, m_load, kube_creds, config):
+    async def test_get_resources_full_mock(self, m_save, m_sync, m_clean, m_mapi,
+                                           m_down, m_load, kube_creds, config):
         """Basic test.
 
         The `get_resource` function is more of a linear script than anything
@@ -1566,3 +1568,115 @@ class TestMainOptions:
         # Simulate an error in `load`.
         m_load.return_value = (None, None, True)
         assert await sq.get_resources(config) is True
+
+    @mock.patch.object(manio, "download")
+    async def test_get_resources_basic(self, m_down, kube_creds, config: Config):
+        """Simulate an empty local folder and some downloaded manifests."""
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        config.groupby = GroupBy()
+        man_path = config.folder / "_other.yaml"
+
+        svc = "Service"
+        hpa = "HorizontalPodAutoscaler"
+
+        # Dummy manifests.
+        man_svc_1 = make_manifest(svc, "ns", "svc-1", labels=dict(app="app-1"))
+        man_svc_2 = make_manifest(svc, "ns", "svc-2", labels=dict(app="app-2"))
+        man_hpa_1 = make_manifest(hpa, "ns", "svc-2", labels=dict(app="app-1"))
+
+        # MetaManifests for the dummy manifests.
+        meta_svc_1 = manio.make_meta(man_svc_1)
+        meta_svc_2 = manio.make_meta(man_svc_2)
+        meta_hpa_1 = manio.make_meta(man_hpa_1)
+
+        # Pretend that this is what we downloaded from K8s.
+        square_manifests: SquareManifests = {
+            meta_svc_1: man_svc_1,
+            meta_svc_2: man_svc_2,
+            meta_hpa_1: man_hpa_1,
+        }
+        m_down.return_value = (square_manifests, False)
+
+        # --------------------------------------------------------------------------------
+        # Download all three manifest and verify that callback was called three times.
+        # --------------------------------------------------------------------------------
+        call_count_cb1 = 0
+
+        def cb1(square_config: Config, manifest: dict) -> dict:
+            nonlocal call_count_cb1
+            call_count_cb1 += 1
+            manifest["metadata"]["labels"]["cb1"] = "called"
+            return manifest
+
+        # Specify all kinds and install callback to clean manifests.
+        config.selectors = Selectors(kinds={svc, hpa})
+        config.clean_callback = cb1
+
+        # Call function and verify the callback got called three times and that
+        # all downloaded manifests have the new label.
+        assert await sq.get_resources(config) is False
+        assert call_count_cb1 == 3
+        manifests = list(yaml.safe_load_all(man_path.read_text()))
+        for manifest in manifests:
+            assert manifest["metadata"]["labels"]["cb1"] == "called"
+        del call_count_cb1
+
+        # --------------------------------------------------------------------------------
+        # Delete downloaded resources and select only HPAs this time.
+        # The callback must be called once only.
+        # --------------------------------------------------------------------------------
+        # Delete downloaded manifests.
+        man_path.unlink()
+
+        call_count_cb2 = 0
+
+        def cb2(square_config: Config, manifest: dict) -> dict:
+            nonlocal call_count_cb2
+            call_count_cb2 += 1
+            manifest["metadata"]["labels"]["cb2"] = "called"
+            return manifest
+
+        # Select only HPAs and install callback to clean manifests.
+        config.selectors = Selectors(kinds={hpa})
+        config.clean_callback = cb2
+
+        # Call function and verify the callback got called three times and that
+        # all downloaded manifests have the new label.
+        assert await sq.get_resources(config) is False
+        manifests = list(yaml.safe_load_all(man_path.read_text()))
+        assert call_count_cb2 == len(manifests) == 1
+        for manifest in manifests:
+            assert manifest["metadata"]["labels"]["cb2"] == "called"
+        del call_count_cb2
+
+        # --------------------------------------------------------------------------------
+        # Keep the previously downloaded HPA resources and select only SERVICEs.
+        #
+        # The callback must be called three times because Square will apply it
+        # to the union of all downloaded manifests that fit the selectors as
+        # well as the existing local manifests.
+        # --------------------------------------------------------------------------------
+        assert man_path.exists()
+
+        call_count_cb3 = 0
+
+        def cb3(square_config: Config, manifest: dict) -> dict:
+            nonlocal call_count_cb3
+            call_count_cb3 += 1
+            manifest["metadata"]["labels"]["cb3"] = "called"
+            return manifest
+
+        # Select only HPAs and install callback to clean manifests.
+        config.selectors = Selectors(kinds={svc})
+        config.clean_callback = cb3
+
+        # Call function and verify the callback got called three times and that
+        # all downloaded manifests have the new label.
+        assert await sq.get_resources(config) is False
+        manifests = list(yaml.safe_load_all(man_path.read_text()))
+        assert call_count_cb3 == len(manifests) == 3
+        for manifest in manifests:
+            assert manifest["metadata"]["labels"]["cb3"] == "called"
