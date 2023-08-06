@@ -158,15 +158,13 @@ async def match_api_version(
         server: SquareManifests) -> Tuple[SquareManifests, bool]:
     """Fetch the manifests from the endpoints defined in the local manifest.
 
-    If a local manifest uses a different value for `apiVersion` then we need to
-    re-fetch those manifests from K8s via that endpoint. This function does
-    just that.
+    Re-fetch the manifests where the local files specify a different API
+    version than K8s uses by default.
 
     This function returns `server` verbatim if there is no overlap with
     `server` and `local`.
 
     Inputs:
-        config: Square configuration.
         k8sconfig: K8sConfig
         local: SquareManifests
             Should be output from `manio.load_manifests` or `manio.load`.
@@ -174,8 +172,8 @@ async def match_api_version(
             Should be output from `manio.download`.
 
     Returns:
-        `server` but possibly with some entries re-fetched from the same K8s
-        endpoint that the equivalent resource in `local` specifies.
+        `server` but possibly with some updated entries if the equivalent
+        resources from `local` uses a different endpoint.
 
     """
     # Avoid side effects.
@@ -857,6 +855,8 @@ async def get_resources(cfg: Config) -> bool:
         assert not err
 
         # Convert "Selectors.kinds" to their canonical names.
+        # NOTE: we cannot do this earlier, eg as part of the Pydantic model
+        # because we need access to K8s first.
         cfg = translate_resource_kinds(cfg, k8sconfig)
 
         # Use a wildcard Selector to ensure `manio.load` will read _all_ local
