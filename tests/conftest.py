@@ -4,9 +4,11 @@ from typing import Generator
 
 import pytest
 
+import square.callbacks
 import square.cfgfile
+import square.k8s
 import square.square
-from square.dtypes import K8sConfig
+from square.dtypes import Config, K8sConfig
 
 from .test_helpers import k8s_apis
 
@@ -30,7 +32,7 @@ def kube_creds(request, k8sconfig) -> Generator[K8sConfig, None, None]:
 
 
 @pytest.fixture
-def k8sconfig() -> Generator[K8sConfig, None, None]:
+def k8sconfig():
     # Return a valid K8sConfig with a subsection of API endpoints available in
     # Kubernetes v1.25.
     cfg = K8sConfig(version="1.25", client="k8s_client")
@@ -57,7 +59,7 @@ def k8sconfig() -> Generator[K8sConfig, None, None]:
 
 
 @pytest.fixture
-def config(k8sconfig, tmp_path) -> Generator[square.dtypes.Config, None, None]:
+def config(k8sconfig, tmp_path) -> Generator[Config, None, None]:
     """Return a valid and fully populated `Config` structure.
 
     The data in the structure matches `tests/support/config.yaml` except for

@@ -84,7 +84,7 @@ class K8sConfig(NamedTuple):
     version: str = ""
     name: str = ""
 
-    # Kubernetes API endpoints (see k8s.compile_api_endpoints).
+    # Kubernetes API endpoints (see `k8s.compile_api_endpoints`).
     apis: Dict[Tuple[str, str], K8sResource] = {}
 
     # LUT to translate short names into their proper resource kind,
