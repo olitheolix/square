@@ -827,3 +827,41 @@ class TestMainPlan:
         assert plan_6.delete == plan_6.create == [] and len(plan_6.patch) == 1
         assert plan_6.patch[0].meta.name == "hpav1"
         assert plan_6.patch[0].meta.apiVersion == "autoscaling/v2"
+
+
+@pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
+class TestCallbacks:
+    async def test_cleanup(self, tmp_path):
+        """Use a custom callback to cleanup manifests."""
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        # Populate the `Config` structure. All main functions expect this.
+        config = Config(
+            folder=tmp_path,
+            kubecontext=None,
+            kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
+            selectors=Selectors(
+                kinds={"ConfigMap/demoapp-1"},
+                namespaces=[],
+                labels=[],
+            ),
+        )
+
+        # Square is supposed to download the manifests into this file.
+        man_path = config.folder / "_other.yaml"
+
+        def add_label_callback(square_config: Config, manifest: dict) -> dict:
+            """Add a dummy label to every downloaded manifest."""
+            manifest["metadata"]["labels"] = manifest["metadata"].get("labels", {})
+            manifest["metadata"]["labels"]["integration-test-demo"] = "works"
+            return manifest
+
+        config.clean_callback = add_label_callback
+
+        # Download the resources and verify that each has the dummy label.
+        assert not await square.square.get_resources(config)
+        manifests = list(yaml.safe_load_all(man_path.read_text()))
+        for manifest in manifests:
+            assert manifest["metadata"]["labels"]["integration-test-demo"] == "works"
