@@ -127,8 +127,8 @@ class TestLoadConfig:
         assert err
 
 
-class TestMainGet:
-    def test_sane_filter(self):
+class TestFilters:
+    def test_valid(self):
         # Must be list.
         assert cfgfile.valid([]) is True
 
