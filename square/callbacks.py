@@ -1,9 +1,13 @@
+import logging
 from typing import Tuple
 
-import square.dtypes
+from square.dtypes import Config
+
+# Convenience: global logger instance to avoid repetitive code.
+logit = logging.getLogger("square")
 
 
-def modify_patch_manifests(square_config: "square.dtypes.Config",
+def modify_patch_manifests(square_config: "Config",
                            local_manifest: dict,
                            server_manifest: dict) -> Tuple[dict, dict]:
     """Return a possibly modified version of local and server manifest.
@@ -29,5 +33,5 @@ def modify_patch_manifests(square_config: "square.dtypes.Config",
     may even have unintended side effects. You have been warned.
 
     """
-    assert isinstance(square_config, square.dtypes.Config)
+    assert isinstance(square_config, Config)
     return local_manifest, server_manifest
