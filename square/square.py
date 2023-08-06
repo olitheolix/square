@@ -219,9 +219,6 @@ async def match_api_version(
         manifest, err = await k8s.get(k8sconfig.client, resource.url)
         assert not err
 
-        manifest, err = manio.strip(k8sconfig, manifest, {})
-        assert not err
-
         # Add the resource to the `server` dict. This will have been one of
         # those we deleted a few lines earlier.
         server[manio.make_meta(manifest)] = manifest
