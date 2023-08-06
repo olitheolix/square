@@ -1,7 +1,10 @@
 import copy
 import sys
 from pathlib import Path
+from typing import Any
 
+import pydantic
+import pytest
 import yaml
 
 import square
@@ -233,3 +236,52 @@ class TestFilters:
             "status",
         ]
         assert cfgfile.merge(defaults, custom) == expected
+
+
+class TestModels:
+    def test_config(self):
+        kwargs = dict(kubeconfig=Path(), folder=Path('/tmp'))
+
+        # The top level entry must always be a dict.
+        valid_filters: Any = (
+            {"foo": []},
+            {"foo": ["str"]},
+            {"foo": ["str", {"bar": ["bar"]}]},
+            {"foo": ["str", {"bar": [{"x": ["x"]}]}]},
+            {"foo": ["str", {"bar": [{"x": ["x"]}, {"y": ["y"]}]}]},
+            {"foo": ["str", {"bar": ["spam", {"x": ["x"]}]}]},
+        )
+        for filters in valid_filters:
+            Config(**kwargs, filters=filters)  # type: ignore
+
+        invalid_filters: Any = (
+            # Must be a dict.
+            [], set(), tuple(),
+
+            # The dict value must be a List.
+            {"foo": "bar"},
+            {"foo": {"bar": ["bar"]}},
+
+            # Each dict must have exactly one key.
+            {"foo": [{}]},
+            {"foo": [{"key1": [], "key2": []}]},
+
+            # Dict keys and list entries must be non-empty strings.
+            {"foo": [""]},
+            {"foo": [{"": []}]},
+
+            # Each list entry must be either a string or dict.
+            {"foo": [{"bar": [set()]}]},
+            {"foo": [{"bar": {"foo"}}]},
+
+            # Dict keys must be non-empty strings.
+            {"": []},
+            {10: []},
+
+            {"foo": [{"": []}]},
+            {"foo": [{10: []}]},
+        )
+
+        for filters in invalid_filters:
+            with pytest.raises(pydantic.ValidationError):
+                Config(**kwargs, filters=filters)  # type: ignore
