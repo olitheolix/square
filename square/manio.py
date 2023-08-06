@@ -470,6 +470,9 @@ def cleanup_manifests(
         local: SquareManifests,
         server: SquareManifests) -> Tuple[SquareManifests, SquareManifests, bool]:
     """Returned cleaned up `local` and `server` manifests."""
+    local = copy.deepcopy(local)
+    server = copy.deepcopy(server)
+
     # Strip the unwanted sections from the manifests before we compute patches.
     stripped_server = {
         meta: strip(k8sconfig, man, config.filters)
@@ -527,7 +530,7 @@ def strip(
         return ret_err
     del k8sconfig
 
-    return square.callbacks.cleanup_manifest(copy.deepcopy(manifest), filters), False
+    return square.callbacks.cleanup_manifest(manifest, filters), False
 
 
 def align_serviceaccount(
