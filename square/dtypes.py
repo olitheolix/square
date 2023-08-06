@@ -216,6 +216,9 @@ FiltersKind = List[str | dict]
 Filters = Dict[str, FiltersKind]
 
 
+def do_nothing(): return        # codecov-skip
+
+
 class Config(BaseModel):
     """Uniform interface into top level Square API."""
     # Path to local manifests eg "./foo"
@@ -244,12 +247,12 @@ class Config(BaseModel):
     patch_callback: Annotated[
         Callable,
         Field(validate_default=True)
-    ] = lambda: None  # codecov-skip
+    ] = do_nothing
 
     clean_callback: Annotated[
         Callable,
         Field(validate_default=True)
-    ] = lambda: None  # codecov-skip
+    ] = do_nothing
 
     @field_validator('filters')
     @classmethod
