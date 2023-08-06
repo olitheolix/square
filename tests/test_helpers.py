@@ -4,7 +4,7 @@ try:
 except ImportError:
     sh = None
 
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 from square.dtypes import K8sConfig, K8sResource
 
@@ -24,7 +24,7 @@ def kind_available():
     return True
 
 
-def k8s_apis(config: K8sConfig):
+def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
     return {
         ("ClusterRole", ""): K8sResource(
             apiVersion="rbac.authorization.k8s.io/v1",
