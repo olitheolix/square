@@ -730,21 +730,21 @@ class TestYamlManifestIO:
 
 
 class TestStrip:
-    def test_strip_invalid_version_kind(self, k8sconfig):
+    def test_run_cleanup_callback_invalid_version_kind(self, k8sconfig):
         """Must abort gracefully for unknown K8s version or resource kind."""
         # Minimally valid filters for fake resource kind "TEST".
         filters: Filters = {"TEST": ["metadata"]}
 
         # Valid K8s version with unknown resource type.
         manifest = {"apiVersion": "v1", "kind": "Unknown"}
-        assert manio.strip(k8sconfig, manifest, filters) == ({}, True)
+        assert manio.run_cleanup_callback(k8sconfig, manifest, filters) == ({}, True)
 
         # Invalid K8s version but valid resource type.
         config = k8sconfig._replace(version="unknown")
         manifest = {"apiVersion": "v1", "kind": "TEST"}
-        assert manio.strip(config, manifest, filters) == ({}, True)
+        assert manio.run_cleanup_callback(config, manifest, filters) == ({}, True)
 
-    def test_strip_namespace(self, k8sconfig):
+    def test_run_cleanup_callback_namespace(self, k8sconfig):
         """Filter NAMESPACE manifests."""
         # Valid: a namespace manifest without a `metadata.namespace` field.
         manifest: dict = {
@@ -752,7 +752,7 @@ class TestStrip:
             "kind": "Namespace",
             "metadata": {"name": "mandatory"},
         }
-        assert manio.strip(k8sconfig, manifest, {}) == (manifest, False)
+        assert manio.run_cleanup_callback(k8sconfig, manifest, {}) == (manifest, False)
         del manifest
 
         # Create invalid manifests that either specify a namespace for a
@@ -769,9 +769,9 @@ class TestStrip:
             }
             if resource(k8sconfig, MetaManifest("", kind, None, ""))[0].namespaced:
                 del manifest["metadata"]["namespace"]
-            assert manio.strip(k8sconfig, manifest, {}) == ({}, True)
+            assert manio.run_cleanup_callback(k8sconfig, manifest, {}) == ({}, True)
 
-    def test_strip_deployment(self, k8sconfig):
+    def test_run_cleanup_callback_deployment(self, k8sconfig):
         """Filter DEPLOYMENT manifests."""
         # A valid DEPLOYMENT manifest with a few optional and irrelevant keys.
         manifest = {
@@ -813,7 +813,7 @@ class TestStrip:
             },
             "spec": "some spec",
         }
-        out, err = manio.strip(k8sconfig, manifest, {})
+        out, err = manio.run_cleanup_callback(k8sconfig, manifest, {})
         assert not err
         assert out == expected
 
@@ -823,7 +823,7 @@ class TestStrip:
             "kind": "Deployment",
             "metadata": {"name": "mandatory"},
         }
-        assert manio.strip(k8sconfig, manifest, {}) == ({}, True)
+        assert manio.run_cleanup_callback(k8sconfig, manifest, {}) == ({}, True)
 
     def test_cleanup_manifests(self, config, k8sconfig):
         """Run some basic tests."""
@@ -1743,6 +1743,7 @@ class TestDownloadManifests:
 
         """
         make_meta = manio.make_meta
+        run_cleanup_callback = manio.run_cleanup_callback
 
         meta = [
             make_manifest("Namespace", None, "ns0"),
@@ -1784,7 +1785,7 @@ class TestDownloadManifests:
             (l_ns, False),
             (l_dply, False),
         ]
-        expected = {make_meta(_): manio.strip(k8sconfig, _, {})[0] for _ in meta}
+        expected = {make_meta(_): run_cleanup_callback(k8sconfig, _, {})[0]for _ in meta}
         config.selectors = Selectors(kinds={"Namespace", "Deployment", "Unknown"})
         ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
@@ -1827,8 +1828,8 @@ class TestDownloadManifests:
             (l_dply_0, False),
         ]
         expected = {
-            make_meta(meta[0]): manio.strip(k8sconfig, meta[0], {})[0],
-            make_meta(meta[2]): manio.strip(k8sconfig, meta[2], {})[0],
+            make_meta(meta[0]): run_cleanup_callback(k8sconfig, meta[0], {})[0],
+            make_meta(meta[2]): run_cleanup_callback(k8sconfig, meta[2], {})[0],
         }
         config.selectors = Selectors(kinds={"Namespace", "Deployment"},
                                      namespaces=["ns0"])

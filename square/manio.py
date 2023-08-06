@@ -475,11 +475,11 @@ def cleanup_manifests(
 
     # Strip the unwanted sections from the manifests before we compute patches.
     stripped_server = {
-        meta: strip(k8sconfig, man, config.filters)
+        meta: run_cleanup_callback(k8sconfig, man, config.filters)
         for meta, man in server.items()
     }
     stripped_local = {
-        meta: strip(k8sconfig, man, config.filters)
+        meta: run_cleanup_callback(k8sconfig, man, config.filters)
         for meta, man in local.items()
     }
 
@@ -498,7 +498,7 @@ def cleanup_manifests(
     return local, server, False
 
 
-def strip(
+def run_cleanup_callback(
     k8sconfig: K8sConfig,
     manifest: dict,
     filters: Filters,
