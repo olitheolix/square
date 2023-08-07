@@ -1,7 +1,7 @@
 apiVersion: v1
 clusters:
 - cluster:
-    certificate-authority: ca.crt
+    certificate-authority: tests/support/client.crt
     server: https://192.168.0.177:8443
   name: minikube
 - cluster:

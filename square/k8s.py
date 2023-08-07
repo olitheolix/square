@@ -244,7 +244,7 @@ def load_incluster_config(
     return K8sConfig(
         url=f'https://{server_ip}',
         token=tokenfile.read_text(),
-        ca_cert=cafile,
+        cadata=cafile.read_text(),
         client_cert=None,
         version="",
         name="",
@@ -279,7 +279,7 @@ def load_authenticator_config(kubeconf_path: Path,
     # Unpack the self signed certificate (AWS does not register the K8s API
     # server certificate with a public CA).
     try:
-        cafile_data = base64.b64decode(cluster["certificate-authority-data"])
+        cadata = base64.b64decode(cluster["certificate-authority-data"]).decode()
         cmd = user["exec"]["command"]
         args = user["exec"].get("args", [])
         env_kubeconf = user["exec"].get("env", [])
@@ -291,11 +291,6 @@ def load_authenticator_config(kubeconf_path: Path,
 
     # Convert a None value (valid value in YAML) to an empty list of env vars.
     env_kubeconf = env_kubeconf if env_kubeconf else []
-
-    # Save the certificate to a temporary file because Httpx expects it that way.
-    tmp = tempfile.mkstemp(text=False)[1]
-    cafile = Path(tmp)
-    cafile.write_bytes(cafile_data)
 
     # Compile the name, arguments and env vars for the command specified in kubeconf.
     cmd_args = [cmd] + args
@@ -329,7 +324,7 @@ def load_authenticator_config(kubeconf_path: Path,
     return K8sConfig(
         url=cluster["server"],
         token=token,
-        ca_cert=cafile,
+        cadata=cadata,
         client_cert=None,
         version="",
         name=cluster["name"],
@@ -338,7 +333,7 @@ def load_authenticator_config(kubeconf_path: Path,
 
 def load_minikube_config(kubeconf_path: Path,
                          context: Optional[str]) -> Tuple[K8sConfig, bool]:
-    """Load minikube configuration from `fname`.
+    """Load Minikube configuration from `fname`.
 
     Return None on error.
 
@@ -366,11 +361,11 @@ def load_minikube_config(kubeconf_path: Path,
         )
 
         # Return the Kubernetes access configuration.
-        logit.info("Assuming Minikube cluster.")
+        logit.info("Assuming Minikube cluster")
         return K8sConfig(
             url=cluster["server"],
             token="",
-            ca_cert=Path(cluster["certificate-authority"]),
+            cadata=Path(cluster["certificate-authority"]).read_text(),
             client_cert=client_cert,
             version="",
             name=cluster["name"],
@@ -412,14 +407,12 @@ def load_kind_config(kubeconf_path: Path,
     try:
         client_crt = base64.b64decode(user["client-certificate-data"]).decode()
         client_key = base64.b64decode(user["client-key-data"]).decode()
-        client_ca = base64.b64decode(cluster["certificate-authority-data"]).decode()
+        cadata = base64.b64decode(cluster["certificate-authority-data"]).decode()
         path = Path(tempfile.mkdtemp())
         p_client_crt = path / "kind-client.crt"
         p_client_key = path / "kind-client.key"
-        cafile = path / "kind.ca"
         p_client_crt.write_text(client_crt)
         p_client_key.write_text(client_key)
-        cafile.write_text(client_ca)
         client_cert = K8sClientCert(crt=p_client_crt, key=p_client_key)
 
         # Return the config data.
@@ -427,7 +420,7 @@ def load_kind_config(kubeconf_path: Path,
         return K8sConfig(
             url=cluster["server"],
             token="",
-            ca_cert=cafile,
+            cadata=cadata,
             client_cert=client_cert,
             version="",
             name=cluster["name"],
@@ -488,7 +481,7 @@ def load_auto_config(kubeconf_path: Path,
 def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[httpx.AsyncClient, bool]:
     """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
-    ssl_context = ssl.create_default_context(cafile=k8sconfig.ca_cert)
+    ssl_context = ssl.create_default_context(cadata=k8sconfig.cadata)
 
     # Add the client certificate, if the cluster uses those to authenticate users.
     if k8sconfig.client_cert is not None:
