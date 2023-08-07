@@ -75,11 +75,11 @@ class TestK8sDeleteGetPatchPost:
         assert k8s.create_httpx_client(cfg) == (cfg, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    async def test_request_ok(self, method, respx_mock):
+    async def test_request_ok(self, method, k8sconfig, respx_mock):
         """Simulate a successful K8s response for GET request."""
         # Dummy values for the K8s API request.
         url = 'http://examples.com/'
-        client = k8s.httpx.AsyncClient()
+        k8sconfig = k8sconfig._replace(client=k8s.httpx.AsyncClient())
         headers = {"some": "headers"}
         payload = {"some": "payload"}
         response = {"some": "response"}
@@ -91,15 +91,15 @@ class TestK8sDeleteGetPatchPost:
 
         # Verify that the function makes the correct request and returns the
         # expected result and HTTP status code.
-        ret = await k8s.request(client, method, url, payload, headers)
+        ret = await k8s.request(k8sconfig, method, url, payload, headers)
         assert ret == (response, status_code)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    async def test_request_err_json(self, method, respx_mock):
+    async def test_request_err_json(self, method, k8sconfig, respx_mock):
         """Simulate a corrupt JSON response from K8s."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://examples.com/'
-        client = k8s.httpx.AsyncClient()
+        k8sconfig = k8sconfig._replace(client=k8s.httpx.AsyncClient())
 
         # Construct a response with a corrupt JSON string.
         corrupt_json = "{this is not valid] json;"
@@ -107,31 +107,31 @@ class TestK8sDeleteGetPatchPost:
         m_http.return_value = httpx.Response(200, text=corrupt_json)
 
         # Test function must not return a response but indicate an error.
-        ret = await k8s.request(client, method, url, None, None)
+        ret = await k8s.request(k8sconfig, method, url, None, None)
         assert ret == ({}, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    async def test_request_connection_err(self, method, respx_mock, nosleep):
+    async def test_request_connection_err(self, method, k8sconfig, respx_mock, nosleep):
         """Simulate an unsuccessful K8s response for GET request."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://examples.com/'
-        client = k8s.httpx.AsyncClient()
+        k8sconfig = k8sconfig._replace(client=k8s.httpx.AsyncClient())
 
         # Simulate a generic RequestError error during the request.
         m_http = respx_mock.request(method, url)
         m_http.mock(side_effect=k8s.httpx.RequestError(message="test error"))
-        ret = await k8s.request(client, method, url, None, None)
+        ret = await k8s.request(k8sconfig, method, url, None, None)
         assert ret == ({}, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    async def test_request_retries(self, nosleep, method):
+    async def test_request_retries(self, k8sconfig, nosleep, method):
         """Simulate connection timeout to validate retry logic."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://localhost:12345/'
-        client = k8s.httpx.AsyncClient()
+        k8sconfig = k8sconfig._replace(client=k8s.httpx.AsyncClient())
 
         # Test function must not return a response but indicate an error.
-        ret = await k8s.request(client, method, url, None, None)
+        ret = await k8s.request(k8sconfig, method, url, None, None)
         assert ret == ({}, True)
 
         # Windows is different and seems to have built in retry and/or timeout
@@ -140,10 +140,10 @@ class TestK8sDeleteGetPatchPost:
             assert nosleep.call_count >= 20
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    async def test_request_invalid(self, method, nosleep):
+    async def test_request_invalid(self, method, k8sconfig, nosleep):
         """Simulate connection errors due to invalid URL schemes."""
         # Dummies for K8s API URL and `httpx` client.
-        client = k8s.httpx.AsyncClient()
+        k8sconfig = k8sconfig._replace(client=k8s.httpx.AsyncClient())
 
         urls = [
             "localhost",        # missing schema like "http://"
@@ -153,11 +153,11 @@ class TestK8sDeleteGetPatchPost:
 
         # Test function must not return a response but indicate an error.
         for url in urls:
-            ret = await k8s.request(client, method, url, None, None)
+            ret = await k8s.request(k8sconfig, method, url, None, None)
             assert ret == ({}, True)
 
     @mock.patch.object(k8s, "request")
-    async def test_delete_get_patch_post_ok(self, m_req):
+    async def test_delete_get_patch_post_ok(self, m_req, k8sconfig):
         """Simulate successful DELETE, GET, PATCH, POST requests.
 
         This test is for the various wrappers around the `request`
@@ -166,7 +166,6 @@ class TestK8sDeleteGetPatchPost:
 
         """
         # Dummy values.
-        client = "client"
         path = "path"
         payload = {"pay": "load"}
         response = "response"
@@ -177,30 +176,31 @@ class TestK8sDeleteGetPatchPost:
         for code in (200, 202):
             m_req.reset_mock()
             m_req.return_value = (response, code)
-            assert await k8s.delete(client, path, payload) == (response, False)
-            m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
+            assert await k8s.delete(k8sconfig, path, payload) == (response, False)
+            m_req.assert_called_once_with(
+                k8sconfig, "DELETE", path, payload, headers=None)
 
         # K8s GET request was successful iff its return status is 200.
         m_req.reset_mock()
         m_req.return_value = (response, 200)
-        assert await k8s.get(client, path) == (response, False)
-        m_req.assert_called_once_with(client, "GET", path, payload=None, headers=None)
+        assert await k8s.get(k8sconfig, path) == (response, False)
+        m_req.assert_called_once_with(k8sconfig, "GET", path, payload=None, headers=None)
 
         # K8s PATCH request was successful iff its return status is 200.
         m_req.reset_mock()
         m_req.return_value = (response, 200)
-        assert await k8s.patch(client, path, [payload]) == (response, False)
+        assert await k8s.patch(k8sconfig, path, [payload]) == (response, False)
         patch_headers = {'Content-Type': 'application/json-patch+json'}
-        m_req.assert_called_once_with(client, "PATCH", path, [payload], patch_headers)
+        m_req.assert_called_once_with(k8sconfig, "PATCH", path, [payload], patch_headers)
 
         # K8s POST request was successful iff its return status is 201.
         m_req.reset_mock()
         m_req.return_value = (response, 201)
-        assert await k8s.post(client, path, payload) == (response, False)
-        m_req.assert_called_once_with(client, "POST", path, payload, headers=None)
+        assert await k8s.post(k8sconfig, path, payload) == (response, False)
+        m_req.assert_called_once_with(k8sconfig, "POST", path, payload, headers=None)
 
     @mock.patch.object(k8s, "request")
-    async def test_delete_get_patch_post_err(self, m_req):
+    async def test_delete_get_patch_post_err(self, m_req, k8sconfig):
         """Simulate unsuccessful DELETE, GET, PATCH, POST requests.
 
         This test is for the various wrappers around the `request`
@@ -209,7 +209,6 @@ class TestK8sDeleteGetPatchPost:
 
         """
         # Dummy values.
-        client = "client"
         path = "path"
         payload = {"pay": "load"}
         response = "response"
@@ -217,27 +216,27 @@ class TestK8sDeleteGetPatchPost:
         # K8s DELETE request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
         m_req.return_value = (response, 400)
-        assert await k8s.delete(client, path, payload) == (response, True)
-        m_req.assert_called_once_with(client, "DELETE", path, payload, headers=None)
+        assert await k8s.delete(k8sconfig, path, payload) == (response, True)
+        m_req.assert_called_once_with(k8sconfig, "DELETE", path, payload, headers=None)
 
         # K8s GET request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
         m_req.return_value = (response, 400)
-        assert await k8s.get(client, path) == (response, True)
-        m_req.assert_called_once_with(client, "GET", path, payload=None, headers=None)
+        assert await k8s.get(k8sconfig, path) == (response, True)
+        m_req.assert_called_once_with(k8sconfig, "GET", path, payload=None, headers=None)
 
         # K8s PATCH request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
         m_req.return_value = (response, 400)
-        assert await k8s.patch(client, path, [payload]) == (response, True)
+        assert await k8s.patch(k8sconfig, path, [payload]) == (response, True)
         patch_headers = {'Content-Type': 'application/json-patch+json'}
-        m_req.assert_called_once_with(client, "PATCH", path, [payload], patch_headers)
+        m_req.assert_called_once_with(k8sconfig, "PATCH", path, [payload], patch_headers)
 
         # K8s POST request was unsuccessful because its returns status is not 201.
         m_req.reset_mock()
         m_req.return_value = (response, 400)
-        assert await k8s.post(client, path, payload) == (response, True)
-        m_req.assert_called_once_with(client, "POST", path, payload, headers=None)
+        assert await k8s.post(k8sconfig, path, payload) == (response, True)
+        m_req.assert_called_once_with(k8sconfig, "POST", path, payload, headers=None)
 
 
 class TestK8sVersion:
@@ -258,8 +257,7 @@ class TestK8sVersion:
         m_get.return_value = (response, None)
 
         # Create vanilla `Config` instance.
-        m_client = mock.MagicMock()
-        k8sconfig = k8sconfig._replace(client=m_client)
+        k8sconfig = k8sconfig._replace(client=mock.MagicMock())
 
         # Test function must contact the K8s API and return a `Config` tuple
         # with the correct version number.
@@ -270,8 +268,8 @@ class TestK8sVersion:
 
         # Test function must have called out to `get` to retrieve the
         # version. Here we ensure it called the correct URL.
-        m_get.assert_called_once_with(m_client, f"{k8sconfig.url}/version")
-        assert not m_client.called
+        m_get.assert_called_once_with(k8sconfig, f"{k8sconfig.url}/version")
+        assert not k8sconfig.client.called
 
         # The return `Config` tuple must be identical to the input except for
         # the version number because "k8s.version" will have overwritten it.

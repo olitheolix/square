@@ -216,7 +216,7 @@ async def match_api_version(
         assert not err
 
         # Download the resource.
-        manifest, err = await k8s.get(k8sconfig.client, resource.url)
+        manifest, err = await k8s.get(k8sconfig, resource.url)
         assert not err
 
         # Add the resource to the `server` dict. This will have been one of
@@ -705,7 +705,7 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     for data_c in plan.create:
         msg_res = f"{data_c.meta.kind.upper()} {data_c.meta.namespace}/{data_c.meta.name}"
         print(f"Creating {msg_res}")
-        _, err = await k8s.post(k8sconfig.client, data_c.url, data_c.manifest)
+        _, err = await k8s.post(k8sconfig, data_c.url, data_c.manifest)
         if err:
             logit.error(f"Could not patch {msg_res}")
             return True
@@ -715,7 +715,7 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     for meta, patch in patches:
         msg_res = f"{meta.kind.upper()} {meta.namespace}/{meta.name}"
         print(f"Patching {msg_res}")
-        _, err = await k8s.patch(k8sconfig.client, patch.url, patch.ops)
+        _, err = await k8s.patch(k8sconfig, patch.url, patch.ops)
         if err:
             logit.error(f"Could not patch {msg_res}")
             return True
@@ -724,7 +724,7 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     for data_d in plan.delete:
         msg_res = f"{data_d.meta.kind.upper()} {data_d.meta.namespace}/{data_d.meta.name}"
         print(f"Deleting {msg_res}")
-        _, err = await k8s.delete(k8sconfig.client, data_d.url, data_d.manifest)
+        _, err = await k8s.delete(k8sconfig, data_d.url, data_d.manifest)
         if err:
             logit.error(f"Could not patch {msg_res}")
             return True

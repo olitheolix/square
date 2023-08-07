@@ -454,7 +454,7 @@ class TestMatchApiVersions:
         # because that is what the local manifest specified.
         resource, err = k8s.resource(k8sconfig, meta_hpa_loc)
         assert not err
-        m_get.assert_called_once_with(k8sconfig.client, resource.url)
+        m_get.assert_called_once_with(k8sconfig, resource.url)
 
     @mock.patch.object(k8s, "get")
     async def test_match_api_version_namespace(self, m_get, k8sconfig):
@@ -511,7 +511,7 @@ class TestMatchApiVersions:
         # specified a different endpoint than the server.
         resource, err = k8s.resource(k8sconfig, meta_hpa_ns2_loc)
         assert not err
-        m_get.assert_called_once_with(k8sconfig.client, resource.url)
+        m_get.assert_called_once_with(k8sconfig, resource.url)
 
     @mock.patch.object(k8s, "get")
     async def test_match_api_version_multi(self, m_get, k8sconfig):
@@ -581,7 +581,7 @@ class TestMatchApiVersions:
         # specified a different endpoint than the server.
         resource, err = k8s.resource(k8sconfig, meta_hpa_2_loc)
         assert not err
-        m_get.assert_called_once_with(k8sconfig.client, resource.url)
+        m_get.assert_called_once_with(k8sconfig, resource.url)
 
     @mock.patch.object(k8s, "get")
     async def test_match_api_version_nothing_to_do(self, m_get, k8sconfig):
@@ -1184,11 +1184,9 @@ class TestMainOptions:
         # corresponding calls to K8s.
         reset_mocks()
         assert await sq.apply_plan(config, plan) is False
-        m_post.assert_called_once_with(k8sconfig.client, "create_url", {"create": "man"})
-        m_apply.assert_called_once_with(k8sconfig.client, patch.url, patch.ops)
-        m_delete.assert_called_once_with(
-            k8sconfig.client, "delete_url", {"delete": "man"}
-        )
+        m_post.assert_called_once_with(k8sconfig, "create_url", {"create": "man"})
+        m_apply.assert_called_once_with(k8sconfig, patch.url, patch.ops)
+        m_delete.assert_called_once_with(k8sconfig, "delete_url", {"delete": "man"})
 
         # -----------------------------------------------------------------
         #                   Simulate An Empty Plan

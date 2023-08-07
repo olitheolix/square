@@ -1821,8 +1821,8 @@ class TestDownloadManifests:
         ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_count == 2
-        m_get.assert_any_call(k8sconfig.client, res_deploy.url)
-        m_get.assert_any_call(k8sconfig.client, res_ns.url)
+        m_get.assert_any_call(k8sconfig, res_deploy.url)
+        m_get.assert_any_call(k8sconfig, res_ns.url)
         del cb
 
         # ------------------------------------------------------------------------------
@@ -1843,10 +1843,10 @@ class TestDownloadManifests:
         ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_count == 4
-        m_get.assert_any_call(k8sconfig.client, res_dply_0.url)
-        m_get.assert_any_call(k8sconfig.client, res_ns_0.url)
-        m_get.assert_any_call(k8sconfig.client, res_dply_1.url)
-        m_get.assert_any_call(k8sconfig.client, res_ns_1.url)
+        m_get.assert_any_call(k8sconfig, res_dply_0.url)
+        m_get.assert_any_call(k8sconfig, res_ns_0.url)
+        m_get.assert_any_call(k8sconfig, res_dply_1.url)
+        m_get.assert_any_call(k8sconfig, res_ns_1.url)
 
         # ----------------------------------------------------------------------
         # Request resources from namespace "ns0" only.
@@ -1868,8 +1868,8 @@ class TestDownloadManifests:
         ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_count == 2
-        m_get.assert_any_call(k8sconfig.client, res_dply_0.url)
-        m_get.assert_any_call(k8sconfig.client, res_ns_0.url)
+        m_get.assert_any_call(k8sconfig, res_dply_0.url)
+        m_get.assert_any_call(k8sconfig, res_ns_0.url)
 
     @mock.patch.object(k8s, 'get')
     async def test_download_err(self, m_get, config, k8sconfig):
@@ -1896,5 +1896,5 @@ class TestDownloadManifests:
         ret = await manio.download(config, k8sconfig)
         assert ret == ({}, True)
         assert m_get.call_count == 2
-        m_get.assert_any_call(k8sconfig.client, res_deploy.url)
-        m_get.assert_any_call(k8sconfig.client, res_ns.url)
+        m_get.assert_any_call(k8sconfig, res_deploy.url)
+        m_get.assert_any_call(k8sconfig, res_ns.url)
