@@ -487,8 +487,7 @@ def load_auto_config(kubeconf_path: Path,
 def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[httpx.AsyncClient, bool]:
     """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
-    cafile = None if str(k8sconfig.ca_cert) == "." else k8sconfig.ca_cert
-    ssl_context = ssl.create_default_context(cafile=cafile)
+    ssl_context = ssl.create_default_context(cafile=k8sconfig.ca_cert)
 
     # Add the client certificate, if the cluster uses those to authenticate users.
     if k8sconfig.client_cert is not None:

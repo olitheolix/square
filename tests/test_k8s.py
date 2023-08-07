@@ -916,7 +916,7 @@ class TestK8sKubeconfig:
         assert ret.name == "kind"
 
         # Function must have create the credential files.
-        assert ret.ca_cert.exists()
+        assert isinstance(ret.ca_cert, Path) and ret.ca_cert.exists()
         assert ret.client_cert is not None
         assert ret.client_cert.crt.exists()
         assert ret.client_cert.key.exists()
@@ -965,7 +965,7 @@ class TestK8sKubeconfig:
         assert not err and isinstance(ret, K8sConfig)
 
         # Must have put the certificate into a temporary file for Httpx to find.
-        assert ret.ca_cert.exists()
+        assert isinstance(ret.ca_cert, Path) and ret.ca_cert.exists()
 
         # Verify the returned Kubernetes configuration.
         assert ret == K8sConfig(
