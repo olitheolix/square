@@ -51,7 +51,6 @@ def load_kubeconfig(kubeconf_path: Path,
     try:
         # Use default context unless specified.
         ctx = context if context else kubeconf["current-context"]
-        del context
 
         try:
             # Find the correct context.
@@ -67,7 +66,7 @@ def load_kubeconfig(kubeconf_path: Path,
             cluster_info = [_ for _ in kubeconf["clusters"] if _["name"] == clustername]
             assert len(user_info) == len(cluster_info) == 1
         except AssertionError:
-            logit.error(f"Could not find information for context <{ctx}>")
+            logit.error(f"Could not find information for context <{context}>")
             return ("", {}, {}, True)
 
         # Unpack the cluster- and user information.
