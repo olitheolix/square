@@ -24,6 +24,131 @@ FNAME_CERT = Path("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
 logit = logging.getLogger("square")
 
 
+async def request(
+        client,
+        method: str,
+        url: str,
+        payload: Optional[dict | list],
+        headers: Optional[dict]) -> Tuple[dict, bool]:
+    """Return response of web request made with `client`.
+
+    Inputs:
+        client: HttpX client with correct K8s certificates.
+        url: str
+            Eg `https://1.2.3.4/api/v1/namespaces`)
+        payload: dict
+            Anything that can be JSON encoded, usually a K8s manifest.
+        headers: dict
+            Request headers. These will *not* replace the existing request
+            headers dictionary (eg the access tokens), but augment them.
+
+    Returns:
+        (dict, int): the JSON response and the HTTP status code.
+
+    """
+    # Define the maximum number of tries and exceptions we want to retry on.
+    max_tries = 21
+    web_exceptions = (httpx.RequestError, )
+
+    async def on_backoff(details):
+        """Log a warning on each retry."""
+        tries, exc = details["tries"], details["exception"]
+        logit.warning(
+            f"Backing off on {url}. Attempt {tries}/{max_tries-1}. "
+            f"Reason: {exc}"
+        )
+
+    """
+    Configure linear backoff.
+
+    Exponential backoff proved problematic in practice because the most likely
+    retry reason has been waiting for CRDs, at least for me. CRDs can take a
+    few seconds, even tens of seconds to become available. With an exponential
+    strategy we may thus wait for a very long time if we just missed and now
+    have to wait exponentially longer.
+
+    A linear strategy avoids this. However, the time between backoffs is
+    deliberately large to avoid hammering the API.
+
+    Jitter is disabled because it proved irritating in an interactive tool.
+
+    """
+    @backoff.on_exception(backoff.constant, web_exceptions,
+                          max_tries=max_tries,
+                          interval=3,
+                          max_time=20,
+                          on_backoff=on_backoff,
+                          logger=None,  # type: ignore
+                          jitter=None,  # type: ignore
+                          )
+    async def _call(*args, **kwargs):
+        return await client.request(method, url, json=payload,
+                                    headers=headers, timeout=30)
+
+    # Make the HTTP request via our backoff/retry handler.
+    try:
+        ret = await _call()
+    except web_exceptions as err:
+        logit.error(f"{err} ({method} {url})")
+        return ({}, True)
+
+    try:
+        response = json.loads(ret.text)
+    except json.decoder.JSONDecodeError as err:
+        msg = (
+            f"JSON error: {err.msg} in line {err.lineno} column {err.colno}",
+            "-" * 80 + "\n" + err.doc + "\n" + "-" * 80,
+        )
+        logit.error(str.join("\n", msg))
+        return ({}, True)
+
+    # Log the entire request in debug mode.
+    logit.debug(
+        f"{method} {ret.status_code} {ret.url}\n"
+        f"Headers: {headers}\n"
+        f"Payload: {payload}\n"
+        f"Response: {response}\n"
+    )
+    return (response, ret.status_code)
+
+
+async def delete(client, url: str, payload: dict) -> Tuple[dict, bool]:
+    """Make DELETE requests to K8s (see `k8s_request`)."""
+    resp, code = await request(client, 'DELETE', url, payload, headers=None)
+    err = (code not in (200, 202))
+    if err:
+        logit.error(f"{code} - DELETE - {url} - {resp}")
+    return (resp, err)
+
+
+async def get(client, url: str) -> Tuple[dict, bool]:
+    """Make GET requests to K8s (see `request`)."""
+    resp, code = await request(client, 'GET', url, payload=None, headers=None)
+    err = (code != 200)
+    if err:
+        logit.error(f"{code} - GET - {url} - {resp}")
+    return (resp, err)
+
+
+async def patch(client, url: str, payload: List[Dict[str, str]]) -> Tuple[dict, bool]:
+    """Make PATCH requests to K8s (see `request`)."""
+    headers = {'Content-Type': 'application/json-patch+json'}
+    resp, code = await request(client, 'PATCH', url, payload, headers)
+    err = (code != 200)
+    if err:
+        logit.error(f"{code} - PATCH - {url} - {resp}")
+    return (resp, err)
+
+
+async def post(client, url: str, payload: dict) -> Tuple[dict, bool]:
+    """Make POST requests to K8s (see `request`)."""
+    resp, code = await request(client, 'POST', url, payload, headers=None)
+    err = (code != 201)
+    if err:
+        logit.error(f"{code} - POST - {url} - {resp}")
+    return (resp, err)
+
+
 def load_kubeconfig(kubeconf_path: Path,
                     context: Optional[str]) -> Tuple[str, dict, dict, bool]:
     """Return user name as well as user- and cluster information.
@@ -471,131 +596,6 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
     # Return the K8sResource with the correct URL.
     resource = resource._replace(url=f"{resource.url}/{path}")
     return resource, False
-
-
-async def request(
-        client,
-        method: str,
-        url: str,
-        payload: Optional[dict | list],
-        headers: Optional[dict]) -> Tuple[dict, bool]:
-    """Return response of web request made with `client`.
-
-    Inputs:
-        client: HttpX client with correct K8s certificates.
-        url: str
-            Eg `https://1.2.3.4/api/v1/namespaces`)
-        payload: dict
-            Anything that can be JSON encoded, usually a K8s manifest.
-        headers: dict
-            Request headers. These will *not* replace the existing request
-            headers dictionary (eg the access tokens), but augment them.
-
-    Returns:
-        (dict, int): the JSON response and the HTTP status code.
-
-    """
-    # Define the maximum number of tries and exceptions we want to retry on.
-    max_tries = 21
-    web_exceptions = (httpx.RequestError, )
-
-    async def on_backoff(details):
-        """Log a warning on each retry."""
-        tries, exc = details["tries"], details["exception"]
-        logit.warning(
-            f"Backing off on {url}. Attempt {tries}/{max_tries-1}. "
-            f"Reason: {exc}"
-        )
-
-    """
-    Configure linear backoff.
-
-    Exponential backoff proved problematic in practice because the most likely
-    retry reason has been waiting for CRDs, at least for me. CRDs can take a
-    few seconds, even tens of seconds to become available. With an exponential
-    strategy we may thus wait for a very long time if we just missed and now
-    have to wait exponentially longer.
-
-    A linear strategy avoids this. However, the time between backoffs is
-    deliberately large to avoid hammering the API.
-
-    Jitter is disabled because it proved irritating in an interactive tool.
-
-    """
-    @backoff.on_exception(backoff.constant, web_exceptions,
-                          max_tries=max_tries,
-                          interval=3,
-                          max_time=20,
-                          on_backoff=on_backoff,
-                          logger=None,  # type: ignore
-                          jitter=None,  # type: ignore
-                          )
-    async def _call(*args, **kwargs):
-        return await client.request(method, url, json=payload,
-                                    headers=headers, timeout=30)
-
-    # Make the HTTP request via our backoff/retry handler.
-    try:
-        ret = await _call()
-    except web_exceptions as err:
-        logit.error(f"{err} ({method} {url})")
-        return ({}, True)
-
-    try:
-        response = json.loads(ret.text)
-    except json.decoder.JSONDecodeError as err:
-        msg = (
-            f"JSON error: {err.msg} in line {err.lineno} column {err.colno}",
-            "-" * 80 + "\n" + err.doc + "\n" + "-" * 80,
-        )
-        logit.error(str.join("\n", msg))
-        return ({}, True)
-
-    # Log the entire request in debug mode.
-    logit.debug(
-        f"{method} {ret.status_code} {ret.url}\n"
-        f"Headers: {headers}\n"
-        f"Payload: {payload}\n"
-        f"Response: {response}\n"
-    )
-    return (response, ret.status_code)
-
-
-async def delete(client, url: str, payload: dict) -> Tuple[dict, bool]:
-    """Make DELETE requests to K8s (see `k8s_request`)."""
-    resp, code = await request(client, 'DELETE', url, payload, headers=None)
-    err = (code not in (200, 202))
-    if err:
-        logit.error(f"{code} - DELETE - {url} - {resp}")
-    return (resp, err)
-
-
-async def get(client, url: str) -> Tuple[dict, bool]:
-    """Make GET requests to K8s (see `request`)."""
-    resp, code = await request(client, 'GET', url, payload=None, headers=None)
-    err = (code != 200)
-    if err:
-        logit.error(f"{code} - GET - {url} - {resp}")
-    return (resp, err)
-
-
-async def patch(client, url: str, payload: List[Dict[str, str]]) -> Tuple[dict, bool]:
-    """Make PATCH requests to K8s (see `request`)."""
-    headers = {'Content-Type': 'application/json-patch+json'}
-    resp, code = await request(client, 'PATCH', url, payload, headers)
-    err = (code != 200)
-    if err:
-        logit.error(f"{code} - PATCH - {url} - {resp}")
-    return (resp, err)
-
-
-async def post(client, url: str, payload: dict) -> Tuple[dict, bool]:
-    """Make POST requests to K8s (see `request`)."""
-    resp, code = await request(client, 'POST', url, payload, headers=None)
-    err = (code != 201)
-    if err:
-        logit.error(f"{code} - POST - {url} - {resp}")
-    return (resp, err)
 
 
 async def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
