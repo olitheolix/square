@@ -74,7 +74,7 @@ class K8sConfig(NamedTuple):
 
     # Certificate authority credentials and self signed client certificate.
     # Used to authenticate to eg GKE.
-    ca_cert: Path = Path()
+    ca_cert: Optional[Path] = None
     client_cert: Optional[K8sClientCert] = None
 
     # HttpX client to access the cluster.
