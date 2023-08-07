@@ -1,4 +1,5 @@
 from pathlib import Path
+from ssl import SSLContext
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple
 
 from pydantic import BaseModel, Field, field_validator
@@ -75,6 +76,7 @@ class K8sConfig(NamedTuple):
     # Certificate authority for self signed certificates.
     cadata: Optional[str] = None
     client_cert: Optional[K8sClientCert] = None
+    sslcontext: Optional[SSLContext] = None
 
     # HttpX client to access the cluster.
     client: Any = None
