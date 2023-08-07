@@ -797,23 +797,23 @@ class TestK8sKubeconfig:
         m_getenv.return_value = "1.2.3.4"
 
         # Create dummy certificate files.
-        fname_cert = tmp_path / "cert"
-        fname_token = tmp_path / "token"
+        cafile = tmp_path / "cert"
+        tokenfile = tmp_path / "token"
 
         # Must fail because neither of the files exists.
-        assert k8s.load_incluster_config(fname_token, fname_cert) == (K8sConfig(), True)
+        assert k8s.load_incluster_config(tokenfile, cafile) == (K8sConfig(), True)
 
         # Create the files with dummy content.
-        fname_cert.write_text("cert")
-        fname_token.write_text("token")
+        cafile.write_text("cert")
+        tokenfile.write_text("token")
 
-        # Now that the files exist we must get the proper Config structure.
-        ret, err = k8s.load_incluster_config(fname_token, fname_cert)
+        # Now that the files exist we must get the proper `Config` structure.
+        ret, err = k8s.load_incluster_config(tokenfile, cafile)
         assert not err
         assert ret == K8sConfig(
             url='https://1.2.3.4',
             token="token",
-            ca_cert=fname_cert,
+            cadata="cert",
             client_cert=None,
             version="",
             name="",
@@ -873,12 +873,13 @@ class TestK8sKubeconfig:
     def test_load_minikube_config_ok(self):
         # Load the K8s configuration for "minikube" context.
         fname = Path("tests/support/kubeconf.yaml")
+        cadata = Path("tests/support/client.crt").read_text()
 
         # Verify the expected output.
         ref = K8sConfig(
             url="https://192.168.0.177:8443",
             token="",
-            ca_cert=Path("ca.crt"),
+            cadata=cadata,
             client_cert=k8s.K8sClientCert(
                 crt=Path("client.crt"),
                 key=Path("client.key"),
@@ -916,7 +917,7 @@ class TestK8sKubeconfig:
         assert ret.name == "kind"
 
         # Function must have create the credential files.
-        assert isinstance(ret.ca_cert, Path) and ret.ca_cert.exists()
+        assert ret.cadata is not None
         assert ret.client_cert is not None
         assert ret.client_cert.crt.exists()
         assert ret.client_cert.key.exists()
@@ -965,13 +966,13 @@ class TestK8sKubeconfig:
         assert not err and isinstance(ret, K8sConfig)
 
         # Must have put the certificate into a temporary file for Httpx to find.
-        assert isinstance(ret.ca_cert, Path) and ret.ca_cert.exists()
+        assert ret.cadata is not None
 
         # Verify the returned Kubernetes configuration.
         assert ret == K8sConfig(
             url=f"https://{context}.com",
             token="token",
-            ca_cert=ret.ca_cert,
+            cadata=ret.cadata,
             client_cert=None,
             version="",
             name=context,

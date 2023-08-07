@@ -72,9 +72,8 @@ class K8sConfig(NamedTuple):
     url: str = ""               # Kubernetes API
     token: str = ""             # Optional access token (eg Minikube).
 
-    # Certificate authority credentials and self signed client certificate.
-    # Used to authenticate to eg GKE.
-    ca_cert: Optional[Path] = None
+    # Certificate authority for self signed certificates.
+    cadata: Optional[str] = None
     client_cert: Optional[K8sClientCert] = None
 
     # HttpX client to access the cluster.
