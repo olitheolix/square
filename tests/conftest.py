@@ -35,7 +35,8 @@ def kube_creds(request, k8sconfig) -> Generator[K8sConfig, None, None]:
 def k8sconfig():
     # Return a valid K8sConfig with a subsection of API endpoints available in
     # Kubernetes v1.25.
-    cfg = K8sConfig(version="1.25", client="k8s_client")
+    cadata = Path("tests/support/client.crt").read_text()
+    cfg = K8sConfig(version="1.25", client="k8s_client", cadata=cadata)
 
     # The set of API endpoints we can use in the tests.
     cfg.apis.clear()
