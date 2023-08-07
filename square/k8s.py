@@ -16,8 +16,9 @@ import yaml
 
 from square.dtypes import K8sClientCert, K8sConfig, K8sResource, MetaManifest
 
-FNAME_TOKEN = Path("/var/run/secrets/kubernetes.io/serviceaccount/token")
-FNAME_CERT = Path("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
+# Convenience: location of K8s credentials inside a Pod.
+TOKENFILE = Path("/var/run/secrets/kubernetes.io/serviceaccount/token")
+CAFILE = Path("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
 
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -210,8 +211,8 @@ def load_kubeconfig(kubeconf_path: Path,
 
 
 def load_incluster_config(
-        fname_token: Path = FNAME_TOKEN,
-        fname_cert: Path = FNAME_CERT) -> Tuple[K8sConfig, bool]:
+        tokenfile: Path = TOKENFILE,
+        cafile: Path = CAFILE) -> Tuple[K8sConfig, bool]:
     """Return K8s access config from Pod service account.
 
     Returns None if we are not running in a Pod.
@@ -225,15 +226,15 @@ def load_incluster_config(
     """
     # These exist inside every Kubernetes pod.
     server_ip = os.getenv('KUBERNETES_PORT_443_TCP_ADDR', None)
-    fname_cert = Path(fname_cert)
-    fname_token = Path(fname_token)
+    cafile = Path(cafile)
+    tokenfile = Path(tokenfile)
 
     # Sanity checks: URL and service account must exist, or we are not running
     # inside a Pod.
     try:
         assert server_ip is not None
-        assert fname_cert.exists()
-        assert fname_token.exists()
+        assert cafile.exists()
+        assert tokenfile.exists()
     except AssertionError:
         logit.debug("Could not find incluster (service account) credentials.")
         return K8sConfig(), True
@@ -242,8 +243,8 @@ def load_incluster_config(
     logit.info("Use incluster (service account) credentials.")
     return K8sConfig(
         url=f'https://{server_ip}',
-        token=fname_token.read_text(),
-        ca_cert=fname_cert,
+        token=tokenfile.read_text(),
+        ca_cert=cafile,
         client_cert=None,
         version="",
         name="",
@@ -278,7 +279,7 @@ def load_authenticator_config(kubeconf_path: Path,
     # Unpack the self signed certificate (AWS does not register the K8s API
     # server certificate with a public CA).
     try:
-        ssl_ca_cert_data = base64.b64decode(cluster["certificate-authority-data"])
+        cafile_data = base64.b64decode(cluster["certificate-authority-data"])
         cmd = user["exec"]["command"]
         args = user["exec"].get("args", [])
         env_kubeconf = user["exec"].get("env", [])
@@ -293,8 +294,8 @@ def load_authenticator_config(kubeconf_path: Path,
 
     # Save the certificate to a temporary file because Httpx expects it that way.
     tmp = tempfile.mkstemp(text=False)[1]
-    ssl_ca_cert = Path(tmp)
-    ssl_ca_cert.write_bytes(ssl_ca_cert_data)
+    cafile = Path(tmp)
+    cafile.write_bytes(cafile_data)
 
     # Compile the name, arguments and env vars for the command specified in kubeconf.
     cmd_args = [cmd] + args
@@ -328,7 +329,7 @@ def load_authenticator_config(kubeconf_path: Path,
     return K8sConfig(
         url=cluster["server"],
         token=token,
-        ca_cert=ssl_ca_cert,
+        ca_cert=cafile,
         client_cert=None,
         version="",
         name=cluster["name"],
@@ -415,10 +416,10 @@ def load_kind_config(kubeconf_path: Path,
         path = Path(tempfile.mkdtemp())
         p_client_crt = path / "kind-client.crt"
         p_client_key = path / "kind-client.key"
-        p_ca = path / "kind.ca"
+        cafile = path / "kind.ca"
         p_client_crt.write_text(client_crt)
         p_client_key.write_text(client_key)
-        p_ca.write_text(client_ca)
+        cafile.write_text(client_ca)
         client_cert = K8sClientCert(crt=p_client_crt, key=p_client_key)
 
         # Return the config data.
@@ -426,7 +427,7 @@ def load_kind_config(kubeconf_path: Path,
         return K8sConfig(
             url=cluster["server"],
             token="",
-            ca_cert=p_ca,
+            ca_cert=cafile,
             client_cert=client_cert,
             version="",
             name=cluster["name"],
