@@ -503,11 +503,11 @@ def create_httpx_client(
         return k8sconfig, True
 
     # Add the bearer token if we have one.
-    if k8sconfig.token != "":
-        client.headers.update({'authorization': f'Bearer {k8sconfig.token}'})
+    headers = {'authorization': f'Bearer {k8sconfig.token}'} if k8sconfig.token else {}
+    client.headers.update(headers)
 
     # Add the web client to the `k8sconfig` object.
-    k8sconfig = k8sconfig._replace(client=client, sslcontext=sslcontext)
+    k8sconfig = k8sconfig._replace(client=client, sslcontext=sslcontext, headers=headers)
 
     # Return the configured client object.
     return k8sconfig, False
