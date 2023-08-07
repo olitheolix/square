@@ -27,7 +27,7 @@ except sh.CommandNotFound:
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestBasic:
-    async def test_cluster_config(self):
+    async def test_cluster_config(self, k8sconfig):
         """Basic success/failure test for K8s configuration."""
         # Only show INFO and above or otherwise this test will produce a
         # humongous amount of logs from all the K8s calls.
@@ -44,7 +44,7 @@ class TestBasic:
         # Must not return a Kubernetes configuration if we could not create a
         # HttpX client.
         with mock.patch.object(square.k8s, "create_httpx_client") as m_client:
-            m_client.return_value = (httpx.AsyncClient(), True)
+            m_client.return_value = (k8sconfig, True)
             assert await fun(fname, None) == (K8sConfig(), True)
 
 

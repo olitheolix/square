@@ -28,26 +28,28 @@ class TestK8sDeleteGetPatchPost:
     def test_create_httpx_client_ok(self, k8sconfig):
         """Verify the HttpX client is correctly setup."""
         # Create basic Kubernetes configuration.
-        config = k8sconfig._replace(token="")
-        client, err = k8s.create_httpx_client(config)
+        cfg = k8sconfig._replace(token="")
+        new_cfg, err = k8s.create_httpx_client(cfg)
         assert not err
-        assert "authorization" not in client.headers
+        assert "authorization" not in new_cfg.client.headers
 
         # Create token based Kubernetes configuration.
-        config = k8sconfig._replace(token="token")
-        client, err = k8s.create_httpx_client(config)
+        cfg = k8sconfig._replace(token="token")
+        new_cfg, err = k8s.create_httpx_client(cfg)
         assert not err
-        assert client.headers["authorization"] == "Bearer token"
+        assert isinstance(new_cfg.client, httpx.AsyncClient)
+        assert new_cfg.client.headers["authorization"] == "Bearer token"
 
         # Path to valid certificate specimen.
         fname_client_crt = Path("tests/support/client.crt")
         fname_client_key = Path("tests/support/client.key")
 
         ccert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
-        config = k8sconfig._replace(token="token", client_cert=ccert)
-        client, err = k8s.create_httpx_client(config)
+        cfg = k8sconfig._replace(token="token", client_cert=ccert)
+        new_cfg, err = k8s.create_httpx_client(cfg)
         assert not err
-        assert client.headers["authorization"] == "Bearer token"
+        assert isinstance(new_cfg.client, httpx.AsyncClient)
+        assert new_cfg.client.headers["authorization"] == "Bearer token"
 
     def test_create_httpx_client_err(self, k8sconfig, tmp_path: Path):
         """Must gracefully abort when there are certificate problems."""
@@ -56,18 +58,16 @@ class TestK8sDeleteGetPatchPost:
         fname_client_key = tmp_path / "does-not-exist.key"
 
         client_cert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
-        config = k8sconfig._replace(client_cert=client_cert)
-        _, err = k8s.create_httpx_client(config)
-        assert err
+        cfg = k8sconfig._replace(client_cert=client_cert)
+        assert k8s.create_httpx_client(cfg) == (cfg, True)
 
         # Must gracefully abort when the certificates are corrupt.
         fname_client_crt.write_text("not a valid certificate")
         fname_client_key.write_text("not a valid certificate")
 
         client_cert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
-        config = k8sconfig._replace(client_cert=client_cert)
-        _, err = k8s.create_httpx_client(config)
-        assert err
+        cfg = k8sconfig._replace(client_cert=client_cert)
+        assert k8s.create_httpx_client(cfg) == (cfg, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     async def test_request_ok(self, method, respx_mock):
@@ -287,12 +287,11 @@ class TestK8sVersion:
 
 
 class TestUrlPathBuilder:
-    async def k8sconfig(self, integrationtest, ref_config):
-        """Return a valid K8sConfig for a dummy or the real integration test cluster.
+    async def k8sconfig(self, integrationtest: bool, ref_config):
+        """Return a valid `K8sConfig`.
 
-        The `config` is a reference K8s config. Return it if `integrationtest
-        is False`, otherwise go to the real cluster. Skip the integration test
-        if there is no real cluster available right now.
+        The returned `K8sConfig` model is either valid dummy or a genuine
+        configuration to access the integration test cluster.
 
         """
         # Use a fake or genuine K8s cluster.
@@ -303,9 +302,10 @@ class TestUrlPathBuilder:
             pytest.skip()
         kubeconfig = Path("/tmp/kubeconfig-kind.yaml")
 
-        # Create a genuine K8s config from our integration test cluster.
+        # Create a genuine `K8sConfig` for our integration test cluster.
         k8sconfig, err = await k8s.cluster_config(kubeconfig, None)
-        assert not err and k8sconfig and k8sconfig.client
+        assert not err and k8sconfig
+        assert k8sconfig.client is not None
         return k8sconfig
 
     @pytest.mark.parametrize("integrationtest", [False, True])
