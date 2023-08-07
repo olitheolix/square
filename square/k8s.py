@@ -478,7 +478,9 @@ def load_auto_config(kubeconf_path: Path,
     return (K8sConfig(), True)
 
 
-def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[httpx.AsyncClient, bool]:
+def create_httpx_client(
+        k8sconfig: K8sConfig
+) -> Tuple[K8sConfig, bool]:
     """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
     ssl_context = ssl.create_default_context(cadata=k8sconfig.cadata)
@@ -494,18 +496,21 @@ def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[httpx.AsyncClient, bool]:
         client = httpx.AsyncClient(verify=ssl_context, cert=cert)  # type: ignore
     except ssl.SSLError:
         logit.error("Invalid certificates")
-        return httpx.AsyncClient(), True
+        return k8sconfig, True
     except FileNotFoundError:
         # If the certificate files do not exist then we have a bug somewhere.
         logit.error("Bug: certificate files do not exist")
-        return httpx.AsyncClient(), True
+        return k8sconfig, True
 
     # Add the bearer token if we have one.
     if k8sconfig.token != "":
         client.headers.update({'authorization': f'Bearer {k8sconfig.token}'})
 
+    # Add the web client to the `k8sconfig` object.
+    k8sconfig = k8sconfig._replace(client=client)
+
     # Return the configured client object.
-    return client, False
+    return k8sconfig, False
 
 
 def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
@@ -646,12 +651,8 @@ async def cluster_config(
         assert not err
 
         # Configure a HttpX client for this cluster.
-        client, err = create_httpx_client(k8sconfig)
+        k8sconfig, err = create_httpx_client(k8sconfig)
         assert not err
-
-        # Add the web client to the `k8sconfig` object.
-        k8sconfig = k8sconfig._replace(client=client)
-        assert k8sconfig.client
 
         # Contact the K8s API to update version field in `k8sconfig`.
         k8sconfig, err = await version(k8sconfig)
