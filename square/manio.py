@@ -968,7 +968,7 @@ async def _download_worker(k8sconfig: K8sConfig, kind: str,
 
     try:
         # Download the resource manifests for the current KIND.
-        manifest_list, err = await square.k8s.get(k8sconfig.client, resource.url)
+        manifest_list, err = await square.k8s.get(k8sconfig, resource.url)
         assert not err and manifest_list is not None
 
         # Parse the K8s List (eg `DeploymentList`, `NamespaceList`, ...) into a

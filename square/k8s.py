@@ -26,7 +26,7 @@ logit = logging.getLogger("square")
 
 
 async def request(
-        client,
+        k8sconfig: K8sConfig,
         method: str,
         url: str,
         payload: Optional[dict | list],
@@ -83,8 +83,8 @@ async def request(
                           jitter=None,  # type: ignore
                           )
     async def _call(*args, **kwargs):
-        return await client.request(method, url, json=payload,
-                                    headers=headers, timeout=30)
+        return await k8sconfig.client.request(method, url, json=payload,
+                                              headers=headers, timeout=30)
 
     # Make the HTTP request via our backoff/retry handler.
     try:
@@ -113,37 +113,38 @@ async def request(
     return (response, ret.status_code)
 
 
-async def delete(client, url: str, payload: dict) -> Tuple[dict, bool]:
+async def delete(k8sconfig: K8sConfig, url: str, payload: dict) -> Tuple[dict, bool]:
     """Make DELETE requests to K8s (see `k8s_request`)."""
-    resp, code = await request(client, 'DELETE', url, payload, headers=None)
+    resp, code = await request(k8sconfig, 'DELETE', url, payload, headers=None)
     err = (code not in (200, 202))
     if err:
         logit.error(f"{code} - DELETE - {url} - {resp}")
     return (resp, err)
 
 
-async def get(client, url: str) -> Tuple[dict, bool]:
+async def get(k8sconfig: K8sConfig, url: str) -> Tuple[dict, bool]:
     """Make GET requests to K8s (see `request`)."""
-    resp, code = await request(client, 'GET', url, payload=None, headers=None)
+    resp, code = await request(k8sconfig, 'GET', url, payload=None, headers=None)
     err = (code != 200)
     if err:
         logit.error(f"{code} - GET - {url} - {resp}")
     return (resp, err)
 
 
-async def patch(client, url: str, payload: List[Dict[str, str]]) -> Tuple[dict, bool]:
+async def patch(k8sconfig: K8sConfig, url: str,
+                payload: List[Dict[str, str]]) -> Tuple[dict, bool]:
     """Make PATCH requests to K8s (see `request`)."""
     headers = {'Content-Type': 'application/json-patch+json'}
-    resp, code = await request(client, 'PATCH', url, payload, headers)
+    resp, code = await request(k8sconfig, 'PATCH', url, payload, headers)
     err = (code != 200)
     if err:
         logit.error(f"{code} - PATCH - {url} - {resp}")
     return (resp, err)
 
 
-async def post(client, url: str, payload: dict) -> Tuple[dict, bool]:
+async def post(k8sconfig: K8sConfig, url: str, payload: dict) -> Tuple[dict, bool]:
     """Make POST requests to K8s (see `request`)."""
-    resp, code = await request(client, 'POST', url, payload, headers=None)
+    resp, code = await request(k8sconfig, 'POST', url, payload, headers=None)
     err = (code != 201)
     if err:
         logit.error(f"{code} - POST - {url} - {resp}")
@@ -610,7 +611,7 @@ async def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     """
     # Ask the K8s API for its version and check for errors.
     url = f"{k8sconfig.url}/version"
-    resp, err = await get(k8sconfig.client, url)
+    resp, err = await get(k8sconfig, url)
     if err or resp is None:
         logit.error(f"Could not interrogate {k8sconfig.name} ({url})")
         return (K8sConfig(), True)
@@ -752,7 +753,7 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
 
     """
     # Compile the list of all K8s API groups that this K8s instance knows about.
-    resp, err = await get(k8sconfig.client, f"{k8sconfig.url}/apis")
+    resp, err = await get(k8sconfig, f"{k8sconfig.url}/apis")
     if err:
         logit.error(f"Could not interrogate {k8sconfig.name} ({k8sconfig.url}/apis)")
         return True
@@ -804,7 +805,7 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
     group_urls: Dict[Tuple[str, str, str], List[K8sResource]] = {}
     for group_name, ver_url in apigroups.items():
         for api_version, url in ver_url:
-            resp, err = await get(k8sconfig.client, f"{k8sconfig.url}/{url}")
+            resp, err = await get(k8sconfig, f"{k8sconfig.url}/{url}")
             if err:
                 msg = f"Could not interrogate {k8sconfig.name} ({k8sconfig.url}/{url})"
                 logit.error(msg)
