@@ -483,7 +483,7 @@ def create_httpx_client(
 ) -> Tuple[K8sConfig, bool]:
     """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
-    ssl_context = ssl.create_default_context(cadata=k8sconfig.cadata)
+    sslcontext = ssl.create_default_context(cadata=k8sconfig.cadata)
 
     # Add the client certificate, if the cluster uses those to authenticate users.
     if k8sconfig.client_cert is not None:
@@ -493,7 +493,7 @@ def create_httpx_client(
 
     # Construct the HttpX client.
     try:
-        client = httpx.AsyncClient(verify=ssl_context, cert=cert)  # type: ignore
+        client = httpx.AsyncClient(verify=sslcontext, cert=cert)  # type: ignore
     except ssl.SSLError:
         logit.error("Invalid certificates")
         return k8sconfig, True
@@ -507,7 +507,7 @@ def create_httpx_client(
         client.headers.update({'authorization': f'Bearer {k8sconfig.token}'})
 
     # Add the web client to the `k8sconfig` object.
-    k8sconfig = k8sconfig._replace(client=client)
+    k8sconfig = k8sconfig._replace(client=client, sslcontext=sslcontext)
 
     # Return the configured client object.
     return k8sconfig, False
