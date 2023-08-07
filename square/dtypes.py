@@ -77,6 +77,7 @@ class K8sConfig(NamedTuple):
     cadata: Optional[str] = None
     client_cert: Optional[K8sClientCert] = None
     sslcontext: Optional[SSLContext] = None
+    headers: Dict[str, str] = {}
 
     # HttpX client to access the cluster.
     client: Any = None
