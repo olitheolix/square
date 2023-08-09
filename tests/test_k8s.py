@@ -79,7 +79,6 @@ class TestK8sDeleteGetPatchPost:
         """Simulate a successful K8s response for GET request."""
         # Dummy values for the K8s API request.
         url = 'http://examples.com/'
-        k8sconfig = k8sconfig._replace(client=k8s.httpx.AsyncClient())
         headers = {"some": "headers"}
         payload = {"some": "payload"}
         response = {"some": "response"}
@@ -99,7 +98,6 @@ class TestK8sDeleteGetPatchPost:
         """Simulate a corrupt JSON response from K8s."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://examples.com/'
-        k8sconfig = k8sconfig._replace(client=k8s.httpx.AsyncClient())
 
         # Construct a response with a corrupt JSON string.
         corrupt_json = "{this is not valid] json;"
@@ -115,7 +113,6 @@ class TestK8sDeleteGetPatchPost:
         """Simulate an unsuccessful K8s response for GET request."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://examples.com/'
-        k8sconfig = k8sconfig._replace(client=k8s.httpx.AsyncClient())
 
         # Simulate a generic RequestError error during the request.
         m_http = respx_mock.request(method, url)
@@ -128,7 +125,6 @@ class TestK8sDeleteGetPatchPost:
         """Simulate connection timeout to validate retry logic."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://localhost:12345/'
-        k8sconfig = k8sconfig._replace(client=k8s.httpx.AsyncClient())
 
         # Test function must not return a response but indicate an error.
         ret = await k8s.request(k8sconfig, method, url, None, None)
@@ -142,9 +138,6 @@ class TestK8sDeleteGetPatchPost:
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     async def test_request_invalid(self, method, k8sconfig, nosleep):
         """Simulate connection errors due to invalid URL schemes."""
-        # Dummies for K8s API URL and `httpx` client.
-        k8sconfig = k8sconfig._replace(client=k8s.httpx.AsyncClient())
-
         urls = [
             "localhost",        # missing schema like "http://"
             "httpinvalid://localhost",
