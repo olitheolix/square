@@ -79,9 +79,13 @@ async def request(
                           logger=None,  # type: ignore
                           jitter=None,  # type: ignore
                           )
-    async def _call(*args, **kwargs):
-        return await k8sconfig.client.request(method, url, json=payload,
-                                              headers=headers, timeout=30)
+    async def _call():
+        return await k8sconfig.client.request(
+            method, url,
+            json=payload,
+            headers=headers,
+            timeout=30,
+        )
 
     # Make the HTTP request via our backoff/retry handler.
     try:
