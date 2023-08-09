@@ -91,7 +91,7 @@ async def request(
     try:
         ret = await _call()
     except web_exceptions as err:
-        logit.error(f"Giving up - {err} ({method} {url})")
+        logit.error(f"Giving up - {err} - {method} {url}")
         return ({}, True)
 
     try:
@@ -480,9 +480,7 @@ def load_auto_config(kubeconf_path: Path,
     return (K8sConfig(), True)
 
 
-def create_httpx_client(
-        k8sconfig: K8sConfig
-) -> Tuple[K8sConfig, bool]:
+def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
     sslcontext = ssl.create_default_context(cadata=k8sconfig.cadata)

@@ -1148,6 +1148,7 @@ class TestMainOptions:
 
         The second part of the test simulates errors. This is not a separate
         test because it shares virtually all the boiler plate code.
+
         """
         k8sconfig: K8sConfig = kube_creds
 
