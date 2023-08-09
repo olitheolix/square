@@ -53,11 +53,8 @@ async def request(
 
     async def on_backoff(details):
         """Log a warning on each retry."""
-        tries, exc = details["tries"], details["exception"]
-        logit.warning(
-            f"Backing off on {url}. Attempt {tries}/{max_tries-1}. "
-            f"Reason: {exc}"
-        )
+        attempt, exc = details["tries"], details["exception"]
+        logit.warning(f"Back off {attempt} - {exc} - {url}.")
 
     """
     Configure linear backoff.
@@ -90,7 +87,7 @@ async def request(
     try:
         ret = await _call()
     except web_exceptions as err:
-        logit.error(f"{err} ({method} {url})")
+        logit.error(f"Giving up - {err} ({method} {url})")
         return ({}, True)
 
     try:
