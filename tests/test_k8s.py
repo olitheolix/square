@@ -109,7 +109,7 @@ class TestK8sDeleteGetPatchPost:
         assert ret == ({}, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    async def test_request_connection_err(self, method, k8sconfig, respx_mock, nosleep):
+    async def test_request_connection_err(self, method, k8sconfig, respx_mock):
         """Simulate an unsuccessful K8s response for GET request."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://examples.com/'
@@ -136,7 +136,7 @@ class TestK8sDeleteGetPatchPost:
             assert nosleep.call_count >= 20
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    async def test_request_invalid(self, method, k8sconfig, nosleep):
+    async def test_request_invalid(self, method, k8sconfig):
         """Simulate connection errors due to invalid URL schemes."""
         urls = [
             "localhost",        # missing schema like "http://"
