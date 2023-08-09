@@ -1,3 +1,4 @@
+import asyncio
 import unittest.mock as mock
 from pathlib import Path
 from typing import Generator
@@ -56,8 +57,9 @@ def k8sconfig():
     # The set of canonical K8s resources we support.
     cfg.kinds.update({_ for _ in cfg.short2kind.values()})
 
-    # Pass the fixture to the test.
-    yield cfg
+    # Short-circuit the `async.sleep` function.
+    with mock.patch.object(asyncio, "sleep"):
+        yield cfg
 
 
 @pytest.fixture
