@@ -1149,6 +1149,8 @@ class TestMainOptions:
         The second part of the test simulates errors. This is not a separate
         test because it shares virtually all the boiler plate code.
         """
+        k8sconfig: K8sConfig = kube_creds
+
         # Valid MetaManifest.
         meta = manio.make_meta(make_manifest("Deployment", "ns", "name"))
 
@@ -1182,9 +1184,11 @@ class TestMainOptions:
         # corresponding calls to K8s.
         reset_mocks()
         assert await sq.apply_plan(config, plan) is False
-        m_post.assert_called_once_with("k8s_client", "create_url", {"create": "man"})
-        m_apply.assert_called_once_with("k8s_client", patch.url, patch.ops)
-        m_delete.assert_called_once_with("k8s_client", "delete_url", {"delete": "man"})
+        m_post.assert_called_once_with(k8sconfig.client, "create_url", {"create": "man"})
+        m_apply.assert_called_once_with(k8sconfig.client, patch.url, patch.ops)
+        m_delete.assert_called_once_with(
+            k8sconfig.client, "delete_url", {"delete": "man"}
+        )
 
         # -----------------------------------------------------------------
         #                   Simulate An Empty Plan
