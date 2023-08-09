@@ -18,12 +18,6 @@ from square.dtypes import K8sConfig, K8sResource, MetaManifest, SSLContext
 from .test_helpers import kind_available
 
 
-@pytest.fixture
-async def nosleep():
-    with mock.patch.object(asyncio, "sleep") as m_sleep:
-        yield m_sleep
-
-
 class TestK8sDeleteGetPatchPost:
     def test_create_httpx_client_ok(self, k8sconfig):
         """Verify the HttpX client is correctly setup."""
@@ -121,19 +115,20 @@ class TestK8sDeleteGetPatchPost:
         assert ret == ({}, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    async def test_request_retries(self, k8sconfig, nosleep, method):
+    async def test_request_retries(self, k8sconfig, method):
         """Simulate connection timeout to validate retry logic."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://localhost:12345/'
 
         # Test function must not return a response but indicate an error.
-        ret = await k8s.request(k8sconfig, method, url, None, None)
-        assert ret == ({}, True)
+        with mock.patch.object(asyncio, "sleep") as m_sleep:
+            ret = await k8s.request(k8sconfig, method, url, None, None)
+            assert ret == ({}, True)
 
-        # Windows is different and seems to have built in retry and/or timeout
-        # limits - no idea. Mac and Linux behave as expected.
-        if not sys.platform.startswith("win"):
-            assert nosleep.call_count >= 20
+            # Windows is different and seems to have built in retry and/or timeout
+            # limits - no idea. Mac and Linux behave as expected.
+            if not sys.platform.startswith("win"):
+                assert m_sleep.call_count >= 20
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     async def test_request_invalid(self, method, k8sconfig):
