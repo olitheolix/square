@@ -1184,7 +1184,9 @@ class TestMainOptions:
         # Update the K8s resources and verify that the test functions made the
         # corresponding calls to K8s.
         reset_mocks()
+        assert not k8sconfig.client.is_closed
         assert await sq.apply_plan(config, plan) is False
+        assert k8sconfig.client.is_closed
         m_post.assert_called_once_with(k8sconfig, "create_url", {"create": "man"})
         m_apply.assert_called_once_with(k8sconfig, patch.url, patch.ops)
         m_delete.assert_called_once_with(k8sconfig, "delete_url", {"delete": "man"})
@@ -1357,7 +1359,9 @@ class TestMainOptions:
         m_align.side_effect = lambda loc_man, _: (loc_man, False)
 
         # A successful DIFF only computes and prints the plan.
+        assert not k8sconfig.client.is_closed
         plan, err = await sq.make_plan(config)
+        assert k8sconfig.client.is_closed
         assert not err and isinstance(plan, DeploymentPlan)
         m_load.assert_called_once_with(config.folder, config.selectors)
         m_down.assert_called_once_with(config, k8sconfig)
@@ -1557,7 +1561,9 @@ class TestMainOptions:
         load_selectors = Selectors(kinds=k8sconfig.kinds, labels=[], namespaces=[])
 
         # Call test function and verify it passed the correct arguments.
+        assert not k8sconfig.client.is_closed
         assert await sq.get_resources(config) is False
+        assert k8sconfig.client.is_closed
         m_load.assert_called_once_with(config.folder, load_selectors)
         m_down.assert_called_once_with(config, k8sconfig)
         m_mapi.assert_called_once_with(k8sconfig, loc_sqm, srv_sqm)

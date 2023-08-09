@@ -729,6 +729,10 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
             logit.error(f"Could not patch {msg_res}")
             return True
 
+    # Close the client.
+    if not k8sconfig.client.is_closed:
+        await k8sconfig.client.aclose()
+
     # All good.
     return False
 
@@ -823,6 +827,10 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
     except AssertionError:
         return (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
+    # Close the client.
+    if not k8sconfig.client.is_closed:
+        await k8sconfig.client.aclose()
+
     # Print the plan and return.
     return (plan, False)
 
@@ -883,6 +891,10 @@ async def get_resources(cfg: Config) -> bool:
         assert not err
     except AssertionError:
         return True
+
+    # Close the client.
+    if not k8sconfig.client.is_closed:
+        await k8sconfig.client.aclose()
 
     # Success.
     return False
