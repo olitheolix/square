@@ -35,6 +35,12 @@ def kube_creds(request, k8sconfig) -> Generator[K8sConfig, None, None]:
 
 @pytest.fixture
 def k8sconfig():
+    # Short-circuit the `async.sleep` function.
+    with mock.patch.object(asyncio, "sleep"):
+        yield k8sconfig_fixture()
+
+
+def k8sconfig_fixture():
     # Return a valid K8sConfig with a subsection of API endpoints available in
     # Kubernetes v1.25.
     cadata = Path("tests/support/client.crt").read_text()
@@ -57,9 +63,7 @@ def k8sconfig():
     # The set of canonical K8s resources we support.
     cfg.kinds.update({_ for _ in cfg.short2kind.values()})
 
-    # Short-circuit the `async.sleep` function.
-    with mock.patch.object(asyncio, "sleep"):
-        yield cfg
+    return cfg
 
 
 @pytest.fixture
