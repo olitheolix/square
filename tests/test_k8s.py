@@ -85,7 +85,7 @@ class TestK8sDeleteGetPatchPost:
         # Verify that the function makes the correct request and returns the
         # expected result and HTTP status code.
         ret = await k8s.request(k8sconfig, method, url, payload, headers)
-        assert ret == (response, status_code)
+        assert ret == (response, status_code, False)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     async def test_request_err_json(self, method, k8sconfig, respx_mock):
@@ -98,9 +98,9 @@ class TestK8sDeleteGetPatchPost:
         m_http = respx_mock.request(method, url)
         m_http.return_value = httpx.Response(200, text=corrupt_json)
 
-        # Test function must not return a response but indicate an error.
+        # Test function must not return correct status code but also an error.
         ret = await k8s.request(k8sconfig, method, url, None, None)
-        assert ret == ({}, True)
+        assert ret == ({}, 200, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     async def test_request_connection_err(self, method, k8sconfig, respx_mock):
@@ -112,7 +112,7 @@ class TestK8sDeleteGetPatchPost:
         m_http = respx_mock.request(method, url)
         m_http.mock(side_effect=k8s.httpx.RequestError(message="test error"))
         ret = await k8s.request(k8sconfig, method, url, None, None)
-        assert ret == ({}, True)
+        assert ret == ({}, -1, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     async def test_request_retries(self, k8sconfig, method):
@@ -123,7 +123,7 @@ class TestK8sDeleteGetPatchPost:
         # Test function must not return a response but indicate an error.
         with mock.patch.object(asyncio, "sleep") as m_sleep:
             ret = await k8s.request(k8sconfig, method, url, None, None)
-            assert ret == ({}, True)
+            assert ret == ({}, -1, True)
 
             # Windows is different and seems to have built in retry and/or timeout
             # limits - no idea. Mac and Linux behave as expected.
@@ -142,7 +142,7 @@ class TestK8sDeleteGetPatchPost:
         # Test function must not return a response but indicate an error.
         for url in urls:
             ret = await k8s.request(k8sconfig, method, url, None, None)
-            assert ret == ({}, True)
+            assert ret == ({}, -1, True)
 
     @mock.patch.object(k8s, "request")
     async def test_delete_get_patch_post_ok(self, m_req, k8sconfig):
@@ -163,27 +163,27 @@ class TestK8sDeleteGetPatchPost:
         # because of grace periods).
         for code in (200, 202):
             m_req.reset_mock()
-            m_req.return_value = (response, code)
+            m_req.return_value = (response, code, False)
             assert await k8s.delete(k8sconfig, path, payload) == (response, False)
             m_req.assert_called_once_with(
                 k8sconfig, "DELETE", path, payload, headers=None)
 
         # K8s GET request was successful iff its return status is 200.
         m_req.reset_mock()
-        m_req.return_value = (response, 200)
+        m_req.return_value = (response, 200, False)
         assert await k8s.get(k8sconfig, path) == (response, False)
         m_req.assert_called_once_with(k8sconfig, "GET", path, payload=None, headers=None)
 
         # K8s PATCH request was successful iff its return status is 200.
         m_req.reset_mock()
-        m_req.return_value = (response, 200)
+        m_req.return_value = (response, 200, False)
         assert await k8s.patch(k8sconfig, path, [payload]) == (response, False)
         patch_headers = {'Content-Type': 'application/json-patch+json'}
         m_req.assert_called_once_with(k8sconfig, "PATCH", path, [payload], patch_headers)
 
         # K8s POST request was successful iff its return status is 201.
         m_req.reset_mock()
-        m_req.return_value = (response, 201)
+        m_req.return_value = (response, 201, False)
         assert await k8s.post(k8sconfig, path, payload) == (response, False)
         m_req.assert_called_once_with(k8sconfig, "POST", path, payload, headers=None)
 
@@ -201,28 +201,28 @@ class TestK8sDeleteGetPatchPost:
         payload = {"pay": "load"}
         response = "response"
 
-        # K8s DELETE request was unsuccessful because its returns status is not 200.
+        # K8s DELETE request was unsuccessful because its return status is not 200.
         m_req.reset_mock()
-        m_req.return_value = (response, 400)
+        m_req.return_value = (response, 400, False)
         assert await k8s.delete(k8sconfig, path, payload) == (response, True)
         m_req.assert_called_once_with(k8sconfig, "DELETE", path, payload, headers=None)
 
         # K8s GET request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
-        m_req.return_value = (response, 400)
+        m_req.return_value = (response, 400, False)
         assert await k8s.get(k8sconfig, path) == (response, True)
         m_req.assert_called_once_with(k8sconfig, "GET", path, payload=None, headers=None)
 
         # K8s PATCH request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
-        m_req.return_value = (response, 400)
+        m_req.return_value = (response, 400, False)
         assert await k8s.patch(k8sconfig, path, [payload]) == (response, True)
         patch_headers = {'Content-Type': 'application/json-patch+json'}
         m_req.assert_called_once_with(k8sconfig, "PATCH", path, [payload], patch_headers)
 
         # K8s POST request was unsuccessful because its returns status is not 201.
         m_req.reset_mock()
-        m_req.return_value = (response, 400)
+        m_req.return_value = (response, 400, False)
         assert await k8s.post(k8sconfig, path, payload) == (response, True)
         m_req.assert_called_once_with(k8sconfig, "POST", path, payload, headers=None)
 
