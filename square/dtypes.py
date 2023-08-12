@@ -81,7 +81,7 @@ class K8sConfig(NamedTuple):
 
     # Certificate authority for self signed certificates.
     cadata: Optional[str] = None
-    client_cert: Optional[K8sClientCert] = None
+    cert: Optional[K8sClientCert] = None
     sslcontext: Optional[SSLContext] = None
     headers: Dict[str, str] = {}
 
