@@ -4,7 +4,6 @@ import unittest.mock as mock
 from pathlib import Path
 from typing import Dict, cast
 
-import httpx
 import pytest
 import sh
 import yaml

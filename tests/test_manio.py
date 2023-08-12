@@ -12,7 +12,7 @@ import yaml
 import square.k8s as k8s
 import square.manio as manio
 from square.dtypes import (
-    Config, Filters, GroupBy, LocalManifestLists, MetaManifest, Selectors,
+    Config, GroupBy, LocalManifestLists, MetaManifest, Selectors,
     SquareManifests,
 )
 from square.k8s import resource
