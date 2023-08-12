@@ -1343,9 +1343,13 @@ class TestMainOptions:
         # Valid deployment plan.
         plan = DeploymentPlan(create=[], patch=[], delete=[])
 
+        # Dummy manifests.
+        loc_man = make_manifest("Pod", "default", "loc")
+        srv_man = make_manifest("Pod", "default", "srv")
+
         # All auxiliary functions will succeed.
-        local = {MetaManifest("v1", "Pod", "default", "local"): {"local": "manifest"}}
-        server = {MetaManifest("v1", "Pod", "default", "server"): {"server": "manifest"}}
+        local = {manio.make_meta(loc_man): loc_man}
+        server = {manio.make_meta(srv_man): srv_man}
         m_load.return_value = (local, None, False)
         m_down.return_value = (server, False)
         m_pick.return_value = (local, server)
@@ -1529,11 +1533,19 @@ class TestMainOptions:
         """
         k8sconfig: K8sConfig = kube_creds
 
+        # Dummy manifests.
+        loc_man = make_manifest("Pod", "default", "loc")
+        srv_man = make_manifest("Pod", "default", "srv")
+
+        # All auxiliary functions will succeed.
+        loc_sqm = {manio.make_meta(loc_man): loc_man}
+        srv_sqm = {manio.make_meta(srv_man): srv_man}
+
         # Simulate successful responses from the two auxiliary functions.
         # The `load` function must return empty dicts to ensure the error
         # conditions are properly coded.
-        m_load.return_value = ("local_meta", "local_path", False)
-        m_down.return_value = ("server", False)
+        m_load.return_value = (loc_sqm, "local_path", False)
+        m_down.return_value = (srv_sqm, False)
         m_mapi.return_value = ("matched", False)
         m_sync.return_value = ({"path": [("meta", "manifest")]}, False)
         m_clean.return_value = ({}, {"meta": "manifest-clean"}, False)
@@ -1548,7 +1560,7 @@ class TestMainOptions:
         assert await sq.get_resources(config) is False
         m_load.assert_called_once_with(config.folder, load_selectors)
         m_down.assert_called_once_with(config, k8sconfig)
-        m_mapi.assert_called_once_with(k8sconfig, "local_meta", "server")
+        m_mapi.assert_called_once_with(k8sconfig, loc_sqm, srv_sqm)
         m_sync.assert_called_once_with("local_path", "matched",
                                        config.selectors, config.groupby)
         m_clean.assert_called_once_with(
