@@ -248,7 +248,7 @@ def load_incluster_config(
         url=f'https://{server_ip}',
         token=tokenfile.read_text(),
         cadata=cafile.read_text(),
-        client_cert=None,
+        cert=None,
         version="",
         name="",
     ), False
@@ -328,7 +328,7 @@ def load_authenticator_config(kubeconf_path: Path,
         url=cluster["server"],
         token=token,
         cadata=cadata,
-        client_cert=None,
+        cert=None,
         version="",
         name=cluster["name"],
     ), False
@@ -358,7 +358,7 @@ def load_minikube_config(kubeconf_path: Path,
     # Minikube uses client certificates to authenticate. We need to pass those
     # to the HTTP client of our choice
     try:
-        client_cert = K8sClientCert(
+        cert = K8sClientCert(
             crt=Path(user["client-certificate"]),
             key=Path(user["client-key"]),
         )
@@ -369,7 +369,7 @@ def load_minikube_config(kubeconf_path: Path,
             url=cluster["server"],
             token="",
             cadata=Path(cluster["certificate-authority"]).read_text(),
-            client_cert=client_cert,
+            cert=cert,
             version="",
             name=cluster["name"],
         ), False
@@ -416,7 +416,7 @@ def load_kind_config(kubeconf_path: Path,
         p_client_key = path / "kind-client.key"
         p_client_crt.write_text(client_crt)
         p_client_key.write_text(client_key)
-        client_cert = K8sClientCert(crt=p_client_crt, key=p_client_key)
+        cert = K8sClientCert(crt=p_client_crt, key=p_client_key)
 
         # Return the config data.
         logit.debug("Assuming Minikube/Kind cluster.")
@@ -424,7 +424,7 @@ def load_kind_config(kubeconf_path: Path,
             url=cluster["server"],
             token="",
             cadata=cadata,
-            client_cert=client_cert,
+            cert=cert,
             version="",
             name=cluster["name"],
         ), False
@@ -487,10 +487,7 @@ def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     sslcontext = ssl.create_default_context(cadata=k8sconfig.cadata)
 
     # Add the client certificate, if the cluster uses those to authenticate users.
-    if k8sconfig.client_cert is not None:
-        cert = (k8sconfig.client_cert.crt, k8sconfig.client_cert.key)
-    else:
-        cert = None
+    cert = (k8sconfig.cert.crt, k8sconfig.cert.key) if k8sconfig.cert else None
 
     # Construct the HttpX client.
     try:

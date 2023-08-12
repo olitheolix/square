@@ -42,7 +42,7 @@ class TestK8sDeleteGetPatchPost:
         fname_client_key = Path("tests/support/client.key")
 
         ccert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
-        cfg = k8sconfig._replace(token="token", client_cert=ccert)
+        cfg = k8sconfig._replace(token="token", cert=ccert)
         new_cfg, err = k8s.create_httpx_client(cfg)
         assert not err
         assert isinstance(new_cfg.client, httpx.AsyncClient)
@@ -56,16 +56,16 @@ class TestK8sDeleteGetPatchPost:
         fname_client_crt = tmp_path / "does-not-exist.crt"
         fname_client_key = tmp_path / "does-not-exist.key"
 
-        client_cert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
-        cfg = k8sconfig._replace(client_cert=client_cert)
+        cert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
+        cfg = k8sconfig._replace(cert=cert)
         assert k8s.create_httpx_client(cfg) == (cfg, True)
 
         # Must gracefully abort when the certificates are corrupt.
         fname_client_crt.write_text("not a valid certificate")
         fname_client_key.write_text("not a valid certificate")
 
-        client_cert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
-        cfg = k8sconfig._replace(client_cert=client_cert)
+        cert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
+        cfg = k8sconfig._replace(cert=cert)
         assert k8s.create_httpx_client(cfg) == (cfg, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
@@ -805,7 +805,7 @@ class TestK8sKubeconfig:
             url='https://1.2.3.4',
             token="token",
             cadata="cert",
-            client_cert=None,
+            cert=None,
             version="",
             name="",
         )
@@ -871,7 +871,7 @@ class TestK8sKubeconfig:
             url="https://192.168.0.177:8443",
             token="",
             cadata=cadata,
-            client_cert=k8s.K8sClientCert(
+            cert=k8s.K8sClientCert(
                 crt=Path("client.crt"),
                 key=Path("client.key"),
             ),
@@ -909,9 +909,9 @@ class TestK8sKubeconfig:
 
         # Function must have create the credential files.
         assert ret.cadata is not None
-        assert ret.client_cert is not None
-        assert ret.client_cert.crt.exists()
-        assert ret.client_cert.key.exists()
+        assert ret.cert is not None
+        assert ret.cert.crt.exists()
+        assert ret.cert.key.exists()
 
     @pytest.mark.parametrize("kubetype", ["kind", "minkube"])
     def test_load_minkube_kind_config_invalid_context_err(self, kubetype, tmp_path):
@@ -964,7 +964,7 @@ class TestK8sKubeconfig:
             url=f"https://{context}.com",
             token="token",
             cadata=ret.cadata,
-            client_cert=None,
+            cert=None,
             version="",
             name=context,
         )
