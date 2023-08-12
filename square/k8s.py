@@ -54,7 +54,7 @@ async def request(
     async def on_backoff(details):
         """Log a warning on each retry."""
         attempt, exc = details["tries"], details["exception"]
-        logit.warning(f"Back off {attempt} - {exc} - {url}.")
+        logit.warning(f"Back off {attempt} - {k8sconfig.name} - {exc} - {url}.")
 
     """
     Configure linear backoff.
@@ -91,14 +91,15 @@ async def request(
     try:
         ret = await _call()
     except web_exceptions as err:
-        logit.error(f"Giving up - {err} - {method} {url}")
+        logit.error(f"Giving up - {k8sconfig.name} - {err} - {method} {url}")
         return ({}, -1, True)
 
     try:
         response = json.loads(ret.text)
     except json.decoder.JSONDecodeError as err:
         msg = (
-            f"JSON error: {err.msg} in line {err.lineno} column {err.colno}",
+            f"JSON error - {k8sconfig.name} - "
+            f"{err.msg} in line {err.lineno} column {err.colno}",
             "-" * 80 + "\n" + err.doc + "\n" + "-" * 80,
         )
         logit.error(str.join("\n", msg))
@@ -195,7 +196,7 @@ def load_kubeconfig(kubeconf_path: Path,
             cluster_info = [_ for _ in kubeconf["clusters"] if _["name"] == clustername]
             assert len(user_info) == len(cluster_info) == 1
         except AssertionError:
-            logit.error(f"Could not find information for context <{context}>")
+            logit.error(f"Could not find context <{context}>")
             return ("", {}, {}, True)
 
         # Unpack the cluster- and user information.
@@ -274,6 +275,7 @@ def load_authenticator_config(kubeconf_path: Path,
     user, cluster, err = load_kubeconfig(kubeconf_path, context)[1:]
     if err:
         return (K8sConfig(), True)
+    name = cluster["name"]
 
     # Get a copy of all env vars. We will pass that one along to the
     # sub-process, plus the env vars specified in the kubeconfig file.
@@ -323,14 +325,14 @@ def load_authenticator_config(kubeconf_path: Path,
         return (K8sConfig(), True)
 
     # Return the Kubernetes access configuration.
-    logit.info("Assuming generic cluster.")
+    logit.info(f"Assuming generic cluster for {name}.")
     return K8sConfig(
         url=cluster["server"],
+        name=cluster["name"],
+        version="",
+        cert=None,
         token=token,
         cadata=cadata,
-        cert=None,
-        version="",
-        name=cluster["name"],
     ), False
 
 
@@ -354,6 +356,7 @@ def load_minikube_config(kubeconf_path: Path,
     _, user, cluster, err = load_kubeconfig(kubeconf_path, context)
     if err:
         return (K8sConfig(), True)
+    name = cluster["name"]
 
     # Minikube uses client certificates to authenticate. We need to pass those
     # to the HTTP client of our choice
@@ -364,14 +367,14 @@ def load_minikube_config(kubeconf_path: Path,
         )
 
         # Return the Kubernetes access configuration.
-        logit.info("Assuming Minikube cluster")
+        logit.info(f"Assuming Minikube cluster for {name}")
         return K8sConfig(
             url=cluster["server"],
             token="",
             cadata=Path(cluster["certificate-authority"]).read_text(),
             cert=cert,
             version="",
-            name=cluster["name"],
+            name=name,
         ), False
     except KeyError:
         logit.debug(f"Context {context} in <{kubeconf_path}> is not a Minikube config")
@@ -404,6 +407,7 @@ def load_kind_config(kubeconf_path: Path,
     _, user, cluster, err = load_kubeconfig(kubeconf_path, context)
     if err:
         return (K8sConfig(), True)
+    name = cluster["name"]
 
     # Kind and Minikube use client certificates to authenticate. We need to
     # pass those to the HTTP client of our choice.
@@ -419,14 +423,14 @@ def load_kind_config(kubeconf_path: Path,
         cert = K8sClientCert(crt=p_client_crt, key=p_client_key)
 
         # Return the config data.
-        logit.debug("Assuming Minikube/Kind cluster.")
+        logit.debug(f"Assuming Kind cluster for {name}.")
         return K8sConfig(
             url=cluster["server"],
             token="",
             cadata=cadata,
             cert=cert,
             version="",
-            name=cluster["name"],
+            name=name,
         ), False
     except KeyError:
         logit.debug(
@@ -503,11 +507,11 @@ def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
         )
         client = httpx.AsyncClient(timeout=timeout, transport=transport)
     except ssl.SSLError:
-        logit.error("Invalid certificates")
+        logit.error(f"Invalid certificates for {k8sconfig.name}")
         return k8sconfig, True
     except FileNotFoundError:
         # If the certificate files do not exist then we have a bug somewhere.
-        logit.error("Bug: certificate files do not exist")
+        logit.error(f"Bug: certificate files do not exist for {k8sconfig.name}")
         return k8sconfig, True
 
     # Add the bearer token if we have one.
@@ -542,7 +546,10 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
         # Use the most recent version of the API if None was specified.
         candidates = [(kind, ver) for kind, ver in k8sconfig.apis if kind == meta.kind]
         if len(candidates) == 0:
-            logit.warning(f"Cannot determine API version for <{meta.kind}>")
+            logit.warning(
+                f"Cannot determine API version for "
+                f"<{meta.kind}> on {k8sconfig.name}"
+            )
             return err_resp
         candidates.sort()
         key = candidates.pop(0)
@@ -553,7 +560,7 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
     try:
         resource = k8sconfig.apis[key]
     except KeyError:
-        logit.error(f"Unsupported resource <{meta.kind}> {key}.")
+        logit.error(f"Unsupported resource <{meta.kind}> on {k8sconfig.name}.")
         return err_resp
 
     # Void the "namespace" key for non-namespaced resources.
@@ -582,7 +589,7 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
 
     # Sanity check: the manifest for a namespaced resource must specify a namespace.
     if resource.namespaced and meta.name and not meta.namespace:
-        logit.error(f"Cannot search for {meta.kind} {meta.name} in {meta.namespace}")
+        logit.error(f"Namespaced resource {meta.kind}/{meta.name} lacks namespace field")
         return err_resp
 
     # Create the full path to the resource depending on whether we have a
@@ -670,8 +677,11 @@ async def cluster_config(
         return (K8sConfig(), True)
 
     # Log the K8s API address and version.
-    logit.info(f"Kubernetes server at {k8sconfig.url}")
-    logit.info(f"Kubernetes version is {k8sconfig.version}")
+    logit.info(
+        f"name: {k8sconfig.name}  "
+        f"url {k8sconfig.url}  "
+        f"version {k8sconfig.version}"
+    )
     return (k8sconfig, False)
 
 
