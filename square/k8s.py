@@ -85,7 +85,6 @@ async def request(
             method, url,
             json=payload,
             headers=headers,
-            timeout=30,
         )
 
     # Make the HTTP request via our backoff/retry handler.
@@ -492,7 +491,17 @@ def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
 
     # Construct the HttpX client.
     try:
-        client = httpx.AsyncClient(verify=sslcontext, cert=cert)  # type: ignore
+        timeout = httpx.Timeout(
+            timeout=20, connect=20, read=20, write=20, pool=20
+        )
+        transport = httpx.AsyncHTTPTransport(
+            verify=sslcontext,
+            cert=cert,      # type: ignore
+            retries=0,
+            http1=True,
+            http2=False,
+        )
+        client = httpx.AsyncClient(timeout=timeout, transport=transport)
     except ssl.SSLError:
         logit.error("Invalid certificates")
         return k8sconfig, True

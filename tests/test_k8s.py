@@ -52,6 +52,11 @@ class TestK8sDeleteGetPatchPost:
         assert new_cfg.client.headers["authorization"] == "Bearer token"
         assert new_cfg.headers == {"authorization": "Bearer token"}
 
+        # Validate the timeout configuration.
+        assert new_cfg.client.timeout == httpx.Timeout(
+            timeout=20, connect=20, read=20, write=20, pool=20
+        )
+
     def test_create_httpx_client_err(self, k8sconfig, tmp_path: Path):
         """Must gracefully abort when there are certificate problems."""
         # Must gracefully abort when the certificate files do not exist.
