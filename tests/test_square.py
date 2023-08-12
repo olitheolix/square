@@ -1073,10 +1073,12 @@ class TestPlan:
         # ----------------------------------------------------------------------
         # Callback is well behaved and the local manifest to the server.
         # ----------------------------------------------------------------------
+        local, server = get_dummy_manifests()
+
         def cb1(square_config: Config, local_manifest: dict, server_manifest: dict):
+            nonlocal server
             return server, server
 
-        local, server = get_dummy_manifests()
         config.patch_callback = cb1
         assert not sq.run_patch_callback(config, [meta], local, server)
         assert local[meta] == server[meta]

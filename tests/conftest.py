@@ -44,7 +44,12 @@ def k8sconfig_fixture():
     # Return a valid K8sConfig with a subsection of API endpoints available in
     # Kubernetes v1.25.
     cadata = Path("tests/support/client.crt").read_text()
-    cfg = K8sConfig(version="1.25", client=httpx.AsyncClient(), cadata=cadata)
+    cfg = K8sConfig(
+        name="mycluster",
+        version="1.25",
+        client=httpx.AsyncClient(),
+        cadata=cadata
+    )
 
     # The set of API endpoints we can use in the tests.
     cfg.apis.clear()
