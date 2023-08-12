@@ -549,21 +549,6 @@ def run_cleanup_callback(
         dict: clean manifest
 
     """
-    # Convenience: default return value if an error occurs.
-    ret_err: Tuple[dict, bool] = ({}, True)
-
-    # Parse the manifest.
-    try:
-        meta = make_meta(manifest)
-        _, err = square.k8s.resource(k8sconfig, meta)
-        assert not err
-    except KeyError as e:
-        logit.error(f"Manifest is missing the <{e.args[0]}> key.")
-        return ret_err
-    except AssertionError:
-        return ret_err
-    del k8sconfig
-
     # Run cleanup callback.
     cb = config.clean_callback
     kwargs = dict(square_config=config, manifest=manifest)

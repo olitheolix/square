@@ -772,50 +772,6 @@ class TestYamlManifestIO:
 
 
 class TestCleanupCallback:
-    def test_run_cleanup_callback_invalid_version_kind(self, config: Config, k8sconfig):
-        """Must abort gracefully for unknown K8s version or resource kind."""
-        # Minimally valid filters for fake resource kind "TEST".
-        filters: Filters = {"TEST": ["metadata"]}
-        config.filters = filters
-
-        # Valid K8s version with unknown resource type.
-        manifest = {"apiVersion": "v1", "kind": "Unknown"}
-        assert manio.run_cleanup_callback(config, k8sconfig, manifest) == ({}, True)
-
-        # Invalid K8s version but valid resource type.
-        config = k8sconfig._replace(version="unknown")
-        manifest = {"apiVersion": "v1", "kind": "TEST"}
-        assert manio.run_cleanup_callback(config, k8sconfig, manifest) == ({}, True)
-
-    def test_run_cleanup_callback_namespace(self, config, k8sconfig):
-        """Filter NAMESPACE manifests."""
-        fun = manio.run_cleanup_callback
-
-        # Valid: a namespace manifest without a `metadata.namespace` field.
-        manifest: dict = {
-            "apiVersion": "v1",
-            "kind": "Namespace",
-            "metadata": {"name": "mandatory"},
-        }
-        assert fun(config, k8sconfig, manifest) == (manifest, False)
-        del manifest
-
-        # Create invalid manifests that either specify a namespace for a
-        # non-namespaced resource or vice versa. In any case, the `strip`
-        # function must be smart enough to identify them.
-        for kind in ("Deployment", "Service"):
-            manifest = {
-                "apiVersion": "v1",
-                "kind": kind,
-                "metadata": {
-                    "name": "mandatory",
-                    "namespace": "maybe",
-                },
-            }
-            if resource(k8sconfig, MetaManifest("", kind, None, ""))[0].namespaced:
-                del manifest["metadata"]["namespace"]
-            assert fun(config, k8sconfig, manifest) == ({}, True)
-
     def test_run_cleanup_callback_deployment(self, config, k8sconfig):
         """Filter DEPLOYMENT manifests."""
         # A valid DEPLOYMENT manifest with a few optional and irrelevant keys.
@@ -861,14 +817,6 @@ class TestCleanupCallback:
         out, err = manio.run_cleanup_callback(config, k8sconfig, manifest)
         assert not err
         assert out == expected
-
-        # Deployments must have a "metadata.namespace" attribute.
-        manifest = {
-            "apiVersion": "apps/v1",
-            "kind": "Deployment",
-            "metadata": {"name": "mandatory"},
-        }
-        assert manio.run_cleanup_callback(config, k8sconfig, manifest) == ({}, True)
 
     def test_cleanup_manifests(self, config, k8sconfig):
         """Run some basic tests."""
@@ -927,10 +875,6 @@ class TestCleanupCallback:
 
         # Valid input.
         assert fun(config, k8sconfig, {}, server) == ({}, server, False)
-
-        # Remove an essential key from the input manifest to force an error.
-        del man["apiVersion"]
-        assert fun(config, k8sconfig, {}, server) == ({}, {}, True)
 
     def test_cleanup_manifests_runtime_error(self, config: Config, k8sconfig):
         """Gracefully abort if the callback function is ill behaved."""
