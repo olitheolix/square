@@ -536,6 +536,9 @@ def setup_logging(log_level: int) -> None:
     Level 2: INFO
     Level >=3: DEBUG
 
+    The function is idempotent and can be called at any time to change the log
+    level of Square.
+
     Inputs:
         log_level: int
 
@@ -567,7 +570,8 @@ def setup_logging(log_level: int) -> None:
         )
     )
 
-    # Attach stdout handlers to the `square` logger.
+    # Replace the existing Square logging handler with our custom one.
+    logger.handlers.clear()
     logger.addHandler(handler)
     logit.info(f"Set log level to {level}")
 

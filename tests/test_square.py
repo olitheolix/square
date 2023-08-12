@@ -1,4 +1,5 @@
 import copy
+import logging
 import random
 import unittest.mock as mock
 from pathlib import Path
@@ -23,11 +24,17 @@ from .test_helpers import make_manifest
 
 class TestLogging:
     def test_setup_logging(self):
-        """Basic tests - mostly ensure that function runs."""
+        """Ensure the function runs and is idempotent."""
+        # The `logging` module will automatically install a default handler.
+        logger = logging.getLogger("square")
+        assert len(logger.handlers) == 1
 
-        # Test function must accept all log levels.
+        # Test function must accept all log levels. It must also be idempotent
+        # and calling it multiple times must not add more handlers but replace
+        # the existing one.
         for level in range(10):
             sq.setup_logging(level)
+            assert len(logger.handlers) == 1
 
 
 class TestBasic:
