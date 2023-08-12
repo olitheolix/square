@@ -31,7 +31,8 @@ def make_meta(manifest: dict) -> MetaManifest:
     `kind`, etc because it cannot possibly be a valid K8s manifest then.
 
     """
-    # Unpack the namespace. For Namespace resources, this will be the "name".
+    # Unpack the namespace of the resource unless the resource *is* a
+    # NAMESPACE, in which case its "name" would be the namespace.
     if manifest["kind"] == "Namespace":
         ns = None
     else:

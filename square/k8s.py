@@ -542,7 +542,7 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
     else:
         key = (meta.kind, meta.apiVersion)
 
-    # Retrieve the resource.
+    # Look up the canonical resource definition that K8s provided us with.
     try:
         resource = k8sconfig.apis[key]
     except KeyError:
@@ -573,26 +573,23 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
             return err_resp
         namespace = f"namespaces/{meta.namespace}"
 
-    # Sanity check: we cannot search for a namespaced resource by name in all
-    # namespaces. Example: we cannot search for a Service `foo` in all
-    # namespaces. We could only search for Service `foo` in namespace `bar`, or
-    # all services in all namespaces.
+    # Sanity check: the manifest for a namespaced resource must specify a namespace.
     if resource.namespaced and meta.name and not meta.namespace:
         logit.error(f"Cannot search for {meta.kind} {meta.name} in {meta.namespace}")
         return err_resp
 
     # Create the full path to the resource depending on whether we have a
-    # namespace and resource name. Here are all three possibilities:
+    # NAMESPACE and resource name. Here are all three possibilities:
     #  - /api/v1/namespaces/services
     #  - /api/v1/namespaces/my-namespace/services
     #  - /api/v1/namespaces/my-namespace/services/my-service
     path = f"{namespace}/{resource.name}" if namespace else resource.name
     path = f"{path}/{meta.name}" if meta.name else path
 
-    # The concatenation above may have introduced `//`. Here we remove them.
+    # The concatenation above may have introduced `//`. Remove them.
     path = path.replace("//", "/")
 
-    # Return the K8sResource with the correct URL.
+    # Return the `K8sResource` with the correct URL.
     resource = resource._replace(url=f"{resource.url}/{path}")
     return resource, False
 
