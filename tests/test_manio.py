@@ -814,7 +814,7 @@ class TestCleanupCallback:
             },
             "spec": "some spec",
         }
-        out, err = manio.run_cleanup_callback(config, k8sconfig, manifest)
+        out, err = manio.run_cleanup_callback(config, manifest)
         assert not err
         assert out == expected
 
@@ -1801,15 +1801,13 @@ class TestDownloadManifests:
             (l_ns, False),
             (l_dply, False),
         ]
-        cb = run_cleanup_callback
-        expected = {make_meta(_): cb(config, k8sconfig, _)[0] for _ in meta}
+        expected = {make_meta(_): run_cleanup_callback(config, _)[0] for _ in meta}
         config.selectors = Selectors(kinds={"Namespace", "Deployment", "Unknown"})
         ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_count == 2
         m_get.assert_any_call(k8sconfig, res_deploy.url)
         m_get.assert_any_call(k8sconfig, res_ns.url)
-        del cb
 
         # ------------------------------------------------------------------------------
         # Request resources from all namespaces explicitly via namespaces=["ns0", "ns1"]
@@ -1846,8 +1844,8 @@ class TestDownloadManifests:
             (l_dply_0, False),
         ]
         expected = {
-            make_meta(meta[0]): run_cleanup_callback(config, k8sconfig, meta[0])[0],
-            make_meta(meta[2]): run_cleanup_callback(config, k8sconfig, meta[2])[0],
+            make_meta(meta[0]): run_cleanup_callback(config, meta[0])[0],
+            make_meta(meta[2]): run_cleanup_callback(config, meta[2])[0],
         }
         config.selectors = Selectors(kinds={"Namespace", "Deployment"},
                                      namespaces=["ns0"])
