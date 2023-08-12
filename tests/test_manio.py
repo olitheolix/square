@@ -31,7 +31,7 @@ class TestHelpers:
         this reduces special case coding for Namespaces in `square`.
 
         """
-        # A deployment manfiest. All fields must be copied verbatim.
+        # DEPLOYMENT manifest. All fields must be copied verbatim.
         manifest = make_manifest("Deployment", "namespace", "name")
         expected = MetaManifest(
             apiVersion=manifest["apiVersion"],
@@ -41,7 +41,7 @@ class TestHelpers:
         )
         assert manio.make_meta(manifest) == expected
 
-        # Namespace manifest. The "namespace" field must be populated with the
+        # NAMESPACE manifest. The "namespace" field must be populated with the
         # "metadata.name" field.
         manifest = make_manifest("Namespace", None, "name")
         expected = MetaManifest(
@@ -64,6 +64,48 @@ class TestHelpers:
         )
         assert manio.make_meta(manifest) == expected
 
+    def test_is_valid_manifest(self, k8sconfig):
+        """Check various (in)valid and manifests."""
+        # CLUSTEROLE resources may declare a namespace even though Square and
+        # K8s will both silently ignore it.
+        manifest = make_manifest("ClusterRole", None, "name")
+        assert manio.is_valid_manifest(manifest, k8sconfig)
+        manifest = make_manifest("ClusterRole", "must-not-have-ns", "name")
+        assert manio.is_valid_manifest(manifest, k8sconfig)
+
+        # SERVICE resources must declare a namespace.
+        manifest = make_manifest("Service", "must-have-ns", "name")
+        assert manio.is_valid_manifest(manifest, k8sconfig)
+        manifest = make_manifest("Service", None, "name")
+        assert not manio.is_valid_manifest(manifest, k8sconfig)
+
+        # NAMESPACE resources must not declare a namespace.
+        manifest = make_manifest("Namespace", None, "name")
+        assert manio.is_valid_manifest(manifest, k8sconfig)
+
+        # UNKNOWN resources must be silently ignored.
+        manifest = make_manifest("Unknown", None, "name")
+        assert manio.is_valid_manifest(manifest, k8sconfig)
+        manifest = make_manifest("Unknown", "ns", "name")
+        assert manio.is_valid_manifest(manifest, k8sconfig)
+
+        # Every resource must have several mandatory fields.
+        mandatory_fields = ("apiVersion", "kind", "metadata")
+        for field in mandatory_fields:
+            manifest = make_manifest("ClusterRole", None, "name")
+            del manifest[field]
+            assert not manio.is_valid_manifest(manifest, k8sconfig)
+
+            manifest = make_manifest("Service", "must-have-ns", "name")
+            del manifest[field]
+            assert not manio.is_valid_manifest(manifest, k8sconfig)
+
+            manifest = make_manifest("Namespace", None, "name")
+            del manifest[field]
+            assert not manio.is_valid_manifest(manifest, k8sconfig)
+
+
+class TestSelect:
     def test_select(self):
         """Select manifest based on `Selector`."""
         # Convenience.

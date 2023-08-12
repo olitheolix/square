@@ -49,6 +49,39 @@ def make_meta(manifest: dict) -> MetaManifest:
     )
 
 
+def is_valid_manifest(manifest: dict, k8sconfig: K8sConfig) -> bool:
+    """Return `True` if `manifest` appears to be valid.
+
+    This function cannot guarantee that the manifest is indeed valid but it can
+    ensure that every manifest has the salient fields, eg "apiVersion", "kind"
+    etc. It will also verify that namespaced resources declare a
+    `metadata.namespace` field.
+
+    NOTE: the function will admit resources that are unknown to K8s. This may
+    sound counterintuitive but makes sense because a) the user may have local
+    manifests with CRDs that do not (yet) exist on the cluster and b) Square
+    will silently remove unknown resources from any plan.
+
+    """
+    try:
+        meta = make_meta(manifest)
+    except KeyError as e:
+        logit.error(f"Manifest is missing the <{e.args[0]}> key.")
+        return False
+
+    # Admit any resources that are unknown to K8s (see function doc string).
+    key = (meta.kind, meta.apiVersion)
+    if key not in k8sconfig.apis:
+        return True
+
+    try:
+        _, err = square.k8s.resource(k8sconfig, meta)
+        assert not err
+    except AssertionError:
+        return False
+    return True
+
+
 def select(manifest: dict, selectors: Selectors,
            match_labels: bool) -> bool:
     """Return `False` unless `manifest` satisfies _all_ `selectors`.
