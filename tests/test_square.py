@@ -5,6 +5,7 @@ import unittest.mock as mock
 from pathlib import Path
 from typing import List, cast
 
+import pytest
 import yaml
 
 import square.cfgfile
@@ -1343,8 +1344,8 @@ class TestMainOptions:
     @mock.patch.object(sq, "pick_manifests_for_plan")
     @mock.patch.object(manio, "align_serviceaccount")
     @mock.patch.object(sq, "compile_plan")
-    async def test_make_plan_calls(self, m_plan, m_align, m_pick, m_down, m_load,
-                                   config, kube_creds):
+    async def test_make_plan_full_mock(self, m_plan, m_align, m_pick, m_down, m_load,
+                                       config, kube_creds):
         """Verify that `make_plan` calls the right functions with the right arguments."""
         k8sconfig: K8sConfig = kube_creds
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
@@ -1526,6 +1527,35 @@ class TestMainOptions:
         plan, err = await sq.make_plan(config)
         assert not err
         assert plan.patch == plan.patch == plan.delete == []
+
+    @pytest.mark.parametrize("function", ("get_resources", "make_plan"))
+    @mock.patch.object(manio, "load_manifests")
+    @mock.patch.object(manio, "download")
+    async def test_invalid_local_manifests(self, m_down, m_load,
+                                           function, kube_creds, config):
+        """Simulate a local Pod manifest that lacks a namespace.
+
+        This must fail the validation in both `get_resources` and `make_plan`.
+        The two functions are similar enough to be covered by a single test.
+
+        """
+        k8sconfig: K8sConfig = kube_creds
+
+        # Local Pod manifest does not specify a NAMESPACE.
+        loc_man = make_manifest("Pod", None, "loc")
+        loc_sqm = {manio.make_meta(loc_man): loc_man}
+        m_load.return_value = (loc_sqm, "local_path", False)
+
+        # Function must gracefully abort due to a validation failure and not
+        # try to download any manifests.
+        assert function in ("get_resources", "make_plan")
+        if function == "get_resources":
+            assert await sq.get_resources(config) is True
+        else:
+            plan = DeploymentPlan(tuple(), tuple(), tuple())
+            assert await sq.make_plan(config) == (plan, True)
+
+        assert not m_down.called
 
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")

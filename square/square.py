@@ -811,6 +811,9 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         local, _, err = manio.load_manifests(cfg.folder, cfg.selectors)
         assert not err
 
+        # All local manifests must pass basic validation.
+        assert all([manio.is_valid_manifest(_, k8sconfig) for _ in local.values()])
+
         # Download manifests from K8s.
         server, err = await manio.download(cfg, k8sconfig)
         assert not err
@@ -868,6 +871,9 @@ async def get_resources(cfg: Config) -> bool:
         local_meta, local_man, err = manio.load_manifests(cfg.folder, load_selectors)
         assert not err
         del load_selectors
+
+        # All local manifests must pass basic validation.
+        assert all([manio.is_valid_manifest(_, k8sconfig) for _ in local_meta.values()])
 
         # Download manifests from K8s.
         server_man, err = await manio.download(cfg, k8sconfig)
