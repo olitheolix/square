@@ -30,7 +30,7 @@ async def request(
         method: str,
         url: str,
         payload: Optional[dict | list],
-        headers: Optional[dict]) -> Tuple[dict, bool]:
+        headers: Optional[dict]) -> Tuple[dict, int, bool]:
     """Return response of web request made with `client`.
 
     Inputs:
@@ -44,7 +44,7 @@ async def request(
             headers dictionary (eg the access tokens), but augment them.
 
     Returns:
-        (dict, int): the JSON response and the HTTP status code.
+        (dict, int, bool): the JSON response and the HTTP status code.
 
     """
     # Define the maximum number of tries and exceptions we want to retry on.
@@ -92,7 +92,7 @@ async def request(
         ret = await _call()
     except web_exceptions as err:
         logit.error(f"Giving up - {err} - {method} {url}")
-        return ({}, True)
+        return ({}, -1, True)
 
     try:
         response = json.loads(ret.text)
@@ -102,7 +102,7 @@ async def request(
             "-" * 80 + "\n" + err.doc + "\n" + "-" * 80,
         )
         logit.error(str.join("\n", msg))
-        return ({}, True)
+        return ({}, ret.status_code, True)
 
     # Log the entire request in debug mode.
     logit.debug(
@@ -111,45 +111,46 @@ async def request(
         f"Payload: {payload}\n"
         f"Response: {response}\n"
     )
-    return (response, ret.status_code)
+    return (response, ret.status_code, False)
 
 
 async def delete(k8sconfig: K8sConfig, url: str, payload: dict) -> Tuple[dict, bool]:
     """Make DELETE requests to K8s (see `k8s_request`)."""
-    resp, code = await request(k8sconfig, 'DELETE', url, payload, headers=None)
-    err = (code not in (200, 202))
-    if err:
+    resp, code, err = await request(k8sconfig, 'DELETE', url, payload, headers=None)
+    if err or code not in (200, 202):
         logit.error(f"{code} - DELETE - {url} - {resp}")
-    return (resp, err)
+        return (resp, True)
+    return (resp, False)
 
 
 async def get(k8sconfig: K8sConfig, url: str) -> Tuple[dict, bool]:
     """Make GET requests to K8s (see `request`)."""
-    resp, code = await request(k8sconfig, 'GET', url, payload=None, headers=None)
-    err = (code != 200)
-    if err:
+    resp, code, err = await request(k8sconfig, 'GET', url, payload=None, headers=None)
+    if err or code != 200:
         logit.error(f"{code} - GET - {url} - {resp}")
-    return (resp, err)
+        return (resp, True)
+    return (resp, False)
 
 
 async def patch(k8sconfig: K8sConfig, url: str,
                 payload: List[Dict[str, str]]) -> Tuple[dict, bool]:
     """Make PATCH requests to K8s (see `request`)."""
     headers = {'Content-Type': 'application/json-patch+json'}
-    resp, code = await request(k8sconfig, 'PATCH', url, payload, headers)
-    err = (code != 200)
-    if err:
+    resp, code, err = await request(k8sconfig, 'PATCH', url, payload, headers)
+    if err or code != 200:
         logit.error(f"{code} - PATCH - {url} - {resp}")
-    return (resp, err)
+        return (resp, True)
+    return (resp, False)
 
 
 async def post(k8sconfig: K8sConfig, url: str, payload: dict) -> Tuple[dict, bool]:
     """Make POST requests to K8s (see `request`)."""
-    resp, code = await request(k8sconfig, 'POST', url, payload, headers=None)
+    resp, code, err = await request(k8sconfig, 'POST', url, payload, headers=None)
     err = (code != 201)
     if err:
         logit.error(f"{code} - POST - {url} - {resp}")
-    return (resp, err)
+        return (resp, True)
+    return (resp, False)
 
 
 def load_kubeconfig(kubeconf_path: Path,
