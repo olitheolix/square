@@ -2,10 +2,12 @@ import asyncio
 import json
 import os
 import random
+import ssl
 import sys
 import types
 import unittest.mock as mock
 from pathlib import Path
+from typing import Tuple
 
 import httpx
 import pytest
@@ -107,12 +109,25 @@ class TestK8sDeleteGetPatchPost:
         """Simulate an unsuccessful K8s response for GET request."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://examples.com/'
-
-        # Simulate a generic RequestError error during the request.
         m_http = respx_mock.request(method, url)
+        expected: Tuple[dict, int, bool] = ({}, -1, True)
+        args = k8sconfig, method, url, None, None
+
+        # Simulate RequestError.
         m_http.mock(side_effect=k8s.httpx.RequestError(message="test error"))
-        ret = await k8s.request(k8sconfig, method, url, None, None)
-        assert ret == ({}, -1, True)
+        assert await k8s.request(*args) == expected
+
+        # Simulate SSLError.
+        m_http.mock(side_effect=ssl.SSLError())
+        assert await k8s.request(*args) == expected
+
+        # Simulate KeyError.
+        m_http.mock(side_effect=KeyError())
+        assert await k8s.request(*args) == expected
+
+        # Simulate TimeoutError.
+        m_http.mock(side_effect=TimeoutError())
+        assert await k8s.request(*args) == expected
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     async def test_request_retries(self, k8sconfig, method):
