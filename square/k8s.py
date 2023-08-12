@@ -49,7 +49,7 @@ async def request(
     """
     # Define the maximum number of tries and exceptions we want to retry on.
     max_tries = 21
-    web_exceptions = (httpx.RequestError, )
+    web_exceptions = (httpx.RequestError, ssl.SSLError, KeyError, TimeoutError)
 
     async def on_backoff(details):
         """Log a warning on each retry."""
@@ -71,7 +71,8 @@ async def request(
     Jitter is disabled because it proved irritating in an interactive tool.
 
     """
-    @backoff.on_exception(backoff.constant, web_exceptions,
+    @backoff.on_exception(backoff.constant,
+                          web_exceptions,
                           max_tries=max_tries,
                           interval=3,
                           max_time=20,
