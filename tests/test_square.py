@@ -1607,7 +1607,7 @@ class TestMainOptions:
         m_sync.assert_called_once_with("local_path", "matched",
                                        config.selectors, config.groupby)
         m_clean.assert_called_once_with(
-            config, k8sconfig, {}, {"meta": "manifest"})
+            config, {}, {"meta": "manifest"})
         m_save.assert_called_once_with(
             config.folder, {"path": [("meta", "manifest-clean")]}, config.priorities)
 

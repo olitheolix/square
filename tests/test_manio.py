@@ -818,7 +818,7 @@ class TestCleanupCallback:
         assert not err
         assert out == expected
 
-    def test_cleanup_manifests(self, config, k8sconfig):
+    def test_cleanup_manifests(self, config):
         """Run some basic tests."""
         # Convenience.
         fun = manio.cleanup_manifests
@@ -831,16 +831,16 @@ class TestCleanupCallback:
         server: SquareManifests = {meta_srv: man_srv}
 
         # Must do nothing with empty inputs.
-        assert fun(config, k8sconfig, {}, {}) == ({}, {}, False)
+        assert fun(config, {}, {}) == ({}, {}, False)
 
         # Must return input verbatim because the default filters have no effect
         # on our dummy manifest.
-        assert fun(config, k8sconfig, local, server) == (local, server, False)
+        assert fun(config, local, server) == (local, server, False)
 
         # Add an annotation to our manifest and try again. This must once again
         # do nothing because the default filters do not touch the annotations.
         man_loc["metadata"]["annotations"] = {"foo": "bar"}
-        assert fun(config, k8sconfig, local, server) == (local, server, False)
+        assert fun(config, local, server) == (local, server, False)
         assert man_loc["metadata"]["annotations"] == {"foo": "bar"}
 
         # ----------------------------------------------------------------------
@@ -850,7 +850,7 @@ class TestCleanupCallback:
         # ----------------------------------------------------------------------
         man_loc["metadata"]["annotations"] = {"foo": "bar"}
         config.filters = {"ClusterRole": [{"metadata": ["annotations"]}]}
-        ret_loc, ret_srv, err = fun(config, k8sconfig, local, server)
+        ret_loc, ret_srv, err = fun(config, local, server)
         assert not err
 
         # Annotations must have been removed in the output.
@@ -863,7 +863,7 @@ class TestCleanupCallback:
         # annotations.
         assert ret_srv == server
 
-    def test_cleanup_manifests_err(self, config, k8sconfig):
+    def test_cleanup_manifests_err(self, config):
         """Force an error during a manifest cleanup."""
         # Convenience.
         fun = manio.cleanup_manifests
@@ -874,9 +874,9 @@ class TestCleanupCallback:
         server: SquareManifests = {meta: man}
 
         # Valid input.
-        assert fun(config, k8sconfig, {}, server) == ({}, server, False)
+        assert fun(config, {}, server) == ({}, server, False)
 
-    def test_cleanup_manifests_runtime_error(self, config: Config, k8sconfig):
+    def test_cleanup_manifests_runtime_error(self, config: Config):
         """Gracefully abort if the callback function is ill behaved."""
         # Convenience.
         fun = manio.cleanup_manifests
@@ -887,21 +887,21 @@ class TestCleanupCallback:
         server: SquareManifests = {meta: man}
 
         # Must succeed.
-        assert fun(config, k8sconfig, {}, server) == ({}, server, False)
+        assert fun(config, {}, server) == ({}, server, False)
 
         # Callback raises an exception.
         def cb_exception(square_config, manifest):
             raise RuntimeError()
 
         config.clean_callback = cb_exception
-        assert fun(config, k8sconfig, {}, server) == ({}, {}, True)
+        assert fun(config, {}, server) == ({}, {}, True)
 
         # Callback provides too many return values.
         def cb_invalid_return_values(square_config, manifest):
             return (None, {}, "foo")
 
         config.clean_callback = cb_invalid_return_values
-        assert fun(config, k8sconfig, {}, server) == ({}, {}, True)
+        assert fun(config, {}, server) == ({}, {}, True)
 
 
 class TestDiff:

@@ -501,7 +501,7 @@ def diff(local: dict, server: dict) -> Tuple[str, bool]:
 
 
 def cleanup_manifests(
-        config: Config, k8sconfig: K8sConfig,
+        config: Config,
         local: SquareManifests,
         server: SquareManifests) -> Tuple[SquareManifests, SquareManifests, bool]:
     """Returned cleaned up `local` and `server` manifests."""

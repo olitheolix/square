@@ -329,7 +329,7 @@ async def compile_plan(
     assert not err
 
     # Strip the unwanted sections from the manifests before we compute patches.
-    local, server, err = manio.cleanup_manifests(config, k8sconfig, local, server)
+    local, server, err = manio.cleanup_manifests(config, local, server)
     if err:
         return err_resp
 
@@ -892,7 +892,7 @@ async def get_resources(cfg: Config) -> bool:
         # Remove all unwanted entries from the manifests.
         for path in synced_man:
             sm: SquareManifests = dict(synced_man[path])
-            _, sm, err = manio.cleanup_manifests(cfg, k8sconfig, {}, sm)
+            _, sm, err = manio.cleanup_manifests(cfg, {}, sm)
             assert not err
             synced_man[path] = list(sm.items())
 
