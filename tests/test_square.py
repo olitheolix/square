@@ -1539,7 +1539,6 @@ class TestMainOptions:
         The two functions are similar enough to be covered by a single test.
 
         """
-        k8sconfig: K8sConfig = kube_creds
 
         # Local Pod manifest does not specify a NAMESPACE.
         loc_man = make_manifest("Pod", None, "loc")
