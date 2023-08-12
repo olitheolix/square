@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -9,9 +10,10 @@ import tempfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
+from urllib.parse import urlparse
 
-import backoff
 import httpx
+import tenacity as tc
 import yaml
 
 from square.dtypes import K8sClientCert, K8sConfig, K8sResource, MetaManifest
@@ -20,9 +22,42 @@ from square.dtypes import K8sClientCert, K8sConfig, K8sResource, MetaManifest
 TOKENFILE = Path("/var/run/secrets/kubernetes.io/serviceaccount/token")
 CAFILE = Path("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")
 
+# Define the exceptions we want to retry on.
+WEB_EXCEPTIONS = (httpx.RequestError, ssl.SSLError, KeyError, TimeoutError)
+
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
+
+
+def _on_backoff(retry_state: tc.RetryCallState):
+    """Log a warning on each retry."""
+    attempt = retry_state.attempt_number
+    k8sconfig, method, url = retry_state.args[:3]
+    path = urlparse(url).path
+
+    logit.warning(f"Back off {attempt} - {k8sconfig.name} - {method} {path}.")
+
+
+async def _mysleep(delay: float):
+    """This trivial function exists to mock out the `sleep` call during tests."""
+    await asyncio.sleep(delay)
+
+
+@tc.retry(
+    stop=(tc.stop_after_delay(300) | tc.stop_after_attempt(8)),
+    wait=tc.wait_exponential(multiplier=1, min=0, max=20) + tc.wait_random(-5, 5),
+    retry=tc.retry_if_exception_type(WEB_EXCEPTIONS),
+    before_sleep=_on_backoff,
+    reraise=True,
+    sleep=_mysleep,
+)
+async def _call(k8sconfig: K8sConfig,
+                method: str,
+                url: str,
+                payload: Optional[dict | list],
+                headers: dict | None) -> httpx.Response:
+    return await k8sconfig.client.request(method, url, json=payload, headers=headers)
 
 
 async def request(
@@ -30,7 +65,7 @@ async def request(
         method: str,
         url: str,
         payload: Optional[dict | list],
-        headers: Optional[dict]) -> Tuple[dict, int, bool]:
+        headers: dict | None) -> Tuple[dict, int, bool]:
     """Return response of web request made with `client`.
 
     Inputs:
@@ -47,50 +82,10 @@ async def request(
         (dict, int, bool): the JSON response and the HTTP status code.
 
     """
-    # Define the maximum number of tries and exceptions we want to retry on.
-    max_tries = 21
-    web_exceptions = (httpx.RequestError, ssl.SSLError, KeyError, TimeoutError)
-
-    async def on_backoff(details):
-        """Log a warning on each retry."""
-        attempt, exc = details["tries"], details["exception"]
-        logit.warning(f"Back off {attempt} - {k8sconfig.name} - {exc} - {url}.")
-
-    """
-    Configure linear backoff.
-
-    Exponential backoff proved problematic in practice because the most likely
-    retry reason has been waiting for CRDs, at least for me. CRDs can take a
-    few seconds, even tens of seconds to become available. With an exponential
-    strategy we may thus wait for a very long time if we just missed and now
-    have to wait exponentially longer.
-
-    A linear strategy avoids this. However, the time between backoffs is
-    deliberately large to avoid hammering the API.
-
-    Jitter is disabled because it proved irritating in an interactive tool.
-
-    """
-    @backoff.on_exception(backoff.constant,
-                          web_exceptions,
-                          max_tries=max_tries,
-                          interval=3,
-                          max_time=20,
-                          on_backoff=on_backoff,
-                          logger=None,  # type: ignore
-                          jitter=None,  # type: ignore
-                          )
-    async def _call():
-        return await k8sconfig.client.request(
-            method, url,
-            json=payload,
-            headers=headers,
-        )
-
     # Make the HTTP request via our backoff/retry handler.
     try:
-        ret = await _call()
-    except web_exceptions as err:
+        ret = await _call(k8sconfig, method, url, payload=payload, headers=headers)
+    except WEB_EXCEPTIONS as err:
         logit.error(f"Giving up - {k8sconfig.name} - {err} - {method} {url}")
         return ({}, -1, True)
 

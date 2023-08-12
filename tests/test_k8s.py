@@ -1,9 +1,7 @@
-import asyncio
 import json
 import os
 import random
 import ssl
-import sys
 import types
 import unittest.mock as mock
 from pathlib import Path
@@ -140,15 +138,18 @@ class TestK8sDeleteGetPatchPost:
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://localhost:12345/'
 
-        # Test function must not return a response but indicate an error.
-        with mock.patch.object(asyncio, "sleep") as m_sleep:
+        # Trick: we cannot mock any of the tenacity callback functions because
+        # they are installed at import time and before PyTest can patch them.
+        # Therefore, we will mock `urlparse` as a proxy since it is not used
+        # anywhere else and can thus use it to count the number of invocations.
+        with mock.patch.object(k8s, "urlparse") as m_proxy:
+            # Test function must return an empty response and an error.
             ret = await k8s.request(k8sconfig, method, url, None, None)
             assert ret == ({}, -1, True)
 
-            # Windows is different and seems to have built in retry and/or timeout
-            # limits - no idea. Mac and Linux behave as expected.
-            if not sys.platform.startswith("win"):
-                assert m_sleep.call_count >= 20
+            # Callback must have been called 7 times because Square
+            # set `stop_after_attempt(8)`.
+            assert m_proxy.call_count == 7
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     async def test_request_invalid(self, method, k8sconfig):
