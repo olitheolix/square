@@ -9,9 +9,11 @@ packages = [
 ]
 include = ["resources/defaultconfig.yaml"]
 classifiers = [
-    "Topic :: Kubernetes :: Build Tools",
-    "Programming Language :: Python :: 3",
+    "Topic :: Utilities",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: Apache Software License",
 ]
 
 [tool.poetry.dependencies]
