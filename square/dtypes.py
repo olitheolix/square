@@ -2,6 +2,7 @@ from pathlib import Path
 from ssl import SSLContext
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple
 
+import httpx
 from pydantic import BaseModel, Field, field_validator
 from typing_extensions import Annotated
 
@@ -70,8 +71,13 @@ class K8sResource(NamedTuple):
 
 class K8sConfig(NamedTuple):
     """Everything we need to know to connect and authenticate with Kubernetes."""
-    url: str = ""               # Kubernetes API
-    token: str = ""             # Optional access token (eg Minikube).
+    # Kubernetes URL, version and name.
+    url: str = ""
+    name: str = ""
+    version: str = ""
+
+    # Bearer token (eg Minikube, KinD)
+    token: str = ""
 
     # Certificate authority for self signed certificates.
     cadata: Optional[str] = None
@@ -79,12 +85,9 @@ class K8sConfig(NamedTuple):
     sslcontext: Optional[SSLContext] = None
     headers: Dict[str, str] = {}
 
-    # HttpX client to access the cluster.
-    client: Any = None
-
-    # Kubernetes version and name.
-    version: str = ""
-    name: str = ""
+    # HttpX client to access the cluster. Will be replace with a properly
+    # configured client in `k8s.create_httpx_client`.
+    client: httpx.AsyncClient = httpx.AsyncClient()
 
     # Kubernetes API endpoints (see `k8s.compile_api_endpoints`).
     apis: Dict[Tuple[str, str], K8sResource] = {}
