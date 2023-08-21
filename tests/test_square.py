@@ -1032,7 +1032,7 @@ class TestPlan:
         fun = sq.call_external_function
 
         # Well behaved.
-        assert fun(cb, dict(data="foo")) == (("it", "worked"), False)
+        assert fun(cb, data="foo") == (("it", "worked"), False)
 
         # Function will raise an exception.
         assert fun(cb, dict(data="bar")) == (None, True)

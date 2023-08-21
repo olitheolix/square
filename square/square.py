@@ -253,19 +253,15 @@ def run_patch_callback(config: Config,
     # patching. This will update our dict of local/server manifests inplace.
     try:
         for meta in plan_patch:
-            kwargs = dict(
-                square_config=config,
-                local_manifest=local[meta],
-                server_manifest=server[meta]
-            )
-            (local[meta], server[meta]), err = call_external_function(cb, kwargs)
+            (local[meta], server[meta]), err = call_external_function(
+                cb, config, local[meta], server[meta])
             assert not err
     except (ValueError, TypeError, AssertionError):
         return True
     return False
 
 
-def call_external_function(fun: Callable, kwargs: dict) -> Tuple[Any, bool]:
+def call_external_function(fun: Callable, *args, **kwargs) -> Tuple[Any, bool]:
     """Call `fun` with `kwargs` and return the result.
 
     This function is the equivalent of `return fun(**kwargs)`. However, it will
@@ -279,7 +275,7 @@ def call_external_function(fun: Callable, kwargs: dict) -> Tuple[Any, bool]:
     """
     # Run user supplied `fun` and return the result.
     try:
-        return (fun(**kwargs), False)
+        return (fun(*args, **kwargs), False)
     except Exception:
         # Log the stack trace and return with an error.
         tb_str = str.join(

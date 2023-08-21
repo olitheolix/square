@@ -8,7 +8,7 @@ from square.dtypes import Config, FiltersKind
 logit = logging.getLogger("square")
 
 
-def modify_patch_manifests(square_config: "Config",
+def modify_patch_manifests(config: "Config",
                            local_manifest: dict,
                            server_manifest: dict) -> Tuple[dict, dict]:
     """Return a possibly modified version of local and server manifest.
@@ -34,11 +34,11 @@ def modify_patch_manifests(square_config: "Config",
     may even have unintended side effects. You have been warned.
 
     """
-    assert isinstance(square_config, Config)
+    assert isinstance(config, Config)
     return local_manifest, server_manifest
 
 
-def cleanup_manifest(square_config: Config, manifest: dict) -> dict:
+def cleanup_manifest(config: Config, manifest: dict) -> dict:
     def _update(filters: FiltersKind, manifest: dict):
         """Recursively traverse the `manifest` and prune it according to `filters`.
 
@@ -93,7 +93,7 @@ def cleanup_manifest(square_config: Config, manifest: dict) -> dict:
     kind = manifest["kind"]
 
     default_filter = square.DEFAULT_CONFIG.filters["_common_"]
-    filters: FiltersKind = square_config.filters.get(kind, default_filter)
+    filters: FiltersKind = config.filters.get(kind, default_filter)
 
     # Remove the keys from the `manifest` according to `filters`.
     _update(filters, manifest)
