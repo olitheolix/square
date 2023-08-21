@@ -1676,7 +1676,7 @@ class TestMainOptions:
 
         # Specify all kinds and install callback to clean manifests.
         config.selectors = Selectors(kinds={svc, hpa})
-        config.clean_callback = cb1
+        config.strip_callback = cb1
 
         # Call function and verify the callback got called three times and that
         # all downloaded manifests have the new label.
@@ -1704,7 +1704,7 @@ class TestMainOptions:
 
         # Select only HPAs and install callback to clean manifests.
         config.selectors = Selectors(kinds={hpa})
-        config.clean_callback = cb2
+        config.strip_callback = cb2
 
         # Call function and verify the callback got called three times and that
         # all downloaded manifests have the new label.
@@ -1734,7 +1734,7 @@ class TestMainOptions:
 
         # Select only HPAs and install callback to clean manifests.
         config.selectors = Selectors(kinds={svc})
-        config.clean_callback = cb3
+        config.strip_callback = cb3
 
         # Call function and verify the callback got called three times and that
         # all downloaded manifests have the new label.

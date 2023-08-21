@@ -893,14 +893,14 @@ class TestCleanupCallback:
         def cb_exception(square_config, manifest):
             raise RuntimeError()
 
-        config.clean_callback = cb_exception
+        config.strip_callback = cb_exception
         assert fun(config, {}, server) == ({}, {}, True)
 
         # Callback provides too many return values.
         def cb_invalid_return_values(square_config, manifest):
             return (None, {}, "foo")
 
-        config.clean_callback = cb_invalid_return_values
+        config.strip_callback = cb_invalid_return_values
         assert fun(config, {}, server) == ({}, {}, True)
 
 

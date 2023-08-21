@@ -254,7 +254,7 @@ class Config(BaseModel):
         Field(validate_default=True)
     ] = do_nothing
 
-    clean_callback: Annotated[
+    strip_callback: Annotated[
         Callable,
         Field(validate_default=True)
     ] = do_nothing
@@ -276,9 +276,9 @@ class Config(BaseModel):
         import square.callbacks
         return square.callbacks.modify_patch_manifests
 
-    @field_validator("clean_callback")
+    @field_validator("strip_callback")
     @classmethod
-    def default_clean_callback(cls, _) -> Callable:
+    def default_strip_callback(cls, _) -> Callable:
         import square.callbacks
         return square.callbacks.strip_manifest
 

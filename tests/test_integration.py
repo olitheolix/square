@@ -862,7 +862,7 @@ class TestCallbacks:
             call_count += 1
             return manifest
 
-        config.clean_callback = add_label_callback
+        config.strip_callback = add_label_callback
 
         # Download the resources and verify that each has the dummy label.
         assert not await square.square.get_resources(config)
