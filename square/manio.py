@@ -504,7 +504,7 @@ def strip_manifests(
         config: Config,
         local: SquareManifests,
         server: SquareManifests) -> Tuple[SquareManifests, SquareManifests, bool]:
-    """Returned cleaned up `local` and `server` manifests."""
+    """Returned stripped up `local` and `server` manifests."""
     local = copy.deepcopy(local)
     server = copy.deepcopy(server)
 
@@ -542,17 +542,17 @@ def run_strip_callback(config: Config,  manifest: dict) -> Tuple[dict, bool]:
         manifest: dict
 
     Returns:
-        dict: clean manifest
+        dict: stripped manifest
 
     """
-    # Run cleanup callback.
+    # Run strip callback.
     cb = config.strip_callback
     try:
-        clean_manifest, err = square.square.call_external_function(cb, config, manifest)
-        assert not err and isinstance(clean_manifest, dict)
+        stripped_man, err = square.square.call_external_function(cb, config, manifest)
+        assert not err and isinstance(stripped_man, dict)
     except (TypeError, AssertionError):
         return {}, True
-    return clean_manifest, False
+    return stripped_man, False
 
 
 def align_serviceaccount(

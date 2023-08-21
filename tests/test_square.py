@@ -1567,7 +1567,7 @@ class TestMainOptions:
     @mock.patch.object(manio, "strip_manifests")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
-    async def test_get_resources_full_mock(self, m_save, m_sync, m_clean, m_mapi,
+    async def test_get_resources_full_mock(self, m_save, m_sync, m_strip, m_mapi,
                                            m_down, m_load, kube_creds, config):
         """Basic test.
 
@@ -1593,7 +1593,7 @@ class TestMainOptions:
         m_down.return_value = (srv_sqm, False)
         m_mapi.return_value = ("matched", False)
         m_sync.return_value = ({"path": [("meta", "manifest")]}, False)
-        m_clean.return_value = ({}, {"meta": "manifest-clean"}, False)
+        m_strip.return_value = ({}, {"meta": "manifest-strip"}, False)
         m_save.return_value = False
 
         # `manio.load` must have been called with a wildcard selector to ensure
@@ -1611,10 +1611,10 @@ class TestMainOptions:
         m_mapi.assert_called_once_with(k8sconfig, loc_sqm, srv_sqm)
         m_sync.assert_called_once_with("local_path", "matched",
                                        config.selectors, config.groupby)
-        m_clean.assert_called_once_with(
+        m_strip.assert_called_once_with(
             config, {}, {"meta": "manifest"})
         m_save.assert_called_once_with(
-            config.folder, {"path": [("meta", "manifest-clean")]}, config.priorities)
+            config.folder, {"path": [("meta", "manifest-strip")]}, config.priorities)
 
         # Simulate an error with `manio.save`.
         m_save.return_value = (None, True)
@@ -1674,7 +1674,7 @@ class TestMainOptions:
             manifest["metadata"]["labels"]["cb1"] = "called"
             return manifest
 
-        # Specify all kinds and install callback to clean manifests.
+        # Specify all kinds and install callback to strip manifests.
         config.selectors = Selectors(kinds={svc, hpa})
         config.strip_callback = cb1
 
@@ -1702,7 +1702,7 @@ class TestMainOptions:
             manifest["metadata"]["labels"]["cb2"] = "called"
             return manifest
 
-        # Select only HPAs and install callback to clean manifests.
+        # Select only HPAs and install callback to strip manifests.
         config.selectors = Selectors(kinds={hpa})
         config.strip_callback = cb2
 
@@ -1732,7 +1732,7 @@ class TestMainOptions:
             manifest["metadata"]["labels"]["cb3"] = "called"
             return manifest
 
-        # Select only HPAs and install callback to clean manifests.
+        # Select only HPAs and install callback to strip manifests.
         config.selectors = Selectors(kinds={svc})
         config.strip_callback = cb3
 

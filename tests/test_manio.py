@@ -771,7 +771,7 @@ class TestYamlManifestIO:
             assert ref == out
 
 
-class TestCleanupCallback:
+class TestStripCallback:
     def test_run_strip_callback_deployment(self, config, k8sconfig):
         """Filter DEPLOYMENT manifests."""
         # A valid DEPLOYMENT manifest with a few optional and irrelevant keys.
@@ -864,7 +864,7 @@ class TestCleanupCallback:
         assert ret_srv == server
 
     def test_strip_manifests_err(self, config):
-        """Force an error during a manifest cleanup."""
+        """Force an error during a manifest stripping."""
         # Convenience.
         fun = manio.strip_manifests
 

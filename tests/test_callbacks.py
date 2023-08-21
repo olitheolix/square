@@ -22,7 +22,7 @@ class TestCallbacks:
         assert ret == (local_manifest, server_manifest)
 
 
-class TestManifestFiltering:
+class TestManifestStripping:
     def test_strip_manifest_generic(self, config):
         """Create a completely fake filter set to test all options.
 

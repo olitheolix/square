@@ -830,8 +830,8 @@ class TestMainPlan:
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
 class TestCallbacks:
-    async def test_cleanup(self, tmp_path):
-        """Use a custom callback to cleanup manifests."""
+    async def test_strip(self, tmp_path):
+        """Use a custom callback to strip manifests."""
         # Only show INFO and above or otherwise this test will produce a
         # humongous amount of logs from all the K8s calls.
         square.square.setup_logging(2)
