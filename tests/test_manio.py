@@ -772,7 +772,7 @@ class TestYamlManifestIO:
 
 
 class TestCleanupCallback:
-    def test_run_cleanup_callback_deployment(self, config, k8sconfig):
+    def test_run_strip_callback_deployment(self, config, k8sconfig):
         """Filter DEPLOYMENT manifests."""
         # A valid DEPLOYMENT manifest with a few optional and irrelevant keys.
         manifest = {
@@ -814,7 +814,7 @@ class TestCleanupCallback:
             },
             "spec": "some spec",
         }
-        out, err = manio.run_cleanup_callback(config, manifest)
+        out, err = manio.run_strip_callback(config, manifest)
         assert not err
         assert out == expected
 
@@ -1759,7 +1759,7 @@ class TestDownloadManifests:
 
         """
         make_meta = manio.make_meta
-        run_cleanup_callback = manio.run_cleanup_callback
+        run_strip_callback = manio.run_strip_callback
 
         meta = [
             make_manifest("Namespace", None, "ns0"),
@@ -1801,7 +1801,7 @@ class TestDownloadManifests:
             (l_ns, False),
             (l_dply, False),
         ]
-        expected = {make_meta(_): run_cleanup_callback(config, _)[0] for _ in meta}
+        expected = {make_meta(_): run_strip_callback(config, _)[0] for _ in meta}
         config.selectors = Selectors(kinds={"Namespace", "Deployment", "Unknown"})
         ret = await manio.download(config, k8sconfig)
         assert ret == (expected, False)
@@ -1844,8 +1844,8 @@ class TestDownloadManifests:
             (l_dply_0, False),
         ]
         expected = {
-            make_meta(meta[0]): run_cleanup_callback(config, meta[0])[0],
-            make_meta(meta[2]): run_cleanup_callback(config, meta[2])[0],
+            make_meta(meta[0]): run_strip_callback(config, meta[0])[0],
+            make_meta(meta[2]): run_strip_callback(config, meta[2])[0],
         }
         config.selectors = Selectors(kinds={"Namespace", "Deployment"},
                                      namespaces=["ns0"])
