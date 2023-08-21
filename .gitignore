@@ -14,10 +14,7 @@ build/
 dist/
 
 # Personal files and folders.
+.square.yaml
+delme*
 manifests/
 personal/
-.square.yaml
-
-# Other.
-delme*
-kubernetes_square.egg-info/
