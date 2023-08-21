@@ -1198,9 +1198,6 @@ class TestMainOptions:
         assert await sq.apply_plan(config, plan) is False
         assert k8sconfig.client.is_closed
 
-        # MyPy bug: thinks this statement is unreachable.
-        pass                    # type: ignore
-
         m_post.assert_called_once_with(k8sconfig, "create_url", {"create": "man"})
         m_apply.assert_called_once_with(k8sconfig, patch.url, patch.ops)
         m_delete.assert_called_once_with(k8sconfig, "delete_url", {"delete": "man"})
@@ -1377,9 +1374,6 @@ class TestMainOptions:
         plan, err = await sq.make_plan(config)
         assert not err
         assert k8sconfig.client.is_closed
-
-        # MyPy bug: thinks this statement is unreachable.
-        pass                    # type: ignore
 
         assert isinstance(plan, DeploymentPlan)
         m_load.assert_called_once_with(config.folder, config.selectors)
@@ -1611,9 +1605,6 @@ class TestMainOptions:
         assert not k8sconfig.client.is_closed
         assert await sq.get_resources(config) is False
         assert k8sconfig.client.is_closed
-
-        # MyPy bug: thinks this statement is unreachable.
-        pass                    # type: ignore
 
         m_load.assert_called_once_with(config.folder, load_selectors)
         m_down.assert_called_once_with(config, k8sconfig)
