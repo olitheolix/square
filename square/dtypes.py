@@ -280,7 +280,7 @@ class Config(BaseModel):
     @classmethod
     def default_clean_callback(cls, _) -> Callable:
         import square.callbacks
-        return square.callbacks.cleanup_manifest
+        return square.callbacks.strip_manifest
 
 
 def validate_subfilters(filter_list):

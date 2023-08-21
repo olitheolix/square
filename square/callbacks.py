@@ -38,7 +38,7 @@ def modify_patch_manifests(config: "Config",
     return local_manifest, server_manifest
 
 
-def cleanup_manifest(config: Config, manifest: dict) -> dict:
+def strip_manifest(config: Config, manifest: dict) -> dict:
     def _update(filters: FiltersKind, manifest: dict):
         """Recursively traverse the `manifest` and prune it according to `filters`.
 
