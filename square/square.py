@@ -278,15 +278,10 @@ def call_external_function(fun: Callable, *args, **kwargs) -> Tuple[Any, bool]:
         return (fun(*args, **kwargs), False)
     except Exception:
         # Log the stack trace and return with an error.
-        tb_str = str.join(
-            "\n",
-            traceback.format_exception(*sys.exc_info())
-        )
-        logit.error(
-            "Error in filter callback. See below for details:\n"
-            "---\n"
-            f"{tb_str}---"
-        )
+        lines = traceback.format_exception(*sys.exc_info())
+        lines = [f"  > {_}" for _ in lines]
+        tb_str = str.join("", lines)
+        logit.error(f"Error in user callback {fun}.\n{tb_str}")
         return (None, True)
 
 
