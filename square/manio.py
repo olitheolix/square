@@ -500,7 +500,7 @@ def diff(local: dict, server: dict) -> Tuple[str, bool]:
     return (str.join("\n", diff_lines), False)
 
 
-def cleanup_manifests(
+def strip_manifests(
         config: Config,
         local: SquareManifests,
         server: SquareManifests) -> Tuple[SquareManifests, SquareManifests, bool]:
