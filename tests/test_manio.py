@@ -818,10 +818,10 @@ class TestCleanupCallback:
         assert not err
         assert out == expected
 
-    def test_cleanup_manifests(self, config):
+    def test_strip_manifests(self, config):
         """Run some basic tests."""
         # Convenience.
-        fun = manio.cleanup_manifests
+        fun = manio.strip_manifests
 
         man_loc = make_manifest("ClusterRole", None, "name")
         meta_loc = manio.make_meta(man_loc)
@@ -863,10 +863,10 @@ class TestCleanupCallback:
         # annotations.
         assert ret_srv == server
 
-    def test_cleanup_manifests_err(self, config):
+    def test_strip_manifests_err(self, config):
         """Force an error during a manifest cleanup."""
         # Convenience.
-        fun = manio.cleanup_manifests
+        fun = manio.strip_manifests
 
         # Create valid test input.
         man = make_manifest("ClusterRole", None, "name")
@@ -876,10 +876,10 @@ class TestCleanupCallback:
         # Valid input.
         assert fun(config, {}, server) == ({}, server, False)
 
-    def test_cleanup_manifests_runtime_error(self, config: Config):
+    def test_strip_manifests_runtime_error(self, config: Config):
         """Gracefully abort if the callback function is ill behaved."""
         # Convenience.
-        fun = manio.cleanup_manifests
+        fun = manio.strip_manifests
 
         # Create valid test input.
         man = make_manifest("ClusterRole", None, "name")
