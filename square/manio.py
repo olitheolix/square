@@ -547,9 +547,8 @@ def run_cleanup_callback(config: Config,  manifest: dict) -> Tuple[dict, bool]:
     """
     # Run cleanup callback.
     cb = config.clean_callback
-    kwargs = dict(square_config=config, manifest=manifest)
     try:
-        clean_manifest, err = square.square.call_external_function(cb, kwargs)
+        clean_manifest, err = square.square.call_external_function(cb, config, manifest)
         assert not err and isinstance(clean_manifest, dict)
     except (TypeError, AssertionError):
         return {}, True

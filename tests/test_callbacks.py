@@ -15,9 +15,9 @@ class TestCallbacks:
 
         # Default callback must return the inputs verbatim.
         ret = square.callbacks.modify_patch_manifests(
-            square_config=config,
-            local_manifest=local_manifest,
-            server_manifest=server_manifest,
+            config,
+            local_manifest,
+            server_manifest,
         )
         assert ret == (local_manifest, server_manifest)
 
