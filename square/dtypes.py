@@ -274,7 +274,7 @@ class Config(BaseModel):
     @classmethod
     def default_patch_callback(cls, _) -> Callable:
         import square.callbacks
-        return square.callbacks.modify_patch_manifests
+        return square.callbacks.patch_manifests
 
     @field_validator("strip_callback")
     @classmethod
