@@ -4,13 +4,13 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-backoff = "*"
 colorama = "*"
 colorlog = "*"
+httpx = "*"
 jsonpatch = "*"
 pydantic = ">=2.0"
 pyyaml = "*"
-httpx = "*"
+tenacity = "*"
 
 [dev-packages]
 bumpversion = "*"
@@ -18,12 +18,12 @@ ipython = ">=8.10"
 isort = "*"
 mypy = "*"
 pytest = ">=7.2"
+pytest-asyncio = "*"
 pytest-cov = "*"
 pytest-pycodestyle = "*"
+respx = "*"
 sh = "*"
 types-pyyaml = "*"
-respx = "*"
-pytest-asyncio = "*"
 
 [requires]
 python_version = "3.10"

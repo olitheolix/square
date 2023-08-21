@@ -17,7 +17,7 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-backoff = "*"
+tenacity = "*"
 colorama = "*"
 colorlog = "*"
 httpx = "*"
