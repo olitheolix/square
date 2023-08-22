@@ -1,8 +1,8 @@
 # Changelog
 
-## Latest
+## v2.0.0rc1 (2023-08-22)
 ### Changes
-* doc(changelog): add `changelog.md`.
+* feat(tenacity): replace `backoff` with `tenacity`.
 
 ## v2.0.0rc0 (2023-08-19)
 ### Highlights
