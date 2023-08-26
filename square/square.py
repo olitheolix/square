@@ -5,7 +5,7 @@ import re
 import sys
 import traceback
 from collections import Counter
-from typing import Any, Callable, Collection, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Collection, Dict, List, Set, Tuple
 
 import colorama
 import jsonpatch
@@ -399,7 +399,7 @@ async def compile_plan(
     return (DeploymentPlan(create, patches, delete), False)
 
 
-def show_plan(plan: Optional[DeploymentPlan]) -> bool:
+def show_plan(plan: DeploymentPlan | None) -> bool:
     """Print human readable version of `plan` to terminal.
 
     Inputs:

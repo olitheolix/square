@@ -5,7 +5,7 @@ import difflib
 import logging
 import multiprocessing
 from pathlib import Path
-from typing import DefaultDict, Dict, Iterable, List, Optional, Tuple
+from typing import DefaultDict, Dict, Iterable, List, Tuple
 
 import yaml.parser
 import yaml.scanner
@@ -649,7 +649,7 @@ def align_serviceaccount(
         those of the server.
 
     """
-    ReturnType = Tuple[Optional[str], List[Dict[str, str]], bool]
+    ReturnType = Tuple[str | None, List[Dict[str, str]], bool]
 
     def _get_token(meta: MetaManifest, manifests: SquareManifests) -> ReturnType:
         """Return token secret from `manifest` as well as all other other secrets.
@@ -990,7 +990,7 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
 
     """
     # Ensure `namespaces` is always a list to avoid special casing below.
-    all_namespaces: Iterable[Optional[str]]
+    all_namespaces: Iterable[str | None]
     if not config.selectors.namespaces:
         all_namespaces = [None]
     else:

@@ -3,7 +3,7 @@ import asyncio
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
 import colorama
 
@@ -138,7 +138,7 @@ def parse_commandline_args():
     return param
 
 
-def user_confirmed(answer: Optional[str] = "yes") -> bool:
+def user_confirmed(answer: str | None = "yes") -> bool:
     """Return True iff the user answers with `answer` or `answer` is None."""
     if answer is None:
         return True
@@ -303,7 +303,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     return cfg, False
 
 
-async def apply_plan(cfg: Config, confirm_string: Optional[str]) -> bool:
+async def apply_plan(cfg: Config, confirm_string: str | None) -> bool:
     """Update K8s to match the specifications in `local_manifests`.
 
     Create a deployment plan that will transition the K8s state
