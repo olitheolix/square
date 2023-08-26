@@ -10,10 +10,28 @@ import yaml
 import square
 import square.callbacks
 import square.cfgfile as cfgfile
-from square.dtypes import DEFAULT_PRIORITIES, Config
+from square.dtypes import DEFAULT_PRIORITIES, Config, GroupBy
 
 
 class TestLoadConfig:
+    def test_config(self, tmp_path: Path):
+        """Create `Config` instance."""
+        # Minimal required arguments to construct `Config` instance.
+        kubeconfig_path = Path("tests/support/config.yaml")
+        cfg = Config(kubeconfig=kubeconfig_path, folder=tmp_path)
+
+        # Verify the defaults.
+        assert cfg.kubeconfig == kubeconfig_path
+        assert cfg.kubecontext is None
+        assert cfg.selectors.kinds == set()
+        assert cfg.selectors.namespaces == []
+        assert cfg.selectors.labels == []
+        assert cfg.priorities == list(DEFAULT_PRIORITIES)
+        assert cfg.groupby == GroupBy()
+        assert cfg.filters == {}
+        assert cfg.strip_callback is square.callbacks.strip_manifest
+        assert cfg.patch_callback is square.callbacks.patch_manifests
+
     def test_load(self):
         """Load and parse configuration file."""
         # Load the sample that ships with Square.
@@ -31,6 +49,8 @@ class TestLoadConfig:
         assert set(cfg.filters.keys()) == {
             "_common_", "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
         }
+        assert cfg.strip_callback is square.callbacks.strip_manifest
+        assert cfg.patch_callback is square.callbacks.patch_manifests
 
     def test_load_folder_paths(self, tmp_path):
         """The folder paths must always be relative to the config file."""
