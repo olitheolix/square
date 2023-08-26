@@ -276,8 +276,7 @@ def load_authenticator_config(kubeconf_path: Path,
     # sub-process, plus the env vars specified in the kubeconfig file.
     env = os.environ.copy()
 
-    # Unpack the self signed certificate (AWS does not register the K8s API
-    # server certificate with a public CA).
+    # Unpack the self signed certificate (server certs are not usually public).
     try:
         cadata = base64.b64decode(cluster["certificate-authority-data"]).decode()
         cmd = user["exec"]["command"]
@@ -289,7 +288,7 @@ def load_authenticator_config(kubeconf_path: Path,
         )
         return (K8sConfig(), True)
 
-    # Convert a None value (valid value in YAML) to an empty list of env vars.
+    # Convert a `None` to an empty list of env vars.
     env_kubeconf = env_kubeconf if env_kubeconf else []
 
     # Compile the name, arguments and env vars for the command specified in kubeconf.
@@ -308,10 +307,12 @@ def load_authenticator_config(kubeconf_path: Path,
     # produce a YAML document on stdout that specifies the bearer token.
     try:
         out = subprocess.run(cmd_args, stdout=subprocess.PIPE, env=env)
-        token = yaml.safe_load(out.stdout.decode("utf8"))["status"]["token"]
     except FileNotFoundError:
         logit.error(f"Could not find {cmd} application to get token ({log_cmd})")
         return (K8sConfig(), True)
+
+    try:
+        token = yaml.safe_load(out.stdout.decode("utf8"))["status"]["token"]
     except (KeyError, yaml.YAMLError):
         logit.error(f"Token manifest produced by {cmd_args} is corrupt ({log_cmd})")
         return (K8sConfig(), True)
