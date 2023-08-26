@@ -32,6 +32,35 @@ class TestLoadConfig:
         assert cfg.strip_callback is square.callbacks.strip_manifest
         assert cfg.patch_callback is square.callbacks.patch_manifests
 
+    def test_config_bug_callbacks(self, tmp_path: Path):
+        """Pass explicit callbacks functions to `Config`.
+
+        This used to be a bug.
+
+        """
+        def cb_strip(cfg: Config, manifest: dict):
+            return manifest
+
+        def cb_patch(cfg: Config, l_manifest: dict, s_manifest: dict):
+            return l_manifest, s_manifest
+
+        # Pass explicit callbacks.
+        cfg = Config(
+            kubeconfig=Path("tests/support/config.yaml"),
+            folder=tmp_path,
+            strip_callback=cb_strip,
+            patch_callback=cb_patch,
+        )
+        assert cfg.strip_callback == cb_strip
+        assert cfg.patch_callback == cb_patch
+
+        # Assign new callbacks to an existing `Config` instance.
+        cfg.strip_callback = square.callbacks.strip_manifest
+        cfg.patch_callback = square.callbacks.patch_manifests
+
+        assert cfg.strip_callback == square.callbacks.strip_manifest
+        assert cfg.patch_callback == square.callbacks.patch_manifests
+
     def test_load(self):
         """Load and parse configuration file."""
         # Load the sample that ships with Square.
