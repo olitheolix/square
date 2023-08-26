@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, NamedTuple, Set, Tuple
 
 import httpx
 from pydantic import BaseModel, Field, field_validator
@@ -47,7 +47,7 @@ class MetaManifest(NamedTuple):
     """
     apiVersion: str
     kind: str
-    namespace: Optional[str]
+    namespace: str | None
 
     # Every resource must have a name except for Namespaces, which encode their
     # name in the `namespace` field.
@@ -74,8 +74,8 @@ class K8sConfig(NamedTuple):
     token: str = ""
 
     # Certificate authority for self signed certificates.
-    cadata: Optional[str] = None
-    cert: Optional[Tuple[Path, Path]] = None
+    cadata: str | None = None
+    cert: Tuple[Path, Path] | None = None
     headers: Dict[str, str] = {}
 
     # HttpX client to access the cluster. Will be replace with a properly
@@ -231,7 +231,7 @@ class Config(BaseModel):
     kubeconfig: Path
 
     # Kubernetes context (use `None` to use the default).
-    kubecontext: Optional[str] = None
+    kubecontext: str | None = None
 
     # Only operate on resources that match the selectors.
     selectors: Selectors = Selectors()

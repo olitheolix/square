@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Set, Tuple
 from urllib.parse import urlparse
 
 import httpx
@@ -55,7 +55,7 @@ async def _mysleep(delay: float):
 async def _call(k8sconfig: K8sConfig,
                 method: str,
                 url: str,
-                payload: Optional[dict | list],
+                payload: dict | list | None,
                 headers: dict | None) -> httpx.Response:
     return await k8sconfig.client.request(method, url, json=payload, headers=headers)
 
@@ -64,7 +64,7 @@ async def request(
         k8sconfig: K8sConfig,
         method: str,
         url: str,
-        payload: Optional[dict | list],
+        payload: dict | list | None,
         headers: dict | None) -> Tuple[dict, int, bool]:
     """Return response of web request made with `client`.
 
@@ -150,7 +150,7 @@ async def post(k8sconfig: K8sConfig, url: str, payload: dict) -> Tuple[dict, boo
 
 
 def load_kubeconfig(kubeconf_path: Path,
-                    context: Optional[str]) -> Tuple[str, dict, dict, bool]:
+                    context: str | None) -> Tuple[str, dict, dict, bool]:
     """Return user name as well as user- and cluster information.
 
     Return None on error.
@@ -158,7 +158,7 @@ def load_kubeconfig(kubeconf_path: Path,
     Inputs:
         kubeconf_path: Path
             Path to kubeconfig file, eg "~/.kube/config.yaml"
-        context: Optional[str]
+        context: str | None
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
@@ -274,7 +274,7 @@ def run_external_command(cmd: List[str], env: Dict[str, str]) -> Tuple[str, str,
 
 
 def load_authenticator_config(kubeconf_path: Path,
-                              context: Optional[str]) -> Tuple[K8sConfig, bool]:
+                              context: str | None) -> Tuple[K8sConfig, bool]:
     """Return K8s config based on authenticator app specified in `kubeconfig`.
 
     Returns None if `kubeconfig` does not exist or could not be parsed.
@@ -282,7 +282,7 @@ def load_authenticator_config(kubeconf_path: Path,
     Inputs:
         kubeconf_path: Path
             Path to kubeconfig file, eg "~/.kube/config.yaml"
-        context: Optional[str]
+        context: str | None
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
@@ -355,7 +355,7 @@ def load_authenticator_config(kubeconf_path: Path,
 
 
 def load_minikube_config(kubeconf_path: Path,
-                         context: Optional[str]) -> Tuple[K8sConfig, bool]:
+                         context: str | None) -> Tuple[K8sConfig, bool]:
     """Load Minikube configuration from `fname`.
 
     Return None on error.
@@ -363,7 +363,7 @@ def load_minikube_config(kubeconf_path: Path,
     Inputs:
         kubeconf_path: Path
             Path to kubeconfig file, eg "~/.kube/config.yaml"
-        context: Optional[str]
+        context: str | None
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
@@ -394,8 +394,7 @@ def load_minikube_config(kubeconf_path: Path,
         return (K8sConfig(), True)
 
 
-def load_kind_config(kubeconf_path: Path,
-                     context: Optional[str]) -> Tuple[K8sConfig, bool]:
+def load_kind_config(kubeconf_path: Path, context: str | None) -> Tuple[K8sConfig, bool]:
     """Load Kind configuration from `fname`.
 
     https://github.com/bsycorp/kind
@@ -409,7 +408,7 @@ def load_kind_config(kubeconf_path: Path,
     Inputs:
         kubeconf_path: Path
             Path to kubeconfig file, eg "~/.kube/config.yaml"
-        context: Optional[str]
+        context: str | None
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
@@ -452,8 +451,7 @@ def load_kind_config(kubeconf_path: Path,
         return (K8sConfig(), True)
 
 
-def load_auto_config(kubeconf_path: Path,
-                     context: Optional[str]) -> Tuple[K8sConfig, bool]:
+def load_auto_config(kubeconf_path: Path, context: str | None) -> Tuple[K8sConfig, bool]:
     """Automagically find and load the correct K8s configuration.
 
     This function will sequentially load all supported authentication schemes
@@ -467,7 +465,7 @@ def load_auto_config(kubeconf_path: Path,
     Inputs:
         kubeconf_path: Path
             Path to kubeconfig file, eg "~/.kube/config.yaml"
-        context: Optional[str]
+        context: str | None
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
@@ -646,9 +644,7 @@ async def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     return (k8sconfig, False)
 
 
-async def cluster_config(
-        kubeconfig: Path,
-        context: Optional[str]) -> Tuple[K8sConfig, bool]:
+async def cluster_config(kubeconfig: Path, context: str | None) -> Tuple[K8sConfig, bool]:
     """Return the `K8sConfig` to connect to the API.
 
     This will read the Kubernetes credentials, create a client and use it to
