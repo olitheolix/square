@@ -566,7 +566,7 @@ def strip_manifests(
         config: Config,
         local: SquareManifests,
         server: SquareManifests) -> Tuple[SquareManifests, SquareManifests, bool]:
-    """Returned stripped up `local` and `server` manifests."""
+    """Returned stripped versions of `local` and `server` manifests."""
     local = copy.deepcopy(local)
     server = copy.deepcopy(server)
 
