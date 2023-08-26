@@ -2,6 +2,7 @@ import json
 import os
 import random
 import ssl
+import sys
 import types
 import unittest.mock as mock
 from pathlib import Path
@@ -845,6 +846,25 @@ class TestK8sKubeconfig:
 
         assert await k8s.cluster_config(kubeconfig, kubecontext) == (k8sconfig, False)
 
+    def test_run_external_command(self):
+        """Call valid and invalid external commands."""
+        # A valid command must succeed without error.
+        _, stderr, err = k8s.run_external_command(["python", "--version"], {})
+        assert (stderr, err) == ("", False)
+
+        # Gracefully abort if we pass invalid arguments to a program.
+        stdout, stderr, err = k8s.run_external_command(["python", "--invalid"], {})
+        assert stdout == "" and err is True and stderr != ""
+
+        # Gracefully handle the case where the external program does not exist.
+        stdout, _, err = k8s.run_external_command(["invalid-binary"], {})
+        assert stdout == "" and err is True
+
+        # Gracefully handle non-Unicode strings.
+        with mock.patch.object(k8s.subprocess, "run") as m_run:
+            m_run.return_value = types.SimpleNamespace(stdout=b"\x80", returncode=0)
+            assert k8s.run_external_command(["ls"], {}) == ("", "", True)
+
     @mock.patch.object(k8s, "load_incluster_config")
     @mock.patch.object(k8s, "load_minikube_config")
     @mock.patch.object(k8s, "load_kind_config")
@@ -957,7 +977,7 @@ class TestK8sKubeconfig:
         assert fun(fname, None) == (K8sConfig(), True)
 
     @pytest.mark.parametrize("context", ["aks", "eks", "gke"])
-    @mock.patch.object(k8s.subprocess, "run")
+    @mock.patch.object(k8s, "run_external_command")
     def test_load_authenticator_config_ok(self, m_run, context):
         """Compile K8s configuration based on external authenticator apps."""
         assert context in ("aks", "eks", "gke")
@@ -970,7 +990,7 @@ class TestK8sKubeconfig:
 
         # Mock the call to run the external `aws-iam-authenticator` tool.
         token = yaml.dump({"status": {"token": "token"}})
-        m_run.return_value = types.SimpleNamespace(stdout=token.encode("utf8"))
+        m_run.return_value = (token, "", False)
 
         # Load the K8s configuration for the current `context`.
         fname = Path("tests/support/kubeconf.yaml")
@@ -1006,37 +1026,33 @@ class TestK8sKubeconfig:
         expected_cmd = [auth_app] + args
         expected_env = os.environ.copy() | env
 
-        actual_cmd, actual_env = m_run.call_args[0][0], m_run.call_args[1]["env"]
+        actual_cmd, actual_env = m_run.call_args[0][0], m_run.call_args[0][1]
         assert actual_cmd == expected_cmd
         assert actual_env == expected_env
 
-    @mock.patch.object(k8s.subprocess, "run")
+    @mock.patch.object(k8s, "run_external_command")
     def test_load_authenticator_config_err(self, m_run):
         """Load K8s configuration from demo kubeconfig."""
         # Valid kubeconfig file.
         fname = Path("tests/support/kubeconf.yaml")
         err_resp = (K8sConfig(), True)
 
-        # Pretend the `aws-iam-authenticator` binary does not exist.
-        m_run.side_effect = FileNotFoundError
-        assert k8s.load_authenticator_config(fname, "eks") == err_resp
-
-        # Pretend that `aws-iam-authenticator` returned a valid but useless YAML.
+        # Pretend that the authenticator app returned a valid but useless YAML.
         m_run.side_effect = None
-        m_run.return_value = types.SimpleNamespace(stdout=yaml.dump({}).encode("utf8"))
+        m_run.return_value = (yaml.dump({}), "", False)
         assert k8s.load_authenticator_config(fname, "eks") == err_resp
 
-        # Pretend that `aws-iam-authenticator` returned an invalid YAML.
+        # Pretend that the authenticator app returned an invalid YAML.
         m_run.side_effect = None
         invalid_yaml = "invalid :: - yaml".encode("utf8")
-        m_run.return_value = types.SimpleNamespace(stdout=invalid_yaml)
+        m_run.return_value = (invalid_yaml, "", False)
         assert k8s.load_authenticator_config(fname, "eks") == err_resp
 
-        # Pretend that `aws-iam-authenticator` ran without error but
-        # returned an empty string. This typically happens if the AWS config
-        # files do not exist for the selected AWS profile.
+        # Pretend that the authenticator app ran without error but returned an
+        # empty string. This typically happens if eg the AWS config files do not
+        # exist for the selected AWS profile.
         m_run.side_effect = None
-        m_run.return_value = types.SimpleNamespace(stdout=b"")
+        m_run.return_value = ("", "", False)
         assert k8s.load_authenticator_config(fname, "eks") == err_resp
 
         # Must fail because `eks` is not the default context in the demo kubeconf file.
@@ -1045,7 +1061,20 @@ class TestK8sKubeconfig:
         # Must fail because Minikube does not use an external app to create the token.
         assert k8s.load_authenticator_config(fname, "minikube") == (K8sConfig(), True)
 
-    @mock.patch.object(k8s.subprocess, "run")
+    def test_load_authenticator_config_err_integration(self):
+        """Use the `integration-test` context.
+
+        This context will specify the `ls` command with invalid arguments as
+        the external authenticator app. This allows us to run the test function
+        without any mocks and validate the error handling.
+
+        """
+        # Valid kubeconfig file.
+        fname = Path("tests/support/kubeconf.yaml")
+        err_resp = (K8sConfig(), True)
+        assert k8s.load_authenticator_config(fname, "integration-test") == err_resp
+
+    @mock.patch.object(k8s, "run_external_command")
     def test_load_all_supported_kubeconfig_styles(self, m_run):
         """Verify that we can load every config style from our Kubeconfig specimen."""
         # Kubeconfig specimen.
@@ -1053,7 +1082,7 @@ class TestK8sKubeconfig:
 
         # Mock the call to the external authenticator and make it return a token.
         token = yaml.dump({"status": {"token": "token"}})
-        m_run.return_value = types.SimpleNamespace(stdout=token.encode("utf8"))
+        m_run.return_value = (token, "", False)
 
         assert k8s.load_minikube_config(fname, "minikube")[1] is False
         assert k8s.load_kind_config(fname, "kind")[1] is False
