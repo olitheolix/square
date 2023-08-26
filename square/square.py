@@ -399,7 +399,7 @@ async def compile_plan(
     return (DeploymentPlan(create, patches, delete), False)
 
 
-def show_plan(plan: DeploymentPlan | None) -> bool:
+def show_plan(plan: DeploymentPlan) -> bool:
     """Print human readable version of `plan` to terminal.
 
     Inputs:
@@ -409,11 +409,6 @@ def show_plan(plan: DeploymentPlan | None) -> bool:
         None
 
     """
-    # Do nothing if the plan is `None`. This special case makes it easier to
-    # deal with cases where `square.make_plan` returns an error.
-    if not plan:
-        return False
-
     # Terminal colours for convenience.
     cAdd = colorama.Fore.GREEN
     cMod = colorama.Fore.YELLOW + colorama.Style.BRIGHT

@@ -577,7 +577,7 @@ class TestMain:
 
         # Pretend all functions return successfully.
         m_get.return_value = False
-        m_plan.return_value = (None, False)
+        m_plan.return_value = (DeploymentPlan(tuple(), tuple(), tuple()), False)
         m_apply.return_value = False
 
         # Simulate all input options.
