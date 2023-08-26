@@ -38,11 +38,6 @@ DEFAULT_PRIORITIES = (
 # -----------------------------------------------------------------------------
 #                                  Kubernetes
 # -----------------------------------------------------------------------------
-class K8sClientCert(NamedTuple):
-    crt: Path = Path()
-    key: Path = Path()
-
-
 class MetaManifest(NamedTuple):
     """Minimum amount of information to uniquely identify a K8s resource.
 
@@ -80,7 +75,7 @@ class K8sConfig(NamedTuple):
 
     # Certificate authority for self signed certificates.
     cadata: Optional[str] = None
-    cert: Optional[K8sClientCert] = None
+    cert: Optional[Tuple[Path, Path]] = None
     headers: Dict[str, str] = {}
 
     # HttpX client to access the cluster. Will be replace with a properly

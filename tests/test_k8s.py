@@ -41,7 +41,7 @@ class TestK8sDeleteGetPatchPost:
         fname_client_crt = Path("tests/support/client.crt")
         fname_client_key = Path("tests/support/client.key")
 
-        ccert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
+        ccert = (fname_client_crt, fname_client_key)
         cfg = k8sconfig._replace(token="token", cert=ccert)
         new_cfg, err = k8s.create_httpx_client(cfg)
         assert not err
@@ -60,7 +60,7 @@ class TestK8sDeleteGetPatchPost:
         fname_client_crt = tmp_path / "does-not-exist.crt"
         fname_client_key = tmp_path / "does-not-exist.key"
 
-        cert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
+        cert = (fname_client_crt, fname_client_key)
         cfg = k8sconfig._replace(cert=cert)
         assert k8s.create_httpx_client(cfg) == (cfg, True)
 
@@ -68,7 +68,7 @@ class TestK8sDeleteGetPatchPost:
         fname_client_crt.write_text("not a valid certificate")
         fname_client_key.write_text("not a valid certificate")
 
-        cert = k8s.K8sClientCert(crt=fname_client_crt, key=fname_client_key)
+        cert = (fname_client_crt, fname_client_key)
         cfg = k8sconfig._replace(cert=cert)
         assert k8s.create_httpx_client(cfg) == (cfg, True)
 
@@ -910,10 +910,7 @@ class TestK8sKubeconfig:
             url="https://192.168.0.177:8443",
             token="",
             cadata=cadata,
-            cert=k8s.K8sClientCert(
-                crt=Path("client.crt"),
-                key=Path("client.key"),
-            ),
+            cert=(Path("client.crt"), Path("client.key")),
             version="",
             name="minikube",
         )
@@ -948,9 +945,7 @@ class TestK8sKubeconfig:
 
         # Function must have create the credential files.
         assert ret.cadata is not None
-        assert ret.cert is not None
-        assert ret.cert.crt.exists()
-        assert ret.cert.key.exists()
+        assert ret.cert is not None and len(ret.cert) == 2
 
     @pytest.mark.parametrize("kubetype", ["kind", "minkube"])
     def test_load_minkube_kind_config_invalid_context_err(self, kubetype, tmp_path):
