@@ -1,3 +1,19 @@
+"""Templates for user callbacks.
+
+Square uses these callbacks by default but users can supply their in the
+`Config` structure.
+
+The `strip_manifest` and `patch_manifest` serve different purposes. The
+`strip_manifest` callback determines the content of the local manifests
+when they get imported. This is useful to exclude, for instance the `.status`
+and `.metadata.uid` fields in the locally saved manifests.
+
+The `patch_manifest`, on the other hand offers the means to propagate only
+specific changes to a cluster, eg patch the labels and ignore all other
+differences between local and cluster manifests.
+
+"""
+
 import logging
 from typing import Tuple
 
@@ -39,4 +55,16 @@ def patch_manifests(config: "Config",
 
 
 def strip_manifest(config: Config, manifest: dict) -> dict:
+    """Return a possibly modified version of the manifest.
+
+    Square will call this function for every local and server manifest when it
+    creates a `plan`, as well as for every server (but not local) manifest when
+    it imports resources with `get_resources`.
+
+    The function must return a valid manifest but is otherwise free to alter it
+    as necessary. The intended use case is to strip out the portions of the
+    manifest that should not make it into the local manifest corpus. The
+    `.status` field is a typical example.
+
+    """
     return square.manio.strip_manifest(config, manifest)
