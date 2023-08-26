@@ -537,7 +537,7 @@ def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     client.headers.update(headers)
 
     # Add the web client to the `k8sconfig` object.
-    k8sconfig = k8sconfig._replace(client=client, sslcontext=sslcontext, headers=headers)
+    k8sconfig = k8sconfig._replace(client=client, headers=headers)
 
     # Return the configured client object.
     return k8sconfig, False

@@ -14,7 +14,7 @@ import yaml
 
 import square.k8s as k8s
 import square.square
-from square.dtypes import K8sConfig, K8sResource, MetaManifest, SSLContext
+from square.dtypes import K8sConfig, K8sResource, MetaManifest
 
 from .test_helpers import kind_available
 
@@ -34,7 +34,6 @@ class TestK8sDeleteGetPatchPost:
         new_cfg, err = k8s.create_httpx_client(cfg)
         assert not err
         assert isinstance(new_cfg.client, httpx.AsyncClient)
-        assert isinstance(new_cfg.sslcontext, SSLContext)
         assert new_cfg.client.headers["authorization"] == "Bearer token"
         assert new_cfg.headers == {"authorization": "Bearer token"}
 
@@ -47,7 +46,6 @@ class TestK8sDeleteGetPatchPost:
         new_cfg, err = k8s.create_httpx_client(cfg)
         assert not err
         assert isinstance(new_cfg.client, httpx.AsyncClient)
-        assert isinstance(new_cfg.sslcontext, SSLContext)
         assert new_cfg.client.headers["authorization"] == "Bearer token"
         assert new_cfg.headers == {"authorization": "Bearer token"}
 
