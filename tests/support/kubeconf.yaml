@@ -41,6 +41,10 @@ contexts:
     cluster: gke
     user: gke
   name: gke
+- context:
+    cluster: gke
+    user: integration-test
+  name: integration-test
 current-context: minikube
 kind: Config
 preferences: {}
@@ -86,3 +90,10 @@ users:
       installHint: Install gke-gcloud-auth-plugin for use with kubectl by following
         https://cloud.google.com/blog/products/containers-kubernetes/kubectl-auth-changes-in-gke
       provideClusterInfo: true
+- name: integration-test
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1beta1
+      args:
+      - /does-not-exist
+      command: ls

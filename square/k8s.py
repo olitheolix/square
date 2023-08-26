@@ -250,6 +250,29 @@ def load_incluster_config(
     ), False
 
 
+def run_external_command(cmd: List[str], env: Dict[str, str]) -> Tuple[str, str, bool]:
+    """Call `cmd` and return the `stdout` response as a string."""
+    # Upsert the new environment variables to the default ones.
+    tmp_env = dict(os.environ) | env
+
+    # Execute the program.
+    try:
+        out = subprocess.run(cmd, env=tmp_env, capture_output=True)
+    except FileNotFoundError:
+        return "", "", True
+
+    # Return with an error unless the return code was zero.
+    if out.returncode != 0:
+        return "", out.stderr.decode("utf8"), True
+
+    try:
+        stdout = out.stdout.decode("utf8")
+    except UnicodeDecodeError:
+        return "", "", True
+
+    return stdout, "", False
+
+
 def load_authenticator_config(kubeconf_path: Path,
                               context: Optional[str]) -> Tuple[K8sConfig, bool]:
     """Return K8s config based on authenticator app specified in `kubeconfig`.
@@ -303,16 +326,15 @@ def load_authenticator_config(kubeconf_path: Path,
         f"cmd={cmd_args}  env={env_kubeconf}"
     )
 
-    # Run the specified command to produce the access token. That program must
+    # Run the external tool to produce the access token. That program must
     # produce a YAML document on stdout that specifies the bearer token.
-    try:
-        out = subprocess.run(cmd_args, stdout=subprocess.PIPE, env=env)
-    except FileNotFoundError:
-        logit.error(f"Could not find {cmd} application to get token ({log_cmd})")
+    stdout, stderr, err = run_external_command(cmd_args, env)
+    if err:
+        logit.error(f"Authenticator app error: {stderr} ({log_cmd})")
         return (K8sConfig(), True)
 
     try:
-        token = yaml.safe_load(out.stdout.decode("utf8"))["status"]["token"]
+        token = yaml.safe_load(stdout)["status"]["token"]
     except (KeyError, yaml.YAMLError):
         logit.error(f"Token manifest produced by {cmd_args} is corrupt ({log_cmd})")
         return (K8sConfig(), True)
