@@ -16,7 +16,7 @@ import httpx
 import tenacity as tc
 import yaml
 
-from square.dtypes import K8sClientCert, K8sConfig, K8sResource, MetaManifest
+from square.dtypes import K8sConfig, K8sResource, MetaManifest
 
 # Convenience: location of K8s credentials inside a Pod.
 TOKENFILE = Path("/var/run/secrets/kubernetes.io/serviceaccount/token")
@@ -379,18 +379,13 @@ def load_minikube_config(kubeconf_path: Path,
     # Minikube uses client certificates to authenticate. We need to pass those
     # to the HTTP client of our choice
     try:
-        cert = K8sClientCert(
-            crt=Path(user["client-certificate"]),
-            key=Path(user["client-key"]),
-        )
-
         # Return the Kubernetes access configuration.
         logit.info(f"Assuming Minikube cluster for {name}")
         return K8sConfig(
             url=cluster["server"],
             token="",
             cadata=Path(cluster["certificate-authority"]).read_text(),
-            cert=cert,
+            cert=(Path(user["client-certificate"]), Path(user["client-key"])),
             version="",
             name=name,
         ), False
@@ -428,17 +423,17 @@ def load_kind_config(kubeconf_path: Path,
     name = cluster["name"]
 
     # Kind and Minikube use client certificates to authenticate. We need to
-    # pass those to the HTTP client of our choice.
+    # save them to files before we can pass them to HttpX.
     try:
+        cadata = base64.b64decode(cluster["certificate-authority-data"]).decode()
+
+        path = Path(tempfile.mkdtemp())
         client_crt = base64.b64decode(user["client-certificate-data"]).decode()
         client_key = base64.b64decode(user["client-key-data"]).decode()
-        cadata = base64.b64decode(cluster["certificate-authority-data"]).decode()
-        path = Path(tempfile.mkdtemp())
         p_client_crt = path / "kind-client.crt"
         p_client_key = path / "kind-client.key"
         p_client_crt.write_text(client_crt)
         p_client_key.write_text(client_key)
-        cert = K8sClientCert(crt=p_client_crt, key=p_client_key)
 
         # Return the config data.
         logit.debug(f"Assuming Kind cluster for {name}.")
@@ -446,7 +441,7 @@ def load_kind_config(kubeconf_path: Path,
             url=cluster["server"],
             token="",
             cadata=cadata,
-            cert=cert,
+            cert=(p_client_crt, p_client_key),
             version="",
             name=name,
         ), False
@@ -508,9 +503,6 @@ def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     # Configure Httpx client with the K8s service account token.
     sslcontext = ssl.create_default_context(cadata=k8sconfig.cadata)
 
-    # Add the client certificate, if the cluster uses those to authenticate users.
-    cert = (k8sconfig.cert.crt, k8sconfig.cert.key) if k8sconfig.cert else None
-
     # Construct the HttpX client.
     try:
         timeout = httpx.Timeout(
@@ -518,7 +510,7 @@ def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
         )
         transport = httpx.AsyncHTTPTransport(
             verify=sslcontext,
-            cert=cert,      # type: ignore
+            cert=k8sconfig.cert,      # type: ignore
             retries=0,
             http1=True,
             http2=False,
