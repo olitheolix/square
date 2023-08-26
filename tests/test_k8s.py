@@ -2,7 +2,6 @@ import json
 import os
 import random
 import ssl
-import sys
 import types
 import unittest.mock as mock
 from pathlib import Path

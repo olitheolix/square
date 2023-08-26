@@ -1,10 +1,7 @@
-import copy
-from typing import Any, Dict
 
 import square
 import square.callbacks
-import square.callbacks as callbacks
-from square.dtypes import Config, FiltersKind
+from square.dtypes import Config
 
 
 class TestCallbacks:
