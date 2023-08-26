@@ -34,15 +34,14 @@ def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
     cannot distinguish those from typos we allow them here because the
     get/plan/apply cycle will ignore them anyway.
 
+    NOTE: this function has side effects. It changes `cfg.priorities` and
+    `cfg.selectors` in-place.
+
     """
     # Convenience
     short2kind = k8sconfig.short2kind
 
-    # Avoid side effects to the original `cfg`.
-    cfg = copy.deepcopy(cfg)
-
-    # Translate the shorthand names to their canonical K8s names. Use the
-    # original name if we cannot find a canonical name for it.
+    # Translate the resource names in the priority list.
     cfg.priorities = [short2kind.get(_.lower(), _) for _ in cfg.priorities]
 
     # Backup the original list of KIND selectors.
