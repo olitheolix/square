@@ -1,5 +1,4 @@
 from pathlib import Path
-from ssl import SSLContext
 from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set, Tuple
 
 import httpx
@@ -82,7 +81,6 @@ class K8sConfig(NamedTuple):
     # Certificate authority for self signed certificates.
     cadata: Optional[str] = None
     cert: Optional[K8sClientCert] = None
-    sslcontext: Optional[SSLContext] = None
     headers: Dict[str, str] = {}
 
     # HttpX client to access the cluster. Will be replace with a properly
