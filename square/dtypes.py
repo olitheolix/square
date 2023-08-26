@@ -221,6 +221,11 @@ FiltersKind = List[str | dict]
 Filters = Dict[str, FiltersKind]
 
 
+# Workaround for a circular import with `callbacks`. The `callbacks` module
+# needs the `Config` type annotation but `dtypes.Config` needs the callbacks.
+# To break the cycle we use this dummy function as the default callback and
+# install the proper callbacks during the validation phase of the `Config`
+# ctor at runtime.
 def do_nothing(): return        # codecov-skip
 
 
@@ -247,13 +252,13 @@ class Config(BaseModel):
     # Define which fields to skip for which resource.
     filters: Filters = {}
 
-    # Callable: will be invoked for every local/server manifest that requires
-    # patching before the actual patch will be computed.
+    # Invoked for every local/server manifest that requires patching.
     patch_callback: Annotated[
         Callable,
         Field(validate_default=True)
     ] = do_nothing
 
+    # Invoked for every manifest downloaded from cluster.
     strip_callback: Annotated[
         Callable,
         Field(validate_default=True)
@@ -272,15 +277,19 @@ class Config(BaseModel):
 
     @field_validator("patch_callback")
     @classmethod
-    def default_patch_callback(cls, _) -> Callable:
-        import square.callbacks
-        return square.callbacks.patch_manifests
+    def default_patch_callback(cls, cb: Callable) -> Callable:
+        if cb == do_nothing:
+            import square.callbacks
+            return square.callbacks.patch_manifests
+        return cb
 
     @field_validator("strip_callback")
     @classmethod
-    def default_strip_callback(cls, _) -> Callable:
-        import square.callbacks
-        return square.callbacks.strip_manifest
+    def default_strip_callback(cls, cb: Callable) -> Callable:
+        if cb == do_nothing:
+            import square.callbacks
+            return square.callbacks.strip_manifest
+        return cb
 
 
 def validate_subfilters(filter_list):
