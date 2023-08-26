@@ -859,25 +859,25 @@ async def get_resources(cfg: Config) -> bool:
         load_selectors = Selectors(kinds=k8sconfig.kinds, labels=[], namespaces=[])
 
         # Load manifests from local files.
-        local_meta, local_man, err = manio.load_manifests(cfg.folder, load_selectors)
+        local_sqm, local_man, err = manio.load_manifests(cfg.folder, load_selectors)
         assert not err
         del load_selectors
 
         # All local manifests must pass basic validation.
-        assert all([manio.is_valid_manifest(_, k8sconfig) for _ in local_meta.values()])
+        assert all([manio.is_valid_manifest(_, k8sconfig) for _ in local_sqm.values()])
 
         # Download manifests from K8s.
-        server_man, err = await manio.download(cfg, k8sconfig)
+        server_sqm, err = await manio.download(cfg, k8sconfig)
         assert not err
 
         # Replace the server resources fetched from K8s' preferred endpoint with
         # the one from the endpoint referenced in the local manifest.
-        server_man, err = await match_api_version(k8sconfig, local_meta, server_man)
+        server_sqm, err = await match_api_version(k8sconfig, local_sqm, server_sqm)
         assert not err
 
         # Sync the server manifests into the local manifests. All this happens in
         # memory and no files will be modified here - see `manio.save` below.
-        synced_man, err = manio.sync(local_man, server_man, cfg.selectors, cfg.groupby)
+        synced_man, err = manio.sync(local_man, server_sqm, cfg.selectors, cfg.groupby)
         assert not err
 
         # Remove all unwanted entries from the manifests.
