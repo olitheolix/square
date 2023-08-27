@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.0.1 (2023-08-27)
+### Changes
+* example(callbacks): add examples with custom callbacks.
+* bugfix(callbacks): `config` ctor now heeds supplied callbacks.
+
 ## v2.0.0rc1 (2023-08-22)
 ### Changes
 * feat(tenacity): replace `backoff` with `tenacity`.
