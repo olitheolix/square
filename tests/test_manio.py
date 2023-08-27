@@ -818,6 +818,33 @@ class TestStripManifest:
         assert not err
         assert out == expected
 
+    def test_run_strip_callback_err(self, config: Config):
+        # Define a single resource.
+        manifest = make_manifest("Namespace", None, "ns1")
+
+        def cb_ok(cfg: Config, _man: dict):
+            return _man
+
+        def cb_change_kind(_cfg: Config, _man: dict):
+            _man["kind"] = "foo"
+            return _man
+
+        def cb_corrupt(_cfg: Config, _man: dict):
+            del _man["kind"]
+            return _man
+
+        config.strip_callback = cb_ok
+        _, err = manio.run_strip_callback(config, manifest)
+        assert not err
+
+        config.strip_callback = cb_change_kind
+        _, err = manio.run_strip_callback(config, manifest)
+        assert err
+
+        config.strip_callback = cb_corrupt
+        _, err = manio.run_strip_callback(config, manifest)
+        assert err
+
     def test_strip_manifests(self, config):
         """Run some basic tests."""
         # Convenience.

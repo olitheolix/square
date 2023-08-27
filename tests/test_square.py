@@ -1001,27 +1001,28 @@ class TestPlan:
         assert await sq.compile_plan(config, k8sconfig, loc_man, srv_man) == err_resp
 
     async def test_compile_plan_err_strip(self, config, k8sconfig):
-        """Abort if any of the manifests cannot be stripped."""
+        """Abort if a manifests cannot be stripped.
+
+        To facilitate this test we will install a `strip` callback that
+        corrupts the manifest which will make `strip_manifests` return an
+        error. The test function must then gracefully abort.
+
+        """
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
 
-        # Create two valid `SquareManifests`, then stunt one in such a way that
-        # `manio.strip` will reject it.
-        man_valid = make_manifest("Deployment", "namespace", "name")
-        man_error = make_manifest("Deployment", "namespace", "name")
-        meta_valid = manio.make_meta(man_valid)
-        meta_error = manio.make_meta(man_error)
+        # Install a `strip` callback that corrupts `MetaManifest` info.
+        def cb_corrupt(_cfg: Config, _man: dict):
+            del _man["kind"]
+            return _man
 
-        # Stunt one manifest.
-        del man_error["kind"]
+        config.strip_callback = cb_corrupt
 
-        # Compile to `SquareManifest` types.
-        valid = {meta_valid: man_valid}
-        error = {meta_error: man_error}
+        man = make_manifest("Deployment", "namespace", "name")
+        meta = manio.make_meta(man)
+        valid = {meta: man}
 
-        # Must handle errors from `manio.strip`.
-        assert await sq.compile_plan(config, k8sconfig, valid, error) == err_resp
-        assert await sq.compile_plan(config, k8sconfig, error, valid) == err_resp
-        assert await sq.compile_plan(config, k8sconfig, error, error) == err_resp
+        # Must handle errors from `manio.strip_manifests`.
+        assert await sq.compile_plan(config, k8sconfig, valid, valid) == err_resp
 
     def test_call_external_function(self):
         """Test various scenarios when calling a user supplied function."""
