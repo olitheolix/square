@@ -610,8 +610,24 @@ def run_strip_callback(config: Config,  manifest: dict) -> Tuple[dict, bool]:
     # Run strip callback.
     cb = config.strip_callback
     try:
+        # Backup the original MetaManifest of `manifest`.
+        orig_meta = make_meta(manifest)
+
+        # Run the callback function to strip the `manifest`.
         stripped_man, err = square.square.call_external_function(cb, config, manifest)
         assert not err and isinstance(stripped_man, dict)
+
+        # The callback function must not have changed any fields that would
+        # result in either corrupt or different `MetaManifest`.
+        try:
+            ret_meta = make_meta(stripped_man)
+        except KeyError:
+            logit.error(f"Patch callback corrupted {orig_meta}")
+            return {}, True
+
+        if ret_meta != orig_meta:
+            logit.error(f"Strip callback changed MetaManifest: {orig_meta} -> {ret_meta}")
+            return {}, True
     except (TypeError, AssertionError):
         return {}, True
     return stripped_man, False
