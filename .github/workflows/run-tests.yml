@@ -120,7 +120,7 @@ jobs:
         run: |
           python basic_workflow.py
           python custom_callbacks.py
-          python import_multiple_clusters.py
+          python multi_cluster.py
 
   build-docker-image:
     runs-on: ubuntu-latest
