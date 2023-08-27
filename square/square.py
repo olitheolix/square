@@ -255,6 +255,25 @@ def run_patch_callback(config: Config,
             (local[meta], server[meta]), err = call_external_function(
                 cb, config, local[meta], server[meta])
             assert not err
+
+            # The `MetaManifest` information must not have changed.
+            for man in (local[meta], server[meta]):
+                try:
+                    ret_meta = manio.make_meta(man)
+                except KeyError:
+                    logit.error(f"Patch callback corrupted {meta}")
+                    return True
+
+                # All is well if the returned manifest still produces the same
+                # `MetaManifest` as the original.
+                if (meta == ret_meta):
+                    continue
+
+                # The callback destroyed the `MetaManifest` information. Square
+                # cannot deal with this because it uses `MetaManifests` to
+                # uniquely identify resources.
+                logit.error(f"Patch callback modify MetaManifest: {meta} -> {ret_meta}")
+                return True
     except (ValueError, TypeError, AssertionError):
         return True
     return False

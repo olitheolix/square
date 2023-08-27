@@ -1071,13 +1071,12 @@ class TestPlan:
         del local, server
 
         # ----------------------------------------------------------------------
-        # Callback is well behaved and the local manifest to the server.
+        # Callback is well behaved: local manifest & server manifests match.
         # ----------------------------------------------------------------------
         local, server = get_dummy_manifests()
 
-        def cb1(square_config: Config, local_manifest: dict, server_manifest: dict):
-            nonlocal server
-            return server, server
+        def cb1(_cfg: Config, _local: dict, _server: dict):
+            return (_server, _server)
 
         config.patch_callback = cb1
         assert not sq.run_patch_callback(config, [meta], local, server)
@@ -1085,9 +1084,9 @@ class TestPlan:
         del cb1, local, server
 
         # ----------------------------------------------------------------------
-        # Callback returns zero instead of two arguments.
+        # Callback returns wrong number or arguments.
         # ----------------------------------------------------------------------
-        def cb2(square_config: Config, local_manifest: dict, server_manifest: dict):
+        def cb2(_cfg: Config, _local: dict, _server: dict):
             return None
 
         local, server = get_dummy_manifests()
@@ -1095,8 +1094,34 @@ class TestPlan:
         assert sq.run_patch_callback(config, [meta], local, server)
         del cb2, local, server
 
+        # ----------------------------------------------------------------------
+        # Callback modifies a field that changes the `MetaManifest`.
+        # ----------------------------------------------------------------------
+        def cb3(_cfg: Config, _local: dict, _server: dict):
+            _local["kind"] = "foo"
+            _server["kind"] = "foo"
+            return (_local, _server)
+
+        local, server = get_dummy_manifests()
+        config.patch_callback = cb3
+        assert sq.run_patch_callback(config, [meta], local, server)
+        del cb3, local, server
+
+        # ----------------------------------------------------------------------
+        # Callback deletes a necessary field for the `MetaManifest`.
+        # ----------------------------------------------------------------------
+        def cb4(_cfg: Config, _local: dict, _server: dict):
+            del _local["kind"]
+            del _server["metadata"]
+            return (_local, _server)
+
+        local, server = get_dummy_manifests()
+        config.patch_callback = cb4
+        assert sq.run_patch_callback(config, [meta], local, server)
+        del cb4, local, server
+
     async def test_compile_plan_patch_callback(self, config, k8sconfig):
-        """Test a plan that uses a custom callback function for patches.
+        """Test a plan that uses a custom callback for patches.
 
         The client and server have the same resource but one requires a patch.
         Here we ensure that this resource passes through the callback function
