@@ -16,7 +16,9 @@ import httpx
 import tenacity as tc
 import yaml
 
-from square.dtypes import K8sConfig, K8sResource, MetaManifest, Timeout
+from square.dtypes import (
+    ConnectionParameters, K8sConfig, K8sResource, MetaManifest,
+)
 
 # Convenience: location of K8s credentials inside a Pod.
 TOKENFILE = Path("/var/run/secrets/kubernetes.io/serviceaccount/token")
@@ -497,23 +499,23 @@ def load_auto_config(kubeconf_path: Path, context: str | None) -> Tuple[K8sConfi
 
 
 def create_httpx_client(k8sconfig: K8sConfig,
-                        timeout: Timeout) -> Tuple[K8sConfig, bool]:
+                        conparam: ConnectionParameters) -> Tuple[K8sConfig, bool]:
     """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
     sslcontext = ssl.create_default_context(cadata=k8sconfig.cadata)
 
     # Compile an HttpX `Timeout` instance.
-    httpx_timeout = httpx.Timeout(
-        connect=timeout.connect,
-        read=timeout.read,
-        write=timeout.write,
-        pool=timeout.pool,
+    timeout = httpx.Timeout(
+        connect=conparam.connect,
+        read=conparam.read,
+        write=conparam.write,
+        pool=conparam.pool,
     )
 
     limits = httpx.Limits(
-        max_keepalive_connections=timeout.max_keepalive_connections,
-        max_connections=timeout.max_connections,
-        keepalive_expiry=timeout.keepalive_expiry,
+        max_keepalive_connections=conparam.max_keepalive_connections,
+        max_connections=conparam.max_connections,
+        keepalive_expiry=conparam.keepalive_expiry,
     )
 
     # Construct the HttpX client.
@@ -525,8 +527,7 @@ def create_httpx_client(k8sconfig: K8sConfig,
             http1=True,
             http2=False,
         )
-        client = httpx.AsyncClient(timeout=httpx_timeout, transport=transport,
-                                   limits=limits)
+        client = httpx.AsyncClient(timeout=timeout, transport=transport, limits=limits)
     except ssl.SSLError:
         logit.error(f"Invalid certificates for {k8sconfig.name}")
         return k8sconfig, True
@@ -659,7 +660,7 @@ async def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
 
 async def cluster_config(kubeconfig: Path,
                          context: str | None,
-                         timeout: Timeout) -> Tuple[K8sConfig, bool]:
+                         conparams: ConnectionParameters) -> Tuple[K8sConfig, bool]:
     """Return the `K8sConfig` to connect to the API.
 
     This will read the Kubernetes credentials, create a client and use it to
@@ -684,7 +685,7 @@ async def cluster_config(kubeconfig: Path,
         assert not err
 
         # Configure a HttpX client for this cluster.
-        k8sconfig, err = create_httpx_client(k8sconfig, timeout)
+        k8sconfig, err = create_httpx_client(k8sconfig, conparams)
         assert not err
 
         # Contact the K8s API to update version field in `k8sconfig`.

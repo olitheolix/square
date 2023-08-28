@@ -13,7 +13,9 @@ import yaml
 
 import square.k8s as k8s
 import square.square
-from square.dtypes import K8sConfig, K8sResource, MetaManifest, Timeout
+from square.dtypes import (
+    ConnectionParameters, K8sConfig, K8sResource, MetaManifest,
+)
 
 from .test_helpers import kind_available
 
@@ -21,7 +23,7 @@ from .test_helpers import kind_available
 class TestK8sDeleteGetPatchPost:
     def test_create_httpx_client_ok(self, k8sconfig):
         """Verify the HttpX client is correctly setup."""
-        timeout = Timeout(connect=2, read=3, write=4, pool=5)
+        timeout = ConnectionParameters(connect=2, read=3, write=4, pool=5)
 
         # Create basic Kubernetes configuration.
         cfg = k8sconfig._replace(token="")
@@ -54,7 +56,7 @@ class TestK8sDeleteGetPatchPost:
         """Verify that the function installs the correct timeouts."""
         cfg = k8sconfig._replace(token="")
 
-        timeout = Timeout(connect=2, read=3, write=4, pool=5)
+        timeout = ConnectionParameters(connect=2, read=3, write=4, pool=5)
         new_cfg, err = k8s.create_httpx_client(cfg, timeout)
         assert not err
         assert new_cfg.client.timeout.connect == timeout.connect
@@ -73,7 +75,7 @@ class TestK8sDeleteGetPatchPost:
         cfg = k8sconfig._replace(token="")
 
         # Construct an explicit `Timeout` instance.
-        timeout = Timeout(
+        timeout = ConnectionParameters(
             connect=2, read=3, write=4, pool=5,
             max_keepalive_connections=None,
             max_connections=None,
@@ -93,7 +95,7 @@ class TestK8sDeleteGetPatchPost:
 
     def test_create_httpx_client_err(self, k8sconfig, tmp_path: Path):
         """Must gracefully abort when there are certificate problems."""
-        timeout = Timeout(connect=2, read=3, write=4, pool=5)
+        timeout = ConnectionParameters(connect=2, read=3, write=4, pool=5)
 
         # Must gracefully abort when the certificate files do not exist.
         fname_client_crt = tmp_path / "does-not-exist.crt"
@@ -353,7 +355,9 @@ class TestUrlPathBuilder:
         kubeconfig = Path("/tmp/kubeconfig-kind.yaml")
 
         # Create a genuine `K8sConfig` for our integration test cluster.
-        k8sconfig, err = await k8s.cluster_config(kubeconfig, None, Timeout())
+        k8sconfig, err = await k8s.cluster_config(
+            kubeconfig, None, ConnectionParameters()
+        )
         assert not err and k8sconfig
         assert k8sconfig.client is not None
         return k8sconfig
@@ -881,7 +885,7 @@ class TestK8sKubeconfig:
         m_version.return_value = (k8sconfig, False)
         m_compile_endpoints.return_value = False
 
-        ret = await k8s.cluster_config(kubeconfig, kubecontext, Timeout())
+        ret = await k8s.cluster_config(kubeconfig, kubecontext, ConnectionParameters())
         assert ret == (k8sconfig, False)
 
     def test_run_external_command(self):
