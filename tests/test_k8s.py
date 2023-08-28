@@ -876,17 +876,25 @@ class TestK8sKubeconfig:
     @mock.patch.object(k8s, "load_auto_config")
     @mock.patch.object(k8s, "version")
     @mock.patch.object(k8s, "compile_api_endpoints")
-    async def test_cluster_config(self, m_compile_endpoints, m_version,
-                                  m_load_auto, k8sconfig):
+    async def test_cluster_config_mock(self, m_compile_endpoints, m_version,
+                                       m_load_auto, k8sconfig):
+        """Mock all dependent calls and just verify the error handling."""
         kubeconfig = Path("kubeconfig")
         kubecontext = None
 
+        # Pretend that all functions return without error.
         m_load_auto.return_value = (k8sconfig, False)
         m_version.return_value = (k8sconfig, False)
         m_compile_endpoints.return_value = False
 
+        # Must return without error.
         ret = await k8s.cluster_config(kubeconfig, kubecontext, ConnectionParameters())
         assert ret == (k8sconfig, False)
+
+        # Gracefully abort if any function returns an error.
+        m_compile_endpoints.return_value = True
+        ret = await k8s.cluster_config(kubeconfig, kubecontext, ConnectionParameters())
+        assert ret == (K8sConfig(), True)
 
     def test_run_external_command(self):
         """Call valid and invalid external commands."""
