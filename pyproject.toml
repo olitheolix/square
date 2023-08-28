@@ -17,14 +17,15 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-tenacity = "*"
 colorama = "*"
 colorlog = "*"
+h2 = "*"
 httpx = "*"
 jsonpatch = "*"
 pydantic = ">=2.0"
 python = ">=3.10"
 pyyaml = "*"
+tenacity = "*"
 
 [tool.poetry.dev-dependencies]
 bumpversion = "*"
