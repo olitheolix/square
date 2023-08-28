@@ -523,9 +523,9 @@ def create_httpx_client(k8sconfig: K8sConfig,
         transport = httpx.AsyncHTTPTransport(
             verify=sslcontext,
             cert=k8sconfig.cert,      # type: ignore
-            retries=0,
-            http1=True,
-            http2=False,
+            retries=0,                # Square has its own retry logic.
+            http1=conparam.http1,
+            http2=conparam.http2,
         )
         client = httpx.AsyncClient(timeout=timeout, transport=transport, limits=limits)
     except ssl.SSLError:

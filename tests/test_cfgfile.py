@@ -16,6 +16,20 @@ from square.dtypes import (
 
 
 class TestLoadConfig:
+    def test_connection_parameters(self):
+        """Validate all the defaults."""
+        conparam = ConnectionParameters()
+        assert conparam.connect == 5
+        assert conparam.read == 5
+        assert conparam.write == 5
+        assert conparam.pool == 5
+
+        assert conparam.max_connections is None
+        assert conparam.max_keepalive_connections is None
+        assert conparam.keepalive_expiry == 5.0
+        assert conparam.http1 is True
+        assert conparam.http2 is True
+
     def test_config(self, tmp_path: Path):
         """Create `Config` instance."""
         # Minimal required arguments to construct `Config` instance.
@@ -34,12 +48,7 @@ class TestLoadConfig:
         assert cfg.strip_callback is square.callbacks.strip_manifest
         assert cfg.patch_callback is square.callbacks.patch_manifests
         assert cfg.user_data is None
-        assert cfg.connection_parameters == ConnectionParameters(
-            connect=5, read=5, write=5, pool=5,
-            max_connections=None,
-            max_keepalive_connections=None,
-            keepalive_expiry=5.0,
-        )
+        assert cfg.connection_parameters == ConnectionParameters()
 
     def test_config_bug_callbacks(self, tmp_path: Path):
         """Pass explicit callbacks functions to `Config`.

@@ -83,8 +83,9 @@ class TestK8sDeleteGetPatchPost:
         )
 
         # Create the client.
-        with mock.patch.object(k8s.httpx, "AsyncClient") as m_client:
-            k8s.create_httpx_client(cfg, timeout)
+        with mock.patch.object(k8s.httpx, "AsyncHTTPTransport") as m_trans:
+            with mock.patch.object(k8s.httpx, "AsyncClient") as m_client:
+                k8s.create_httpx_client(cfg, timeout)
 
         # Verify that the correct limits were used.
         assert m_client.call_args_list[0][1]["limits"] == httpx.Limits(
@@ -92,6 +93,10 @@ class TestK8sDeleteGetPatchPost:
             max_connections=None,
             keepalive_expiry=5.0,
         )
+
+        assert m_trans.call_args_list[0][1]["retries"] == 0
+        assert m_trans.call_args_list[0][1]["http1"] is True
+        assert m_trans.call_args_list[0][1]["http2"] is True
 
     def test_create_httpx_client_err(self, k8sconfig, tmp_path: Path):
         """Must gracefully abort when there are certificate problems."""

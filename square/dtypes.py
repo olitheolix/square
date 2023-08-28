@@ -222,6 +222,10 @@ class ConnectionParameters(BaseModel):
     max_keepalive_connections: int | None = None
     keepalive_expiry: float = 5.0
 
+    # Enable transport protocols.
+    http1: bool = True
+    http2: bool = True
+
 
 """Define the filters to exclude sections of manifests."""
 FiltersKind = List[str | dict]
