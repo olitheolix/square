@@ -10,7 +10,7 @@ import yaml
 import square
 import square.callbacks
 import square.cfgfile as cfgfile
-from square.dtypes import DEFAULT_PRIORITIES, Config, GroupBy
+from square.dtypes import DEFAULT_PRIORITIES, Config, GroupBy, Timeout
 
 
 class TestLoadConfig:
@@ -32,6 +32,7 @@ class TestLoadConfig:
         assert cfg.strip_callback is square.callbacks.strip_manifest
         assert cfg.patch_callback is square.callbacks.patch_manifests
         assert cfg.user_data is None
+        assert cfg.timeout == Timeout(timeout=5, connect=5, read=5, write=5, pool=5)
 
     def test_config_bug_callbacks(self, tmp_path: Path):
         """Pass explicit callbacks functions to `Config`.

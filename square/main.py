@@ -356,7 +356,9 @@ async def expand_all_kinds(cfg: Config) -> Tuple[Config, bool]:
         return cfg, False
 
     # Create a K8sConfig instance because it will contain all the info we need.
-    k8sconfig, err = await square.k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
+    k8sconfig, err = await square.k8s.cluster_config(
+        cfg.kubeconfig, cfg.kubecontext, cfg.timeout
+    )
     if err:
         return (cfg, True)
 

@@ -16,7 +16,7 @@ import httpx
 import tenacity as tc
 import yaml
 
-from square.dtypes import K8sConfig, K8sResource, MetaManifest
+from square.dtypes import K8sConfig, K8sResource, MetaManifest, Timeout
 
 # Convenience: location of K8s credentials inside a Pod.
 TOKENFILE = Path("/var/run/secrets/kubernetes.io/serviceaccount/token")
@@ -497,10 +497,18 @@ def load_auto_config(kubeconf_path: Path, context: str | None) -> Tuple[K8sConfi
 
 
 def create_httpx_client(k8sconfig: K8sConfig,
-                        timeout: httpx.Timeout) -> Tuple[K8sConfig, bool]:
+                        timeout: Timeout) -> Tuple[K8sConfig, bool]:
     """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
     sslcontext = ssl.create_default_context(cadata=k8sconfig.cadata)
+
+    # Compile an HttpX `Timeout` instance.
+    httpx_timeout = httpx.Timeout(
+        connect=timeout.connect,
+        read=timeout.read,
+        write=timeout.write,
+        pool=timeout.pool,
+    )
 
     # Construct the HttpX client.
     try:
@@ -511,7 +519,7 @@ def create_httpx_client(k8sconfig: K8sConfig,
             http1=True,
             http2=False,
         )
-        client = httpx.AsyncClient(timeout=timeout, transport=transport)
+        client = httpx.AsyncClient(timeout=httpx_timeout, transport=transport)
     except ssl.SSLError:
         logit.error(f"Invalid certificates for {k8sconfig.name}")
         return k8sconfig, True
@@ -642,7 +650,9 @@ async def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     return (k8sconfig, False)
 
 
-async def cluster_config(kubeconfig: Path, context: str | None) -> Tuple[K8sConfig, bool]:
+async def cluster_config(kubeconfig: Path,
+                         context: str | None,
+                         timeout: Timeout) -> Tuple[K8sConfig, bool]:
     """Return the `K8sConfig` to connect to the API.
 
     This will read the Kubernetes credentials, create a client and use it to
@@ -658,10 +668,6 @@ async def cluster_config(kubeconfig: Path, context: str | None) -> Tuple[K8sConf
         K8sConfig
 
     """
-    timeout = httpx.Timeout(
-        timeout=20, connect=20, read=20, write=20, pool=20
-    )
-
     # Create a HttpX client based on the Kubeconfig file. It will have the
     # proper certificates and headers to connect to K8s.
     kubeconfig = kubeconfig.expanduser()

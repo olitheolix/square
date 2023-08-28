@@ -11,7 +11,7 @@ import yaml
 import square.k8s
 import square.main
 import square.manio as manio
-from square.dtypes import Config, GroupBy, K8sConfig, Selectors
+from square.dtypes import Config, GroupBy, K8sConfig, Selectors, Timeout
 
 from .test_helpers import kind_available, make_manifest
 
@@ -37,14 +37,14 @@ class TestBasic:
         fname = Path("/tmp/kubeconfig-kind.yaml")
 
         # Must produce a valid K8s configuration.
-        cfg, err = await fun(fname, None)
+        cfg, err = await fun(fname, None, Timeout())
         assert not err and isinstance(cfg, K8sConfig)
 
         # Must not return a Kubernetes configuration if we could not create a
         # HttpX client.
         with mock.patch.object(square.k8s, "create_httpx_client") as m_client:
             m_client.return_value = (k8sconfig, True)
-            assert await fun(fname, None) == (K8sConfig(), True)
+            assert await fun(fname, None, Timeout()) == (K8sConfig(), True)
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
