@@ -209,11 +209,8 @@ class GroupBy(BaseModel):
     order: List[str] = []            # ["ns", "label=app", kind"]
 
 
-class Timeout(BaseModel):
-    """Define HttpX specific timeout parameters.
-
-
-    """
+class ConnectionParameters(BaseModel):
+    """Define HttpX specific connection parameters."""
     # https://www.python-httpx.org/advanced/#timeout-configuration
     connect: float = 5
     read: float = 5
@@ -263,7 +260,7 @@ class Config(BaseModel):
     filters: Filters = {}
 
     # Connection timeouts.
-    timeout: Timeout = Timeout()
+    connection_parameters: ConnectionParameters = ConnectionParameters()
 
     # Square will not touch this. Useful to pass extra information to callbacks.
     user_data: Any = None

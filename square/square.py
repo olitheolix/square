@@ -701,7 +701,7 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
 
     # Get an HttpX client to talk to the K8s API.
     k8sconfig, k8s_err = await k8s.cluster_config(
-        cfg.kubeconfig, cfg.kubecontext, cfg.timeout
+        cfg.kubeconfig, cfg.kubecontext, cfg.connection_parameters
     )
 
     # Abort if we could not get the plan or establish the K8s session.
@@ -808,7 +808,7 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
     try:
         # Get an HttpX client to talk to the K8s API.
         k8sconfig, err = await k8s.cluster_config(
-            cfg.kubeconfig, cfg.kubecontext, cfg.timeout
+            cfg.kubeconfig, cfg.kubecontext, cfg.connection_parameters
         )
         assert not err
 
@@ -860,7 +860,7 @@ async def get_resources(cfg: Config) -> bool:
     try:
         # Get an HttpX client to talk to the K8s API.
         k8sconfig, err = await k8s.cluster_config(
-            cfg.kubeconfig, cfg.kubecontext, cfg.timeout
+            cfg.kubeconfig, cfg.kubecontext, cfg.connection_parameters
         )
         assert not err
 
