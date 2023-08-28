@@ -700,7 +700,9 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     plan, plan_err = sort_plan(cfg, plan)
 
     # Get an HttpX client to talk to the K8s API.
-    k8sconfig, k8s_err = await k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
+    k8sconfig, k8s_err = await k8s.cluster_config(
+        cfg.kubeconfig, cfg.kubecontext, cfg.timeout
+    )
 
     # Abort if we could not get the plan or establish the K8s session.
     if plan_err or k8s_err:
@@ -805,7 +807,9 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
 
     try:
         # Get an HttpX client to talk to the K8s API.
-        k8sconfig, err = await k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
+        k8sconfig, err = await k8s.cluster_config(
+            cfg.kubeconfig, cfg.kubecontext, cfg.timeout
+        )
         assert not err
 
         # Convert "Selectors.kinds" to their canonical names.
@@ -855,7 +859,9 @@ async def get_resources(cfg: Config) -> bool:
 
     try:
         # Get an HttpX client to talk to the K8s API.
-        k8sconfig, err = await k8s.cluster_config(cfg.kubeconfig, cfg.kubecontext)
+        k8sconfig, err = await k8s.cluster_config(
+            cfg.kubeconfig, cfg.kubecontext, cfg.timeout
+        )
         assert not err
 
         # Convert "Selectors.kinds" to their canonical names.

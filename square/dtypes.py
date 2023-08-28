@@ -209,6 +209,18 @@ class GroupBy(BaseModel):
     order: List[str] = []            # ["ns", "label=app", kind"]
 
 
+class Timeout(BaseModel):
+    """Define HttpX specific timeout parameters.
+
+    https://www.python-httpx.org/advanced/#timeout-configuration
+
+    """
+    connect: float = 5
+    read: float = 5
+    write: float = 5
+    pool: float = 5
+
+
 """Define the filters to exclude sections of manifests."""
 FiltersKind = List[str | dict]
 Filters = Dict[str, FiltersKind]
@@ -244,6 +256,9 @@ class Config(BaseModel):
 
     # Define which fields to skip for which resource.
     filters: Filters = {}
+
+    # Connection timeouts.
+    timeout: Timeout = Timeout()
 
     # Square will not touch this. Useful to pass extra information to callbacks.
     user_data: Any = None
