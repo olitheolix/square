@@ -245,6 +245,9 @@ class Config(BaseModel):
     # Define which fields to skip for which resource.
     filters: Filters = {}
 
+    # Square will not touch this. Useful to pass extra information to callbacks.
+    user_data: Any = None
+
     # Invoked for every local/server manifest that requires patching.
     patch_callback: Annotated[
         Callable,

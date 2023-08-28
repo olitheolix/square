@@ -619,7 +619,30 @@ class TestMainPlan:
         with mock.patch("sys.argv", args):
             assert await square.main.start() == 0
 
-    async def test_workflow(self, tmp_path):
+    async def test_workflow_basic(self, tmp_path: Path):
+        """Run the three primary functions: get, plan and apply."""
+        square.square.setup_logging(1)
+
+        # Create a valid configuration with dedicated `user_data`.
+        user_data = {"foo": "bar"}
+        config = Config(
+            kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
+            folder=tmp_path,
+            user_data=user_data,
+        )
+
+        # Execute Square's primary functions.
+        assert not await square.get(config)
+        plan, err = await square.plan(config)
+        assert err is False
+        assert not await square.apply_plan(config, plan)
+
+        # The `user_data` must still be the original object and it must not
+        # have been modified by Square.
+        assert config.user_data is user_data
+        assert config.user_data == {"foo": "bar"}
+
+    async def test_workflow_detailed(self, tmp_path):
         """Delete and restore full namespace with Square.
 
         We will use `kubectl` to create a new namespace and populate it with

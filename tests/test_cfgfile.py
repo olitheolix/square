@@ -31,6 +31,7 @@ class TestLoadConfig:
         assert cfg.filters == {}
         assert cfg.strip_callback is square.callbacks.strip_manifest
         assert cfg.patch_callback is square.callbacks.patch_manifests
+        assert cfg.user_data is None
 
     def test_config_bug_callbacks(self, tmp_path: Path):
         """Pass explicit callbacks functions to `Config`.
