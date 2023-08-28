@@ -11,6 +11,7 @@ jsonpatch = "*"
 pydantic = ">=2.0"
 pyyaml = "*"
 tenacity = "*"
+h2 = "*"
 
 [dev-packages]
 bumpversion = "*"
