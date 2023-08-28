@@ -212,13 +212,18 @@ class GroupBy(BaseModel):
 class Timeout(BaseModel):
     """Define HttpX specific timeout parameters.
 
-    https://www.python-httpx.org/advanced/#timeout-configuration
 
     """
+    # https://www.python-httpx.org/advanced/#timeout-configuration
     connect: float = 5
     read: float = 5
     write: float = 5
     pool: float = 5
+
+    # https://www.python-httpx.org/advanced/#pool-limit-configuration
+    max_connections: int | None = None
+    max_keepalive_connections: int | None = None
+    keepalive_expiry: float = 5.0
 
 
 """Define the filters to exclude sections of manifests."""

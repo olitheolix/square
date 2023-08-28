@@ -62,6 +62,35 @@ class TestK8sDeleteGetPatchPost:
         assert new_cfg.client.timeout.write == timeout.write
         assert new_cfg.client.timeout.pool == timeout.pool
 
+    def test_create_httpx_client_timeout_mocked(self, k8sconfig):
+        """Use mocks to ascertain the connection parameters.
+
+        This test is necessary because some parameters, eg the connection
+        limits are inaccessible from the client instance. Therefore, we need
+        to ensure the client was created with the correct parameters.
+
+        """
+        cfg = k8sconfig._replace(token="")
+
+        # Construct an explicit `Timeout` instance.
+        timeout = Timeout(
+            connect=2, read=3, write=4, pool=5,
+            max_keepalive_connections=None,
+            max_connections=None,
+            keepalive_expiry=5.0,
+        )
+
+        # Create the client.
+        with mock.patch.object(k8s.httpx, "AsyncClient") as m_client:
+            k8s.create_httpx_client(cfg, timeout)
+
+        # Verify that the correct limits were used.
+        assert m_client.call_args_list[0][1]["limits"] == httpx.Limits(
+            max_keepalive_connections=None,
+            max_connections=None,
+            keepalive_expiry=5.0,
+        )
+
     def test_create_httpx_client_err(self, k8sconfig, tmp_path: Path):
         """Must gracefully abort when there are certificate problems."""
         timeout = Timeout(connect=2, read=3, write=4, pool=5)

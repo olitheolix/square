@@ -510,6 +510,12 @@ def create_httpx_client(k8sconfig: K8sConfig,
         pool=timeout.pool,
     )
 
+    limits = httpx.Limits(
+        max_keepalive_connections=timeout.max_keepalive_connections,
+        max_connections=timeout.max_connections,
+        keepalive_expiry=timeout.keepalive_expiry,
+    )
+
     # Construct the HttpX client.
     try:
         transport = httpx.AsyncHTTPTransport(
@@ -519,7 +525,8 @@ def create_httpx_client(k8sconfig: K8sConfig,
             http1=True,
             http2=False,
         )
-        client = httpx.AsyncClient(timeout=httpx_timeout, transport=transport)
+        client = httpx.AsyncClient(timeout=httpx_timeout, transport=transport,
+                                   limits=limits)
     except ssl.SSLError:
         logit.error(f"Invalid certificates for {k8sconfig.name}")
         return k8sconfig, True
