@@ -78,8 +78,8 @@ class K8sConfig(NamedTuple):
     cert: Tuple[Path, Path] | None = None
     headers: Dict[str, str] = {}
 
-    # HttpX client to access the cluster. Will be replace with a properly
-    # configured client in `k8s.create_httpx_client`.
+    # HttpX client to access the cluster. The `k8s.create_httpx_client` will
+    # replace it with a properly configured client.
     client: httpx.AsyncClient = httpx.AsyncClient()
 
     # Kubernetes API endpoints (see `k8s.compile_api_endpoints`).
