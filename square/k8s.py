@@ -496,16 +496,14 @@ def load_auto_config(kubeconf_path: Path, context: str | None) -> Tuple[K8sConfi
     return (K8sConfig(), True)
 
 
-def create_httpx_client(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
+def create_httpx_client(k8sconfig: K8sConfig,
+                        timeout: httpx.Timeout) -> Tuple[K8sConfig, bool]:
     """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
     sslcontext = ssl.create_default_context(cadata=k8sconfig.cadata)
 
     # Construct the HttpX client.
     try:
-        timeout = httpx.Timeout(
-            timeout=20, connect=20, read=20, write=20, pool=20
-        )
         transport = httpx.AsyncHTTPTransport(
             verify=sslcontext,
             cert=k8sconfig.cert,      # type: ignore
@@ -660,6 +658,10 @@ async def cluster_config(kubeconfig: Path, context: str | None) -> Tuple[K8sConf
         K8sConfig
 
     """
+    timeout = httpx.Timeout(
+        timeout=20, connect=20, read=20, write=20, pool=20
+    )
+
     # Create a HttpX client based on the Kubeconfig file. It will have the
     # proper certificates and headers to connect to K8s.
     kubeconfig = kubeconfig.expanduser()
@@ -669,7 +671,7 @@ async def cluster_config(kubeconfig: Path, context: str | None) -> Tuple[K8sConf
         assert not err
 
         # Configure a HttpX client for this cluster.
-        k8sconfig, err = create_httpx_client(k8sconfig)
+        k8sconfig, err = create_httpx_client(k8sconfig, timeout)
         assert not err
 
         # Contact the K8s API to update version field in `k8sconfig`.
