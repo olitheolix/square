@@ -21,16 +21,18 @@ from .test_helpers import kind_available
 class TestK8sDeleteGetPatchPost:
     def test_create_httpx_client_ok(self, k8sconfig):
         """Verify the HttpX client is correctly setup."""
+        timeout = httpx.Timeout(timeout=1, connect=2, read=3, write=4, pool=5)
+
         # Create basic Kubernetes configuration.
         cfg = k8sconfig._replace(token="")
-        new_cfg, err = k8s.create_httpx_client(cfg)
+        new_cfg, err = k8s.create_httpx_client(cfg, timeout)
         assert not err
         assert "authorization" not in new_cfg.client.headers
         assert new_cfg.headers == {}
 
         # Create token based Kubernetes configuration.
         cfg = k8sconfig._replace(token="token")
-        new_cfg, err = k8s.create_httpx_client(cfg)
+        new_cfg, err = k8s.create_httpx_client(cfg, timeout)
         assert not err
         assert isinstance(new_cfg.client, httpx.AsyncClient)
         assert new_cfg.client.headers["authorization"] == "Bearer token"
@@ -42,26 +44,31 @@ class TestK8sDeleteGetPatchPost:
 
         ccert = (fname_client_crt, fname_client_key)
         cfg = k8sconfig._replace(token="token", cert=ccert)
-        new_cfg, err = k8s.create_httpx_client(cfg)
+        new_cfg, err = k8s.create_httpx_client(cfg, timeout)
         assert not err
         assert isinstance(new_cfg.client, httpx.AsyncClient)
         assert new_cfg.client.headers["authorization"] == "Bearer token"
         assert new_cfg.headers == {"authorization": "Bearer token"}
 
-        # Validate the timeout configuration.
-        assert new_cfg.client.timeout == httpx.Timeout(
-            timeout=20, connect=20, read=20, write=20, pool=20
-        )
+    def test_create_httpx_client_timeout(self, k8sconfig):
+        """Verify that the function installs the correct timeouts."""
+        cfg = k8sconfig._replace(token="")
+
+        timeout = httpx.Timeout(timeout=1, connect=2, read=3, write=4, pool=5)
+        new_cfg, err = k8s.create_httpx_client(cfg, timeout)
+        assert not err and new_cfg.client.timeout == timeout
 
     def test_create_httpx_client_err(self, k8sconfig, tmp_path: Path):
         """Must gracefully abort when there are certificate problems."""
+        timeout = httpx.Timeout(timeout=1, connect=2, read=3, write=4, pool=5)
+
         # Must gracefully abort when the certificate files do not exist.
         fname_client_crt = tmp_path / "does-not-exist.crt"
         fname_client_key = tmp_path / "does-not-exist.key"
 
         cert = (fname_client_crt, fname_client_key)
         cfg = k8sconfig._replace(cert=cert)
-        assert k8s.create_httpx_client(cfg) == (cfg, True)
+        assert k8s.create_httpx_client(cfg, timeout) == (cfg, True)
 
         # Must gracefully abort when the certificates are corrupt.
         fname_client_crt.write_text("not a valid certificate")
@@ -69,7 +76,7 @@ class TestK8sDeleteGetPatchPost:
 
         cert = (fname_client_crt, fname_client_key)
         cfg = k8sconfig._replace(cert=cert)
-        assert k8s.create_httpx_client(cfg) == (cfg, True)
+        assert k8s.create_httpx_client(cfg, timeout) == (cfg, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     async def test_request_ok(self, method, k8sconfig, respx_mock):
