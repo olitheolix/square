@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.1.0 (2023-08-29)
+### Changes
+* deps(http2): add `h2` library.
+* feat(http2): use `http2` by default.
+* feat(limits): support custom HttpX `Limits`.
+* feat(timeout): support custom connection timeouts.
+
 ## v2.0.1 (2023-08-27)
 ### Changes
 * example(callbacks): add examples with custom callbacks.
