@@ -181,7 +181,7 @@ class TestK8sDeleteGetPatchPost:
     async def test_request_retries(self, k8sconfig, method):
         """Simulate error to validate retry logic."""
         # Dummies for K8s API URL and `httpx` client.
-        url = 'http://localhost:12345/'
+        url = 'http://localhost.foo.blah.'
 
         # Trick: we cannot mock any of the `Tenacity` callback functions
         # because they are imported before PyTest can patch them. Therefore, we
@@ -202,7 +202,7 @@ class TestK8sDeleteGetPatchPost:
         urls = [
             "localhost",        # missing schema like "http://"
             "httpinvalid://localhost",
-            "http://localhost-does-not-exist",
+            "http://localhost.foo.blah",
         ]
 
         # Test function must not return a response but indicate an error.
