@@ -981,22 +981,26 @@ class TestK8sKubeconfig:
         # explicit context must return the same information.
         assert expected == k8s.load_minikube_config(fname, None)
 
-    def test_load_kind_config_ok(self):
+    @pytest.mark.parametrize("with_token", [False, True])
+    def test_load_kind_config_ok(self, with_token):
+        token = "secret" if with_token else ""
+        context = "kind-token" if with_token else "kind"
+
         # Load the K8s configuration for a Kind cluster.
         fname = Path("tests/support/kubeconf.yaml")
 
-        ret, err = k8s.load_kind_config(fname, "kind")
+        ret, err = k8s.load_kind_config(fname, context)
         assert not err
         assert ret.url == "https://localhost:8443"
-        assert ret.token == ""
+        assert ret.token == token
         assert ret.version == ""
         assert ret.name == "kind"
 
         # Function must also accept `Path` instances.
-        ret, err = k8s.load_kind_config(Path(fname), "kind")
+        ret, err = k8s.load_kind_config(Path(fname), context)
         assert not err
         assert ret.url == "https://localhost:8443"
-        assert ret.token == ""
+        assert ret.token == token
         assert ret.version == ""
         assert ret.name == "kind"
 

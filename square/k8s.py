@@ -440,7 +440,7 @@ def load_kind_config(kubeconf_path: Path, context: str | None) -> Tuple[K8sConfi
         logit.debug(f"Assuming Kind cluster for {name}.")
         return K8sConfig(
             url=cluster["server"],
-            token="",
+            token=user.get("token", ""),
             cadata=cadata,
             cert=(p_client_crt, p_client_key),
             version="",
