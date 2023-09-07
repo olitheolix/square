@@ -179,14 +179,14 @@ class TestK8sDeleteGetPatchPost:
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     async def test_request_retries(self, k8sconfig, method):
-        """Simulate connection timeout to validate retry logic."""
+        """Simulate error to validate retry logic."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://localhost:12345/'
 
-        # Trick: we cannot mock any of the tenacity callback functions because
-        # they are installed at import time and before PyTest can patch them.
-        # Therefore, we will mock `urlparse` as a proxy since it is not used
-        # anywhere else and can thus use it to count the number of invocations.
+        # Trick: we cannot mock any of the `Tenacity` callback functions
+        # because they are imported before PyTest can patch them. Therefore, we
+        # will mock `urlparse` as a proxy since it is not used anywhere else
+        # and can tell us the number of invocations.
         with mock.patch.object(k8s, "urlparse") as m_proxy:
             # Test function must return an empty response and an error.
             ret = await k8s.request(k8sconfig, method, url, None, None)
