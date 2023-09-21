@@ -4,7 +4,7 @@ from pathlib import Path
 from . import square
 from .cfgfile import load
 
-__version__ = '2.1.0'
+__version__ = '2.1.1'
 
 
 # ---------------------------------------------------------------------------
