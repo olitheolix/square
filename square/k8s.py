@@ -314,7 +314,11 @@ def load_authenticator_config(kubeconf_path: Path,
         return (K8sConfig(), True)
 
     # Convert a `None` to an empty list of env vars.
+    # This happens when the kubeconfig file contains entries like `args: null`
+    # in the YAML which will then be parsed as None in Python yet we need them
+    # to be an empty list.
     env_kubeconf = env_kubeconf if env_kubeconf else []
+    args = args if args else []
 
     # Compile the name, arguments and env vars for the command specified in kubeconf.
     cmd_args = [cmd] + args

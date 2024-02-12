@@ -1068,7 +1068,7 @@ class TestK8sKubeconfig:
         # environment variables. The "expected_*" values are directly from
         # "support/kubeconf.yaml".
         if context == "aks":
-            args = ["get-token", "--login", "azurecli", "--server-id", "abc123"]
+            args = []
             env = {}
         elif context == "eks":
             args = ["token", "-i", "eks-cluster-name"]
