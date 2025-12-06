@@ -3,7 +3,7 @@ import logging
 import random
 import unittest.mock as mock
 from pathlib import Path
-from typing import List, cast
+from typing import cast
 
 import pytest
 import yaml
@@ -1511,7 +1511,7 @@ class TestMainOptions:
 
         # Label selector matches local and server: Square must PATCH.
         for labels in ([], ["app=local"], ["app=server"]):
-            config.selectors.labels = cast(List[str], labels)
+            config.selectors.labels = labels
             plan, err = await sq.make_plan(config)
             assert not err
             assert plan.create == [] and plan.delete == [] and len(plan.patch) == 1

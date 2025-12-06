@@ -4,7 +4,7 @@ import random
 import sys
 import unittest.mock as mock
 from pathlib import Path
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, cast
 
 import pytest
 import yaml
@@ -122,7 +122,7 @@ class TestSelect:
         namespaces = (["name"], ["name", "ns5"])
         kinds = ({"Namespace"}, {"Deployment", "Namespace"})
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
-            sel = Sel(kinds=kind, namespaces=ns, labels=cast(List[str], lab))
+            sel = Sel(kinds=kind, namespaces=ns, labels=lab)
             assert select(manifest, sel, True) is True
 
         # Function must reject these because the selectors match only partially.
@@ -147,7 +147,7 @@ class TestSelect:
         kinds = ({"Deployment"}, {"Deployment", "Namespace"})
         namespaces = (["my-ns"], ["my-ns", "other-ns"])
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
-            sel = Sel(kinds=kind, namespaces=ns, labels=cast(List[str], lab))
+            sel = Sel(kinds=kind, namespaces=ns, labels=lab)
             assert select(manifest, sel, True) is True
 
         # Function must reject these because the selectors match only partially.
@@ -172,7 +172,7 @@ class TestSelect:
         kinds = ({"ClusterRole"}, {"ClusterRole", "Namespace"})
         namespaces = (["my-ns"], ["my-ns", "other-ns"])
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
-            sel = Sel(kinds=kind, namespaces=ns, labels=cast(List[str], lab))
+            sel = Sel(kinds=kind, namespaces=ns, labels=lab)
             assert select(manifest, sel, True) is True
 
         # Function must reject these because the selectors match only partially.
@@ -341,7 +341,9 @@ class TestUnpackParse:
 
         # All fields present but `kind` does not end in List (case sensitive).
         for invalid_kind in ('Deploymentlist', 'Deployment'):
-            src_invalid = {'apiVersion': 'v1', 'kind': invalid_kind, 'items': []}
+            src_invalid: Dict[str, Any] = {
+                'apiVersion': 'v1', 'kind': invalid_kind, 'items': []
+            }
             assert manio.unpack_k8s_resource_list(src_invalid) == ({}, True)
 
 

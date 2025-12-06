@@ -2,7 +2,6 @@ import copy
 import time
 import unittest.mock as mock
 from pathlib import Path
-from typing import Dict, cast
 
 import pytest
 import sh
@@ -595,7 +594,7 @@ class TestLabels:
         for labels in ({}, {"app": "local"}, {"app": "demoapp-2"}):
             manifest = make_manifest(
                 kind="ConfigMap", namespace=cm_ns,
-                name=cm_name, labels=cast(Dict[str, str], labels),
+                name=cm_name, labels=labels,
             )
             fname.write_text(yaml.dump_all([manifest]))
             plan, err = await square.plan(config)
