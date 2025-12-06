@@ -27,7 +27,7 @@ python = ">=3.10"
 pyyaml = "*"
 tenacity = "*"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 bumpversion = "*"
 flake8 = "*"
 flake8-isort = "*"
@@ -44,7 +44,7 @@ sh = "*"
 square = 'square.main:main'
 
 [build-system]
-requires = ["poetry>=1.2"]
+requires = ["poetry>=2.2"]
 build-backend = "poetry.masonry.api"
 
 [tool.ruff]

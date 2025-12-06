@@ -106,7 +106,7 @@ jobs:
       - name: Install Square
         run: |
           # Install Poetry and build the Python package.
-          pip install poetry==1.5.1
+          pip install poetry==2.2.1
           poetry build
 
           # Install the package. The following shell magic expands to
