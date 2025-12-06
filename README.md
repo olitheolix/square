@@ -1,5 +1,5 @@
 [![](https://img.shields.io/badge/license-Apache%202-blue.svg)]()
-[![](https://img.shields.io/badge/python-3.10,3.11-blue.svg)]()
+[![](https://img.shields.io/badge/python-3.13)]()
 [![](https://img.shields.io/badge/latest-v2.1.3-blue.svg)]()
 [![](https://github.com/olitheolix/square/workflows/build/badge.svg)]()
 [![](https://img.shields.io/codecov/c/github/olitheolix/square.svg?style=flat)]()
@@ -25,7 +25,7 @@ The plan/apply workflow will be familiar to Terraform users.
 
 # Installation
 Grab a [binary release](https://github.com/olitheolix/square/releases) or
-use `pip` to install it into a Python 3.10+ environment:
+use `pip` to install it into a Python 3.13+ environment:
 
 ```console
 foo@bar:~$ pip install kubernetes-square --upgrade
