@@ -7,7 +7,7 @@ from pathlib import Path
 from . import square
 from .cfgfile import load
 
-__version__ = '2.1.3'
+__version__ = '2.2.0'
 
 # This is a workaround for Python 3.14 in Github actions. The unit tests break
 # deep inside the multiprocessing module Github Actions even though the tests

@@ -1,5 +1,27 @@
 # Changelog
 
+## Latest
+### Highlights
+None
+
+### Breaking Changes
+None
+
+### Changes
+
+## v2.2.0 (2025-12-07)
+### Highlights
+None
+
+### Breaking Changes
+None
+
+### Changes
+* build(deps): bump h11 from 0.14.0 to 0.16.0
+* deps(poetry): upgrade to v2.2.1
+* deps(python): upgrade python to 3.13
+* feat(python): add support for python 3.14
+
 ## v2.1.0 (2023-08-29)
 ### Changes
 * deps(http2): add `h2` library.
