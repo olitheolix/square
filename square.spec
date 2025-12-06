@@ -5,7 +5,7 @@ block_cipher = None
 
 a = Analysis(['pyinstaller_entrypoint.py'],
              binaries=[],
-             datas=[("resources/*", "resources")],
+             datas=[("square/resources/*", "resources")],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],
