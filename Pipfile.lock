@@ -78,6 +78,7 @@
                 "sha256:c438f029a25f7945c69e0ccf0fb951dc3f73a5f6412981daee861431b70e2bdd"
             ],
             "index": "pypi",
+            "markers": "python_version >= '3.9'",
             "version": "==4.3.0"
         },
         "hpack": {
