@@ -1,4 +1,6 @@
 import importlib.resources
+import multiprocessing
+import os
 import sys
 from pathlib import Path
 
@@ -7,6 +9,12 @@ from .cfgfile import load
 
 __version__ = '2.1.3'
 
+# This is a workaround for Python 3.14 in Github actions. The unit tests break
+# deep inside the multiprocessing module Github Actions even though the tests
+# work fine on a local Linux machine. The environment variable also allows
+# other users to customise this if necessary.
+if mp_method := os.environ.get("MULTIPROCESSING_START_METHOD", None):
+    multiprocessing.set_start_method(mp_method)
 
 # ---------------------------------------------------------------------------
 # Global Runtime Constants
