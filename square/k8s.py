@@ -544,6 +544,9 @@ def create_httpx_client(k8sconfig: K8sConfig,
     headers = {'authorization': f'Bearer {k8sconfig.token}'} if k8sconfig.token else {}
     client.headers.update(headers)
 
+    # Merge in user supplied headers.
+    client.headers.update(conparam.k8s_extra_headers)
+
     # Add the web client to the `k8sconfig` object.
     k8sconfig = k8sconfig._replace(client=client, headers=headers)
 

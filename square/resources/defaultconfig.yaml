@@ -10,6 +10,15 @@ folder: manifests/
 
 
 # -----------------------------------------------------------------------------
+# Connection Parameters.
+# -----------------------------------------------------------------------------
+connection_parameters:
+  # Extra headers to pass along to the K8s API with every call.
+  k8s_extra_headers:
+    foo: bar
+
+
+# -----------------------------------------------------------------------------
 # Square will only target resources that match *all* the selectors below.
 # -----------------------------------------------------------------------------
 selectors:

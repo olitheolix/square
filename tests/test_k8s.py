@@ -52,6 +52,21 @@ class TestK8sDeleteGetPatchPost:
         assert new_cfg.client.headers["authorization"] == "Bearer token"
         assert new_cfg.headers == {"authorization": "Bearer token"}
 
+    def test_create_httpx_client_extra_headers_ok(self, k8sconfig):
+        """Verify the HttpX client is correctly setup."""
+        # Create basic Kubernetes configuration.
+        cfg = k8sconfig._replace(token="")
+
+        conparam = ConnectionParameters()
+        new_cfg, err = k8s.create_httpx_client(cfg, conparam)
+        assert not err
+        assert "foo" not in new_cfg.client.headers
+
+        conparam = ConnectionParameters(k8s_extra_headers={"foo": "bar"})
+        new_cfg, err = k8s.create_httpx_client(cfg, conparam)
+        assert not err
+        assert new_cfg.client.headers["foo"] == "bar"
+
     def test_create_httpx_client_timeout(self, k8sconfig):
         """Verify that the function installs the correct timeouts."""
         cfg = k8sconfig._replace(token="")

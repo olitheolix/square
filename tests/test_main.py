@@ -84,6 +84,9 @@ def fname_param_config(tmp_path) -> Generator[
         kubecontext=None,
         groupby=["ns", "label=app", "kind"],
         priorities=DEFAULT_PRIORITIES,
+        connection_parameters=ConnectionParameters(
+            k8s_extra_headers={"foo": "bar"}
+        )
     )
 
     cwd = Path.cwd()
