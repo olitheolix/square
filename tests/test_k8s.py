@@ -23,18 +23,18 @@ from .test_helpers import kind_available
 class TestK8sDeleteGetPatchPost:
     def test_create_httpx_client_ok(self, k8sconfig):
         """Verify the HttpX client is correctly setup."""
-        timeout = ConnectionParameters(connect=2, read=3, write=4, pool=5)
+        conparam = ConnectionParameters(connect=2, read=3, write=4, pool=5)
 
         # Create basic Kubernetes configuration.
         cfg = k8sconfig._replace(token="")
-        new_cfg, err = k8s.create_httpx_client(cfg, timeout)
+        new_cfg, err = k8s.create_httpx_client(cfg, conparam)
         assert not err
         assert "authorization" not in new_cfg.client.headers
         assert new_cfg.headers == {}
 
         # Create token based Kubernetes configuration.
         cfg = k8sconfig._replace(token="token")
-        new_cfg, err = k8s.create_httpx_client(cfg, timeout)
+        new_cfg, err = k8s.create_httpx_client(cfg, conparam)
         assert not err
         assert isinstance(new_cfg.client, httpx.AsyncClient)
         assert new_cfg.client.headers["authorization"] == "Bearer token"
@@ -46,7 +46,7 @@ class TestK8sDeleteGetPatchPost:
 
         ccert = (fname_client_crt, fname_client_key)
         cfg = k8sconfig._replace(token="token", cert=ccert)
-        new_cfg, err = k8s.create_httpx_client(cfg, timeout)
+        new_cfg, err = k8s.create_httpx_client(cfg, conparam)
         assert not err
         assert isinstance(new_cfg.client, httpx.AsyncClient)
         assert new_cfg.client.headers["authorization"] == "Bearer token"
