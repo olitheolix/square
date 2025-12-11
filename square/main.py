@@ -123,7 +123,7 @@ def parse_commandline_args():
 
     # Sub-command CONFIG.
     subparsers.add_parser(
-        'config', help="Create .square.yaml (works with --folder)", parents=[parent]
+        'init', help="Create .square.yaml (works with --folder)", parents=[parent]
     )
 
     # Parse the actual arguments.
@@ -391,7 +391,7 @@ async def start() -> int:
         return 0
 
     # Create a default ".square.yaml" in the current folder and quit.
-    if param.parser == "config":
+    if param.parser == "init":
         fname = Path(param.folder or ".") / ".square.yaml"
         fname.parent.mkdir(parents=True, exist_ok=True)
         fname.write_text(DEFAULT_CONFIG_FILE.read_text())
