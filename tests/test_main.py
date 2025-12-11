@@ -16,8 +16,8 @@ import square.manio as manio
 import square.square as sq
 from square import DEFAULT_CONFIG_FILE
 from square.dtypes import (
-    DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, GroupBy, JsonPatch, Selectors,
+    DEFAULT_PRIORITIES, Config, ConnectionParameters, DeltaCreate, DeltaDelete,
+    DeltaPatch, DeploymentPlan, GroupBy, JsonPatch, Selectors,
 )
 
 from .test_helpers import make_manifest
@@ -180,7 +180,7 @@ class TestMain:
         # the folder and kubeconfig because the fixture explicitly overrode
         # those to point to a temporary location.
         out.folder, out.kubeconfig = ref_config.folder, ref_config.kubeconfig
-        assert out == ref_config
+        assert out.model_dump() == ref_config.model_dump()
 
     def test_compile_config_kinds(self, fname_param_config):
         """Parse resource kinds."""

@@ -33,7 +33,7 @@ class TestLoadConfig:
     def test_config(self, tmp_path: Path):
         """Create `Config` instance."""
         # Minimal required arguments to construct `Config` instance.
-        kubeconfig_path = Path("tests/support/config.yaml")
+        kubeconfig_path = tmp_path / "config.yaml"
         cfg = Config(kubeconfig=kubeconfig_path, folder=tmp_path)
 
         # Verify the defaults.
@@ -56,15 +56,15 @@ class TestLoadConfig:
         This used to be a bug.
 
         """
-        def cb_strip(cfg: Config, manifest: dict):
+        def cb_strip(_: Config, manifest: dict):
             return manifest
 
-        def cb_patch(cfg: Config, l_manifest: dict, s_manifest: dict):
+        def cb_patch(_: Config, l_manifest: dict, s_manifest: dict):
             return l_manifest, s_manifest
 
         # Pass explicit callbacks.
         cfg = Config(
-            kubeconfig=Path("tests/support/config.yaml"),
+            kubeconfig=tmp_path/"config.yaml",
             folder=tmp_path,
             strip_callback=cb_strip,
             patch_callback=cb_patch,
@@ -81,7 +81,7 @@ class TestLoadConfig:
 
     def test_load(self):
         """Load and parse configuration file."""
-        # Load the sample that ships with Square.
+        # Load test configuration.
         fname = Path("tests/support/config.yaml")
         cfg, err = cfgfile.load(fname)
         assert not err and isinstance(cfg, Config)

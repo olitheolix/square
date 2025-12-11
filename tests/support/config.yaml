@@ -48,7 +48,7 @@ priorities:
 
 # -----------------------------------------------------------------------------
 # The resource Square should target.
-# 
+#
 # Square will ignore a resources unless all selectors apply to it.
 # -----------------------------------------------------------------------------
 selectors:
@@ -78,7 +78,7 @@ selectors:
 
 # -----------------------------------------------------------------------------
 # The layout of the manifest folder (see `folder` option above).
-# 
+#
 # GET will create a folder hierachy by name, app label and resource kind.
 # -----------------------------------------------------------------------------
 groupby:

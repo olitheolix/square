@@ -6,7 +6,6 @@ from typing import Generator
 import httpx
 import pytest
 
-import square.callbacks
 import square.cfgfile
 import square.k8s
 import square.square
@@ -34,13 +33,13 @@ def kube_creds(request, k8sconfig) -> Generator[K8sConfig, None, None]:
 
 
 @pytest.fixture
-def k8sconfig():
+def k8sconfig() -> Generator[K8sConfig]:
     # Short-circuit the `async.sleep` function.
     with mock.patch.object(asyncio, "sleep"):
         yield k8sconfig_fixture()
 
 
-def k8sconfig_fixture():
+def k8sconfig_fixture() -> K8sConfig:
     # Return a valid K8sConfig with a subsection of API endpoints available in
     # Kubernetes v1.25.
     cadata = Path("tests/support/client.crt").read_text()
