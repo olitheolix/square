@@ -724,7 +724,7 @@ class TestMain:
         """Create a copy of the default config config in the specified folder."""
         folder = tmp_path / "folder"
 
-        with mock.patch("sys.argv", ["square.py", "config", "--folder", str(folder)]):
+        with mock.patch("sys.argv", ["square.py", "init", "--folder", str(folder)]):
             assert await main.start() == 0
 
         fname = (folder / ".square.yaml")

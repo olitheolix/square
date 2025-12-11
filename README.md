@@ -34,7 +34,7 @@ foo@bar:~$ square version
 ```
 
 # Quickstart
-Run `square config` to create a `.square.yaml` and open it in an editor. It
+Run `square init` to create a `.square.yaml` and open it in an editor. It
 comes with sensible defaults but you probably want to double check the values
 for `kubeconfig` and `kubecontext` near the top of the file. You can also tweak
 the `selectors.kinds`, `selectors.labels` and `selectors.namespaces` to target
@@ -44,7 +44,7 @@ A typical *Square* workflow is this:
 
 ```console
 # Create a `.square.yaml` configuration file and adjust at least the `kubeconfig` value.
-square config
+square init
 
 # Download all resources that match the selectors in the `.square.yaml` file.
 square get
@@ -99,7 +99,7 @@ foo@bar:~$ mkdir try_square
 foo@bar:~$ cd try_square
 
 # Creata a vanilla Square configuration file `.square.yaml`.
-foo@bar:~$ square config
+foo@bar:~$ square init
 Created configuration file <.square.yaml>.
 Please open the file in an editor and adjust the values, most notably `kubeconfig` and `selectors.[kinds | namespaces | labels]`.
 
