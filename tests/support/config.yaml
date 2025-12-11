@@ -6,6 +6,7 @@ kubecontext: null
 folder: some/path
 
 connection_parameters:
+  disable_x509_strict: true
   k8s_extra_headers:
     foo: bar
 

@@ -214,6 +214,11 @@ class ConnectionParameters(BaseModel):
     # Extra headers to pass along to the Kubernetes API.
     k8s_extra_headers: Dict[str, str] = dict()
 
+    # Disable strict SSL certificate checks for cluster. This is only recommended
+    # if the control plane of your cluster was created a few years ago. See this
+    # link for more info: https://github.com/aws/containers-roadmap/issues/2638
+    disable_x509_strict: bool = False
+
     # https://www.python-httpx.org/advanced/#timeout-configuration
     connect: float = 5
     read: float = 5
@@ -266,7 +271,7 @@ class Config(BaseModel):
     # Define which fields to skip for which resource.
     filters: Filters = {}
 
-    # Connection timeouts.
+    # Connection timeouts, headers and extra SSL configurations.
     connection_parameters: ConnectionParameters = ConnectionParameters()
 
     # Square will not touch this. Useful to pass extra information to callbacks.

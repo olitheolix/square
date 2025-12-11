@@ -67,6 +67,17 @@ class TestK8sDeleteGetPatchPost:
         assert not err
         assert new_cfg.client.headers["foo"] == "bar"
 
+    def test_create_ssl_context(self):
+        cadata = Path("tests/support/client.crt").read_text()
+
+        # Create SSL context will all default safe guards in place.
+        ssl_ctx = k8s.create_ssl_context(cadata, disable_x509_strict=False)
+        assert ssl_ctx.verify_flags & ssl.VERIFY_X509_STRICT
+
+        # Create SSL context with disabled x509 check.
+        ssl_ctx = k8s.create_ssl_context(cadata, disable_x509_strict=True)
+        assert not ssl_ctx.verify_flags & ssl.VERIFY_X509_STRICT
+
     def test_create_httpx_client_timeout(self, k8sconfig):
         """Verify that the function installs the correct timeouts."""
         cfg = k8sconfig._replace(token="")
