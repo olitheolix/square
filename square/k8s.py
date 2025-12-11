@@ -502,11 +502,39 @@ def load_auto_config(kubeconf_path: Path, context: str | None) -> Tuple[K8sConfi
     return (K8sConfig(), True)
 
 
+def create_ssl_context(cadata: str | None, disable_x509_strict: bool) -> ssl.SSLContext:
+    """Create an SSLContext with custom CA and control over X.509 strict verification.
+
+    Inputs:
+      cadata : str or None
+          Optional string containing CA certificates in PEM format.
+      disable_x509_strict : bool
+          Disables strict X.509 certificate verification.
+
+    Returns
+      ssl.SSLContext for HttpX
+
+    Notes
+    -----
+    Disabling X.509 strict verification may be necessary for compatibility with
+    legacy servers or Kubernetes clusters (e.g., older EKS clusters) that use
+    non-compliant certificates.
+    https://github.com/aws/containers-roadmap/issues/2638
+
+    """
+    sslcontext = ssl.create_default_context(cadata=cadata)
+
+    if disable_x509_strict and hasattr(ssl, "VERIFY_X509_STRICT"):
+        sslcontext.verify_flags &= ~ssl.VERIFY_X509_STRICT
+
+    return sslcontext
+
+
 def create_httpx_client(k8sconfig: K8sConfig,
                         conparam: ConnectionParameters) -> Tuple[K8sConfig, bool]:
     """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
-    sslcontext = ssl.create_default_context(cadata=k8sconfig.cadata)
+    sslcontext = create_ssl_context(k8sconfig.cadata, conparam.disable_x509_strict)
 
     # Compile an HttpX `Timeout` instance.
     timeout = httpx.Timeout(

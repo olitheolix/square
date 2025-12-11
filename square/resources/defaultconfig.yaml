@@ -13,6 +13,11 @@ folder: manifests/
 # Connection Parameters.
 # -----------------------------------------------------------------------------
 connection_parameters:
+  # Disable strict SSL certificate checks for cluster. This is only recommended
+  # if the control plane of your cluster was created a few years ago. See this
+  # link for more info: https://github.com/aws/containers-roadmap/issues/2638
+  disable_x509_strict: false
+
   # Extra headers to pass along to the K8s API with every call.
   k8s_extra_headers:
     foo: bar

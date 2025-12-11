@@ -85,6 +85,7 @@ def fname_param_config(tmp_path) -> Generator[
         groupby=["ns", "label=app", "kind"],
         priorities=DEFAULT_PRIORITIES,
         connection_parameters=ConnectionParameters(
+            disable_x509_strict=False,
             k8s_extra_headers={"foo": "bar"}
         )
     )

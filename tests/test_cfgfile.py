@@ -86,6 +86,7 @@ class TestLoadConfig:
         cfg, err = cfgfile.load(fname)
         assert not err and isinstance(cfg, Config)
 
+        assert cfg.connection_parameters.disable_x509_strict is True
         assert cfg.connection_parameters.k8s_extra_headers == {"foo": "bar"}
 
         assert cfg.folder == fname.parent.absolute() / "some/path"
