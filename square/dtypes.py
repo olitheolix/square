@@ -211,6 +211,9 @@ class GroupBy(BaseModel):
 
 class ConnectionParameters(BaseModel):
     """Define HttpX specific connection parameters."""
+    # Extra headers to pass along to the Kubernetes API.
+    k8s_extra_headers: Dict[str, str] = dict()
+
     # https://www.python-httpx.org/advanced/#timeout-configuration
     connect: float = 5
     read: float = 5

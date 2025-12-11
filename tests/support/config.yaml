@@ -5,6 +5,9 @@ kubeconfig: /path/to/kubeconfig # eg "~/.kube/config".
 kubecontext: null
 folder: some/path
 
+connection_parameters:
+  k8s_extra_headers:
+    foo: bar
 
 # -----------------------------------------------------------------------------
 # The order in which to save and apply K8s resources.

@@ -299,6 +299,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         groupby=groupby,
         priorities=priorities,
         filters=filters,
+        connection_parameters=cfg.connection_parameters,
     )
     return cfg, False
 
