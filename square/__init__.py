@@ -9,11 +9,13 @@ from .cfgfile import load
 
 __version__ = '2.2.0'
 
-# This is a workaround for Python 3.14 in Github actions. The unit tests break
-# deep inside the multiprocessing module Github Actions even though the tests
-# work fine on a local Linux machine. The environment variable also allows
-# other users to customise this if necessary.
-if mp_method := os.environ.get("MULTIPROCESSING_START_METHOD", None):
+# This is a workaround for a multiprocessing problem on Linux that started with
+# Python 3.14. In that version, Python made the `forkserver` the default method
+# to create new processes. Unfortunately, that leads to errors deep inside the
+# multiprocessing module. Therefore, we switch back to the `fork` method from
+# previous versions unless explicitly overridden.
+if sys.platform.startswith("linux"):
+    mp_method = os.environ.get("MULTIPROCESSING_START_METHOD", "fork")
     multiprocessing.set_start_method(mp_method)
 
 # ---------------------------------------------------------------------------
