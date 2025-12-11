@@ -1,6 +1,6 @@
 [![](https://img.shields.io/badge/license-Apache%202-blue.svg)]()
 [![](https://img.shields.io/badge/python-3.13,3.14-blue.svg)]()
-[![](https://img.shields.io/badge/latest-v2.2.0-blue.svg)]()
+[![](https://img.shields.io/badge/latest-v2.3.0-blue.svg)]()
 [![](https://github.com/olitheolix/square/workflows/build/badge.svg)]()
 [![](https://img.shields.io/codecov/c/github/olitheolix/square.svg?style=flat)]()
 
@@ -30,7 +30,7 @@ use `pip` to install it into a Python 3.13+ environment:
 ```console
 foo@bar:~$ pip install kubernetes-square --upgrade
 foo@bar:~$ square version
-2.2.0
+2.3.0
 ```
 
 # Quickstart

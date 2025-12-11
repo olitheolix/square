@@ -9,6 +9,18 @@ None
 
 ### Changes
 
+## v2.3.0 (2025-12-11)
+### Highlights
+None
+
+### Breaking Changes
+None
+
+### Changes
+* feat(init): change `square config` -> `square init`.
+* feat: add option to disable strict x509 checks.
+* feat: support custom headers to pass along to k8s.
+
 ## v2.2.0 (2025-12-07)
 ### Highlights
 None
