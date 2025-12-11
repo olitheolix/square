@@ -65,10 +65,6 @@ jobs:
       # Break if coverage drops below 100%.
       - name: Unit and Integration Tests (Linux only)
         if: matrix.os == 'ubuntu-latest'
-        env:
-          # Workaround: for some reasons, the `forkserver` introduced in Python
-          # 3.14 does not work with Github Actions.
-          MULTIPROCESSING_START_METHOD: fork
         run: |
           pytest --cov=square --cov-report=term-missing --cov-report=xml --cov-fail-under=100 --durations=10
 
