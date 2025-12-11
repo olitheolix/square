@@ -7,7 +7,7 @@ from pathlib import Path
 from . import square
 from .cfgfile import load
 
-__version__ = '2.2.0'
+__version__ = '2.3.0'
 
 # This is a workaround for a multiprocessing problem on Linux that started with
 # Python 3.14. In that version, Python made the `forkserver` the default method
