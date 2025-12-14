@@ -194,13 +194,12 @@ resources type within those folders. Non-namespaced resources, like
 It is important to note that Square does not attach any meaning to the
 directory layout. Internally, it will compile all manifests into a flat list.
 You can therefore rename and move files as you see fit, and even move
-individual manifests between files. Furthermore, `square get` is smart
-enough to update the right manifests in the right files.
+individual manifests between files.
 
 ### Group By Label
-*Square* can also group manifests based on a __single_ label. For instance,
-here are the [integration test cluster](integration-test-cluster) manifests
-grouped by `Namespace` and the `app` label:
+*Square* can also group manifests based on a label. For instance, here are the
+[integration test cluster](integration-test-cluster) manifests grouped by
+`Namespace` and the `app` label:
 
 ```console
 foo@bar:~$ rm -rf manifests
@@ -299,7 +298,7 @@ Note that resources without an `app` label are in the catch-all folder `_other`.
 
 ## Create A Plan
 The plan is currently clean because we just imported the manifests from the
-cluster. To very:
+cluster. To verify:
 
 ```console
 foo@bar:~$ square plan
@@ -323,7 +322,7 @@ spec:
   - kubernetes
 ```
 
-Now the plane will show a difference between the local and server manifests:
+The plan will now show a difference between the local and server manifests:
 ```console
 foo@bar:~$ square plan ns
 Patch NAMESPACE None/square-tests-1 (v1)
@@ -342,9 +341,9 @@ Patch NAMESPACE None/square-tests-1 (v1)
 Plan: 0 to add, 1 to change, 0 to destroy.
 ```
 
-We could now use `square get ns` to make the local manifest match the cluster
-state or `square apply ns` to make the cluster state match the local manifests.
-We will do the latter:
+We could use `square get ns` to make the local manifest match the cluster state
+or `square apply ns` to make the cluster state match the local manifests. We
+will do the latter:
 
 ```console
 foo@bar:~$ square apply ns
@@ -369,7 +368,7 @@ Type yes to apply the plan.
 Patching NAMESPACE None/square-tests-1
 ```
 
-We can use *kubectl* to verify that the `square-tests-1` Namespace now has the `foo=bar` label:
+Use *kubectl* to verify that the `square-tests-1` Namespace now has the `foo=bar` label:
 
 ```console
 foo@bar:~$ kubectl describe ns square-tests-1
@@ -384,8 +383,7 @@ No resource limits.
 
 ```
 
-The plan is now clean again because the local files and the
-cluster are in sync again:
+At this point the plan is clean again:
 
 ```console
 foo@bar:~$ square plan ns
@@ -437,8 +435,8 @@ Creating NAMESPACE None/dummy
 Creating SERVICEACCOUNT dummy/random-user
 ```
 
-Similarly, to remove those resources again we merely delete the manifest file
-and run `square apply` again:
+Similarly, delete the manifest file and run `square apply` to remove those
+resources again:
 
 ```console
 foo@bar:~$ rm manifests/additional_manifest.yaml
