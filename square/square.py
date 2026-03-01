@@ -894,8 +894,8 @@ async def get_resources(cfg: Config) -> bool:
         server_sqm, err = await match_api_version(k8sconfig, local_sqm, server_sqm)
         assert not err
 
-        # Sync the server manifests into the local manifests. All this happens in
-        # memory and no files will be modified here - see `manio.save` below.
+        # Sync the server manifests into the local manifests. All this happens
+        # in-memory and no files will be modified here - see `manio.save` below.
         synced_man, err = manio.sync(local_man, server_sqm, cfg.selectors, cfg.groupby)
         assert not err
 
