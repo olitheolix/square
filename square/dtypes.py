@@ -58,7 +58,7 @@ class K8sResource(NamedTuple):
     """Describe a specific K8s resource kind."""
     apiVersion: str   # "batch/v1beta1" or "extensions/v1beta1".
     kind: str         # "Deployment" (as specified in manifest)
-    name: str         # "deployment" (usually lower case version of above)
+    name: str         # "deployments" (plural name, lower case)
     namespaced: bool  # Whether or not the resource is namespaced.
     url: str          # API endpoint, eg "k8s-host.com/api/v1/pods".
 

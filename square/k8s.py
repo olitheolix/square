@@ -583,7 +583,7 @@ def create_httpx_client(k8sconfig: K8sConfig,
 
 
 def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
-    """Return `K8sResource` object.
+    """Return the `K8sResource` object that corresponds to `meta`.
 
     That object will contain the full path to a resource, eg.
     https://1.2.3.4/api/v1/namespace/foo/services.
@@ -598,7 +598,10 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
     """
     err_resp = (K8sResource("", "", "", False, ""), True)
 
-    # Compile the lookup key for the resource, eg `("Service", "v1")`.
+    # If `meta` specifies only a Kind but no group/version then we need to find
+    # it first. This typically happens with a `square get` where the user just
+    # asked for `cronjob` instead of the full `cronjob.batch`. In that case, we
+    # need to find the corresponding group.
     if not meta.apiVersion:
         # Use the most recent version of the API if None was specified.
         candidates = [(kind, ver) for kind, ver in k8sconfig.apis if kind == meta.kind]
@@ -905,10 +908,10 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
             k8sconfig.apis[(kind, "")] = resources.pop()
             continue
 
-        # If we get here then it means a resource is available from different
-        # API groups. Here we use heuristics to pick one. The heuristic is
-        # simply to look for one that is neither alpha nor beta. In Kubernetes
-        # v1.15 this resolves almost all disputes.
+        # If we get here then it means a resource is available in different
+        # versions. Here we use heuristics to pick one. The heuristic is simply
+        # to look for one that is neither alpha nor beta. In Kubernetes v1.15
+        # this resolves almost all disputes.
         all_apis = list(sorted([_.apiVersion for _ in resources]))
 
         # Remove all alpha/beta resources.

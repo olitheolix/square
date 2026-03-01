@@ -985,7 +985,7 @@ def save(folder: Path,
 
 
 async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifests, bool]:
-    """Download and return the resources that match `selectors`.
+    """Download and return the resources that match `config.selectors`.
 
     Use `selectors.namespace=None` to download from all namespaces.
 
@@ -1025,7 +1025,7 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
         for kind in all_kinds:
             coroutines.append(_download_worker(k8sconfig, kind, namespace))
 
-    # Schedule all tasks and wait until they have all completed.
+    # Schedule all tasks and wait for them to finish.
     awaited_tasks = await asyncio.gather(*coroutines)
 
     # Abort if any task returned with an error.
@@ -1048,7 +1048,7 @@ async def _download_worker(k8sconfig: K8sConfig, kind: str,
     reasons because Kubernetes is unfazed when asked about non-existing
     namespaces or resource, and this function mimics this behaviour.
 
-    Return with an error if the resource could not be downloaded.
+    Return with an error if the resource exists but could not be downloaded.
 
     """
     # Get the K8s URL for the current resource kind or return an empty manifest

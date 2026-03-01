@@ -397,9 +397,8 @@ class TestUrlPathBuilder:
     async def test_resource_service(self, integrationtest, k8sconfig):
         """Function must query the correct version of the API endpoint.
 
-        This test uses a Service which is available as part of the core API.
-
-        NOTE: this test is tailored to Kubernetes v1.24.
+        This test uses a Service which is part of the core API and should be
+        available in all Kubernetes versions.
 
         """
         # Fixtures.
