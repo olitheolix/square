@@ -745,8 +745,9 @@ async def cluster_config(kubeconfig: Path,
     return (k8sconfig, False)
 
 
-def parse_api_group(api_version, url, resp) -> Tuple[List[K8sResource], Dict[str, str]]:
-    """Compile the K8s API `resp` into a `K8sResource` tuples.
+def parse_api_group(
+        api_version, url: str, resp: dict) -> Tuple[List[K8sResource], Dict[str, str]]:
+    """Compile the K8s API `resp` into a `K8sResource` tuple.
 
     The `resp` is the verbatim response from the K8s API group regarding the
     resources it provides. Here we compile those into `K8sResource` tuples iff

@@ -670,6 +670,24 @@ class TestUrlPathBuilder:
             # because the namespace is ignored for non-namespaced resources.
             assert k8s.resource(config, MM(src, "ClusterRole", "ns", "name")) == (res, err)  # noqa
 
+    def test_parse_api_group(self):
+        # Load specimen.
+        resp = yaml.safe_load(open("tests/support/api-v1.yaml").read())
+
+        # Parse the API groups.
+        group_urls, short = k8s.parse_api_group("version", "url", resp)
+        assert short == {
+            'binding': 'Binding', 'bindings': 'Binding',
+            'configmap': 'ConfigMap', 'configmaps': 'ConfigMap', 'cm': 'ConfigMap',
+            'namespace': 'Namespace', 'namespaces/status': 'Namespace'
+        }
+
+        assert group_urls == [
+            K8sResource(apiVersion='version', kind='ConfigMap',
+                        name='configmaps', namespaced=True,
+                        url='url')
+        ]
+
     @pytest.mark.parametrize("integrationtest", [False, True])
     async def test_resource_err(self, integrationtest, k8sconfig):
         """Test various error scenarios."""
