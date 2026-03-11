@@ -1,0 +1,38 @@
+# API response from https://127.0.0.1:40451/api/v1
+# This API describes all the resources of v1 resources of a 1.34 cluster.
+# This is an abridged version to only cover the case we are after, namely a
+# conventional one (ConfigMap), one with too few verbs (Binding) and one with a
+# "/" (namespace/status)
+kind: APIResourceList
+groupVersion: v1
+resources:
+  - name: bindings
+    singularName: binding
+    namespaced: true
+    kind: Binding
+    verbs:
+      - create
+  - name: configmaps
+    singularName: configmap
+    namespaced: true
+    kind: ConfigMap
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+    shortNames:
+      - cm
+    storageVersionHash: qFsyl6wFWjQ=
+  - name: namespaces/status
+    singularName: ""
+    namespaced: false
+    kind: Namespace
+    verbs:
+      - get
+      - patch
+      - update
