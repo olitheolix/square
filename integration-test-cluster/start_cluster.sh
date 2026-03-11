@@ -19,6 +19,7 @@ nodes:
 EOF
 
 # Create cluster, then delete its config file.
+kind delete cluster
 kind create cluster --config $KINDCONFIG --kubeconfig $KUBECONFIG
 rm $KINDCONFIG
 
