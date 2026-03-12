@@ -849,7 +849,7 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
     #     ...
     # }
     apigroups: Dict[str, Set[Tuple[str, str]]] = {}
-    preferred_group: Dict[str, str] = {}
+    preferred_grpver: Dict[str, str] = {}
     for group in resp["groups"]:
         name = group["name"]
 
@@ -858,16 +858,16 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
 
         # Compile all alternative versions into the same set.
         for version in group["versions"]:
-            ver = version["groupVersion"]
-            apigroups[name].add((ver, f"apis/{ver}"))
-            preferred_group[ver] = group["preferredVersion"]["groupVersion"]
+            gv = version["groupVersion"]
+            apigroups[name].add((gv, f"apis/{gv}"))
+            preferred_grpver[gv] = group["preferredVersion"]["groupVersion"]
         del group
 
-    # The "v1" group comprises the traditional core components like Service and
-    # Pod. This group is a special case and exposed under "api/v1" instead
-    # of the usual `apis/...` path.
+    # The "v1" group is special. It comprises the core components like Service
+    # and Pod and is always exposed under "api/v1" instead of the usual
+    # `apis/...` path.
     apigroups["v1"] = {("v1", "api/v1")}
-    preferred_group["v1"] = "v1"
+    preferred_grpver["v1"] = "v1"
 
     # Contact K8s to find out which resources each API group offers.
     # This will produce the following group_urls below (K = `K8sResource`): {
@@ -891,8 +891,8 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
                 logit.error(msg)
                 return True
 
-            data, short2kind = parse_api_group(api_version, url, resp)
-            group_urls[(group_name, api_version, url)] = data
+            k8s_resources, short2kind = parse_api_group(api_version, url, resp)
+            group_urls[(group_name, api_version, url)] = k8s_resources
             k8sconfig.short2kind.update(short2kind)
 
     # Produce the entries for `K8sConfig.apis` as described in the doc string.
@@ -903,7 +903,7 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
             key = (res.kind, res.apiVersion)  # fixme: define namedtuple
             k8sconfig.apis[key] = res._replace(url=f"{k8sconfig.url}/{res.url}")
 
-            if preferred_group[api_version] == api_version:
+            if preferred_grpver[api_version] == api_version:
                 default[res.kind].add(k8sconfig.apis[key])
                 k8sconfig.apis[(res.kind, "")] = k8sconfig.apis[key]
 
