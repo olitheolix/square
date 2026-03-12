@@ -745,8 +745,7 @@ async def cluster_config(kubeconfig: Path,
     return (k8sconfig, False)
 
 
-def parse_api_group(
-        api_version, url: str, resp: dict) -> Tuple[List[K8sResource], Dict[str, str]]:
+def parse_api_group(gv, url: str, resp: dict) -> Tuple[List[K8sResource], Dict[str, str]]:
     """Compile the K8s API `resp` into a `K8sResource` tuple.
 
     The `resp` is the verbatim response from the K8s API group regarding the
@@ -791,7 +790,7 @@ def parse_api_group(
         all_names = [name, res["singularName"]] + res.get("shortNames", [])
         tan = tuple(sorted(set(all_names)))
 
-        group_urls.append(K8sResource(api_version, kind, name, namespaced, url, tan))
+        group_urls.append(K8sResource(gv, kind, name, namespaced, url, tan))
 
     # Compile LUT to translate short names into their proper resource
     # kind: Example short2kind = {"service":, "Service", "svc": "Service"}
@@ -939,4 +938,106 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
     # Compile the set of all resource kinds that this Kubernetes cluster supports.
     for kind, _ in k8sconfig.apis:
         k8sconfig.kinds.add(kind)
+    return False
+
+
+async def compile_api_endpoints2(k8sconfig: K8sConfig) -> bool:
+    """Populate `k8sconfig.apis` with all the K8s endpoints.
+
+    NOTE: replaces `k8sconfig.apis` in its entirety.
+
+    The `k8sconfig.apis` will look like this:
+    {
+      configmaps: K8sResource(
+        apiVersion=v1, kind='ConfigMap', name='configmaps', namespaced=True,
+        url='https://localhost:8443/api/v1/configmaps'),
+      cronjob: K8sResource(
+        apiVersion='batch/v1beta1', kind='CronJob', name='cronjobs', namespaced=True,
+        url='https://localhost:8443/apis/batch/v1beta1/cronjobs'),
+      cronjob.batch: K8sResource(
+        apiVersion='batch/v1beta1', kind='CronJob', name='cronjobs', namespaced=True,
+        url='https://localhost:8443/apis/batch/v1beta1/cronjobs'),
+      cronjob.batch/v1: K8sResource(
+        apiVersion='batch/v1beta1', kind='CronJob', name='cronjobs', namespaced=True,
+        url='https://localhost:8443/apis/batch/v1beta1/cronjobs'),
+    }
+
+    Inputs:
+        k8sconfig: K8sConfig
+
+    """
+    # Compile the list of all K8s API groups that this K8s instance knows about.
+    resp, err = await get(k8sconfig, f"{k8sconfig.url}/apis")
+    if err:
+        logit.error(f"Could not interrogate {k8sconfig.name} ({k8sconfig.url}/apis)")
+        return True
+
+    # Determine the set of preferred groups. We will use this to mark the
+    # corresponding `K8sResource` instance.
+    preferred: Set[str] = {_["preferredVersion"]["groupVersion"] for _ in resp["groups"]}
+
+    # Determine the URL where we can get information for each group and version.
+    all_groups = [("v1", f"{k8sconfig.url}/api/v1")]
+    for group in resp["groups"]:
+        for version in group["versions"]:
+            gv = version["groupVersion"]
+            url = f"{k8sconfig.url}/apis/{gv}"
+            all_groups.append((gv, url))
+            del gv, url, version
+        del group
+
+    # Fetch information about each API group and extract their resources.
+    resources: List[K8sResource] = []
+    for gv, url in all_groups:
+        resp, err = await get(k8sconfig, url)
+        if err:
+            logit.error(f"Could not interrogate {k8sconfig.name} ({url})")
+            return True
+
+        tmp, _ = parse_api_group(gv, url, resp)
+        resources.extend(tmp)
+        del gv, url, resp, err, tmp
+
+    # Partition the APIs into the list of native (eg Pod, Service) and
+    # non-native ones (everything else, like Deployment).
+    res_not_v1 = [_ for _ in resources if _.apiVersion != "v1"]
+    res_v1 = [_ for _ in resources if _.apiVersion == "v1"]
+    del resources
+
+    # Temporary buffer that will be inserted into `k8sconfig.apis2` later.
+    apis: Dict[str, List[K8sResource]]
+    apis = defaultdict(list)
+
+    # Map each resource kind name to the correct K8sResource.
+    for res in res_not_v1:
+        # Update the `preferred` flag if necessary.
+        if res.apiVersion in preferred:
+            res = res._replace(preferred=True)
+
+        # Convenience: gv=apps/v1  group=apps
+        gv = res.apiVersion
+        group = gv.partition("/")[0]
+
+        # Create an entry in our `apis` table for possible ways to name a
+        # resource. Example:
+        # {"deploy", "deployment", "deployments"} x {"", ".apps", ".apps/v1"}
+        for name in res.all_names:
+            apis[name].append(res)
+            apis[f"{name}.{group}"].append(res)
+            apis[f"{name}.{gv}"].append(res)
+
+    # Repeat for v1 resources. Their `preferred` flag is always set because the
+    # native resources are special and will ever only exist in v1 and with no
+    # group. That is also the reason why we will never encounter something like
+    # `pod.v1`, unlike for the non-native ones in the previous loop.
+    for res in res_v1:
+        res = res._replace(preferred=True)
+
+        for name in res.all_names:
+            apis[name].clear()
+            apis[name].append(res)
+
+    # Replace the existing apis.
+    k8sconfig.apis2.clear()
+    k8sconfig.apis2.update(dict(apis))
     return False
