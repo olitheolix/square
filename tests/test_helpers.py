@@ -32,6 +32,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="clusterroles",
             namespaced=False,
             url=f"{config.url}/apis/rbac.authorization.k8s.io/v1",
+            all_names=("clusterrole", "clusterroles"),
         ),
         ("ClusterRole", "rbac.authorization.k8s.io/v1"): K8sResource(
             apiVersion="rbac.authorization.k8s.io/v1",
@@ -39,6 +40,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="clusterroles",
             namespaced=False,
             url=f"{config.url}/apis/rbac.authorization.k8s.io/v1",
+            all_names=("clusterrole", "clusterroles"),
         ),
         ("ConfigMap", ""): K8sResource(
             apiVersion="v1",
@@ -46,6 +48,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="configmaps",
             namespaced=True,
             url=f"{config.url}/api/v1",
+            all_names=("configmap", "configmaps", "cm"),
         ),
         ("ConfigMap", "v1"): K8sResource(
             apiVersion="v1",
@@ -53,6 +56,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="configmaps",
             namespaced=True,
             url=f"{config.url}/api/v1",
+            all_names=("configmap", "configmaps", "cm"),
         ),
         ("DemoCRD", ""): K8sResource(
             apiVersion="mycrd.com/v1",
@@ -60,6 +64,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="democrds",
             namespaced=True,
             url=f"{config.url}/apis/mycrd.com/v1",
+            all_names=("democrd", "democrds"),
         ),
         ("DemoCRD", "mycrd.com/v1"): K8sResource(
             apiVersion="mycrd.com/v1",
@@ -67,6 +72,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="democrds",
             namespaced=True,
             url=f"{config.url}/apis/mycrd.com/v1",
+            all_names=("democrd", "democrds"),
         ),
         ("Deployment", ""): K8sResource(
             apiVersion="apps/v1",
@@ -74,6 +80,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="deployments",
             namespaced=True,
             url=f"{config.url}/apis/apps/v1",
+            all_names=("deploy", "deployment", "deployments"),
         ),
         ("Deployment", "apps/v1"): K8sResource(
             apiVersion="apps/v1",
@@ -81,6 +88,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="deployments",
             namespaced=True,
             url=f"{config.url}/apis/apps/v1",
+            all_names=("deploy", "deployment", "deployments"),
         ),
         ("HorizontalPodAutoscaler", ""): K8sResource(
             apiVersion="autoscaling/v2",
@@ -88,6 +96,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="horizontalpodautoscalers",
             namespaced=True,
             url=f"{config.url}/apis/autoscaling/v2",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
         ),
         ("HorizontalPodAutoscaler", "autoscaling/v1"): K8sResource(
             apiVersion="autoscaling/v1",
@@ -95,6 +104,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="horizontalpodautoscalers",
             namespaced=True,
             url=f"{config.url}/apis/autoscaling/v1",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
         ),
         ("HorizontalPodAutoscaler", "autoscaling/v2"): K8sResource(
             apiVersion="autoscaling/v2",
@@ -102,6 +112,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="horizontalpodautoscalers",
             namespaced=True,
             url=f"{config.url}/apis/autoscaling/v2",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
         ),
         ("HorizontalPodAutoscaler", "autoscaling/v2beta1"): K8sResource(
             apiVersion="autoscaling/v2beta1",
@@ -109,6 +120,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="horizontalpodautoscalers",
             namespaced=True,
             url=f"{config.url}/apis/autoscaling/v2beta1",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
         ),
         ("HorizontalPodAutoscaler", "autoscaling/v2beta2"): K8sResource(
             apiVersion="autoscaling/v2beta2",
@@ -116,6 +128,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="horizontalpodautoscalers",
             namespaced=True,
             url=f"{config.url}/apis/autoscaling/v2beta2",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
         ),
         ("Ingress", ""): K8sResource(
             apiVersion="networking.k8s.io/v1",
@@ -123,6 +136,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="ingresses",
             namespaced=True,
             url=f"{config.url}/apis/networking.k8s.io/v1",
+            all_names=("ing", "ingress", "ingresses"),
         ),
         ("Ingress", "networking.k8s.io/v1"): K8sResource(
             apiVersion="networking.k8s.io/v1",
@@ -130,6 +144,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="ingresses",
             namespaced=True,
             url=f"{config.url}/apis/networking.k8s.io/v1",
+            all_names=("ing", "ingress", "ingresses"),
         ),
         ("Namespace", ""): K8sResource(
             apiVersion="v1",
@@ -137,6 +152,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="namespaces",
             namespaced=False,
             url=f"{config.url}/api/v1",
+            all_names=("namespace", "namespaces", "ns"),
         ),
         ("Namespace", "v1"): K8sResource(
             apiVersion="v1",
@@ -144,6 +160,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="namespaces",
             namespaced=False,
             url=f"{config.url}/api/v1",
+            all_names=("namespace", "namespaces", "ns"),
         ),
         ("Pod", ""): K8sResource(
             apiVersion="v1",
@@ -151,6 +168,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="pods",
             namespaced=True,
             url=f"{config.url}/api/v1",
+            all_names=("po", "pod", "pods"),
         ),
         ("Pod", "v1"): K8sResource(
             apiVersion="v1",
@@ -158,6 +176,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="pods",
             namespaced=True,
             url=f"{config.url}/api/v1",
+            all_names=("po", "pod", "pods"),
         ),
         ("Service", ""): K8sResource(
             apiVersion="v1",
@@ -165,6 +184,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="services",
             namespaced=True,
             url=f"{config.url}/api/v1",
+            all_names=("service", "services", "svc"),
         ),
         ("Service", "v1"): K8sResource(
             apiVersion="v1",
@@ -172,6 +192,7 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             name="services",
             namespaced=True,
             url=f"{config.url}/api/v1",
+            all_names=("service", "services", "svc"),
         ),
     }
 

@@ -596,7 +596,7 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
         K8sResource
 
     """
-    err_resp = (K8sResource("", "", "", False, ""), True)
+    err_resp = (K8sResource("", "", "", False, "", tuple()), True)
 
     # If `meta` specifies only a Kind but no group/version then we need to find
     # it first. This typically happens with a `square get` where the user just
@@ -782,11 +782,16 @@ def parse_api_group(
 
     # Compile the K8s resource definition into a `K8sResource` structure if it
     # is compatible with Square (see `valid` helper above).
-    group_urls: List[K8sResource]
-    group_urls = [
-        K8sResource(api_version, _["kind"], _["name"], _["namespaced"], url)
-        for _ in resources if valid(_)
-    ]
+    group_urls: List[K8sResource] = []
+    for res in resources:
+        if not valid(res):
+            continue
+
+        kind, name, namespaced = res["kind"], res["name"], res["namespaced"]
+        all_names = [name, res["singularName"]] + res.get("shortNames", [])
+        tan = tuple(sorted(set(all_names)))
+
+        group_urls.append(K8sResource(api_version, kind, name, namespaced, url, tan))
 
     # Compile LUT to translate short names into their proper resource
     # kind: Example short2kind = {"service":, "Service", "svc": "Service"}
@@ -803,7 +808,7 @@ def parse_api_group(
 
 
 async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
-    """Populate `k8sconfig.apis` with all the K8s endpoints`.
+    """Populate `k8sconfig.apis` with all the K8s endpoints.
 
     NOTE: This will purge the existing content in `k8sconfig.apis`.
 
