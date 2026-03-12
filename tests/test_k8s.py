@@ -403,7 +403,7 @@ class TestUrlPathBuilder:
         """
         # Fixtures.
         k8sconfig = await self.k8sconfig(integrationtest, k8sconfig)
-        err_resp = (K8sResource("", "", "", False, ""), True)
+        err_resp = (K8sResource("", "", "", False, "", tuple()), True)
 
         # Tuples of API version that we ask for (if any), and what the final
         # K8sResource element will contain.
@@ -422,6 +422,7 @@ class TestUrlPathBuilder:
             assert res == K8sResource(
                 apiVersion=expected, kind="Service", name="services", namespaced=True,
                 url=f"{k8sconfig.url}/api/v1/namespaces/ns/services/name",
+                all_names=("service", "services", "svc")
             )
 
             # All Services in all namespaces.
@@ -430,6 +431,7 @@ class TestUrlPathBuilder:
             assert res == K8sResource(
                 apiVersion=expected, kind="Service", name="services", namespaced=True,
                 url=f"{k8sconfig.url}/api/v1/services",
+                all_names=("service", "services", "svc"),
             )
 
             # All Services in a particular namespace.
@@ -438,6 +440,7 @@ class TestUrlPathBuilder:
             assert res == K8sResource(
                 apiVersion=expected, kind="Service", name="services", namespaced=True,
                 url=f"{k8sconfig.url}/api/v1/namespaces/ns/services",
+                all_names=("service", "services", "svc"),
             )
 
             # A particular Service in all namespaces -> Invalid.
@@ -454,7 +457,7 @@ class TestUrlPathBuilder:
         """
         config = await self.k8sconfig(False, k8sconfig)
         MM = MetaManifest
-        err_resp = (K8sResource("", "", "", False, ""), True)
+        err_resp = (K8sResource("", "", "", False, "", tuple()), True)
 
         # Tuples of API version that we ask for (if any), and what the final
         # K8sResource element will contain.
@@ -482,6 +485,7 @@ class TestUrlPathBuilder:
                 name=name,
                 namespaced=True,
                 url=f"{config.url}/apis/{expected}/namespaces/ns/{name}/name",
+                all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
             )
 
             # All HPAs in all namespaces.
@@ -493,6 +497,7 @@ class TestUrlPathBuilder:
                 name=name,
                 namespaced=True,
                 url=f"{config.url}/apis/{expected}/{name}",
+                all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
             )
 
             # All HPAs in a particular namespace.
@@ -504,6 +509,7 @@ class TestUrlPathBuilder:
                 name=name,
                 namespaced=True,
                 url=f"{config.url}/apis/{expected}/namespaces/ns/{name}",
+                all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
             )
 
             # A particular HPA in all namespaces -> Invalid.
@@ -519,7 +525,7 @@ class TestUrlPathBuilder:
         """
         config = await self.k8sconfig(True, k8sconfig)
         MM = MetaManifest
-        err_resp = (K8sResource("", "", "", False, ""), True)
+        err_resp = (K8sResource("", "", "", False, "", tuple()), True)
 
         # Tuples of API version that we ask for (if any), and what the final
         # K8sResource element will contain.
@@ -546,6 +552,7 @@ class TestUrlPathBuilder:
                 name=name,
                 namespaced=True,
                 url=f"{config.url}/{prefix}/{expected}/namespaces/ns/{name}/name",
+                all_names=("ev", "event", "events"),
             )
 
             # All Events APIs in all namespaces.
@@ -557,6 +564,7 @@ class TestUrlPathBuilder:
                 name=name,
                 namespaced=True,
                 url=f"{config.url}/{prefix}/{expected}/{name}",
+                all_names=("ev", "event", "events"),
             )
 
             # All Events in a particular namespace.
@@ -568,6 +576,7 @@ class TestUrlPathBuilder:
                 name=name,
                 namespaced=True,
                 url=f"{config.url}/{prefix}/{expected}/namespaces/ns/{name}",
+                all_names=("ev", "event", "events"),
             )
 
             # A particular Event in all namespaces -> Invalid.
@@ -597,6 +606,7 @@ class TestUrlPathBuilder:
                 name="namespaces",
                 namespaced=False,
                 url=f"{config.url}/api/v1/namespaces/name",
+                all_names=('namespace', 'namespaces', 'ns'),
             )
 
             # A particular Namespace in a particular namespace -> Invalid.
@@ -611,6 +621,7 @@ class TestUrlPathBuilder:
                 name="namespaces",
                 namespaced=False,
                 url=f"{config.url}/api/v1/namespaces",
+                all_names=('namespace', 'namespaces', 'ns'),
             )
 
             # Same as above because the "namespace" argument is ignored for Namespaces.
@@ -649,6 +660,7 @@ class TestUrlPathBuilder:
                 name="clusterroles",
                 namespaced=False,
                 url=f"{config.url}/apis/{expected}/clusterroles",
+                all_names=("clusterrole", "clusterroles"),
             )
 
             # All ClusterRoles in a particular namespace -> same as above
@@ -664,6 +676,7 @@ class TestUrlPathBuilder:
                 name="clusterroles",
                 namespaced=False,
                 url=f"{config.url}/apis/{expected}/clusterroles/name",
+                all_names=("clusterrole", "clusterroles"),
             )
 
             # A particular ClusterRole in a particular namespace -> Same as above
@@ -683,9 +696,14 @@ class TestUrlPathBuilder:
         }
 
         assert group_urls == [
-            K8sResource(apiVersion='version', kind='ConfigMap',
-                        name='configmaps', namespaced=True,
-                        url='url')
+            K8sResource(
+                apiVersion='version',
+                kind='ConfigMap',
+                name='configmaps',
+                all_names=("cm", "configmap", "configmaps"),
+                namespaced=True,
+                url='url'
+            )
         ]
 
     @pytest.mark.parametrize("integrationtest", [False, True])
@@ -693,7 +711,7 @@ class TestUrlPathBuilder:
         """Test various error scenarios."""
         # Fixtures.
         config = await self.k8sconfig(integrationtest, k8sconfig)
-        err_resp = (K8sResource("", "", "", False, ""), True)
+        err_resp = (K8sResource("", "", "", False, "", tuple()), True)
         MM = MetaManifest
 
         # Sanity check: ask for a valid Deployment.
@@ -701,7 +719,7 @@ class TestUrlPathBuilder:
         assert not err
 
         # Ask for a StatefulSet on a bogus API endpoint.
-        assert k8s.resource(config, MM("bogus", "StatefulSet", "ns", "name")) == err_resp
+        assert k8s.resource(config, MM("bogus", "Deployment", "ns", "name")) == err_resp
 
         # Ask for a bogus K8s kind.
         assert k8s.resource(config, MM("v1", "Bogus", "ns", "name")) == err_resp
@@ -824,6 +842,7 @@ class TestUrlPathBuilder:
             name="namespaces",
             namespaced=False,
             url=f"{config.url}/api/v1",
+            all_names=("namespace", "namespaces", "ns"),
         )
         hpa = "HorizontalPodAutoscaler"
         assert config.apis[(hpa, "autoscaling/v2")] == K8sResource(
@@ -832,6 +851,7 @@ class TestUrlPathBuilder:
             name="horizontalpodautoscalers",
             namespaced=True,
             url=f"{config.url}/apis/autoscaling/v2",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
         )
 
         # The current integration test cluster does not have those endpoints
@@ -845,6 +865,7 @@ class TestUrlPathBuilder:
                 name="horizontalpodautoscalers",
                 namespaced=True,
                 url=f"{config.url}/apis/autoscaling/v2beta1",
+                all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
             )
             assert config.apis[(hpa, "autoscaling/v2beta2")] == K8sResource(
                 apiVersion="autoscaling/v2beta2",
@@ -852,6 +873,7 @@ class TestUrlPathBuilder:
                 name="horizontalpodautoscalers",
                 namespaced=True,
                 url=f"{config.url}/apis/autoscaling/v2beta2",
+                all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
             )
         assert config.apis[("Pod", "v1")] == K8sResource(
             apiVersion="v1",
@@ -859,6 +881,7 @@ class TestUrlPathBuilder:
             name="pods",
             namespaced=True,
             url=f"{config.url}/api/v1",
+            all_names=("po", "pod", "pods"),
         )
         assert config.apis[("Deployment", "apps/v1")] == K8sResource(
             apiVersion="apps/v1",
@@ -866,6 +889,7 @@ class TestUrlPathBuilder:
             name="deployments",
             namespaced=True,
             url=f"{config.url}/apis/apps/v1",
+            all_names=("deploy", "deployment", "deployments"),
         )
         assert config.apis[("Ingress", "networking.k8s.io/v1")] == K8sResource(
             apiVersion="networking.k8s.io/v1",
@@ -873,6 +897,7 @@ class TestUrlPathBuilder:
             name="ingresses",
             namespaced=True,
             url=f"{config.url}/apis/networking.k8s.io/v1",
+            all_names=("ing", "ingress", "ingresses"),
         )
 
         # Verify our CRD.
@@ -882,6 +907,7 @@ class TestUrlPathBuilder:
             name="democrds",
             namespaced=True,
             url=f"{config.url}/apis/mycrd.com/v1",
+            all_names=("democrd", "democrds"),
         )
 
         # Verify default resource versions for a Deployment. In 1.24 the

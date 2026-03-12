@@ -27,6 +27,7 @@ resources:
       - watch
     shortNames:
       - cm
+      - cm                      # deliberately repeat to ensure the function is smart enough to remove duplicates.
     storageVersionHash: qFsyl6wFWjQ=
   - name: namespaces/status
     singularName: ""
