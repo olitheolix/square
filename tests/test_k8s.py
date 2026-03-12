@@ -760,6 +760,112 @@ class TestUrlPathBuilder:
         assert "deployment" not in k8sconfig.kinds
         assert "Deployments" not in k8sconfig.kinds
 
+    @mock.patch.object(k8s, "get")
+    async def test_compile_api_endpoints2(self, m_get, k8sconfig):
+        """Compile all endpoints from a pre-recorded set of API responses."""
+        # Make all web requests fail.
+        m_get.return_value = ({}, True)
+        assert await k8s.compile_api_endpoints2(k8sconfig) is True
+
+        # Make the call to /apis pass but the next ones fail.
+        m_get.side_effect = [({"groups": []}, False), ({}, True)]
+        assert await k8s.compile_api_endpoints2(k8sconfig) is True
+
+        # Sample return value for `https://k8s.com/apis`
+        fake_api = json.loads(open("tests/support/apis-v1-15-short.json").read())
+
+        # Pretend to be the K8s API and return the requested data from our
+        # recorded set of responses.
+        def supply_fake_api(_, url):
+            path = url.partition("/")[2]
+            return fake_api[path], False
+        m_get.side_effect = supply_fake_api
+
+        k8sconfig.apis2.clear()
+        assert await k8s.compile_api_endpoints2(k8sconfig) is False
+        assert isinstance(k8sconfig.apis, dict) and len(k8sconfig.apis) > 0
+
+        r_deploy_apps_v1 = K8sResource(
+            apiVersion="apps/v1",
+            kind="Deployment",
+            name="deployments",
+            namespaced=True,
+            url="/apis/apps/v1",
+            all_names=("deploy", "deployment", "deployments"),
+            preferred=True,
+        )
+        r_deploy_apps_v1beta = K8sResource(
+            apiVersion="apps/v1beta1",
+            kind="Deployment",
+            name="deployments",
+            namespaced=True,
+            url="/apis/apps/v1beta1",
+            all_names=("deploy", "deployment", "deployments"),
+            preferred=False,
+        )
+        r_deploy_fake_v1 = K8sResource(
+            apiVersion="fake.k8s.io/v1",
+            kind="Deployment",
+            name="deployments",
+            namespaced=True,
+            url="/apis/fake.k8s.io/v1",
+            all_names=("configmap", "deployment", "deployments", "fakedeploy"),
+            preferred=True,
+        )
+        r_cm_v1 = K8sResource(
+            apiVersion="v1",
+            kind="ConfigMap",
+            name="configmaps",
+            namespaced=True,
+            url="/api/v1",
+            all_names=("cm", "configmap", "configmaps"),
+            preferred=True,
+        )
+        r_po_v1 = K8sResource(
+            apiVersion="v1",
+            kind="Pod",
+            name="pods",
+            namespaced=True,
+            url="/api/v1",
+            all_names=("po", "pod", "pods"),
+            preferred=True,
+        )
+
+        assert k8sconfig.apis2 == {
+            "deploy": [r_deploy_apps_v1, r_deploy_apps_v1beta],
+            "deployment": [r_deploy_apps_v1, r_deploy_apps_v1beta, r_deploy_fake_v1],
+            "deployments": [r_deploy_apps_v1, r_deploy_apps_v1beta, r_deploy_fake_v1],
+            "deploy.apps": [r_deploy_apps_v1, r_deploy_apps_v1beta],
+            "deployment.apps": [r_deploy_apps_v1, r_deploy_apps_v1beta],
+            "deployments.apps": [r_deploy_apps_v1, r_deploy_apps_v1beta],
+            "deploy.apps/v1": [r_deploy_apps_v1],
+            "deployment.apps/v1": [r_deploy_apps_v1],
+            "deployments.apps/v1": [r_deploy_apps_v1],
+            "deploy.apps/v1beta1": [r_deploy_apps_v1beta],
+            "deployment.apps/v1beta1": [r_deploy_apps_v1beta],
+            "deployments.apps/v1beta1": [r_deploy_apps_v1beta],
+            "deployment.fake.k8s.io": [r_deploy_fake_v1],
+            "deployments.fake.k8s.io": [r_deploy_fake_v1],
+            "deployment.fake.k8s.io/v1": [r_deploy_fake_v1],
+            "deployments.fake.k8s.io/v1": [r_deploy_fake_v1],
+            "fakedeploy": [r_deploy_fake_v1],
+            "fakedeploy.fake.k8s.io": [r_deploy_fake_v1],
+            "fakedeploy.fake.k8s.io/v1": [r_deploy_fake_v1],
+            "configmap.fake.k8s.io": [r_deploy_fake_v1],
+            "configmap.fake.k8s.io/v1": [r_deploy_fake_v1],
+            "pod": [r_po_v1],
+            "pods": [r_po_v1],
+            "po": [r_po_v1],
+
+            # NOTE: `configmap` technically exists in r_deploy_fake_v1 as well
+            # but native resources are special and will never be shadowed. This
+            # matches the kubectl behaviour where `kubectl get pods` will always
+            # return pods even though a CRD may have defined `pods` as well.
+            "configmap": [r_cm_v1],
+            "configmaps": [r_cm_v1],
+            "cm": [r_cm_v1],
+        }
+
     @pytest.mark.parametrize("integrationtest", [False, True])
     async def test_compile_api_endpoints_resource_kinds(self, integrationtest, k8sconfig):
         """Manually verify some resource kinds."""

@@ -62,6 +62,7 @@ class K8sResource(NamedTuple):
     namespaced: bool  # Whether or not the resource is namespaced.
     url: str          # API endpoint, eg "k8s-host.com/api/v1/pods".
     all_names: Tuple[str, ...]  # all names (singular, plural, short hands).
+    preferred: bool = False
 
 
 class K8sConfig(NamedTuple):
@@ -85,6 +86,9 @@ class K8sConfig(NamedTuple):
 
     # Kubernetes API endpoints (see `k8s.compile_api_endpoints`).
     apis: Dict[Tuple[str, str], K8sResource] = {}
+
+    # Kubernetes API endpoints (see `k8s.compile_api_endpoints`).
+    apis2: Dict[str, List[K8sResource]] = {}
 
     # LUT to translate short names into their proper resource kind,
     # for instance short = {"service":, "Service", "svc": "Service"}
