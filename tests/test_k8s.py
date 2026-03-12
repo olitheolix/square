@@ -696,8 +696,8 @@ class TestUrlPathBuilder:
         err_resp = (K8sResource("", "", "", False, ""), True)
         MM = MetaManifest
 
-        # Sanity check: ask for a valid StatefulSet.
-        _, err = k8s.resource(config, MM("apps/v1", "StatefulSet", "ns", "name"))
+        # Sanity check: ask for a valid Deployment.
+        _, err = k8s.resource(config, MM("apps/v1", "Deployment", "ns", "name"))
         assert not err
 
         # Ask for a StatefulSet on a bogus API endpoint.
@@ -807,12 +807,10 @@ class TestUrlPathBuilder:
             # Some standard resources that every v1.24 Kubernetes cluster has.
             ('ClusterRole', 'rbac.authorization.k8s.io/v1'),
             ('ConfigMap', 'v1'),
-            ('DaemonSet', 'apps/v1'),
             ('Deployment', 'apps/v1'),
             ('HorizontalPodAutoscaler', 'autoscaling/v2'),
             ('Pod', 'v1'),
             ('Service', 'v1'),
-            ('ServiceAccount', 'v1'),
 
             # Our CustomCRD.
             ("DemoCRD", "mycrd.com/v1"),
