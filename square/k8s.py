@@ -1004,6 +1004,10 @@ async def compile_api_endpoints2(k8sconfig: K8sConfig) -> bool:
     res_v1 = [_ for _ in resources if _.apiVersion == "v1"]
     del resources
 
+    # Convenience only (no technical reason but was helpful during debugging).
+    res_v1.sort(key=lambda _: _.apiVersion)
+    res_not_v1.sort(key=lambda _: _.apiVersion)
+
     # Temporary buffer that will be inserted into `k8sconfig.apis2` later.
     apis: Dict[str, List[K8sResource]]
     apis = defaultdict(list)
@@ -1041,3 +1045,50 @@ async def compile_api_endpoints2(k8sconfig: K8sConfig) -> bool:
     k8sconfig.apis2.clear()
     k8sconfig.apis2.update(dict(apis))
     return False
+
+
+def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
+    """Validate all the `apis` and return an error if it finds something inconsistent.
+
+    NOTE: the caller should pass `k8sconfig.apis` for the `apis` variable.
+
+    """
+    err = False
+    for name, resources in apis.items():
+        # Is the name fully qualified (ie `kind.group/version`)?
+        if "/" in name:
+            if len(resources) != 1:
+                err = True
+                tmp = str.join(", ", [_.apiVersion for _ in resources])
+                logit.critical(
+                    f"bug: API <{name}> must contain exactly one resource "
+                    f"but contains {len(resources)}: {tmp}")
+                continue
+        else:
+            # Each API resource must contain at least one resource.
+            if len(resources) == 0:
+                err = True
+                logit.warning(f"bug: API <{name}> contains no preferred group-version")
+                continue
+
+            # Warn if we have multiple preferred version. That usually means the resource
+            # name is ambiguous and multiple groups provide one of its kind.
+            preferred = [_ for _ in resources if _.preferred]
+            if len(preferred) > 1:
+                tmp = str.join(", ", [_.apiVersion for _ in preferred])
+                N = len(preferred)
+                logit.warning(
+                    f"bug: API <{name}> contains {N} preferred group-versions: {tmp}"
+                )
+                continue
+
+        # Every resource must list the resource as one of its names. The name
+        # is just the first part: `deploy.apps/v1` -> `deploy`. This is because
+        # the various resource aliases only pertain to the unqualifed name.
+        name = name.partition(".")[0]
+        for res in resources:
+            if name not in res.all_names:
+                err = True
+                logit.critical(f"bug: API <{name}> does not belong to resource")
+
+    return err

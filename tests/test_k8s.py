@@ -783,7 +783,7 @@ class TestUrlPathBuilder:
 
         k8sconfig.apis2.clear()
         assert await k8s.compile_api_endpoints2(k8sconfig) is False
-        assert isinstance(k8sconfig.apis, dict) and len(k8sconfig.apis) > 0
+        assert isinstance(k8sconfig.apis2, dict) and len(k8sconfig.apis2) > 0
 
         r_deploy_apps_v1 = K8sResource(
             apiVersion="apps/v1",
@@ -865,6 +865,37 @@ class TestUrlPathBuilder:
             "configmaps": [r_cm_v1],
             "cm": [r_cm_v1],
         }
+
+    async def test_validate_apis(self):
+        # Fixtures.
+        r_deploy_p = K8sResource(
+            apiVersion="apps/v1",
+            kind="Deployment",
+            name="deployments",
+            namespaced=True,
+            url="/apis/apps/v1",
+            all_names=("deploy", "deployment", "deployments"),
+            preferred=True,
+        )
+        r_deploy_np = r_deploy_p._replace(preferred=False)
+
+        # Valid cases: each API must contain at least one element.
+        assert not k8s._validate_apis({})
+        assert not k8s._validate_apis({"deploy": [r_deploy_p]})
+        assert not k8s._validate_apis({"deploy": [r_deploy_p, r_deploy_np]})
+        assert not k8s._validate_apis({"deploy": [r_deploy_p, r_deploy_p, r_deploy_np]})
+        assert not k8s._validate_apis({"deploy.apps": [r_deploy_p]})
+        assert not k8s._validate_apis({"deploy.apps/v1": [r_deploy_p]})
+
+        # Various invalid cases.
+        assert k8s._validate_apis({"deploy": []})
+
+        # Invalid: the fully qualified kind, group and version must have
+        # exactly one entry by definition.
+        assert k8s._validate_apis({"deploy.apps/v1": [r_deploy_p, r_deploy_p]})
+
+        # `foo` is not one of the resource aliases.
+        assert k8s._validate_apis({"foo": [r_deploy_p]})
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     async def test_compile_api_endpoints_resource_kinds(self, integrationtest, k8sconfig):
