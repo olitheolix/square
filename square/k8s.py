@@ -1050,7 +1050,7 @@ async def compile_api_endpoints2(k8sconfig: K8sConfig) -> bool:
     # Replace the existing apis.
     k8sconfig.apis2.clear()
     k8sconfig.apis2.update(dict(apis))
-    return False
+    return _validate_apis(k8sconfig.apis2)
 
 
 def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
