@@ -27,7 +27,9 @@ resources:
       - watch
     shortNames:
       - cm
-      - cm                      # deliberately repeat to ensure the function is smart enough to remove duplicates.
+      # deliberately add a duplicate and empty string. Square must be smart enough to remove them.
+      - cm
+      - ""
     storageVersionHash: qFsyl6wFWjQ=
   - name: namespaces/status
     singularName: ""

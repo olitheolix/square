@@ -788,7 +788,12 @@ def parse_api_group(gv, url: str, resp: dict) -> Tuple[List[K8sResource], Dict[s
 
         kind, name, namespaced = res["kind"], res["name"], res["namespaced"]
         all_names = [name, res["singularName"]] + res.get("shortNames", [])
-        tan = tuple(sorted(set(all_names)))
+
+        # Remove duplicates and empty strings. Empty strings can happen for the
+        # `singularName`. Not sure why, but I have seen it happen.
+        all_names = set(all_names)
+        all_names.discard("")
+        tan = tuple(sorted(all_names))
 
         group_urls.append(K8sResource(gv, kind, name, namespaced, url, tan))
 
@@ -801,7 +806,8 @@ def parse_api_group(gv, url: str, resp: dict) -> Tuple[List[K8sResource], Dict[s
         short2kind[kind.lower()] = kind
         short2kind[res["name"]] = kind
         for short_name in res.get("shortNames", []):
-            short2kind[short_name] = kind
+            if short_name:
+                short2kind[short_name] = kind
 
     return (group_urls, short2kind)
 
