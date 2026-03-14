@@ -789,11 +789,12 @@ def parse_api_group(gv, url: str, resp: dict) -> Tuple[List[K8sResource], Dict[s
         kind, name, namespaced = res["kind"], res["name"], res["namespaced"]
         all_names = [name, res["singularName"]] + res.get("shortNames", [])
 
-        # Remove duplicates and empty strings. Empty strings can happen for the
-        # `singularName`. Not sure why, but I have seen it happen.
+        # Remove duplicates and empty strings that may occur when no
+        # `singularName` is specified. Furthermore, ensure that all names are
+        # lower case. They should be already, but just to be sure.
         all_names = set(all_names)
         all_names.discard("")
-        tan = tuple(sorted(all_names))
+        tan = tuple(sorted([_.lower() for _ in all_names]))
 
         group_urls.append(K8sResource(gv, kind, name, namespaced, url, tan))
 
@@ -1098,3 +1099,98 @@ def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
                 logit.critical(f"bug: API <{name}> does not belong to resource")
 
     return err
+
+
+def pick_api(
+        meta: MetaManifest, apis: Dict[str, List[K8sResource]]
+) -> Tuple[K8sResource, bool]:
+    """Selects the most appropriate API version for a given Kubernetes resource name.
+
+    Args:
+        meta: the Kubernetes resource to match to an API.
+        apis: should be `k8sconfig.apis`.
+
+    Returns:
+        - The selected K8sResource object.
+        - Error flag.
+
+    Selection logic in this order:
+        - Return the preferred group (this should be the case almost always).
+        - Pick the latest version:
+            a. Stable (e.g., v1, v2, ...)
+            b. Beta (e.g., v1beta1, v2beta2, ...)
+            c. Alpha (e.g., v1alpha1, v2alpha2, ...)
+        - For non-standard version names, return the last one in alphabetical order.
+
+    """
+    # Convenience.
+    err_resp = (K8sResource("", "", "", False, "", tuple()), True)
+
+    # Ignore capitalisation of `kind` and API version to allow the user to
+    # query "pod", "Pod", "PoD" etc.
+    kind, apiVersion = meta.kind.lower(), meta.apiVersion.lower()
+    name = f"{kind}.{apiVersion}" if apiVersion else kind
+    del kind, apiVersion
+
+    # Return an error if the resource `name` does not exist in the cluster.
+    if name not in apis:
+        logit.error(f"resource <{name}> does not exist")
+        return err_resp
+
+    # Return an error if the resource is provided by multiple API groups.
+    groups = {_.apiVersion.partition("/")[0] for _ in apis[name]}
+    if len(groups) > 1:
+        logit.error(
+            f"resource <{name}> is provided by multiple groups. "
+            f"Please specify one of them explicitly: {groups}"
+        )
+        return err_resp
+
+    # Return the preferred group if there is exactly one.
+    preferred = [_ for _ in apis[name] if _.preferred]
+    if len(preferred) == 1:
+        return preferred[0], False
+    elif len(preferred) > 1:
+        logit.error(
+            f"resource <{name}> has multiple preferred versions: {preferred}"
+        )
+        return err_resp
+
+    # If we got here it means we have no preferred API version. In that case,
+    # we will use a heuristic to determine, in this order, the highest stable,
+    # beta or alpha version.
+    api_dict = {_.apiVersion.partition("/")[2]: _ for _ in apis[name]}
+
+    p_stable = re.compile(r"^v\d+$")
+    p_alpha = re.compile(r"^v\d+alpha\d+$")
+    p_beta = re.compile(r"^v\d+beta\d+$")
+    stable = [_ for _ in api_dict if p_stable.match(_)]
+    alpha = [_ for _ in api_dict if p_alpha.match(_)]
+    beta = [_ for _ in api_dict if p_beta.match(_)]
+
+    stable.sort()
+    alpha.sort()
+    beta.sort()
+    if len(stable) > 0:
+        pick = api_dict[stable[-1]]
+        logit.info(f"Picked {pick.apiVersion} for <{name}>")
+        return pick, False
+
+    if len(beta) > 0:
+        pick = api_dict[beta[-1]]
+        logit.info(f"Picked {pick.apiVersion} for <{name}>")
+        return pick, False
+
+    if len(alpha) > 0:
+        pick = api_dict[alpha[-1]]
+        logit.info(f"Picked {pick.apiVersion} for <{name}>")
+        return pick, False
+
+    # If we could not find any canonically named stable/alpha/beta version then
+    # we simply pick the last one in alphabetical order.
+    other = tuple(sorted(api_dict))
+    pick = api_dict[other[-1]]
+    logit.warning(
+        f"could not find canonical version for <{name}>. Picked {pick.apiVersion} instead"
+    )
+    return pick, False

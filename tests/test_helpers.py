@@ -217,6 +217,14 @@ def k8s_apis2(config: K8sConfig) -> Dict[str, List[K8sResource]]:
             all_names=("po", "pod", "pods"),
             preferred=True,
         )],
+        "service": [K8sResource(
+            apiVersion="v1",
+            kind="Service",
+            name="services",
+            namespaced=True,
+            url=f"{config.url}/api/v1",
+            all_names=("service", "services", "svc"),
+        )],
         "deployment.apps/v1": [K8sResource(
             apiVersion="apps/v1",
             kind="Deployment",
