@@ -373,7 +373,7 @@ class TestUrlPathBuilder:
     async def k8sconfig(self, integrationtest: bool, ref_config):
         """Return a valid `K8sConfig`.
 
-        The returned `K8sConfig` model is either valid dummy or a genuine
+        The returned `K8sConfig` model is either a valid dummy or a genuine
         configuration to access the integration test cluster.
 
         """
@@ -1050,6 +1050,70 @@ class TestUrlPathBuilder:
         # Verify default resource versions for a Deployment. In 1.24 the
         # default (and only) API version for Deployments is `apps/v1`.
         assert config.apis[("Deployment", "")].apiVersion == "apps/v1"
+
+    @pytest.mark.parametrize("integrationtest", [False, True])
+    async def test_compile_api_endpoints2_integrated(self, integrationtest, k8sconfig):
+        """Ask for all endpoints and perform some sanity checks.
+
+        This test is about `compile_api_endpoints` but we only inspect the
+        K8sConfig structure which must have been populated by
+        `compile_api_endpoints` under the hood.
+
+        """
+        square.square.setup_logging(2)
+
+        # This will call `compile_api_endpoints` internally to populate fields
+        # in `k8sconfig`.
+        config = await self.k8sconfig(integrationtest, k8sconfig)
+
+        # Verify some standard resource types.
+        assert config.apis2["namespace"] == [K8sResource(
+            apiVersion="v1",
+            kind="Namespace",
+            name="namespaces",
+            namespaced=False,
+            url=f"{config.url}/api/v1",
+            all_names=("namespace", "namespaces", "ns"),
+            preferred=True,
+        )]
+        assert config.apis2["pod"] == [K8sResource(
+            apiVersion="v1",
+            kind="Pod",
+            name="pods",
+            namespaced=True,
+            url=f"{config.url}/api/v1",
+            all_names=("po", "pod", "pods"),
+            preferred=True,
+        )]
+        assert config.apis2["deployment.apps/v1"] == [K8sResource(
+            apiVersion="apps/v1",
+            kind="Deployment",
+            name="deployments",
+            namespaced=True,
+            url=f"{config.url}/apis/apps/v1",
+            all_names=("deploy", "deployment", "deployments"),
+            preferred=True,
+        )]
+        assert config.apis2["hpa.autoscaling/v2"] == [K8sResource(
+            apiVersion="autoscaling/v2",
+            kind="HorizontalPodAutoscaler",
+            name="horizontalpodautoscalers",
+            namespaced=True,
+            url=f"{config.url}/apis/autoscaling/v2",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+            preferred=True,
+        )]
+
+        # Verify our CRD.
+        assert config.apis2["democrd.mycrd.com/v1"] == [K8sResource(
+            apiVersion="mycrd.com/v1",
+            kind="DemoCRD",
+            name="democrds",
+            namespaced=True,
+            url=f"{config.url}/apis/mycrd.com/v1",
+            all_names=("democrd", "democrds"),
+            preferred=True,
+        )]
 
 
 class TestK8sKubeconfig:

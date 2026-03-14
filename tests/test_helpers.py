@@ -4,7 +4,7 @@ try:
 except ImportError:
     sh = None
 
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 
 from square.dtypes import K8sConfig, K8sResource
 
@@ -194,6 +194,56 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
             url=f"{config.url}/api/v1",
             all_names=("service", "services", "svc"),
         ),
+    }
+
+
+def k8s_apis2(config: K8sConfig) -> Dict[str, List[K8sResource]]:
+    return {
+        "namespace": [K8sResource(
+            apiVersion="v1",
+            kind="Namespace",
+            name="namespaces",
+            namespaced=False,
+            url=f"{config.url}/api/v1",
+            all_names=("namespace", "namespaces", "ns"),
+            preferred=True,
+        )],
+        "pod": [K8sResource(
+            apiVersion="v1",
+            kind="Pod",
+            name="pods",
+            namespaced=True,
+            url=f"{config.url}/api/v1",
+            all_names=("po", "pod", "pods"),
+            preferred=True,
+        )],
+        "deployment.apps/v1": [K8sResource(
+            apiVersion="apps/v1",
+            kind="Deployment",
+            name="deployments",
+            namespaced=True,
+            url=f"{config.url}/apis/apps/v1",
+            all_names=("deploy", "deployment", "deployments"),
+            preferred=True,
+        )],
+        "hpa.autoscaling/v2": [K8sResource(
+            apiVersion="autoscaling/v2",
+            kind="HorizontalPodAutoscaler",
+            name="horizontalpodautoscalers",
+            namespaced=True,
+            url=f"{config.url}/apis/autoscaling/v2",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+            preferred=True,
+        )],
+        "democrd.mycrd.com/v1": [K8sResource(
+            apiVersion="mycrd.com/v1",
+            kind="DemoCRD",
+            name="democrds",
+            namespaced=True,
+            url=f"{config.url}/apis/mycrd.com/v1",
+            all_names=("democrd", "democrds"),
+            preferred=True,
+        )],
     }
 
 
