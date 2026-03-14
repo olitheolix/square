@@ -1115,6 +1115,156 @@ class TestUrlPathBuilder:
             preferred=True,
         )]
 
+    def test_pick_api_kind_only(self):
+        """Infer the correct resource just from the Kind without the group."""
+        r_foo = K8sResource(
+            apiVersion="api-a.com/v1",
+            kind="Foo",
+            name="foo",
+            namespaced=True,
+            url="",
+            all_names=("foo", "ambiguous"),
+            preferred=True,
+        )
+        r_bar = K8sResource(
+            apiVersion="api-b.com/v1",
+            kind="Bar",
+            name="bar",
+            namespaced=True,
+            url="",
+            all_names=("bar", "ambiguous"),
+            preferred=True,
+        )
+
+        # -------------------- Error Cases --------------------
+
+        apis = {"foo": [r_foo], "bar": [r_bar], "ambiguous": [r_foo, r_bar]}
+        apiVersion = namespace = name = ""
+
+        # Invalid: resource does not exist.
+        meta = MetaManifest(apiVersion, "unknown", namespace, name)
+        _, err = k8s.pick_api(meta, apis)
+        assert err
+
+        # Invalid: two APIs provide a resource of the same name.
+        meta = MetaManifest(apiVersion, "ambiguous", namespace, name)
+        _, err = k8s.pick_api(meta, {"ambiguous": [r_foo, r_bar]})
+        assert err
+
+        # Invalid: `foo` has multiple preferred resources.
+        meta = MetaManifest(apiVersion, "foo", namespace, name)
+        _, err = k8s.pick_api(meta, {"foo": [r_foo, r_foo]})
+        assert err
+
+        # Invalid: MetaManifest.
+        invalid_apikind = [
+            ("non-empty", "kind.group"),
+            ("non-empty", "kind.group/v1"),
+        ]
+        for gv, kind in invalid_apikind:
+            meta = MetaManifest(gv, kind, namespace, name)
+            _, err = k8s.pick_api(meta, {"foo": [r_foo]})
+            assert err
+
+        # -------------------- Kind Only --------------------
+
+        r_foo_v1a1 = r_foo._replace(preferred=False, apiVersion="api-a.com/v1alpha1")
+        r_foo_v1a2 = r_foo._replace(preferred=False, apiVersion="api-a.com/v1alpha2")
+        r_foo_v2a1 = r_foo._replace(preferred=False, apiVersion="api-a.com/v2alpha1")
+        r_foo_v2a2 = r_foo._replace(preferred=False, apiVersion="api-a.com/v2alpha2")
+        r_foo_v1b1 = r_foo._replace(preferred=False, apiVersion="api-a.com/v1beta1")
+        r_foo_v1b2 = r_foo._replace(preferred=False, apiVersion="api-a.com/v1beta2")
+        r_foo_v2b1 = r_foo._replace(preferred=False, apiVersion="api-a.com/v2beta1")
+        r_foo_v2b2 = r_foo._replace(preferred=False, apiVersion="api-a.com/v2beta2")
+        r_foo_v1 = r_foo._replace(preferred=False, apiVersion="api-a.com/v1")
+        r_foo_v2 = r_foo._replace(preferred=False, apiVersion="api-a.com/v2")
+        r_foo_spam = r_foo._replace(preferred=False, apiVersion="api-a.com/spam")
+        r_foo_eggs = r_foo._replace(preferred=False, apiVersion="api-a.com/eggs")
+
+        # Must pick the one and only option.
+        apiVersion = namespace = name = ""
+        meta = MetaManifest(apiVersion, "foo", namespace, name)
+        apis = {"foo": [r_foo_v1a1]}
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v1a1
+
+        # Repeat: capitalisation of kind must not matter.
+        apiVersion = namespace = name = ""
+        apis = {"foo": [r_foo_v1a1]}
+        got, err = k8s.pick_api(MetaManifest(apiVersion, "FOO", namespace, name), apis)
+        assert not err and got is r_foo_v1a1
+
+        # Must pick the highest alpha version.
+        apis = {"foo": [r_foo_v1a1, r_foo_v1a2]}
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v1a2
+
+        # Must pick the highest alpha version.
+        apis = {"foo": [r_foo_v1a1, r_foo_v1a2, r_foo_v2a1, r_foo_v2a2]}
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v2a2
+
+        # Must pick the highest beta version.
+        apis = {"foo": [r_foo_v1a1, r_foo_v1b1, r_foo_v1b2, r_foo_v2b1, r_foo_v2b2]}
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v2b2
+
+        # Must pick the highest non-alpha/beta version.
+        apis = {"foo": [r_foo_v1a1, r_foo_v2a2, r_foo_v1b1, r_foo_v2b2, r_foo_v1]}
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v1
+
+        # Must pick the highest non-alpha/beta version.
+        apis = {"foo": [r_foo_v1a1, r_foo_v1b1, r_foo_v2b2, r_foo_v1, r_foo_v2]}
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v2
+
+        # Must pick the highest stable version even in the presence of
+        # non-canonical versions.
+        apis = {"foo": [r_foo_spam, r_foo_eggs, r_foo_v1, r_foo_v2]}
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v2
+
+        # Must pick the lexicographical last version if all versions are non-canonical.
+        apis = {"foo": [r_foo_eggs]}
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_eggs
+
+        # Must pick the lexicographical last version if all versions are non-canonical.
+        apis = {"foo": [r_foo_spam, r_foo_eggs]}
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_spam
+
+        # -------------------- Group & Kind (but no version) --------------------
+        apis = {"foo.api-a.com": [r_foo_v1a2, r_foo_v2b1, r_foo_v1, r_foo_v2]}
+        meta = MetaManifest("", "foo.api-a.com", namespace, name)
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v2
+
+        apis = {"foo.api-a.com": [r_foo_v1a2, r_foo_v2b1]}
+        meta = MetaManifest("", "foo.api-a.com", namespace, name)
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v2b1
+
+        # -------------------- Full GVK --------------------
+
+        apis = {"foo.api-a.com/v1": [r_foo_v1], "foo.api-a.com/v2": [r_foo_v2]}
+        meta = MetaManifest("api-a.com/v1", "foo", namespace, name)
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v1
+
+        meta = MetaManifest("", "foo.api-a.com/v1", namespace, name)
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v1
+
+        meta = MetaManifest("api-a.com/v2", "foo", namespace, name)
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v2
+
+        meta = MetaManifest("", "foo.api-a.com/v2", namespace, name)
+        got, err = k8s.pick_api(meta, apis)
+        assert not err and got is r_foo_v2
+
 
 class TestK8sKubeconfig:
     @mock.patch.object(k8s.os, "getenv")
