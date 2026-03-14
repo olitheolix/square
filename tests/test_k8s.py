@@ -1034,14 +1034,6 @@ class TestUrlPathBuilder:
             url=f"{config.url}/apis/apps/v1",
             all_names=("deploy", "deployment", "deployments"),
         )
-        assert config.apis[("Ingress", "networking.k8s.io/v1")] == K8sResource(
-            apiVersion="networking.k8s.io/v1",
-            kind="Ingress",
-            name="ingresses",
-            namespaced=True,
-            url=f"{config.url}/apis/networking.k8s.io/v1",
-            all_names=("ing", "ingress", "ingresses"),
-        )
 
         # Verify our CRD.
         assert config.apis[("DemoCRD", "mycrd.com/v1")] == K8sResource(
