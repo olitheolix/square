@@ -944,7 +944,7 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
     # Compile the set of all resource kinds that this Kubernetes cluster supports.
     for kind, _ in k8sconfig.apis:
         k8sconfig.kinds.add(kind)
-    return False
+    return await compile_api_endpoints2(k8sconfig)
 
 
 async def compile_api_endpoints2(k8sconfig: K8sConfig) -> bool:
