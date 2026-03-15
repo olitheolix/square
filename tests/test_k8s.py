@@ -856,6 +856,9 @@ class TestUrlPathBuilder:
             "pod": [r_po_v1],
             "pods": [r_po_v1],
             "po": [r_po_v1],
+            "pod.v1": [r_po_v1],
+            "pods.v1": [r_po_v1],
+            "po.v1": [r_po_v1],
 
             # NOTE: `configmap` technically exists in r_deploy_fake_v1 as well
             # but native resources are special and will never be shadowed. This
@@ -864,6 +867,9 @@ class TestUrlPathBuilder:
             "configmap": [r_cm_v1],
             "configmaps": [r_cm_v1],
             "cm": [r_cm_v1],
+            "configmap.v1": [r_cm_v1],
+            "configmaps.v1": [r_cm_v1],
+            "cm.v1": [r_cm_v1],
         }
 
     async def test_validate_apis(self):
