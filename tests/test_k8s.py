@@ -422,7 +422,8 @@ class TestUrlPathBuilder:
             assert res == K8sResource(
                 apiVersion=expected, kind="Service", name="services", namespaced=True,
                 url=f"{k8sconfig.url}/api/v1/namespaces/ns/services/name",
-                all_names=("service", "services", "svc")
+                all_names=("service", "services", "svc"),
+                preferred=True,
             )
 
             # All Services in all namespaces.
@@ -432,6 +433,7 @@ class TestUrlPathBuilder:
                 apiVersion=expected, kind="Service", name="services", namespaced=True,
                 url=f"{k8sconfig.url}/api/v1/services",
                 all_names=("service", "services", "svc"),
+                preferred=True,
             )
 
             # All Services in a particular namespace.
@@ -441,6 +443,7 @@ class TestUrlPathBuilder:
                 apiVersion=expected, kind="Service", name="services", namespaced=True,
                 url=f"{k8sconfig.url}/api/v1/namespaces/ns/services",
                 all_names=("service", "services", "svc"),
+                preferred=True,
             )
 
             # A particular Service in all namespaces -> Invalid.
@@ -553,6 +556,7 @@ class TestUrlPathBuilder:
                 namespaced=True,
                 url=f"{config.url}/{prefix}/{expected}/namespaces/ns/{name}/name",
                 all_names=("ev", "event", "events"),
+                preferred=True,
             )
 
             # All Events APIs in all namespaces.
@@ -565,6 +569,7 @@ class TestUrlPathBuilder:
                 namespaced=True,
                 url=f"{config.url}/{prefix}/{expected}/{name}",
                 all_names=("ev", "event", "events"),
+                preferred=True,
             )
 
             # All Events in a particular namespace.
@@ -577,6 +582,7 @@ class TestUrlPathBuilder:
                 namespaced=True,
                 url=f"{config.url}/{prefix}/{expected}/namespaces/ns/{name}",
                 all_names=("ev", "event", "events"),
+                preferred=True,
             )
 
             # A particular Event in all namespaces -> Invalid.
@@ -607,6 +613,7 @@ class TestUrlPathBuilder:
                 namespaced=False,
                 url=f"{config.url}/api/v1/namespaces/name",
                 all_names=('namespace', 'namespaces', 'ns'),
+                preferred=True,
             )
 
             # A particular Namespace in a particular namespace -> Invalid.
@@ -622,6 +629,7 @@ class TestUrlPathBuilder:
                 namespaced=False,
                 url=f"{config.url}/api/v1/namespaces",
                 all_names=('namespace', 'namespaces', 'ns'),
+                preferred=True,
             )
 
             # Same as above because the "namespace" argument is ignored for Namespaces.
@@ -661,6 +669,7 @@ class TestUrlPathBuilder:
                 namespaced=False,
                 url=f"{config.url}/apis/{expected}/clusterroles",
                 all_names=("clusterrole", "clusterroles"),
+                preferred=True,
             )
 
             # All ClusterRoles in a particular namespace -> same as above
@@ -677,6 +686,7 @@ class TestUrlPathBuilder:
                 namespaced=False,
                 url=f"{config.url}/apis/{expected}/clusterroles/name",
                 all_names=("clusterrole", "clusterroles"),
+                preferred=True,
             )
 
             # A particular ClusterRole in a particular namespace -> Same as above
@@ -702,7 +712,7 @@ class TestUrlPathBuilder:
                 name='configmaps',
                 all_names=("cm", "configmap", "configmaps"),
                 namespaced=True,
-                url='url'
+                url='url',
             )
         ]
 

@@ -598,29 +598,8 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
     """
     err_resp = (K8sResource("", "", "", False, "", tuple()), True)
 
-    # If `meta` specifies only a Kind but no group/version then we need to find
-    # it first. This typically happens with a `square get` where the user just
-    # asked for `cronjob` instead of the full `cronjob.batch`. In that case, we
-    # need to find the corresponding group.
-    if not meta.apiVersion:
-        # Use the most recent version of the API if None was specified.
-        candidates = [(kind, ver) for kind, ver in k8sconfig.apis if kind == meta.kind]
-        if len(candidates) == 0:
-            logit.warning(
-                f"Cannot determine API version for "
-                f"<{meta.kind}> on {k8sconfig.name}"
-            )
-            return err_resp
-        candidates.sort()
-        key = candidates.pop(0)
-    else:
-        key = (meta.kind, meta.apiVersion)
-
-    # Look up the canonical resource definition that K8s provided us with.
-    try:
-        resource = k8sconfig.apis[key]
-    except KeyError:
-        logit.error(f"Unsupported resource <{meta.kind}> on {k8sconfig.name}.")
+    resource, err = pick_api(meta, k8sconfig.apis2)
+    if err:
         return err_resp
 
     # Void the "namespace" key for non-namespaced resources.
