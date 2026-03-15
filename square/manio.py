@@ -106,6 +106,7 @@ def select(manifest: dict, selectors: Selectors,
     assert all([len(_) == 2 for _ in label_selectors])
 
     # Unpack KIND, LABELS and NAME.
+    api_version = manifest.get("apiVersion", "_unknown_")
     kind = manifest.get("kind", "_unknown_")
     labels = manifest.get("metadata", {}).get("labels", {})
     name = manifest.get("metadata", {}).get("name", "")
@@ -139,12 +140,21 @@ def select(manifest: dict, selectors: Selectors,
         logit.debug(f"Namespace {ns} does not match selector {selectors.namespaces}")
         return False
 
-    # Select this manifests if kind and name matches.
-    if MetaManifest("", kind=kind, namespace="", name=name) in selectors._metamanifests:
+    # Select this manifest if it has 1) a name and 2) its kind matches.
+    # Put differently, this is an explicit match of a particular resource.
+    meta = MetaManifest(apiVersion=api_version, kind=kind, namespace="", name=name)
+    kg = square.square.kind_group(meta)
+    if name and f"{kg}/{name}" in selectors._metamanifests:
         return True
+    del meta
 
-    # Reject this manifest if it does not have any of the admissible kinds.
-    if MetaManifest("", kind=kind, namespace="", name="") not in selectors._metamanifests:
+    # Reject this manifest if the user did not select its kind. We need to
+    # check for both "<kind>" and "<kind>.<group>" because we cannot know how
+    # the user specified the selectors. He might have used "pod" or "pod.v1",
+    # or "deploy" or "deploy.apps".
+    kind = kind.lower()
+    if not (kind in selectors._metamanifests or kg in selectors._metamanifests):
+        logit.info(f"Neither <{kind}> nor <{kg}> are in {selectors._metamanifests}")
         return False
 
     # The manifest must match all label selectors to be included.
@@ -901,6 +911,8 @@ def sort_manifests(
             not in the list.
 
     """
+    kg = square.square.kind_group
+
     # Sort the manifests in each file.
     out: Dict[Path, List[dict]] = {}
     for fname, manifests in file_manifests.items():
@@ -909,8 +921,8 @@ def sort_manifests(
         man_sorted: list = []
         for kind in priority:
             # Partition the manifest list into the current `kind` and the rest.
-            tmp = [_ for _ in manifests if _[0].kind == kind]
-            manifests = [_ for _ in manifests if _[0].kind != kind]
+            tmp = [_ for _ in manifests if kg(_[0]) == kind]
+            manifests = [_ for _ in manifests if kg(_[0]) != kind]
 
             # Append the manifests ordered by their MetaManifest.
             man_sorted += sorted(tmp, key=lambda _: _[0])
@@ -1010,8 +1022,11 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
     else:
         all_namespaces = config.selectors.namespaces
 
-    # Determine all the resource endpoints we need to hit.
-    all_kinds = {_.kind for _ in config.selectors._metamanifests}
+    # These are the resources the user has selected. We need to strip off the
+    # optional name, eg "deployment.apps/name" -> "deployment.apps" because
+    # Square will always fetch the entire resource list and do the filtering
+    # itself afterwards.
+    all_kinds = [_.partition("/")[0] for _ in config.selectors._metamanifests]
 
     # Compile the co-routines to download all requested resources.
     coroutines = []

@@ -19,11 +19,7 @@ class TestSelectors:
         assert sel.kinds == kinds
 
         # Must have produced a MetaManifest for each specified resource.
-        assert sel._metamanifests == {
-            MetaManifest(apiVersion="", kind="pod", namespace="", name=""),
-            MetaManifest(apiVersion="", kind="namespace", namespace="", name=""),
-            MetaManifest(apiVersion="", kind="deploy", namespace="", name="app1"),
-        }
+        assert sel._metamanifests == {"pod", "namespace", "deploy/app1"}
 
     def test_Selectors_modify_ok(self):
         """Modify the selectors via attribute assignment."""
@@ -34,14 +30,14 @@ class TestSelectors:
         # Assign directly to `.kinds` and verify this udpates `_metamanifests`.
         sel.kinds = {"x/y"}
         assert sel.kinds == {"x/y"}
-        assert sel._metamanifests == {MetaManifest("", "x", "", "y")}
+        assert sel._metamanifests == {"x/y"}
 
         # Use setter methods like `clear` and `update`. This must update
         # `._metamanifests` as well.
         sel.kinds.clear()
         sel.kinds.update({"a/b"})
         assert sel.kinds == {"a/b"}
-        assert sel._metamanifests == {MetaManifest("", "a", "", "b")}
+        assert sel._metamanifests == {"a/b"}
 
     def test_Selectors_err(self):
         """Various error scenarios of invalid resource kinds."""

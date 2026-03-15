@@ -1115,7 +1115,7 @@ def pick_api(
     name = f"{kind}.{apiVersion}" if apiVersion else kind
     del kind, apiVersion
 
-    # Return an error if the resource `name` does not exist in the cluster.
+    # Return an error if the resource does not exist in the cluster.
     if name not in apis:
         logit.error(f"resource <{name}> does not exist")
         return err_resp
@@ -1125,7 +1125,7 @@ def pick_api(
     if len(groups) > 1:
         logit.error(
             f"resource <{name}> is provided by multiple groups. "
-            f"Please specify one of them explicitly: {groups}"
+            f"Please specify one of them explicitly: {sorted(groups)}"
         )
         return err_resp
 

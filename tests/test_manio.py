@@ -239,30 +239,30 @@ class TestSelect:
 
         # Must be selected because it is a Pod.
         for namespaces in ([], ["ns"]):
-            selector = Selectors(kinds={"Pod"}, namespaces=namespaces)
+            selector = Selectors(kinds={"Pod.v1"}, namespaces=namespaces)
             assert select(manifest, selector, True) is True
 
         # Must be selected because it is the uniquely specified Pod.
         for namespaces in ([], ["ns"]):
-            selector = Selectors(kinds={"Pod/app"}, namespaces=namespaces)
+            selector = Selectors(kinds={"Pod.v1/app"}, namespaces=namespaces)
             assert select(manifest, selector, True) is True
 
         # Must not select it because it is not the uniquely specified Pod.
         for namespaces in ([], ["ns"]):
-            selector = Selectors(kinds={"Pod/foo"}, namespaces=namespaces)
+            selector = Selectors(kinds={"Pod.v1/foo"}, namespaces=namespaces)
             assert select(manifest, selector, True) is False
 
         # Must be selected because it is covered by "Pod".
         for namespaces in ([], ["ns"]):
-            selector = Selectors(kinds={"Pod/foo", "Pod"}, namespaces=namespaces)
+            selector = Selectors(kinds={"Pod.v1/foo", "Pod"}, namespaces=namespaces)
             assert select(manifest, selector, True) is True
 
         # Must never select the manifest if the namespace is wrong.
         selectors = [
-            Selectors(kinds={"Pod"}, namespaces=["wrong"]),
-            Selectors(kinds={"Pod/app"}, namespaces=["wrong"]),
-            Selectors(kinds={"Pod/foo"}, namespaces=["wrong"]),
-            Selectors(kinds={"Pod/foo", "Pod"}, namespaces=["wrong"]),
+            Selectors(kinds={"Pod.v1"}, namespaces=["wrong"]),
+            Selectors(kinds={"Pod.v1/app"}, namespaces=["wrong"]),
+            Selectors(kinds={"Pod.v1/foo"}, namespaces=["wrong"]),
+            Selectors(kinds={"Pod.v1/foo", "Pod"}, namespaces=["wrong"]),
         ]
         for selector in selectors:
             assert select(manifest, selector, True) is False
@@ -357,7 +357,7 @@ class TestYamlManifestIO:
     def test_sort_manifests(self):
         """Verify the sorted output for three files with randomly ordered manifests."""
         # Convenience.
-        priority = ["Namespace", "Service", "Deployment"]
+        priority = ["namespace.v1", "service.v1", "deployment.apps"]
 
         def mm(*args):
             man = make_manifest(*args)
@@ -435,7 +435,7 @@ class TestYamlManifestIO:
         meta_dpl_b = mm("Deployment", "b", "dpl-b")
 
         # --- Define manifests in the correctly prioritised order.
-        priority = ["Namespace", "Service", "Deployment"]
+        priority = ["namespace.v1", "service.v1", "deployment.apps"]
         sorted_manifests = [
             meta_ns_a,
             meta_ns_b,
@@ -455,7 +455,7 @@ class TestYamlManifestIO:
             assert fun(file_manifests, priority) == expected
 
         # --- Define manifests in the correctly prioritised order.
-        priority = ["Service", "Namespace", "Deployment"]
+        priority = ["service.v1", "namespace.v1", "deployment.apps"]
         sorted_manifests = [
             meta_svc_a,
             meta_svc_a,
@@ -475,7 +475,7 @@ class TestYamlManifestIO:
             assert fun(file_manifests, priority) == expected
 
         # --- Define manifests in the correctly prioritised order.
-        priority = ["Service", "Deployment"]
+        priority = ["service.v1", "deployment.apps"]
         sorted_manifests = [
             meta_svc_a,
             meta_svc_a,

@@ -25,34 +25,41 @@ logit = logging.getLogger("square")
 
 
 def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
-    """Convert `cfg.Selectors.kind` and `cfg.priorities` to their canonical names.
+    """Convert `cfg.Selectors.kind` and `cfg.priorities` to <kind>.<group>/<name> format.
 
-    Example: "svc" -> "Service" or "ns" -> "Namespace".
+    Examples:
+      - "svc" -> "service.v1"
+      - "svc/name" -> "service.v1/name"
+      - "deployments" -> "deployment.apps".
 
-    Silently ignore unknown resource kinds. This is necessary because the user
-    may have specified a custom resource that does not (yet) exist. Since we
-    cannot distinguish those from typos we allow them here because the
-    get/plan/apply cycle will ignore them anyway.
+    Silently remove unknown resource kinds.
 
     NOTE: this function has side effects. It changes `cfg.priorities` and
     `cfg.selectors` in-place.
 
     """
-    # Convenience
-    short2kind = k8sconfig.short2kind
-
-    # Translate the resource names in the priority list.
-    cfg.priorities = [short2kind.get(_.lower(), _) for _ in cfg.priorities]
-
     # Backup the original list of KIND selectors.
-    kinds_names = [(_.kind, _.name) for _ in cfg.selectors._metamanifests]
+    sel_res = list(cfg.selectors._metamanifests)
     cfg.selectors.kinds.clear()
+    cfg.selectors._metamanifests.clear()
 
-    # Convert eg [("ns"), ("svc", "app1")] -> {"Namespace", "Service/app1"}.
-    for kind, name in kinds_names:
-        ans = short2kind.get(kind.lower(), kind)
-        ans = ans if name == "" else f"{ans}/{name}"
-        cfg.selectors.kinds.add(ans)
+    for res in sel_res:
+        kg, _, name = res.partition("/")
+        r, err = k8s.pick_api(MetaManifest("", kg, "", ""), k8sconfig.apis2)
+        if not err:
+            group = r.apiVersion.partition("/")[0]
+            ans = f"{r.kind.lower()}.{group}"
+            ans = f"{ans}/{name}" if name else ans
+            cfg.selectors.kinds.add(ans)
+
+    priorities = list(cfg.priorities)
+    cfg.priorities.clear()
+    for kg in priorities:
+        r, err = k8s.pick_api(MetaManifest("", kg, "", ""), k8sconfig.apis2)
+        if not err:
+            group = r.apiVersion.partition("/")[0]
+            ans = f"{r.kind.lower()}.{group}"
+            cfg.priorities.append(ans)
 
     return cfg
 
@@ -70,10 +77,11 @@ def kind_group(meta: MetaManifest) -> str:
       assert group_kind(meta) == `job.batch`
 
     """
+    kind = meta.kind.lower()
     if not meta.apiVersion:
-        return meta.kind.lower()
+        return kind
     group = meta.apiVersion.partition("/")[0]
-    return f"{meta.kind.lower()}.{group}"
+    return f"{kind}.{group}"
 
 
 def make_patch(
@@ -634,19 +642,20 @@ def sort_plan(cfg: Config, plan: DeploymentPlan) -> Tuple[DeploymentPlan, bool]:
     # Assign all resource kinds that exist in `plan.{create,delete}` a priority
     # number that is larger than all other numbers in that list. This will
     # ensure they come last when we sort.
-    missing_create = {_.meta.kind for _ in plan.create if _.meta.kind not in priority_id}
-    priority_id.update({kind: max_id for kind in missing_create})
-    missing_delete = {_.meta.kind for _ in plan.delete if _.meta.kind not in priority_id}
-    priority_id.update({kind: max_id for kind in missing_delete})
+    kg = kind_group
+    missing_create = {kg(_.meta) for _ in plan.create if kg(_.meta) not in priority_id}
+    priority_id.update({_: max_id for _ in missing_create})
+    missing_delete = {kg(_.meta) for _ in plan.delete if kg(_.meta) not in priority_id}
+    priority_id.update({_: max_id for _ in missing_delete})
 
     # Sort the patches by priority ID and MetaManifest.
-    create = [(priority_id[_.meta.kind], _) for _ in plan.create]
+    create = [(priority_id[kg(_.meta)], _) for _ in plan.create]
     create.sort(key=lambda _: _[:2])
 
     # Repeat for the patches that will delete resources but reverse the final
     # list. This will ensure we remove resources in the reverse order in which
     # we would create them.
-    delete = [(priority_id[_.meta.kind], _) for _ in plan.delete]
+    delete = [(priority_id[kg(_.meta)], _) for _ in plan.delete]
     delete.sort(key=lambda _: _[:2])
     delete.reverse()
 
@@ -885,7 +894,8 @@ async def get_resources(cfg: Config) -> bool:
 
         # Convert "Selectors.kinds" to their canonical names.
         # NOTE: we cannot do this earlier, eg as part of the Pydantic model
-        # because we need access to K8s first.
+        # because we need access to K8s first so that `k8sconfig` contains all
+        # the API resources and groups.
         cfg = translate_resource_kinds(cfg, k8sconfig)
 
         # Use a wildcard Selector to ensure `manio.load` will read _all_ local
