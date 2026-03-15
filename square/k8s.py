@@ -1038,15 +1038,19 @@ async def compile_api_endpoints2(k8sconfig: K8sConfig) -> bool:
             apis[f"{name}.{gv}"].append(res)
 
     # Repeat for v1 resources. Their `preferred` flag is always set because the
-    # native resources are special and will ever only exist in v1 and with no
-    # group. That is also the reason why we will never encounter something like
-    # `pod.v1`, unlike for the non-native ones in the previous loop.
+    # native resources are special and will ever only exist in v1. Technically, they
+    # are not in any group but for convenience in other places we will pretend
+    # they exist in group "v1" but no version. The net effect is that the user
+    # can specify "pod" or "pod.v1", but not "pod/v1" or "pod.v1/v1".
     for res in res_v1:
         res = res._replace(preferred=True)
 
         for name in res.all_names:
             apis[name].clear()
             apis[name].append(res)
+
+            apis[name+".v1"].clear()
+            apis[name+".v1"].append(res)
 
     # Replace the existing apis.
     k8sconfig.apis2.clear()
