@@ -8,15 +8,14 @@ from typing import cast
 import pytest
 import yaml
 
-import square.cfgfile
+import square
 import square.k8s as k8s
-import square.manio
 import square.manio as manio
 import square.square as sq
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
     DeploymentPlan, DeploymentPlanMeta, GroupBy, JsonPatch, K8sConfig,
-    KindName, MetaManifest, Selectors, SquareManifests,
+    MetaManifest, Selectors, SquareManifests,
 )
 from square.k8s import resource
 
@@ -126,12 +125,11 @@ class TestBasic:
         ret = sq.translate_resource_kinds(cfg, k8sconfig)
         assert ret.priorities == ["Namespace", "Deployment"]
         assert ret.selectors.kinds == {"Service", "Deployment", "Secret"}
-        assert ret.selectors._kinds_only == {"Service", "Deployment", "Secret"}
-        assert ret.selectors._kinds_names == [
-            KindName(kind="Deployment", name=""),
-            KindName(kind="Secret", name=""),
-            KindName(kind="Service", name=""),
-        ]
+        assert ret.selectors._metamanifests == {
+            MetaManifest("", kind="Deployment", namespace="", name=""),
+            MetaManifest("", kind="Secret", namespace="", name=""),
+            MetaManifest("", kind="Service", namespace="", name=""),
+        }
 
         # Add two invalid resource names. This must succeed but return the
         # resource names without having changed them.
@@ -142,11 +140,10 @@ class TestBasic:
         ret = sq.translate_resource_kinds(cfg, k8sconfig)
         assert ret.priorities == ["invalid", "k8s-resource-kind"]
         assert ret.selectors.kinds == {"invalid", "k8s-resource-kind"}
-        assert ret.selectors._kinds_only == {"invalid", "k8s-resource-kind"}
-        assert ret.selectors._kinds_names == [
-            KindName(kind="invalid", name=""),
-            KindName(kind="k8s-resource-kind", name=""),
-        ]
+        assert ret.selectors._metamanifests == {
+            MetaManifest("", kind="invalid", namespace="", name=""),
+            MetaManifest("", kind="k8s-resource-kind", namespace="", name=""),
+        }
 
     def test_translate_resource_kinds_kind_name(self, k8sconfig):
         """Same as previous test but this time also specify `kind/name`."""
@@ -164,15 +161,14 @@ class TestBasic:
 
         # Verify the baseline.
         assert cfg.selectors.kinds == kinds
-        assert cfg.selectors._kinds_only == {"ns", "unknown-a"}
-        assert cfg.selectors._kinds_names == [
-            KindName(kind="DEPLOYMENT", name="app2"),
-            KindName(kind="namespace", name="foo"),
-            KindName(kind="ns", name=""),
-            KindName(kind="svc", name="app1"),
-            KindName(kind="unknown-a", name=""),
-            KindName(kind="unknown-b", name="foo"),
-        ]
+        assert cfg.selectors._metamanifests == {
+            MetaManifest("", kind="DEPLOYMENT", namespace="", name="app2"),
+            MetaManifest("", kind="namespace", namespace="", name="foo"),
+            MetaManifest("", kind="ns", namespace="", name=""),
+            MetaManifest("", kind="svc", namespace="", name="app1"),
+            MetaManifest("", kind="unknown-a", namespace="", name=""),
+            MetaManifest("", kind="unknown-b", namespace="", name="foo"),
+        }
 
         # Convert the selector KINDs to their canonical K8s KINDs.
         ret = sq.translate_resource_kinds(cfg, k8sconfig)
@@ -181,15 +177,14 @@ class TestBasic:
             "Namespace", "Namespace/foo",
             "unknown-a", "unknown-b/foo"
         }
-        assert ret.selectors._kinds_only == {"Namespace", "unknown-a"}
-        assert ret.selectors._kinds_names == [
-            KindName(kind="Deployment", name="app2"),
-            KindName(kind="Namespace", name=""),
-            KindName(kind="Namespace", name="foo"),
-            KindName(kind="Service", name="app1"),
-            KindName(kind="unknown-a", name=""),
-            KindName(kind="unknown-b", name="foo"),
-        ]
+        assert ret.selectors._metamanifests == {
+            MetaManifest("", kind="Deployment", namespace="", name="app2"),
+            MetaManifest("", kind="Namespace", namespace="", name=""),
+            MetaManifest("", kind="Namespace", namespace="", name="foo"),
+            MetaManifest("", kind="Service", namespace="", name="app1"),
+            MetaManifest("", kind="unknown-a", namespace="", name=""),
+            MetaManifest("", kind="unknown-b", namespace="", name="foo"),
+        }
 
     def test_valid_label(self):
         """Test label values (not their key names)."""

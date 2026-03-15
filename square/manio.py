@@ -10,13 +10,11 @@ from typing import DefaultDict, Dict, Iterable, List, Tuple
 import yaml.parser
 import yaml.scanner
 
-import square.callbacks
-import square.cfgfile
 import square.k8s
 import square.square
 from square.dtypes import (
-    Config, FiltersKind, GroupBy, K8sConfig, KindName, LocalManifestLists,
-    MetaManifest, Selectors, SquareManifests,
+    Config, FiltersKind, GroupBy, K8sConfig, LocalManifestLists, MetaManifest,
+    Selectors, SquareManifests,
 )
 from square.yaml_io import Dumper, Loader
 

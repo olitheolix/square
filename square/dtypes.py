@@ -152,12 +152,6 @@ class DeploymentPlanMeta(NamedTuple):
 # -----------------------------------------------------------------------------
 #                             Square Configuration
 # -----------------------------------------------------------------------------
-class KindName(BaseModel):
-    """Holds a K8s resource Kind."""
-    kind: str = Field(min_length=1)  # Eg 'Service'
-    name: str                        # Eg. 'appname'
-
-
 class Selectors(BaseModel):
     """Parameters to target specific groups of manifests."""
     model_config = {"str_strip_whitespace": True}
@@ -165,47 +159,6 @@ class Selectors(BaseModel):
     kinds: Set[str] = set()
     namespaces: List[str] = []
     labels: List[str] = []
-
-    @property
-    def _kinds_names(self) -> List[KindName]:
-        """Deconstruct the Selector Kinds into Kind and Name.
-
-        These are the valid scenarios:
-          'Service'     -> ('Service', '')
-          'Service/'    -> ('Service', '')
-          'Service/foo' -> ('Service', 'foo')
-
-        """
-        # Unpack the 'Kind/Name' into a dedicated `KindName` model.
-        ans: List[KindName] = []
-        for src_kind in sorted(self.kinds):
-            # Ensure the `src_kind` has at most one '/'.
-            parts = src_kind.split("/")
-            if len(parts) == 1:
-                kind, name = parts[0], ""
-            elif len(parts) == 2:
-                kind, name = parts
-            else:
-                raise ValueError(f"Invalid kind {src_kind}")
-
-            # There must be no leading/trailing white space.
-            if (kind.strip() != kind) or (name.strip() != name):
-                raise ValueError(f"Invalid kind {src_kind}")
-
-            # Add the deconstructed Kind/Name selector.
-            ans.append(KindName(kind=kind, name=name))
-        return ans
-
-    @property
-    def _kinds_only(self) -> Set[str]:
-        """Compile the set of resource KINDS we are interested in.
-
-        NOTE: If the user selects `{"pod/app1", "deploy", "deploy/app1"}` then
-        we only want to retain `deploy` since `pod/app1` selects a unique Pod
-        whereas `deploy` selects all `Deployment` resources.
-
-        """
-        return {_.kind for _ in self._kinds_names if _.name == ""}
 
     @property
     def _metamanifests(self) -> Set[MetaManifest]:
@@ -217,7 +170,7 @@ class Selectors(BaseModel):
           'Service/foo' -> {MetaManifest('', 'Service', '', 'foo'}
 
         """
-        # Unpack the 'Kind/Name' into a dedicated `KindName` model.
+        # Unpack the 'Kind/Name' into a dedicated `MetaManifest` model.
         ans: Set[MetaManifest] = set()
         for src_kind in sorted(self.kinds):
             # Ensure the `src_kind` has at most one '/'.
