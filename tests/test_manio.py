@@ -242,7 +242,7 @@ class TestSelect:
             selector = Selectors(kinds={"Pod"}, namespaces=namespaces)
             assert select(manifest, selector, True) is True
 
-        # Must be selected because it is uniquely specified Pod.
+        # Must be selected because it is the uniquely specified Pod.
         for namespaces in ([], ["ns"]):
             selector = Selectors(kinds={"Pod/app"}, namespaces=namespaces)
             assert select(manifest, selector, True) is True

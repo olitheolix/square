@@ -45,7 +45,7 @@ def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
     cfg.priorities = [short2kind.get(_.lower(), _) for _ in cfg.priorities]
 
     # Backup the original list of KIND selectors.
-    kinds_names = [(_.kind, _.name) for _ in cfg.selectors._kinds_names]
+    kinds_names = [(_.kind, _.name) for _ in cfg.selectors._metamanifests]
     cfg.selectors.kinds.clear()
 
     # Convert eg [("ns"), ("svc", "app1")] -> {"Namespace", "Service/app1"}.
