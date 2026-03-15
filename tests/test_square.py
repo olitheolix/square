@@ -125,38 +125,39 @@ class TestBasic:
 
     def test_translate_resource_kinds_simple(self, k8sconfig):
         """Translate various spellings in `selectors.kinds`"""
+        k1 = {"service", 'DEPLOYMENT'}
+        k2 = {"service.v1", "deployment.apps"}
+
+        for kinds in [k1, k2]:
+            cfg = Config(
+                folder=Path('/tmp'),
+                kubeconfig=Path(),
+                kubecontext=None,
+                groupby=GroupBy(),
+                priorities=["namespace", "DEPLOYMENT"],
+                selectors=Selectors(kinds=kinds)
+            )
+
+            # Convert the resource names to their correct K8s kind.
+            ret = sq.translate_resource_kinds(cfg, k8sconfig)
+            assert ret.priorities == ["namespace.v1", "deployment.apps"]
+            assert ret.selectors.kinds == {"service.v1", "deployment.apps"}
+            assert ret.selectors._metamanifests == {"deployment.apps", "service.v1"}
+
+        # Add two invalid resource names. This must succeed but return the
+        # resource names without having changed them.
         cfg = Config(
             folder=Path('/tmp'),
             kubeconfig=Path(),
             kubecontext=None,
             groupby=GroupBy(),
-            priorities=["ns", "DEPLOYMENT"],
-            selectors=Selectors(kinds={"svc", 'DEPLOYMENT', "Secret"}),
+            priorities=["namespace", "DEPLOYMENT", "invalid", "k8s-resource-kind"],
+            selectors=Selectors(kinds={"invalid", "k8s-resource-kind"})
         )
-
-        # Convert the resource names to their correct K8s kind.
         ret = sq.translate_resource_kinds(cfg, k8sconfig)
-        assert ret.priorities == ["Namespace", "Deployment"]
-        assert ret.selectors.kinds == {"Service", "Deployment", "Secret"}
-        assert ret.selectors._metamanifests == {
-            MetaManifest("", kind="Deployment", namespace="", name=""),
-            MetaManifest("", kind="Secret", namespace="", name=""),
-            MetaManifest("", kind="Service", namespace="", name=""),
-        }
-
-        # Add two invalid resource names. This must succeed but return the
-        # resource names without having changed them.
-        cfg.selectors.kinds.clear()
-        cfg.selectors.kinds.update({"invalid", "k8s-resource-kind"})
-        cfg.priorities.clear()
-        cfg.priorities.extend(["invalid", "k8s-resource-kind"])
-        ret = sq.translate_resource_kinds(cfg, k8sconfig)
-        assert ret.priorities == ["invalid", "k8s-resource-kind"]
-        assert ret.selectors.kinds == {"invalid", "k8s-resource-kind"}
-        assert ret.selectors._metamanifests == {
-            MetaManifest("", kind="invalid", namespace="", name=""),
-            MetaManifest("", kind="k8s-resource-kind", namespace="", name=""),
-        }
+        assert ret.priorities == ["namespace.v1", "deployment.apps"]
+        assert ret.selectors.kinds == set()
+        assert ret.selectors._metamanifests == set()
 
     def test_translate_resource_kinds_kind_name(self, k8sconfig):
         """Same as previous test but this time also specify `kind/name`."""
@@ -175,28 +176,21 @@ class TestBasic:
         # Verify the baseline.
         assert cfg.selectors.kinds == kinds
         assert cfg.selectors._metamanifests == {
-            MetaManifest("", kind="DEPLOYMENT", namespace="", name="app2"),
-            MetaManifest("", kind="namespace", namespace="", name="foo"),
-            MetaManifest("", kind="ns", namespace="", name=""),
-            MetaManifest("", kind="svc", namespace="", name="app1"),
-            MetaManifest("", kind="unknown-a", namespace="", name=""),
-            MetaManifest("", kind="unknown-b", namespace="", name="foo"),
+            "deployment/app2", "namespace/foo", "ns", "svc/app1", "unknown-a",
+            "unknown-b/foo"
         }
 
         # Convert the selector KINDs to their canonical K8s KINDs.
         ret = sq.translate_resource_kinds(cfg, k8sconfig)
         assert ret.selectors.kinds == {
-            "Service/app1", "Deployment/app2",
-            "Namespace", "Namespace/foo",
-            "unknown-a", "unknown-b/foo"
+            "service.v1/app1", "deployment.apps/app2",
+            "namespace.v1", "namespace.v1/foo",
         }
         assert ret.selectors._metamanifests == {
-            MetaManifest("", kind="Deployment", namespace="", name="app2"),
-            MetaManifest("", kind="Namespace", namespace="", name=""),
-            MetaManifest("", kind="Namespace", namespace="", name="foo"),
-            MetaManifest("", kind="Service", namespace="", name="app1"),
-            MetaManifest("", kind="unknown-a", namespace="", name=""),
-            MetaManifest("", kind="unknown-b", namespace="", name="foo"),
+            "deployment.apps/app2",
+            "namespace.v1",
+            "namespace.v1/foo",
+            "service.v1/app1",
         }
 
     def test_valid_label(self):
@@ -725,7 +719,7 @@ class TestPlan:
         valid_b = make_manifest(kind, namespace, "foo")
         assert sq.make_patch(k8sconfig, valid_a, valid_b) == err_resp
 
-    def test_sort_plan(self, config):
+    def test_sort_plan(self, config, k8sconfig):
         # Dummy MetaManifests that we will use in our test plan.
         meta_ns0 = MetaManifest('v1', 'Namespace', None, 'ns0')
         meta_ns1 = MetaManifest('v1', 'Namespace', None, 'ns1')
@@ -762,6 +756,7 @@ class TestPlan:
         )
 
         config.priorities = ["Namespace", "Service", "Deployment"]
+        config = sq.translate_resource_kinds(config, k8sconfig)
         plan = copy.deepcopy(expected)
         for _ in range(10):
             random.shuffle(cast(list, plan.create))
@@ -797,6 +792,7 @@ class TestPlan:
             ],
         )
         config.priorities = ["Namespace", "Deployment"]
+        config = sq.translate_resource_kinds(config, k8sconfig)
         plan = copy.deepcopy(expected)
         for _ in range(10):
             random.shuffle(cast(list, plan.create))
@@ -1553,7 +1549,7 @@ class TestMainOptions:
         assert plan.patch == plan.delete == []
         assert len(plan.create) == 2
 
-        # Selector matches only one pods: Square must plan to create it.
+        # Selector matches only one pod: Square must plan to create it.
         config.selectors = Selectors(kinds={"Pod/pod-1"})
         plan, err = await sq.make_plan(config)
         assert not err

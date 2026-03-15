@@ -161,17 +161,19 @@ class Selectors(BaseModel):
     labels: List[str] = []
 
     @property
-    def _metamanifests(self) -> Set[MetaManifest]:
+    def _metamanifests(self) -> Set[str]:
         """Parse the Selected resources into `MetaManifest` instances.
 
         These are the valid scenarios:
-          'Service'     -> {MetaManifest('', 'Service', '', ''}
-          'Service/'    -> {MetaManifest('', 'Service', '', ''}
-          'Service/foo' -> {MetaManifest('', 'Service', '', 'foo'}
+          'Service'               -> {"service"}
+          'Service/'              -> {"service"}
+          'SVC/name'              -> {svc/name}
+          'Svc.v1/name'           -> {svc.v1/name}
+          'DepLoyMenTS.apps/name' -> {deployment.apps/name}
 
         """
         # Unpack the 'Kind/Name' into a dedicated `MetaManifest` model.
-        ans: Set[MetaManifest] = set()
+        ans: Set[str] = set()
         for src_kind in sorted(self.kinds):
             # Ensure the `src_kind` has at most one '/'.
             parts = src_kind.split("/")
@@ -186,8 +188,9 @@ class Selectors(BaseModel):
             if (kind.strip() != kind) or (name.strip() != name) or kind == "":
                 raise ValueError(f"Invalid kind {src_kind}")
 
-            # Add the deconstructed Kind/Name selector.
-            ans.add(MetaManifest(apiVersion="", kind=kind, namespace="", name=name))
+            kind = kind.lower()
+            out = f"{kind}/{name}" if name else kind
+            ans.add(out)
         return ans
 
 
@@ -251,6 +254,7 @@ class Config(BaseModel):
     selectors: Selectors = Selectors()
 
     # Sort the manifest in this order, or alphabetically at the end if not in the list.
+    # Examples: ["pod", "service.v1", "deploy.apps"]
     priorities: List[str] = list(DEFAULT_PRIORITIES)
 
     # How to structure the folder directory when syncing manifests.
