@@ -207,6 +207,36 @@ class Selectors(BaseModel):
         """
         return {_.kind for _ in self._kinds_names if _.name == ""}
 
+    @property
+    def _metamanifests(self) -> Set[MetaManifest]:
+        """Parse the Selected resources into `MetaManifest` instances.
+
+        These are the valid scenarios:
+          'Service'     -> {MetaManifest('', 'Service', '', ''}
+          'Service/'    -> {MetaManifest('', 'Service', '', ''}
+          'Service/foo' -> {MetaManifest('', 'Service', '', 'foo'}
+
+        """
+        # Unpack the 'Kind/Name' into a dedicated `KindName` model.
+        ans: Set[MetaManifest] = set()
+        for src_kind in sorted(self.kinds):
+            # Ensure the `src_kind` has at most one '/'.
+            parts = src_kind.split("/")
+            if len(parts) == 1:
+                kind, name = parts[0], ""
+            elif len(parts) == 2:
+                kind, name = parts
+            else:
+                raise ValueError(f"Invalid kind {src_kind}")
+
+            # There must be no leading/trailing white space.
+            if (kind.strip() != kind) or (name.strip() != name) or kind == "":
+                raise ValueError(f"Invalid kind {src_kind}")
+
+            # Add the deconstructed Kind/Name selector.
+            ans.add(MetaManifest(apiVersion="", kind=kind, namespace="", name=name))
+        return ans
+
 
 class GroupBy(BaseModel):
     """Define how to organise downloaded manifests on the files system."""

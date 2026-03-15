@@ -90,6 +90,7 @@ def load(fname: Path) -> Tuple[Config, bool]:
         # to happen here.
         cfg.selectors._kinds_names
         cfg.selectors._kinds_only
+        cfg.selectors._metamanifests
     except (pydantic.ValidationError, TypeError) as e:
         logit.error(f"Schema is invalid: {e}")
         return err_resp

@@ -1,6 +1,6 @@
 import pytest
 
-from square.dtypes import KindName, Selectors
+from square.dtypes import KindName, MetaManifest, Selectors
 
 
 class TestSelectors:
@@ -13,6 +13,7 @@ class TestSelectors:
         sel = Selectors()
         assert sel.kinds == sel._kinds_only == set()
         assert sel._kinds_names == []
+        assert sel._metamanifests == set()
 
         # Verify the three valid cases to specify a resource kind.
         kinds = {"pod", "namespace/", "deploy/app1"}
@@ -22,6 +23,11 @@ class TestSelectors:
         # Must not include the `deploy` because it specifies a specific
         # resource instead of just a generic KIND.
         assert sel._kinds_only == {"pod", "namespace"}
+        assert sel._metamanifests == {
+            MetaManifest(apiVersion="", kind="pod", namespace="", name=""),
+            MetaManifest(apiVersion="", kind="namespace", namespace="", name=""),
+            MetaManifest(apiVersion="", kind="deploy", namespace="", name="app1"),
+        }
 
         # The unpacked `_kinds_names` must be in alphabetical order.
         assert sel._kinds_names == [
@@ -64,13 +70,15 @@ class TestSelectors:
         sel.kinds = {"x/y"}
         assert sel.kinds == {"x/y"}
         assert sel._kinds_names == [KindName(kind="x", name="y")]
+        assert sel._metamanifests == {MetaManifest("", "x", "", "y")}
 
-        # Use set methods like to `clear` and `update`. This must update
+        # Use setter methods like `clear` and `update`. This must update
         # the `_kinds_names` attribute as well.
         sel.kinds.clear()
         sel.kinds.update({"a/b"})
         assert sel.kinds == {"a/b"}
         assert sel._kinds_names == [KindName(kind="a", name="b")]
+        assert sel._metamanifests == {MetaManifest("", "a", "", "b")}
 
     def test_Selectors_duplicates(self):
         """Must remove duplicate kinds after removing white space."""
@@ -93,10 +101,14 @@ class TestSelectors:
         # Various cases of invalid "kind" names.
         invalid_kinds = [
             "", "/", "/bar",
-            " /", "/ ", " / "
-            "foo / bar", "foo/ bar", "foo /bar"
+            " /", "/ ", " / ",
+            "foo / bar", "foo/ bar", "foo /bar",
+            "/ foo / bar",
         ]
 
         for kind in invalid_kinds:
             with pytest.raises(ValueError):
                 Selectors(kinds={kind})._kinds_names
+
+            with pytest.raises(ValueError):
+                Selectors(kinds={kind})._metamanifests

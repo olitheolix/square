@@ -135,18 +135,18 @@ def select(manifest: dict, selectors: Selectors,
     else:
         pass
 
-    # Skip this resource if it is a) namespaced b) we have namespace
-    # selectors and c) the resource does not match it.
+    # Skip this resource if it is a) namespaced, b) we have namespace selectors
+    # and c) the resource does not match it.
     if (ns and selectors.namespaces) and ns not in selectors.namespaces:
         logit.debug(f"Namespace {ns} does not match selector {selectors.namespaces}")
         return False
 
-    if KindName(kind=kind, name=name) in selectors._kinds_names:
+    # Select this manifests if kind and name matches.
+    if MetaManifest("", kind=kind, namespace="", name=name) in selectors._metamanifests:
         return True
 
-    # Abort if this manifest does not have a KIND that matches the selector.
-    if kind not in selectors._kinds_only:
-        logit.debug(f"Kind {kind} does not match selector {selectors.kinds}")
+    # Reject this manifest if it does not have any of the admissible kinds.
+    if MetaManifest("", kind=kind, namespace="", name="") not in selectors._metamanifests:
         return False
 
     # The manifest must match all label selectors to be included.
@@ -1012,12 +1012,8 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
     else:
         all_namespaces = config.selectors.namespaces
 
-    # Determine all the resource endpoints we need to interrogate K8s. We
-    # cannot use `config.selectors._kinds_only` because it will be empty if the
-    # user selected only specific resources, eg `svc/foo` instead of just
-    # `svc`. We therefore need to compile the list of all resource types the
-    # user wanted which we can get from the `selectors._kinds_names`.
-    all_kinds = {_.kind for _ in config.selectors._kinds_names}
+    # Determine all the resource endpoints we need to hit.
+    all_kinds = {_.kind for _ in config.selectors._metamanifests}
 
     # Compile the co-routines to download all requested resources.
     coroutines = []
