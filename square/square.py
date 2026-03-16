@@ -57,6 +57,25 @@ def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
     return cfg
 
 
+def kind_group(meta: MetaManifest) -> str:
+    """Convert `meta` manifest to `<kind>.<group>`.
+
+    This is a helper function only. It concatenates the lower case `kind` with
+    the API group but without the API version. This format is canonical to
+    Square only as it will use that in various places, most notably for the
+    user specified selectors.
+
+    Example:
+      meta = MetaManifest(apiVersion="batch/v1", kind="Job", namespace="", name="")
+      assert group_kind(meta) == `job.batch`
+
+    """
+    if not meta.apiVersion:
+        return meta.kind.lower()
+    group = meta.apiVersion.partition("/")[0]
+    return f"{meta.kind.lower()}.{group}"
+
+
 def make_patch(
         k8sconfig: K8sConfig,
         local: dict,

@@ -38,6 +38,19 @@ class TestLogging:
 
 
 class TestBasic:
+    def test_kind_group(self):
+        meta = MetaManifest(apiVersion="", kind="", namespace="", name="")
+        assert sq.kind_group(meta) == ""
+
+        meta = MetaManifest(apiVersion="", kind="Pod", namespace="", name="")
+        assert sq.kind_group(meta) == "pod"
+
+        meta = MetaManifest(apiVersion="v1", kind="Pod", namespace="", name="")
+        assert sq.kind_group(meta) == "pod.v1"
+
+        meta = MetaManifest(apiVersion="batch/v1", kind="Job", namespace="", name="")
+        assert sq.kind_group(meta) == "job.batch"
+
     def test_config_default(self, tmp_path):
         """Default values for Config."""
         assert Config(folder=tmp_path, kubeconfig=tmp_path, kubecontext="ctx") == Config(
