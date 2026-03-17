@@ -1,6 +1,7 @@
 import copy
 import time
 import unittest.mock as mock
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,19 @@ try:
     kubectl = sh.kubectl.bake("--kubeconfig", "/tmp/kubeconfig-kind.yaml")  # type: ignore
 except sh.CommandNotFound:
     kubectl = None
+
+
+@contextmanager
+def create_temporary_k8s_namespace():
+    ts = int(1000 * time.time())
+    namespace = f"test-{ts}"
+
+    # Create the Namespace and primary/canary Deployments.
+    try:
+        kubectl("create", "ns", namespace)  # type: ignore
+        yield namespace
+    finally:
+        kubectl("delete", "ns", namespace, "--force",  _bg=True)  # type: ignore
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
@@ -320,6 +334,50 @@ class TestMainGet:
         # ---------------------------------------------------------------------
         assert not await square.square.get_resources(config)
         assert list(yaml.safe_load_all(man_path.read_text())) == manifests
+
+    async def test_kind_with_groups(self, tmp_path):
+        """Use my CRDs to verify API group selection.
+
+        As a reminder, the integration test cluster hosts two CRDs called
+        `mycrd.group-{a,b}.example.com`. They are identical except for the API
+        group. The cluster also contains one instance of each called `mine`.
+
+        This test will utilise those two CRDs to ensure API group selection
+        works as intended even when the resource names themselves are identical
+        between two groups.
+
+        """
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of useless logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        config = Config(
+            folder=tmp_path,
+            groupby=GroupBy(label="app", order=[]),
+            kubecontext=None,
+            kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
+            selectors=Selectors(
+                kinds={"mycrd"},
+                namespaces=["square-tests-crds"],
+                labels=[],
+            ),
+        )
+
+        # No manifest must have been downloaded because the resources `mycrd`
+        # is ambiguous as both CRD groups provide one.
+        man_path = tmp_path / "_other.yaml"
+        assert not await square.square.get_resources(config)
+        assert not man_path.exists()
+
+        # Specify the resource groups explicitly and verify we got exactly two
+        # manifests, as specified in the pre-deployed manifests.
+        config.selectors.kinds = {
+            "mycrd.group-a.example.com",
+            "mycrd.group-b.example.com",
+        }
+        assert not await square.square.get_resources(config)
+        got = list(yaml.safe_load_all(man_path.read_text()))
+        assert len(got) == 2
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
@@ -850,6 +908,181 @@ class TestMainPlan:
         assert plan_6.delete == plan_6.create == [] and len(plan_6.patch) == 1
         assert plan_6.patch[0].meta.name == "hpav1"
         assert plan_6.patch[0].meta.apiVersion == "autoscaling/v2"
+
+
+class TestCRUD:
+    @pytest.mark.parametrize("kind", ["sa", "ServiceAccount", "sa.v1"])
+    async def test_kind_group_v1(self, kind, tmp_path):
+        """Create, patch and delete v1 resources.
+
+        These are slightly special because they do not technically have an API
+        group or version. Instead, their apiVersion is just `v1`, which means
+        their kind selectors are either `sa` or `sa.v1`, but never
+        `sa.v1/v1` or similar.
+
+        """
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        def _makesa(name, ns, labels) -> dict:
+            labels = dict(labels)
+            labels["app"] = "test-kind-group-v1"
+            return {
+                'apiVersion': "v1", 'kind': 'ServiceAccount',
+                'metadata': {'name': name, 'namespace': ns, "labels": labels},
+            }
+
+        with create_temporary_k8s_namespace() as ns:
+            config = Config(
+                folder=tmp_path,
+                groupby=GroupBy(label="app", order=[]),
+                kubecontext=None,
+                kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
+                selectors=Selectors(
+                    kinds={kind},
+                    namespaces=[ns],
+                    labels=["app=test-kind-group-v1"]
+                ),
+            )
+
+            # ------------------------------------------------------------------
+            # Deploy one instance of each CRD with `kubectl`.
+            # ------------------------------------------------------------------
+            orig_manifests = [
+                _makesa("mine-a", ns, {}),
+                _makesa("mine-b", ns, {}),
+            ]
+            man_path = tmp_path / "manifest.yaml"
+            man_path.write_text(yaml.dump_all(orig_manifests))
+            kubectl("apply", "-f", str(man_path))  # type: ignore
+            man_path.unlink()
+            assert not man_path.exists()
+
+            # ------------------------------------------------------------------
+            # Fetch the CRDs with Square and verify.
+            # ------------------------------------------------------------------
+            man_path = tmp_path / "_other.yaml"
+            assert not await square.square.get_resources(config)
+            got = list(yaml.safe_load_all(man_path.read_text()))
+            got.sort(key=lambda _: _["apiVersion"])
+            assert len(got) == 2
+            assert got == orig_manifests
+            del orig_manifests
+
+            # ------------------------------------------------------------------
+            # Plan to patch `mine-a`, delete `mine-b` and create `mine-c`.
+            # ------------------------------------------------------------------
+            orig_manifests = [
+                _makesa("mine-a", ns, {"patch": "label"}),
+                _makesa("mine-c", ns, {}),
+            ]
+            man_path.write_text(yaml.dump_all(orig_manifests))
+            plan, err = await square.square.make_plan(config)
+            assert not err
+            assert len(plan.create) == len(plan.patch) == len(plan.delete) == 1
+
+            # ------------------------------------------------------------------
+            # Apply the plan.
+            # ------------------------------------------------------------------
+            assert not await square.square.apply_plan(config, plan)
+            del plan
+
+            man_path.unlink()
+            assert not man_path.exists()
+
+            # ------------------------------------------------------------------
+            # Fetch the resources with Square and ensure we got `mine-{a,c}`.
+            # ------------------------------------------------------------------
+            assert not await square.square.get_resources(config)
+            got = list(yaml.safe_load_all(man_path.read_text()))
+            got.sort(key=lambda _: (_["apiVersion"], _["metadata"]["name"]))
+            assert len(got) == 2
+            assert got == orig_manifests
+
+    async def test_kind_group_custom(self, tmp_path):
+        """Create, patch and delete two CRDs using their full group names."""
+        # Only show INFO and above or otherwise this test will produce a
+        # humongous amount of logs from all the K8s calls.
+        square.square.setup_logging(2)
+
+        def _makecrd(name, ns, value: str, is_a: bool) -> dict:
+            group = 'group-a.example.com/v1' if is_a else 'group-b.example.com/v1'
+            return {
+                'apiVersion': group, 'kind': 'MyCRD',
+                'metadata': {'name': name, 'namespace': ns},
+                'value': value,
+            }
+
+        with create_temporary_k8s_namespace() as ns:
+            config = Config(
+                folder=tmp_path,
+                groupby=GroupBy(label="app", order=[]),
+                kubecontext=None,
+                kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
+                selectors=Selectors(
+                    kinds={
+                        "mycrd.group-a.example.com",
+                        "mycrd.group-b.example.com",
+                    },
+                    namespaces=[ns],
+                    labels=[]
+                ),
+            )
+
+            # ------------------------------------------------------------------
+            # Deploy one instance of each CRD with `kubectl`.
+            # ------------------------------------------------------------------
+            orig_manifests = [
+                _makecrd("mine-a", ns, "baseline", True),
+                _makecrd("mine-b", ns, "baseline", False),
+            ]
+            man_path = tmp_path / "manifest.yaml"
+            man_path.write_text(yaml.dump_all(orig_manifests))
+            kubectl("apply", "-f", str(man_path))  # type: ignore
+            man_path.unlink()
+            assert not man_path.exists()
+
+            # ------------------------------------------------------------------
+            # Fetch the CRDs with Square and verify.
+            # ------------------------------------------------------------------
+            man_path = tmp_path / "_other.yaml"
+            assert not await square.square.get_resources(config)
+            got = list(yaml.safe_load_all(man_path.read_text()))
+            got.sort(key=lambda _: _["apiVersion"])
+            assert len(got) == 2
+            assert got == orig_manifests
+            del orig_manifests
+
+            # ------------------------------------------------------------------
+            # Plan to patch `mine-a`, delete `mine-b` and create `mine-c`.
+            # ------------------------------------------------------------------
+            orig_manifests = [
+                _makecrd("mine-a", ns, "baseline-patch", True),
+                _makecrd("mine-c", ns, "new", True),
+            ]
+            man_path.write_text(yaml.dump_all(orig_manifests))
+            plan, err = await square.square.make_plan(config)
+            assert not err
+            assert len(plan.create) == len(plan.patch) == len(plan.delete) == 1
+
+            # ------------------------------------------------------------------
+            # Apply the plan.
+            # ------------------------------------------------------------------
+            assert not await square.square.apply_plan(config, plan)
+            del plan
+
+            man_path.unlink()
+            assert not man_path.exists()
+
+            # ------------------------------------------------------------------
+            # Fetch the resources with Square and ensure we got `mine-{a,c}`.
+            # ------------------------------------------------------------------
+            assert not await square.square.get_resources(config)
+            got = list(yaml.safe_load_all(man_path.read_text()))
+            got.sort(key=lambda _: (_["apiVersion"], _["metadata"]["name"]))
+            assert len(got) == 2
+            assert got == orig_manifests
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
