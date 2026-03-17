@@ -1,0 +1,131 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: square-tests-crds
+  labels:
+    app: demoapp-1
+
+---
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: democrds.mycrd.com
+  labels:
+    app: demoapp-1
+spec:
+  conversion:
+    strategy: None
+  group: mycrd.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                fooStr:
+                  type: string
+                fooInt:
+                  type: integer
+
+  preserveUnknownFields: false
+  scope: Namespaced
+  names:
+    plural: democrds
+    singular: democrd
+    kind: DemoCRD
+    listKind: DemoCRDList
+    shortNames:
+    - democrd
+
+---
+
+apiVersion: mycrd.com/v1
+kind: DemoCRD
+metadata:
+  name: democrd
+  namespace: square-tests-crds
+  labels:
+    app: demoapp-1
+spec:
+  fooStr: 'some-string'
+  fooInt: 123
+
+---
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: mycrd.group-a.example.com
+spec:
+  group: group-a.example.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            value:
+              type: string
+  scope: Namespaced
+  names:
+    plural: mycrd
+    singular: mycrd
+    kind: MyCRD
+    shortNames:
+      - mc
+
+---
+
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: mycrd.group-b.example.com
+spec:
+  group: group-b.example.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            value:
+              type: string
+  scope: Namespaced
+  names:
+    plural: mycrd
+    singular: mycrd
+    kind: MyCRD
+    shortNames:
+      - mc
+
+---
+
+apiVersion: group-a.example.com/v1
+kind: MyCRD
+metadata:
+  name: mine
+  namespace: square-tests-crds
+  labels:
+    app: demoapp-1
+value: baseline-group-a
+
+---
+
+apiVersion: group-b.example.com/v1
+kind: MyCRD
+metadata:
+  name: mine
+  namespace: square-tests-crds
+  labels:
+    app: demoapp-1
+value: baseline-group-b
