@@ -4,6 +4,7 @@ try:
 except ImportError:
     sh = None
 
+from collections import defaultdict
 from typing import Any, Dict, List, Tuple
 
 from square.dtypes import K8sConfig, K8sResource
@@ -182,8 +183,8 @@ def k8s_apis(config: K8sConfig) -> Dict[Tuple[str, str], K8sResource]:
 
 
 def k8s_apis2(config: K8sConfig) -> Dict[str, List[K8sResource]]:
-    return {
-        "namespace": [K8sResource(
+    res = [
+        K8sResource(
             apiVersion="v1",
             kind="Namespace",
             name="namespaces",
@@ -191,26 +192,8 @@ def k8s_apis2(config: K8sConfig) -> Dict[str, List[K8sResource]]:
             url=f"{config.url}/api/v1",
             all_names=("namespace", "namespaces", "ns"),
             preferred=True,
-        )],
-        "ns": [K8sResource(
-            apiVersion="v1",
-            kind="Namespace",
-            name="namespaces",
-            namespaced=False,
-            url=f"{config.url}/api/v1",
-            all_names=("namespace", "namespaces", "ns"),
-            preferred=True,
-        )],
-        "namespace.v1": [K8sResource(
-            apiVersion="v1",
-            kind="Namespace",
-            name="namespaces",
-            namespaced=False,
-            url=f"{config.url}/api/v1",
-            all_names=("namespace", "namespaces", "ns"),
-            preferred=True,
-        )],
-        "clusterrole": [K8sResource(
+        ),
+        K8sResource(
             apiVersion="rbac.authorization.k8s.io/v1",
             kind="ClusterRole",
             name="clusterroles",
@@ -218,17 +201,8 @@ def k8s_apis2(config: K8sConfig) -> Dict[str, List[K8sResource]]:
             url=f"{config.url}/apis/rbac.authorization.k8s.io/v1",
             all_names=("clusterrole", "clusterroles"),
             preferred=True,
-        )],
-        "clusterrole.rbac.authorization.k8s.io/v1": [K8sResource(
-            apiVersion="rbac.authorization.k8s.io/v1",
-            kind="ClusterRole",
-            name="clusterroles",
-            namespaced=False,
-            url=f"{config.url}/apis/rbac.authorization.k8s.io/v1",
-            all_names=("clusterrole", "clusterroles"),
-            preferred=True,
-        )],
-        "pod": [K8sResource(
+        ),
+        K8sResource(
             apiVersion="v1",
             kind="Pod",
             name="pods",
@@ -236,17 +210,8 @@ def k8s_apis2(config: K8sConfig) -> Dict[str, List[K8sResource]]:
             url=f"{config.url}/api/v1",
             all_names=("po", "pod", "pods"),
             preferred=True,
-        )],
-        "pod.v1": [K8sResource(
-            apiVersion="v1",
-            kind="Pod",
-            name="pods",
-            namespaced=True,
-            url=f"{config.url}/api/v1",
-            all_names=("po", "pod", "pods"),
-            preferred=True,
-        )],
-        "service": [K8sResource(
+        ),
+        K8sResource(
             apiVersion="v1",
             kind="Service",
             name="services",
@@ -254,26 +219,8 @@ def k8s_apis2(config: K8sConfig) -> Dict[str, List[K8sResource]]:
             url=f"{config.url}/api/v1",
             all_names=("service", "services", "svc"),
             preferred=True,
-        )],
-        "service.v1": [K8sResource(
-            apiVersion="v1",
-            kind="Service",
-            name="services",
-            namespaced=True,
-            url=f"{config.url}/api/v1",
-            all_names=("service", "services", "svc"),
-            preferred=True,
-        )],
-        "svc": [K8sResource(
-            apiVersion="v1",
-            kind="Service",
-            name="services",
-            namespaced=True,
-            url=f"{config.url}/api/v1",
-            all_names=("service", "services", "svc"),
-            preferred=True,
-        )],
-        "deployment": [K8sResource(
+        ),
+        K8sResource(
             apiVersion="apps/v1",
             kind="Deployment",
             name="deployments",
@@ -281,66 +228,8 @@ def k8s_apis2(config: K8sConfig) -> Dict[str, List[K8sResource]]:
             url=f"{config.url}/apis/apps/v1",
             all_names=("deploy", "deployment", "deployments"),
             preferred=True,
-        )],
-        "deployment.apps": [K8sResource(
-            apiVersion="apps/v1",
-            kind="Deployment",
-            name="deployments",
-            namespaced=True,
-            url=f"{config.url}/apis/apps/v1",
-            all_names=("deploy", "deployment", "deployments"),
-            preferred=True,
-        )],
-        "deployment.apps/v1": [K8sResource(
-            apiVersion="apps/v1",
-            kind="Deployment",
-            name="deployments",
-            namespaced=True,
-            url=f"{config.url}/apis/apps/v1",
-            all_names=("deploy", "deployment", "deployments"),
-            preferred=True,
-        )],
-        "horizontalpodautoscaler": [K8sResource(
-            apiVersion="autoscaling/v2",
-            kind="HorizontalPodAutoscaler",
-            name="horizontalpodautoscalers",
-            namespaced=True,
-            url=f"{config.url}/apis/autoscaling/v2",
-            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
-        )],
-        "horizontalpodautoscaler.autoscaling/v1": [K8sResource(
-            apiVersion="autoscaling/v1",
-            kind="HorizontalPodAutoscaler",
-            name="horizontalpodautoscalers",
-            namespaced=True,
-            url=f"{config.url}/apis/autoscaling/v1",
-            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
-        )],
-        "horizontalpodautoscaler.autoscaling/v2": [K8sResource(
-            apiVersion="autoscaling/v2",
-            kind="HorizontalPodAutoscaler",
-            name="horizontalpodautoscalers",
-            namespaced=True,
-            url=f"{config.url}/apis/autoscaling/v2",
-            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
-        )],
-        "horizontalpodautoscaler.autoscaling/v2beta1": [K8sResource(
-            apiVersion="autoscaling/v2beta1",
-            kind="HorizontalPodAutoscaler",
-            name="horizontalpodautoscalers",
-            namespaced=True,
-            url=f"{config.url}/apis/autoscaling/v2beta1",
-            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
-        )],
-        "horizontalpodautoscaler.autoscaling/v2beta2": [K8sResource(
-            apiVersion="autoscaling/v2beta2",
-            kind="HorizontalPodAutoscaler",
-            name="horizontalpodautoscalers",
-            namespaced=True,
-            url=f"{config.url}/apis/autoscaling/v2beta2",
-            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
-        )],
-        "hpa.autoscaling/v2": [K8sResource(
+        ),
+        K8sResource(
             apiVersion="autoscaling/v2",
             kind="HorizontalPodAutoscaler",
             name="horizontalpodautoscalers",
@@ -348,8 +237,32 @@ def k8s_apis2(config: K8sConfig) -> Dict[str, List[K8sResource]]:
             url=f"{config.url}/apis/autoscaling/v2",
             all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
             preferred=True,
-        )],
-        "democrd.mycrd.com/v1": [K8sResource(
+        ),
+        K8sResource(
+            apiVersion="autoscaling/v1",
+            kind="HorizontalPodAutoscaler",
+            name="horizontalpodautoscalers",
+            namespaced=True,
+            url=f"{config.url}/apis/autoscaling/v1",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+        ),
+        K8sResource(
+            apiVersion="autoscaling/v2beta1",
+            kind="HorizontalPodAutoscaler",
+            name="horizontalpodautoscalers",
+            namespaced=True,
+            url=f"{config.url}/apis/autoscaling/v2beta1",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+        ),
+        K8sResource(
+            apiVersion="autoscaling/v2beta2",
+            kind="HorizontalPodAutoscaler",
+            name="horizontalpodautoscalers",
+            namespaced=True,
+            url=f"{config.url}/apis/autoscaling/v2beta2",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+        ),
+        K8sResource(
             apiVersion="mycrd.com/v1",
             kind="DemoCRD",
             name="democrds",
@@ -357,8 +270,23 @@ def k8s_apis2(config: K8sConfig) -> Dict[str, List[K8sResource]]:
             url=f"{config.url}/apis/mycrd.com/v1",
             all_names=("democrd", "democrds"),
             preferred=True,
-        )],
-    }
+        ),
+    ]
+    assert len(res) == len(set(res))
+
+    # Expand the resources into all their various forms, eg {"po", "pod",
+    # "po.v1", "pod.v1", "deploy", ..., "deployment.apps", ...}
+    ans: Dict[str, List[K8sResource]] = defaultdict(list)
+    for r in res:
+        for name in r.all_names:
+            ans[name].append(r)
+            if r.apiVersion == "v1":
+                ans[f"{name}.v1"].append(r)
+            else:
+                group = r.apiVersion.partition("/")[0]
+                ans[f"{name}.{group}"].append(r)
+                ans[f"{name}.{r.apiVersion}"].append(r)
+    return ans
 
 
 def make_manifest(kind: str, namespace: str | None, name: str | None,
