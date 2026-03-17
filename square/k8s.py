@@ -602,42 +602,34 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
     if err:
         return err_resp
 
-    # Void the "namespace" key for non-namespaced resources.
-    if not resource.namespaced:
-        meta = meta._replace(namespace=None)
-
-    # Namespaces are special because they lack the `namespaces/` path prefix.
-    if meta.kind == "Namespace":
-        # Return the correct URL, depending on whether we want all namespaces
-        # or a particular one.
-        url = f"{resource.url}/namespaces"
-        if meta.name:
-            url += f"/{meta.name}"
-        return resource._replace(url=url), False
+    namespace, name, kind = meta.namespace, meta.name, meta.kind
+    del meta
 
     # Determine the prefix for namespaced resources.
-    if meta.namespace is None:
+    if not (namespace and resource.namespaced):
         namespace = ""
     else:
         # Namespace name must conform to K8s standards.
-        match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", meta.namespace)
-        if match is None or match.group() != meta.namespace:
-            logit.error(f"Invalid namespace name <{meta.namespace}>.")
+        match = re.match(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", namespace)
+        if match is None or match.group() != namespace:
+            logit.error(f"Invalid namespace name <{namespace}>.")
             return err_resp
-        namespace = f"namespaces/{meta.namespace}"
+        namespace = f"namespaces/{namespace}"
 
     # Sanity check: the manifest for a namespaced resource must specify a namespace.
-    if resource.namespaced and meta.name and not meta.namespace:
-        logit.error(f"Namespaced resource {meta.kind}/{meta.name} lacks namespace field")
+    if resource.namespaced and name and not namespace:
+        logit.error(f"Namespaced resource {kind}/{name} lacks namespace field")
         return err_resp
 
-    # Create the full path to the resource depending on whether we have a
-    # NAMESPACE and resource name. Here are all three possibilities:
-    #  - /api/v1/namespaces/services
+    # Create the full path to the resource depending on whether we have both a
+    # namespace and resource name or just the resource name. In the latter
+    # case, we will fetch the resource from all namespaces. These are the
+    # possibilities:
+    #  - /api/v1/services
     #  - /api/v1/namespaces/my-namespace/services
     #  - /api/v1/namespaces/my-namespace/services/my-service
     path = f"{namespace}/{resource.name}" if namespace else resource.name
-    path = f"{path}/{meta.name}" if meta.name else path
+    path = f"{path}/{name}" if name else path
 
     # The concatenation above may have introduced `//`. Remove them.
     path = path.replace("//", "/")

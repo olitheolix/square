@@ -426,22 +426,22 @@ class TestUrlPathBuilder:
                 preferred=True,
             )
 
-            # All Services in all namespaces.
-            res, err = k8s.resource(k8sconfig, MetaManifest(src, "Service", None, None))
-            assert not err
-            assert res == K8sResource(
-                apiVersion=expected, kind="Service", name="services", namespaced=True,
-                url=f"{k8sconfig.url}/api/v1/services",
-                all_names=("service", "services", "svc"),
-                preferred=True,
-            )
-
             # All Services in a particular namespace.
             res, err = k8s.resource(k8sconfig, MetaManifest(src, "Service", "ns", ""))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected, kind="Service", name="services", namespaced=True,
                 url=f"{k8sconfig.url}/api/v1/namespaces/ns/services",
+                all_names=("service", "services", "svc"),
+                preferred=True,
+            )
+
+            # All Services in all namespaces.
+            res, err = k8s.resource(k8sconfig, MetaManifest(src, "Service", None, None))
+            assert not err
+            assert res == K8sResource(
+                apiVersion=expected, kind="Service", name="services", namespaced=True,
+                url=f"{k8sconfig.url}/api/v1/services",
                 all_names=("service", "services", "svc"),
                 preferred=True,
             )
@@ -466,19 +466,19 @@ class TestUrlPathBuilder:
         # K8sResource element will contain.
         api_versions = [
             # We expect to get the version we asked for.
-            ("autoscaling/v1", "autoscaling/v1"),
-            ("autoscaling/v2beta1", "autoscaling/v2beta1"),
-            ("autoscaling/v2beta2", "autoscaling/v2beta2"),
+            ("autoscaling/v1", "autoscaling/v1", False),
+            ("autoscaling/v2beta1", "autoscaling/v2beta1", False),
+            ("autoscaling/v2beta2", "autoscaling/v2beta2", False),
 
             # Function must automatically determine the latest version of the resource.
-            ("", "autoscaling/v2"),
+            ("", "autoscaling/v2", True),
         ]
 
         # Convenience.
         kind = "HorizontalPodAutoscaler"
         name = kind.lower() + "s"
 
-        for src, expected in api_versions:
+        for src, expected, preferred in api_versions:
             # A particular HPA in a particular namespace.
             res, err = k8s.resource(config, MM(src, kind, "ns", "name"))
             assert not err
@@ -489,6 +489,7 @@ class TestUrlPathBuilder:
                 namespaced=True,
                 url=f"{config.url}/apis/{expected}/namespaces/ns/{name}/name",
                 all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+                preferred=preferred,
             )
 
             # All HPAs in all namespaces.
@@ -501,6 +502,7 @@ class TestUrlPathBuilder:
                 namespaced=True,
                 url=f"{config.url}/apis/{expected}/{name}",
                 all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+                preferred=preferred,
             )
 
             # All HPAs in a particular namespace.
@@ -513,6 +515,7 @@ class TestUrlPathBuilder:
                 namespaced=True,
                 url=f"{config.url}/apis/{expected}/namespaces/ns/{name}",
                 all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+                preferred=preferred,
             )
 
             # A particular HPA in all namespaces -> Invalid.
@@ -589,7 +592,8 @@ class TestUrlPathBuilder:
             assert k8s.resource(config, MM(src, kind, None, "name")) == err_resp
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    async def test_resource_namespace(self, integrationtest, k8sconfig):
+    @pytest.mark.parametrize("ns_kind", ["ns", "namespace", "Namespace"])
+    async def test_resource_namespace(self, ns_kind, integrationtest, k8sconfig):
         """Verify with a Namespace resource.
 
         This one is a special case because namespaces not themselves namespaced
@@ -602,25 +606,9 @@ class TestUrlPathBuilder:
         config = await self.k8sconfig(integrationtest, k8sconfig)
         MM = MetaManifest
 
-        for src in ["", "v1"]:
-            # A particular Namespace.
-            res, err = k8s.resource(config, MM(src, "Namespace", None, "name"))
-            assert not err
-            assert res == K8sResource(
-                apiVersion="v1",
-                kind="Namespace",
-                name="namespaces",
-                namespaced=False,
-                url=f"{config.url}/api/v1/namespaces/name",
-                all_names=('namespace', 'namespaces', 'ns'),
-                preferred=True,
-            )
-
-            # A particular Namespace in a particular namespace -> Invalid.
-            assert k8s.resource(config, MM(src, "Namespace", "ns", "name")) == (res, err)
-
-            # All Namespaces.
-            res, err = k8s.resource(config, MM(src, "Namespace", None, None))
+        for apiVer in ["", "v1"]:
+            # Valid: all namespaces.
+            res, err = k8s.resource(config, MM(apiVer, ns_kind, None, None))
             assert not err
             assert res == K8sResource(
                 apiVersion="v1",
@@ -633,7 +621,25 @@ class TestUrlPathBuilder:
             )
 
             # Same as above because the "namespace" argument is ignored for Namespaces.
-            assert k8s.resource(config, MM(src, "Namespace", "name", "")) == (res, err)
+            assert k8s.resource(config, MM(apiVer, ns_kind, "name", "")) == (res, err)
+
+            # Valid: a particular Namespace.
+            res, err = k8s.resource(config, MM(apiVer, ns_kind, None, "name"))
+            assert not err
+            assert res == K8sResource(
+                apiVersion="v1",
+                kind="Namespace",
+                name="namespaces",
+                namespaced=False,
+                url=f"{config.url}/api/v1/namespaces/name",
+                all_names=('namespace', 'namespaces', 'ns'),
+                preferred=True,
+            )
+
+            # Surprisingly, it is also valid to ask for a specific namespace in
+            # a particular namespace. This makes no sense but the function must
+            # silently ignore this and just return the particular namespace.
+            assert k8s.resource(config, MM(apiVer, ns_kind, "ns", "name")) == (res, err)
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     async def test_resource_clusterrole(self, integrationtest, k8sconfig):
