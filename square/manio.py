@@ -80,12 +80,11 @@ def is_valid_manifest(manifest: dict, k8sconfig: K8sConfig) -> bool:
     return True
 
 
-def select(manifest: dict, selectors: Selectors,
-           match_labels: bool) -> bool:
+def select(manifest: dict, selectors: Selectors, match_labels: bool) -> bool:
     """Return `False` unless `manifest` satisfies _all_ `selectors`.
 
     Inputs:
-        manifests: dict
+        manifest: dict
         selectors: Selectors
         match_labels: bool
             Skip label matching if `False`. This flag does not affect KIND or

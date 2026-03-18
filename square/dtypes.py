@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple, Set, Tuple
 
@@ -13,10 +12,10 @@ DEFAULT_PRIORITIES = (
     # Custom Resources should come first.
     "CustomResourceDefinition",
 
-    # Commone non-namespaced resources.
+    # Common non-namespaced resources.
     "ClusterRole", "ClusterRoleBinding",
 
-    # Namespaces must come before any namespaced resources,
+    # Namespaces must come before any namespaced resources.
     "Namespace",
 
     # Configuration and PVC before Deployments & friends use them.

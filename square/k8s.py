@@ -1055,7 +1055,7 @@ def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
             # Each API resource must contain at least one resource.
             if len(resources) == 0:
                 err = True
-                logit.warning(f"bug: API <{name}> contains no preferred group-version")
+                logit.warning(f"bug: resource <{name}> has no preferred version")
                 continue
 
             # Warn if we have multiple preferred version. That usually means the resource
@@ -1064,19 +1064,16 @@ def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
             if len(preferred) > 1:
                 tmp = str.join(", ", [_.apiVersion for _ in preferred])
                 N = len(preferred)
-                logit.warning(
-                    f"bug: API <{name}> contains {N} preferred group-versions: {tmp}"
-                )
+                logit.warning(f"<{name}> has {N} preferred versions: {tmp}")
                 continue
 
-        # Every resource must list the resource as one of its names. The name
-        # is just the first part: `deploy.apps/v1` -> `deploy`. This is because
-        # the various resource aliases only pertain to the unqualifed name.
+        # Sanity check: the resource name is eg `deploy.apps/v1`. Here we
+        # ensure that the first part (ie `deploy`) is one of the aliases.
         name = name.partition(".")[0]
         for res in resources:
             if name not in res.all_names:
                 err = True
-                logit.critical(f"bug: API <{name}> does not belong to resource")
+                logit.critical(f"bug: <{name}> does not belong to resource")
 
     return err
 
@@ -1122,9 +1119,10 @@ def pick_api(
     # Return an error if the resource is provided by multiple API groups.
     groups = {_.apiVersion.partition("/")[0] for _ in apis[name]}
     if len(groups) > 1:
+        msg = sorted([f"{name}.{_}" for _ in groups])
         logit.error(
             f"resource <{name}> is provided by multiple groups. "
-            f"Please specify one of them explicitly: {sorted(groups)}"
+            f"Please use one of: {msg}"
         )
         return err_resp
 
