@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple, Set, Tuple
 
@@ -53,6 +54,18 @@ class MetaManifest(NamedTuple):
     # name in the `namespace` field.
     name: str | None
 
+    # fixme: rename to skgn for consistency with Selectors
+    def _skgn(self) -> "SelKindGroupNames":
+        """Return the MetaManifest as a `SelKindGroupNames`."""
+        ns = self.namespace if self.namespace else ""
+        kind = self.kind.lower()
+        gv = self.apiVersion.partition("/")[0]
+
+        value = f"{kind}.{gv}" if gv else kind
+        if self.name:
+            value += f"/{self.name}"
+        return SelKindGroupNames(value=value, ns=ns)
+
 
 class K8sResource(NamedTuple):
     """Describe a specific K8s resource kind."""
@@ -63,6 +76,77 @@ class K8sResource(NamedTuple):
     url: str          # API endpoint, eg "k8s-host.com/api/v1/pods".
     all_names: Tuple[str, ...]  # all names (singular, plural, short hands).
     preferred: bool = False
+
+
+class SelKindGroupNames(BaseModel):
+    """Square internal format to store Kind, Group, Version, Namespace and Name.
+
+    This is similar to `MetaManifest` but tailored specifically to how users
+    can target specific resources with Square. In particular, users can specify
+    "pod", or "pod.v1", or "PoD", or "POD/name" etc in the configuration file
+    or on the command line. These strings are devoid of the specific API version
+    and ignore capitalisation. This improves the UX and Square contains logic
+    to pick the preferred API version automatically.
+
+    NOTE: every `MetaManifest` can be converted to a `SelKindGroupName`, but the
+    reverse is not true.
+
+    """
+    value: str
+    ns: str = ""
+
+    def __str__(self):
+        kg = self.kind_group
+        return f"{kg}/{self.name}" if self.name else kg
+
+    @field_validator('value')
+    def validate_kind_group_names(cls, v):
+        if not v:
+            raise ValueError("String must not be empty")
+
+        v = v.lower()
+        if v.strip() != v:
+            raise ValueError(f"value contains white space <{v}>")
+
+        if v.startswith("/"):
+            raise ValueError(f"value has no kind <{v}>")
+
+        # pod.v1/name -> ["pod.v1", "name"]
+        parts = v.split('/')
+        if len(parts) > 2 or v.endswith("/"):
+            raise ValueError(f"At most one \"/\" is allowed <{v}>")
+
+        for part in parts:
+            if part.strip() != part:
+                raise ValueError(f"value contains white space <{v}>")
+
+        return v
+
+    @property
+    def kind(self) -> str:
+        kind_name = self.value.partition('.')[0]
+        kind = kind_name.partition("/")[0]
+        return kind
+
+    @property
+    def group(self) -> str:
+        group_name = self.value.partition('.')[2]
+        group = group_name.partition("/")[0]
+        return group
+
+    @property
+    def name(self) -> str:
+        if '/' in self.value:
+            return self.value.split('/', 1)[1]
+        return ""
+
+    @property
+    def kind_group(self) -> str:
+        return f"{self.kind}.{self.group}" if self.group else self.kind
+
+    @property
+    def namespace(self) -> str:
+        return self.ns
 
 
 class K8sConfig(NamedTuple):
@@ -162,36 +246,12 @@ class Selectors(BaseModel):
 
     @property
     def _metamanifests(self) -> Set[str]:
-        """Parse the Selected resources into `MetaManifest` instances.
+        # fixme: do we even need this?
+        return {str(_) for _ in self.skgn}
 
-        These are the valid scenarios:
-          'Service'               -> {"service"}
-          'Service/'              -> {"service"}
-          'SVC/name'              -> {svc/name}
-          'Svc.v1/name'           -> {svc.v1/name}
-          'DepLoyMenTS.apps/name' -> {deployment.apps/name}
-
-        """
-        # Unpack the 'Kind/Name' into a dedicated `MetaManifest` model.
-        ans: Set[str] = set()
-        for src_kind in sorted(self.kinds):
-            # Ensure the `src_kind` has at most one '/'.
-            parts = src_kind.split("/")
-            if len(parts) == 1:
-                kind, name = parts[0], ""
-            elif len(parts) == 2:
-                kind, name = parts
-            else:
-                raise ValueError(f"Invalid kind {src_kind}")
-
-            # There must be no leading/trailing white space.
-            if (kind.strip() != kind) or (name.strip() != name) or kind == "":
-                raise ValueError(f"Invalid kind {src_kind}")
-
-            kind = kind.lower()
-            out = f"{kind}/{name}" if name else kind
-            ans.add(out)
-        return ans
+    @property
+    def skgn(self) -> List[SelKindGroupNames]:
+        return [SelKindGroupNames(value=_) for _ in self.kinds]
 
 
 class GroupBy(BaseModel):

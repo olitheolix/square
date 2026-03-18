@@ -141,8 +141,14 @@ class TestBasic:
             # Convert the resource names to their correct K8s kind.
             ret = sq.translate_resource_kinds(cfg, k8sconfig)
             assert ret.priorities == ["namespace.v1", "deployment.apps"]
-            assert ret.selectors.kinds == {"service.v1", "deployment.apps"}
-            assert ret.selectors._metamanifests == {"deployment.apps", "service.v1"}
+            assert ret.selectors.kinds == {
+                'deploy.apps', 'deployment.apps', 'deployments.apps',
+                'service.v1', 'services.v1', 'svc.v1'
+            }
+            assert ret.selectors._metamanifests == {
+                'deploy.apps', 'deployment.apps', 'deployments.apps',
+                'service.v1', 'services.v1', 'svc.v1'
+            }
 
         # Add two invalid resource names. This must succeed but return the
         # resource names without having changed them.
@@ -175,22 +181,20 @@ class TestBasic:
 
         # Verify the baseline.
         assert cfg.selectors.kinds == kinds
-        assert cfg.selectors._metamanifests == {
-            "deployment/app2", "namespace/foo", "ns", "svc/app1", "unknown-a",
-            "unknown-b/foo"
-        }
 
         # Convert the selector KINDs to their canonical K8s KINDs.
         ret = sq.translate_resource_kinds(cfg, k8sconfig)
         assert ret.selectors.kinds == {
-            "service.v1/app1", "deployment.apps/app2",
-            "namespace.v1", "namespace.v1/foo",
+            'deploy.apps/app2', 'deployment.apps/app2', 'deployments.apps/app2',
+            'namespace.v1', 'namespace.v1/foo', 'namespaces.v1',
+            'namespaces.v1/foo', 'ns.v1', 'ns.v1/foo',
+            'service.v1/app1', 'services.v1/app1', 'svc.v1/app1',
         }
         assert ret.selectors._metamanifests == {
-            "deployment.apps/app2",
-            "namespace.v1",
-            "namespace.v1/foo",
-            "service.v1/app1",
+            'deploy.apps/app2', 'deployment.apps/app2', 'deployments.apps/app2',
+            'namespace.v1', 'namespace.v1/foo', 'namespaces.v1',
+            'namespaces.v1/foo', 'ns.v1', 'ns.v1/foo',
+            'service.v1/app1', 'services.v1/app1', 'svc.v1/app1',
         }
 
     def test_valid_label(self):

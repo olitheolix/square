@@ -43,18 +43,24 @@ def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
     cfg.selectors.kinds.clear()
     cfg.selectors._metamanifests.clear()
 
+    # fixme: this is all rather ugly. Refactor this into a method on `Selector`.
     for res in sel_res:
         kg, _, name = res.partition("/")
+
+        # fixme: should that not be a SelKindGroupName?
         r, err = k8s.pick_api(MetaManifest("", kg, "", ""), k8sconfig.apis2)
-        if not err:
-            group = r.apiVersion.partition("/")[0]
-            ans = f"{r.kind.lower()}.{group}"
-            ans = f"{ans}/{name}" if name else ans
-            cfg.selectors.kinds.add(ans)
+        if err:
+            continue
+
+        group = r.apiVersion.partition("/")[0]
+        group_and_name = f"{group}/{name}" if name else group
+        for alias in r.all_names:
+            cfg.selectors.kinds.add(f"{alias}.{group_and_name}")
 
     priorities = list(cfg.priorities)
     cfg.priorities.clear()
     for kg in priorities:
+        # fixme: should that not be a SelKindGroupName?
         r, err = k8s.pick_api(MetaManifest("", kg, "", ""), k8sconfig.apis2)
         if not err:
             group = r.apiVersion.partition("/")[0]
