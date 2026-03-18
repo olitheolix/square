@@ -15,6 +15,7 @@ import square.k8s as k8s
 import square.square
 from square.dtypes import (
     ConnectionParameters, K8sConfig, K8sResource, MetaManifest,
+    SelKindGroupNames as SKGN,
 )
 
 from .test_helpers import kind_available
@@ -394,63 +395,65 @@ class TestUrlPathBuilder:
         return k8sconfig
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    async def test_resource_service(self, integrationtest, k8sconfig):
+    async def test_resource_v1(self, integrationtest, k8sconfig):
         """Function must query the correct version of the API endpoint.
 
-        This test uses a Service which is part of the core API and should be
-        available in all Kubernetes versions.
+        This test uses a Pod, which is part of the core API and should be
+        available in all Kubernetes versions. Furthermore, v1 resources
+        are somewhat special because they do not technically have a group.
 
         """
         # Fixtures.
         k8sconfig = await self.k8sconfig(integrationtest, k8sconfig)
         err_resp = (K8sResource("", "", "", False, "", tuple()), True)
 
-        # Tuples of API version that we ask for (if any), and what the final
-        # K8sResource element will contain.
-        api_versions = [
-            # We expect to get the version we asked for.
-            ("v1", "v1"),
+        for gv in ["pod", "pod.v1"]:
+            # A particular Pod in a particular namespace.
+            meta = MetaManifest("v1", "Pod", namespace="ns", name="name")
+            skgn = SKGN(value=f"{gv}/name", ns="ns")
+            for data in [meta, skgn]:
+                assert isinstance(data, (MetaManifest, SKGN))
+                res, err = k8s.resource(k8sconfig, data)
+                assert not err
+                assert res == K8sResource(
+                    apiVersion="v1", kind="Pod", name="pods", namespaced=True,
+                    url=f"{k8sconfig.url}/api/v1/namespaces/ns/pods/name",
+                    all_names=("po", "pod", "pods"),
+                    preferred=True,
+                )
 
-            # Function must automatically determine the latest version of the resource.
-            ("", "v1"),
-        ]
+            # All Pods in a particular namespace.
+            meta = MetaManifest("v1", "Pod", namespace="ns", name="")
+            skgn = SKGN(value=gv, ns="ns")
+            for data in [meta, skgn]:
+                assert isinstance(data, (MetaManifest, SKGN))
+                res, err = k8s.resource(k8sconfig, data)
+                assert not err
+                assert res == K8sResource(
+                    apiVersion="v1", kind="Pod", name="pods", namespaced=True,
+                    url=f"{k8sconfig.url}/api/v1/namespaces/ns/pods",
+                    all_names=("po", "pod", "pods"),
+                    preferred=True,
+                )
 
-        for src, expected in api_versions:
-            # A particular Service in a particular namespace.
-            res, err = k8s.resource(k8sconfig, MetaManifest(src, "Service", "ns", "name"))
-            assert not err
-            assert res == K8sResource(
-                apiVersion=expected, kind="Service", name="services", namespaced=True,
-                url=f"{k8sconfig.url}/api/v1/namespaces/ns/services/name",
-                all_names=("service", "services", "svc"),
-                preferred=True,
-            )
-
-            # All Services in a particular namespace.
-            res, err = k8s.resource(k8sconfig, MetaManifest(src, "Service", "ns", ""))
-            assert not err
-            assert res == K8sResource(
-                apiVersion=expected, kind="Service", name="services", namespaced=True,
-                url=f"{k8sconfig.url}/api/v1/namespaces/ns/services",
-                all_names=("service", "services", "svc"),
-                preferred=True,
-            )
-
-            # All Services in all namespaces.
-            res, err = k8s.resource(k8sconfig, MetaManifest(src, "Service", None, None))
-            assert not err
-            assert res == K8sResource(
-                apiVersion=expected, kind="Service", name="services", namespaced=True,
-                url=f"{k8sconfig.url}/api/v1/services",
-                all_names=("service", "services", "svc"),
-                preferred=True,
-            )
+            # All Pods in all namespaces.
+            meta = MetaManifest("v1", "Pod", namespace="", name="")
+            skgn = SKGN(value=gv)
+            for data in [meta, skgn]:
+                assert isinstance(data, (MetaManifest, SKGN))
+                res, err = k8s.resource(k8sconfig, data)
+                assert not err
+                assert res == K8sResource(
+                    apiVersion="v1", kind="Pod", name="pods", namespaced=True,
+                    url=f"{k8sconfig.url}/api/v1/pods",
+                    all_names=("po", "pod", "pods"),
+                    preferred=True,
+                )
 
             # A particular Service in all namespaces -> Invalid.
-            MM = MetaManifest
-            assert k8s.resource(k8sconfig, MM(src, "Service", None, "name")) == err_resp
+            assert k8s.resource(k8sconfig, SKGN(value=f"{gv}/name")) == err_resp
 
-    async def test_resource_hpa(self, k8sconfig):
+    async def test_resource_hpa_from_metamanifest(self, k8sconfig):
         """Verify API version retrieval with a HorizontalPodAutoscaler.
 
         This resource is available as {v1, v2, v2beta1 and v2beta2}.
@@ -475,51 +478,108 @@ class TestUrlPathBuilder:
         ]
 
         # Convenience.
-        kind = "HorizontalPodAutoscaler"
-        name = kind.lower() + "s"
+        kind, k8s_name = "HorizontalPodAutoscaler", "horizontalpodautoscalers"
 
-        for src, expected, preferred in api_versions:
+        for gv, expected, preferred in api_versions:
             # A particular HPA in a particular namespace.
-            res, err = k8s.resource(config, MM(src, kind, "ns", "name"))
+            res, err = k8s.resource(config, MM(gv, kind, namespace="ns", name="name"))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected,
                 kind=kind,
-                name=name,
+                name=k8s_name,
                 namespaced=True,
-                url=f"{config.url}/apis/{expected}/namespaces/ns/{name}/name",
+                url=f"{config.url}/apis/{expected}/namespaces/ns/{k8s_name}/name",
                 all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
                 preferred=preferred,
             )
 
             # All HPAs in all namespaces.
-            res, err = k8s.resource(config, MM(src, kind, None, None))
+            res, err = k8s.resource(config, MM(gv, kind, None, None))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected,
                 kind=kind,
-                name=name,
+                name=k8s_name,
                 namespaced=True,
-                url=f"{config.url}/apis/{expected}/{name}",
+                url=f"{config.url}/apis/{expected}/{k8s_name}",
                 all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
                 preferred=preferred,
             )
 
             # All HPAs in a particular namespace.
-            res, err = k8s.resource(config, MM(src, kind, "ns", ""))
+            res, err = k8s.resource(config, MM(gv, kind, "ns", ""))
             assert not err
             assert res == K8sResource(
                 apiVersion=expected,
                 kind=kind,
-                name=name,
+                name=k8s_name,
                 namespaced=True,
-                url=f"{config.url}/apis/{expected}/namespaces/ns/{name}",
+                url=f"{config.url}/apis/{expected}/namespaces/ns/{k8s_name}",
                 all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
                 preferred=preferred,
             )
 
             # A particular HPA in all namespaces -> Invalid.
-            assert k8s.resource(config, MM(src, kind, None, "name")) == err_resp
+            assert k8s.resource(config, MM(gv, kind, None, "name")) == err_resp
+
+    async def test_resource_hpa_from_skgn(self, k8sconfig):
+        """Verify API version retrieval with a HorizontalPodAutoscaler.
+
+        This resource is available as {v1, v2, v2beta1 and v2beta2}.
+
+        NOTE: this test is tailored to Kubernetes v1.24.
+
+        """
+        config = await self.k8sconfig(False, k8sconfig)
+        MM = MetaManifest
+        err_resp = (K8sResource("", "", "", False, "", tuple()), True)
+
+        # Convenience.
+        kind, k8s_name = "HorizontalPodAutoscaler", "horizontalpodautoscalers"
+
+        # A particular HPA in a particular namespace.
+        expected = "autoscaling/v2"
+        res, err = k8s.resource(config, SKGN(value="hpa.autoscaling/name", ns="ns"))
+        assert not err
+        assert res == K8sResource(
+            apiVersion=expected,
+            kind=kind,
+            name=k8s_name,
+            namespaced=True,
+            url=f"{config.url}/apis/{expected}/namespaces/ns/{k8s_name}/name",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+            preferred=True,
+        )
+
+        # All HPAs in all namespaces.
+        res, err = k8s.resource(config, SKGN(value="hpa.autoscaling", ns=""))
+        assert not err
+        assert res == K8sResource(
+            apiVersion=expected,
+            kind=kind,
+            name=k8s_name,
+            namespaced=True,
+            url=f"{config.url}/apis/{expected}/{k8s_name}",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+            preferred=True,
+        )
+
+        # All HPAs in a particular namespace.
+        res, err = k8s.resource(config, SKGN(value="hpa.autoscaling", ns="ns"))
+        assert not err
+        assert res == K8sResource(
+            apiVersion=expected,
+            kind=kind,
+            name=k8s_name,
+            namespaced=True,
+            url=f"{config.url}/apis/{expected}/namespaces/ns/{k8s_name}",
+            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+            preferred=True,
+        )
+
+        # A particular HPA in all namespaces -> Invalid.
+        assert k8s.resource(config, SKGN(value="hpa.autoscaling/name", ns="")) == err_resp
 
     async def test_resource_event_integration(self, k8sconfig):
         """Verify API version retrieval for `Event` resource.
@@ -530,7 +590,6 @@ class TestUrlPathBuilder:
 
         """
         config = await self.k8sconfig(True, k8sconfig)
-        MM = MetaManifest
         err_resp = (K8sResource("", "", "", False, "", tuple()), True)
 
         # Tuples of API version that we ask for (if any), and what the final
@@ -545,54 +604,65 @@ class TestUrlPathBuilder:
         ]
 
         # Convenience.
-        kind = "Event"
-        name = kind.lower() + "s"
+        kind, k8s_name = "Event", "events"
 
         for src, prefix, expected in api_versions:
             # A particular Event API version in a particular namespace.
-            res, err = k8s.resource(config, MM(src, kind, "ns", "name"))
-            assert not err
-            assert res == K8sResource(
-                apiVersion=expected,
-                kind=kind,
-                name=name,
-                namespaced=True,
-                url=f"{config.url}/{prefix}/{expected}/namespaces/ns/{name}/name",
-                all_names=("ev", "event", "events"),
-                preferred=True,
-            )
+            meta = MetaManifest(src, kind, "ns", "name")
+            for data in [meta, meta._skgn()]:
+                assert isinstance(data, (MetaManifest, SKGN))
+                res, err = k8s.resource(config, data)
+                assert not err
+                assert res == K8sResource(
+                    apiVersion=expected,
+                    kind=kind,
+                    name=k8s_name,
+                    namespaced=True,
+                    url=f"{config.url}/{prefix}/{expected}/namespaces/ns/{k8s_name}/name",
+                    all_names=("ev", "event", "events"),
+                    preferred=True,
+                )
 
             # All Events APIs in all namespaces.
-            res, err = k8s.resource(config, MM(src, kind, None, None))
-            assert not err
-            assert res == K8sResource(
-                apiVersion=expected,
-                kind=kind,
-                name=name,
-                namespaced=True,
-                url=f"{config.url}/{prefix}/{expected}/{name}",
-                all_names=("ev", "event", "events"),
-                preferred=True,
-            )
+            meta = MetaManifest(src, kind, None, None)
+            for data in [meta, meta._skgn()]:
+                assert isinstance(data, (MetaManifest, SKGN))
+                res, err = k8s.resource(config, data)
+                assert not err
+                assert res == K8sResource(
+                    apiVersion=expected,
+                    kind=kind,
+                    name=k8s_name,
+                    namespaced=True,
+                    url=f"{config.url}/{prefix}/{expected}/{k8s_name}",
+                    all_names=("ev", "event", "events"),
+                    preferred=True,
+                )
 
             # All Events in a particular namespace.
-            res, err = k8s.resource(config, MM(src, kind, "ns", ""))
-            assert not err
-            assert res == K8sResource(
-                apiVersion=expected,
-                kind=kind,
-                name=name,
-                namespaced=True,
-                url=f"{config.url}/{prefix}/{expected}/namespaces/ns/{name}",
-                all_names=("ev", "event", "events"),
-                preferred=True,
-            )
+            meta = MetaManifest(src, kind, "ns", "")
+            for data in [meta, meta._skgn()]:
+                assert isinstance(data, (MetaManifest, SKGN))
+                res, err = k8s.resource(config, data)
+                assert not err
+                assert res == K8sResource(
+                    apiVersion=expected,
+                    kind=kind,
+                    name=k8s_name,
+                    namespaced=True,
+                    url=f"{config.url}/{prefix}/{expected}/namespaces/ns/{k8s_name}",
+                    all_names=("ev", "event", "events"),
+                    preferred=True,
+                )
 
             # A particular Event in all namespaces -> Invalid.
-            assert k8s.resource(config, MM(src, kind, None, "name")) == err_resp
+            meta = MetaManifest(src, kind, None, "name")
+            for data in [meta, meta._skgn()]:
+                assert isinstance(data, (MetaManifest, SKGN))
+                assert k8s.resource(config, data) == err_resp
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    @pytest.mark.parametrize("ns_kind", ["ns", "namespace", "Namespace"])
+    @pytest.mark.parametrize("ns_kind", ["ns", "namespace", "namespaces"])
     async def test_resource_namespace(self, ns_kind, integrationtest, k8sconfig):
         """Verify with a Namespace resource.
 
@@ -604,42 +674,48 @@ class TestUrlPathBuilder:
         """
         # Fixtures.
         config = await self.k8sconfig(integrationtest, k8sconfig)
-        MM = MetaManifest
 
-        for apiVer in ["", "v1"]:
-            # Valid: all namespaces.
-            res, err = k8s.resource(config, MM(apiVer, ns_kind, None, None))
-            assert not err
-            assert res == K8sResource(
-                apiVersion="v1",
-                kind="Namespace",
-                name="namespaces",
-                namespaced=False,
-                url=f"{config.url}/api/v1/namespaces",
-                all_names=('namespace', 'namespaces', 'ns'),
-                preferred=True,
-            )
+        for gv in ["", "v1"]:
+            # Ask for all namespaces. This must silently ignore the "namespace"
+            # since the name of a namespace is in `.metadata.name` instead of
+            # in `.metadata.namespace` as for every other resource.
+            meta_1 = MetaManifest(gv, "Namespace", None, None)
+            meta_2 = MetaManifest(gv, "Namespace", "ns", None)
+            kg = f"{ns_kind}.{gv}" if gv else ns_kind
+            skgn_1 = SKGN(value=kg, ns="")
+            skgn_2 = SKGN(value=kg, ns="ns")
+            for data in [meta_1, meta_2, skgn_1, skgn_2]:
+                assert isinstance(data, (MetaManifest, SKGN))
+                res, err = k8s.resource(config, data)
+                assert not err
+                assert res == K8sResource(
+                    apiVersion="v1",
+                    kind="Namespace",
+                    name="namespaces",
+                    namespaced=False,
+                    url=f"{config.url}/api/v1/namespaces",
+                    all_names=('namespace', 'namespaces', 'ns'),
+                    preferred=True,
+                )
 
-            # Same as above because the "namespace" argument is ignored for Namespaces.
-            assert k8s.resource(config, MM(apiVer, ns_kind, "name", "")) == (res, err)
-
-            # Valid: a particular Namespace.
-            res, err = k8s.resource(config, MM(apiVer, ns_kind, None, "name"))
-            assert not err
-            assert res == K8sResource(
-                apiVersion="v1",
-                kind="Namespace",
-                name="namespaces",
-                namespaced=False,
-                url=f"{config.url}/api/v1/namespaces/name",
-                all_names=('namespace', 'namespaces', 'ns'),
-                preferred=True,
-            )
-
-            # Surprisingly, it is also valid to ask for a specific namespace in
-            # a particular namespace. This makes no sense but the function must
-            # silently ignore this and just return the particular namespace.
-            assert k8s.resource(config, MM(apiVer, ns_kind, "ns", "name")) == (res, err)
+            # Ask for a particular. This must silently ignore the "namespace"
+            # since the name of a namespace is in `.metadata.name` instead of
+            # in `.metadata.namespace` as for every other resource.
+            meta_1 = MetaManifest(gv, "Namespace", None, "name")
+            meta_2 = MetaManifest(gv, "Namespace", "ns", "name")
+            for data in [meta_1, meta_2, meta_1._skgn(), meta_2._skgn()]:
+                assert isinstance(data, (MetaManifest, SKGN))
+                res, err = k8s.resource(config, data)
+                assert not err
+                assert res == K8sResource(
+                    apiVersion="v1",
+                    kind="Namespace",
+                    name="namespaces",
+                    namespaced=False,
+                    url=f"{config.url}/api/v1/namespaces/name",
+                    all_names=('namespace', 'namespaces', 'ns'),
+                    preferred=True,
+                )
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     async def test_resource_clusterrole(self, integrationtest, k8sconfig):
@@ -651,53 +727,55 @@ class TestUrlPathBuilder:
         """
         # Fixtures.
         config = await self.k8sconfig(integrationtest, k8sconfig)
-        MM = MetaManifest
 
         # Tuples of API version that we ask for (if any), and what the final
         # K8sResource element will contain.
+        group = "rbac.authorization.k8s.io/v1"
         api_versions = [
             # We expect to get the version we asked for.
-            ("rbac.authorization.k8s.io/v1", "rbac.authorization.k8s.io/v1"),
+            group,
 
             # Function must automatically determine the latest version of the resource.
-            ("", "rbac.authorization.k8s.io/v1"),
+            "",
         ]
 
         # Ask for K8s resources.
-        for src, expected in api_versions:
-            # All ClusterRoles.
-            res, err = k8s.resource(config, MM(src, "ClusterRole", None, None))
-            assert not err
-            assert res == K8sResource(
-                apiVersion=expected,
-                kind="ClusterRole",
-                name="clusterroles",
-                namespaced=False,
-                url=f"{config.url}/apis/{expected}/clusterroles",
-                all_names=("clusterrole", "clusterroles"),
-                preferred=True,
-            )
+        for gv in api_versions:
+            # All ClusterRoles. Must silently ignore the namespace if one is
+            # specified since ClusterRoles are not namespaced.
+            meta_1 = MetaManifest(gv, "ClusterRole", None, None)
+            meta_2 = MetaManifest(gv, "ClusterRole", "ns", None)
+            for data in [meta_1, meta_2, meta_1._skgn(), meta_2._skgn()]:
+                assert isinstance(data, (MetaManifest, SKGN))
+                res, err = k8s.resource(config, data)
+                assert not err
+                assert res == K8sResource(
+                    apiVersion=group,
+                    kind="ClusterRole",
+                    name="clusterroles",
+                    namespaced=False,
+                    url=f"{config.url}/apis/{group}/clusterroles",
+                    all_names=("clusterrole", "clusterroles"),
+                    preferred=True,
+                )
 
-            # All ClusterRoles in a particular namespace -> same as above
-            # because the namespace is ignored for non-namespaced resources.
-            assert k8s.resource(config, MM(src, "ClusterRole", "ns", None)) == (res, err)
-
-            # A particular ClusterRole.
-            res, err = k8s.resource(config, MM(src, "ClusterRole", None, "name"))
-            assert not err
-            assert res == K8sResource(
-                apiVersion=expected,
-                kind="ClusterRole",
-                name="clusterroles",
-                namespaced=False,
-                url=f"{config.url}/apis/{expected}/clusterroles/name",
-                all_names=("clusterrole", "clusterroles"),
-                preferred=True,
-            )
-
-            # A particular ClusterRole in a particular namespace -> Same as above
-            # because the namespace is ignored for non-namespaced resources.
-            assert k8s.resource(config, MM(src, "ClusterRole", "ns", "name")) == (res, err)  # noqa
+            # A particular ClusterRoles. Must silently ignore the namespace if
+            # one is specified since ClusterRoles are not namespaced.
+            meta_1 = MetaManifest(gv, "ClusterRole", None, "name")
+            meta_2 = MetaManifest(gv, "ClusterRole", "ns", "name")
+            for data in [meta_1, meta_2, meta_1._skgn(), meta_2._skgn()]:
+                assert isinstance(data, (MetaManifest, SKGN))
+                res, err = k8s.resource(config, data)
+                assert not err
+                assert res == K8sResource(
+                    apiVersion=group,
+                    kind="ClusterRole",
+                    name="clusterroles",
+                    namespaced=False,
+                    url=f"{config.url}/apis/{group}/clusterroles/name",
+                    all_names=("clusterrole", "clusterroles"),
+                    preferred=True,
+                )
 
     def test_parse_api_group(self):
         # Load specimen.

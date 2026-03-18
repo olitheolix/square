@@ -14,7 +14,7 @@ import square.k8s
 import square.square
 from square.dtypes import (
     Config, FiltersKind, GroupBy, K8sConfig, LocalManifestLists, MetaManifest,
-    Selectors, SquareManifests,
+    Selectors, SelKindGroupNames, SquareManifests,
 )
 from square.yaml_io import Dumper, Loader
 
@@ -106,10 +106,15 @@ def select(manifest: dict, selectors: Selectors,
     assert all([len(_) == 2 for _ in label_selectors])
 
     # Unpack KIND, LABELS and NAME.
-    api_version = manifest.get("apiVersion", "_unknown_")
-    kind = manifest.get("kind", "_unknown_")
+    api_version = manifest.get("apiVersion", "")
+    kind = manifest.get("kind", "")
     labels = manifest.get("metadata", {}).get("labels", {})
     name = manifest.get("metadata", {}).get("name", "")
+
+    # Ignore any manifests that lack a kind.
+    # fixme: find out when that happens and update doc string.
+    if not kind:
+        return False
 
     # We need to pay special attention to `Namespace` resources since they are
     # not themselves namespaced.
@@ -140,11 +145,10 @@ def select(manifest: dict, selectors: Selectors,
         logit.debug(f"Namespace {ns} does not match selector {selectors.namespaces}")
         return False
 
-    # Select this manifest if it has 1) a name and 2) its kind matches.
-    # Put differently, this is an explicit match of a particular resource.
+    # Select this manifest if a selector matches it exactly.
     meta = MetaManifest(apiVersion=api_version, kind=kind, namespace="", name=name)
-    kg = square.square.kind_group(meta)
-    if name and f"{kg}/{name}" in selectors._metamanifests:
+    skgn = meta._skgn()
+    if str(skgn) in selectors._metamanifests:
         return True
     del meta
 
@@ -152,10 +156,11 @@ def select(manifest: dict, selectors: Selectors,
     # check for both "<kind>" and "<kind>.<group>" because we cannot know how
     # the user specified the selectors. He might have used "pod" or "pod.v1",
     # or "deploy" or "deploy.apps".
-    kind = kind.lower()
-    if not (kind in selectors._metamanifests or kg in selectors._metamanifests):
-        logit.info(f"Neither <{kind}> nor <{kg}> are in {selectors._metamanifests}")
+    smm = selectors._metamanifests
+    if not (skgn.kind in smm or skgn.kind_group in smm):
+        logit.info(f"Neither <{skgn.kind}> nor <{skgn.kind_group}> are in {smm}")
         return False
+    del smm
 
     # The manifest must match all label selectors to be included.
     if label_selectors and match_labels:
@@ -1022,17 +1027,12 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
     else:
         all_namespaces = config.selectors.namespaces
 
-    # These are the resources the user has selected. We need to strip off the
-    # optional name, eg "deployment.apps/name" -> "deployment.apps" because
-    # Square will always fetch the entire resource list and do the filtering
-    # itself afterwards.
-    all_kinds = [_.partition("/")[0] for _ in config.selectors._metamanifests]
-
-    # Compile the co-routines to download all requested resources.
+    # Compile the co-routines to download all resources the user specified
+    # in the Selectors.
     coroutines = []
     for namespace in all_namespaces:
-        for kind in all_kinds:
-            coroutines.append(_download_worker(k8sconfig, kind, namespace))
+        for kgn in config.selectors.skgn:
+            coroutines.append(_download_worker(k8sconfig, kgn, namespace))
 
     # Schedule all tasks and wait for them to finish.
     awaited_tasks = await asyncio.gather(*coroutines)
@@ -1048,7 +1048,7 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
     return (server_manifests, False)
 
 
-async def _download_worker(k8sconfig: K8sConfig, kind: str,
+async def _download_worker(k8sconfig: K8sConfig, kgn: SelKindGroupNames,
                            namespace: str | None) -> Tuple[SquareManifests, bool]:
     """Download and return the manifests for the specified `kind` and `namespace`.
 
@@ -1060,11 +1060,14 @@ async def _download_worker(k8sconfig: K8sConfig, kind: str,
     Return with an error if the resource exists but could not be downloaded.
 
     """
+    # fixme: do this in the caller and remove the `namespace` argument.
+    kgn = SelKindGroupNames(value=str(kgn.kind_group), ns=namespace or "")
+
     # Get the K8s URL for the current resource kind or return an empty manifest
     # list if it does not exist.
-    resource, err = square.k8s.resource(k8sconfig, MetaManifest("", kind, namespace, ""))  # noqa
+    resource, err = square.k8s.resource(k8sconfig, kgn)  # noqa
     if err:
-        logit.warning(f"Skipping unknown resource <{kind}>")
+        logit.warning(f"Skipping unknown resource <{kgn}>")
         return ({}, False)
 
     try:
@@ -1078,5 +1081,5 @@ async def _download_worker(k8sconfig: K8sConfig, kind: str,
         assert not err and manifests is not None
         return manifests, False
     except AssertionError:
-        logit.error(f"Could not query <{kind}> from {k8sconfig.name}")
+        logit.error(f"Could not query <{kgn}> from {k8sconfig.name}")
         return ({}, True)

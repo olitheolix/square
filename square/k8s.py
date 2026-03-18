@@ -18,6 +18,7 @@ import yaml
 
 from square.dtypes import (
     ConnectionParameters, K8sConfig, K8sResource, MetaManifest,
+    SelKindGroupNames,
 )
 
 # Convenience: location of K8s credentials inside a Pod.
@@ -582,7 +583,9 @@ def create_httpx_client(k8sconfig: K8sConfig,
     return k8sconfig, False
 
 
-def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, bool]:
+def resource(
+        k8sconfig: K8sConfig, gvknn: SelKindGroupNames | MetaManifest
+) -> Tuple[K8sResource, bool]:
     """Return the `K8sResource` object that corresponds to `meta`.
 
     That object will contain the full path to a resource, eg.
@@ -590,7 +593,7 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
 
     Inputs:
         k8sconfig: K8sConfig
-        meta: MetaManifest
+        GVKN: can be either a MetaManifest or SelKindGroupNames
 
     Returns:
         K8sResource
@@ -598,12 +601,14 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
     """
     err_resp = (K8sResource("", "", "", False, "", tuple()), True)
 
-    resource, err = pick_api(meta, k8sconfig.apis2)
+    # Retrieve the specific `K8sResource` for the specified
+    # group/version/kind/namespace/name.
+    resource, err = pick_api(gvknn, k8sconfig.apis2)
     if err:
         return err_resp
 
-    namespace, name, kind = meta.namespace, meta.name, meta.kind
-    del meta
+    # Convenience.
+    namespace, name = gvknn.namespace, gvknn.name
 
     # Determine the prefix for namespaced resources.
     if not (namespace and resource.namespaced):
@@ -618,7 +623,7 @@ def resource(k8sconfig: K8sConfig, meta: MetaManifest) -> Tuple[K8sResource, boo
 
     # Sanity check: the manifest for a namespaced resource must specify a namespace.
     if resource.namespaced and name and not namespace:
-        logit.error(f"Namespaced resource {kind}/{name} lacks namespace field")
+        logit.error(f"Namespaced resource {gvknn.kind}/{name} lacks namespace field")
         return err_resp
 
     # Create the full path to the resource depending on whether we have both a
@@ -1077,7 +1082,7 @@ def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
 
 
 def pick_api(
-        meta: MetaManifest, apis: Dict[str, List[K8sResource]]
+        kgn: SelKindGroupNames | MetaManifest, apis: Dict[str, List[K8sResource]]
 ) -> Tuple[K8sResource, bool]:
     """Selects the most appropriate API version for a given Kubernetes resource name.
 
@@ -1101,11 +1106,13 @@ def pick_api(
     # Convenience.
     err_resp = (K8sResource("", "", "", False, "", tuple()), True)
 
-    # Ignore capitalisation of `kind` and API version to allow the user to
-    # query "pod", "Pod", "PoD" etc.
-    kind, apiVersion = meta.kind.lower(), meta.apiVersion.lower()
-    name = f"{kind}.{apiVersion}" if apiVersion else kind
-    del kind, apiVersion
+    # Construct the `kind.group/version` string depending on the type of `kgn`.
+    if isinstance(kgn, MetaManifest):
+        name = kgn.kind.lower()
+        if kgn.apiVersion:
+            name += "." + kgn.apiVersion
+    else:
+        name = kgn.kind_group
 
     # Return an error if the resource does not exist in the cluster.
     if name not in apis:
