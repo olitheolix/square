@@ -367,10 +367,10 @@ class TestYamlManifestIO:
         # Create valid MetaManifests.
         meta_ns_a = mm("Namespace", "a", "a")
         meta_ns_b = mm("Namespace", "b", "b")
-        meta_svc_a = [mm("Service", "a", f"d_{_}") for _ in range(10)]
-        meta_dply_a = [mm("Deployment", "a", f"d_{_}") for _ in range(10)]
-        meta_svc_b = [mm("Service", "b", f"d_{_}") for _ in range(10)]
-        meta_dply_b = [mm("Deployment", "b", f"d_{_}") for _ in range(10)]
+        meta_svc_a = [mm("Service", "a", f"d-{_}") for _ in range(10)]
+        meta_dply_a = [mm("Deployment", "a", f"d-{_}") for _ in range(10)]
+        meta_svc_b = [mm("Service", "b", f"d-{_}") for _ in range(10)]
+        meta_dply_b = [mm("Deployment", "b", f"d-{_}") for _ in range(10)]
 
         # Define manifests in the correctly grouped and sorted order for three
         # YAML files.
@@ -525,7 +525,7 @@ class TestYamlManifestIO:
 
         # Construct manifests like `load_files` would return them.
         kind, ns, labels = "Deployment", "namespace", {"app": "name"}
-        dply = [make_manifest(kind, ns, f"d_{_}", labels) for _ in range(10)]
+        dply = [make_manifest(kind, ns, f"d-{_}", labels) for _ in range(10)]
         meta = [manio.make_meta(_) for _ in dply]
         fdata_test_in = {
             m1_yaml: [dply[0], dply[1]],
@@ -560,7 +560,7 @@ class TestYamlManifestIO:
         # Construct manifests like `load_files` would return them.
         kind, ns = "Deployment", "namespace"
         dply = [
-            make_manifest(kind, ns, f"d_{_}", {"app": f"d_{_}", "cluster": "test"})
+            make_manifest(kind, ns, f"d-{_}", {"app": f"d-{_}", "cluster": "test"})
             for _ in range(10)
         ]
         meta = [manio.make_meta(_) for _ in dply]
@@ -703,7 +703,7 @@ class TestYamlManifestIO:
         groupby = GroupBy(order=[], label="")
 
         # Construct demo manifests in the same way as `load_files` would.
-        dply = [mk_deploy(f"d_{_}", "nsfoo") for _ in range(10)]
+        dply = [mk_deploy(f"d-{_}", "nsfoo") for _ in range(10)]
         meta = [manio.make_meta(_) for _ in dply]
         fdata_test_in = {
             Path("m0.yaml"): [dply[0], dply[1], dply[2]],
@@ -1027,8 +1027,8 @@ class TestYamlManifestIOIntegration:
         selectors = Selectors(kinds=set(priority))
 
         # Create two YAML files, each with multiple manifests.
-        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
-        meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
+        dply = [mk_deploy(f"d-{_}") for _ in range(10)]
+        meta = [manio.make_meta(mk_deploy(f"d-{_}")) for _ in range(10)]
         man_files: LocalManifestLists = {
             Path("m0.yaml"): [(meta[0], dply[0]), (meta[1], dply[1])],
             Path("foo/m1.yaml"): [(meta[2], dply[2])],
@@ -1057,8 +1057,8 @@ class TestYamlManifestIOIntegration:
         selectors = Selectors(kinds=set(priority))
 
         # Create two YAML files, each with multiple manifests.
-        dply = [mk_deploy(f"d_{_}") for _ in range(3)]
-        meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(3)]
+        dply = [mk_deploy(f"d-{_}") for _ in range(3)]
+        meta = [manio.make_meta(mk_deploy(f"d-{_}")) for _ in range(3)]
         visible_files: LocalManifestLists = {
             Path("m0.yaml"): [(meta[0], dply[0])],
         }
@@ -1089,8 +1089,8 @@ class TestYamlManifestIOIntegration:
         selectors = Selectors(kinds=set(priority))
 
         # Create two YAML files, each with multiple manifests.
-        dply = [mk_deploy(f"d_{_}") for _ in range(10)]
-        meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
+        dply = [mk_deploy(f"d-{_}") for _ in range(10)]
+        meta = [manio.make_meta(mk_deploy(f"d-{_}")) for _ in range(10)]
         man_files: LocalManifestLists = {
             Path("m0.yaml"): [(meta[0], dply[0])],
             Path("m1.yaml"): [(meta[1], dply[1])],
@@ -1143,7 +1143,7 @@ class TestYamlManifestIOIntegration:
     def test_save_invalid_manifest(self, tmp_path):
         """Must handle YAML errors gracefully."""
         # Create valid MetaManifests.
-        meta = [manio.make_meta(mk_deploy(f"d_{_}")) for _ in range(10)]
+        meta = [manio.make_meta(mk_deploy(f"d-{_}")) for _ in range(10)]
 
         # Input to test function where one "manifest" is garbage that cannot be
         # converted to a YAML string, eg a Python frozenset. This assumption
@@ -1471,8 +1471,8 @@ class TestSync:
         kinds = {"Deployment"}
 
         # First, create the local manifests as `load_files` would return it.
-        man_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(10)]
-        man_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(10)]
+        man_1 = [mk_deploy(f"d-{_}", "ns1") for _ in range(10)]
+        man_2 = [mk_deploy(f"d-{_}", "ns2") for _ in range(10)]
         meta_1 = [manio.make_meta(_) for _ in man_1]
         meta_2 = [manio.make_meta(_) for _ in man_2]
         loc_man: LocalManifestLists = {
@@ -1538,8 +1538,8 @@ class TestSync:
         # The `{0: "blah"}` like dicts are necessary because the
         # `filename_for_manifest` function requires a dict to operate on. The
         # "0" part of the dict is otherwise meaningless.
-        man_1 = [mk_deploy(f"d_{_}", "ns1") for _ in range(10)]
-        man_2 = [mk_deploy(f"d_{_}", "ns2") for _ in range(10)]
+        man_1 = [mk_deploy(f"d-{_}", "ns1") for _ in range(10)]
+        man_2 = [mk_deploy(f"d-{_}", "ns2") for _ in range(10)]
         meta_1 = [manio.make_meta(_) for _ in man_1]
         meta_2 = [manio.make_meta(_) for _ in man_2]
         loc_man: LocalManifestLists = {
@@ -1616,7 +1616,7 @@ class TestSync:
         # locally. This will ensure that `sync` will try to create a new file
         # for it, which is what we want to test.
         loc_man: LocalManifestLists = {}
-        srv_man = {manio.make_meta(mk_deploy("d_1", "ns1")): mk_deploy("d_1", "ns1")}
+        srv_man = {manio.make_meta(mk_deploy("d-1", "ns1")): mk_deploy("d-1", "ns1")}
 
         # Define an invalid grouping specification. As a consequence,
         # `filename_for_manifest` will return an error and we can verify if
