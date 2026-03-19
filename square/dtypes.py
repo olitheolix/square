@@ -244,13 +244,9 @@ class Selectors(BaseModel):
     labels: List[str] = []
 
     @property
-    def _metamanifests(self) -> Set[str]:
-        # fixme: do we even need this?
-        return {str(_) for _ in self.skgn}
-
-    @property
-    def skgn(self) -> List[SelKindGroupNames]:
-        return [SelKindGroupNames(value=_) for _ in self.kinds]
+    def str_skgns(self) -> Set[str]:
+        """Set of all stringified kind/group/name information."""
+        return {str(SelKindGroupNames(value=_)) for _ in self.kinds}
 
 
 class GroupBy(BaseModel):
