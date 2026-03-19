@@ -147,7 +147,7 @@ def select(manifest: dict, selectors: Selectors,
 
     # Select this manifest if a selector matches it exactly.
     meta = MetaManifest(apiVersion=api_version, kind=kind, namespace="", name=name)
-    skgn = meta._skgn()
+    skgn = meta.skgn()
     if str(skgn) in selectors._metamanifests:
         return True
     del meta

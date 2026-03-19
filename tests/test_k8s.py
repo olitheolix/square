@@ -609,7 +609,7 @@ class TestUrlPathBuilder:
         for src, prefix, expected in api_versions:
             # A particular Event API version in a particular namespace.
             meta = MetaManifest(src, kind, "ns", "name")
-            for data in [meta, meta._skgn()]:
+            for data in [meta, meta.skgn()]:
                 assert isinstance(data, (MetaManifest, SKGN))
                 res, err = k8s.resource(config, data)
                 assert not err
@@ -625,7 +625,7 @@ class TestUrlPathBuilder:
 
             # All Events APIs in all namespaces.
             meta = MetaManifest(src, kind, None, None)
-            for data in [meta, meta._skgn()]:
+            for data in [meta, meta.skgn()]:
                 assert isinstance(data, (MetaManifest, SKGN))
                 res, err = k8s.resource(config, data)
                 assert not err
@@ -641,7 +641,7 @@ class TestUrlPathBuilder:
 
             # All Events in a particular namespace.
             meta = MetaManifest(src, kind, "ns", "")
-            for data in [meta, meta._skgn()]:
+            for data in [meta, meta.skgn()]:
                 assert isinstance(data, (MetaManifest, SKGN))
                 res, err = k8s.resource(config, data)
                 assert not err
@@ -657,7 +657,7 @@ class TestUrlPathBuilder:
 
             # A particular Event in all namespaces -> Invalid.
             meta = MetaManifest(src, kind, None, "name")
-            for data in [meta, meta._skgn()]:
+            for data in [meta, meta.skgn()]:
                 assert isinstance(data, (MetaManifest, SKGN))
                 assert k8s.resource(config, data) == err_resp
 
@@ -703,7 +703,7 @@ class TestUrlPathBuilder:
             # in `.metadata.namespace` as for every other resource.
             meta_1 = MetaManifest(gv, "Namespace", None, "name")
             meta_2 = MetaManifest(gv, "Namespace", "ns", "name")
-            for data in [meta_1, meta_2, meta_1._skgn(), meta_2._skgn()]:
+            for data in [meta_1, meta_2, meta_1.skgn(), meta_2.skgn()]:
                 assert isinstance(data, (MetaManifest, SKGN))
                 res, err = k8s.resource(config, data)
                 assert not err
@@ -745,7 +745,7 @@ class TestUrlPathBuilder:
             # specified since ClusterRoles are not namespaced.
             meta_1 = MetaManifest(gv, "ClusterRole", None, None)
             meta_2 = MetaManifest(gv, "ClusterRole", "ns", None)
-            for data in [meta_1, meta_2, meta_1._skgn(), meta_2._skgn()]:
+            for data in [meta_1, meta_2, meta_1.skgn(), meta_2.skgn()]:
                 assert isinstance(data, (MetaManifest, SKGN))
                 res, err = k8s.resource(config, data)
                 assert not err
@@ -763,7 +763,7 @@ class TestUrlPathBuilder:
             # one is specified since ClusterRoles are not namespaced.
             meta_1 = MetaManifest(gv, "ClusterRole", None, "name")
             meta_2 = MetaManifest(gv, "ClusterRole", "ns", "name")
-            for data in [meta_1, meta_2, meta_1._skgn(), meta_2._skgn()]:
+            for data in [meta_1, meta_2, meta_1.skgn(), meta_2.skgn()]:
                 assert isinstance(data, (MetaManifest, SKGN))
                 res, err = k8s.resource(config, data)
                 assert not err
