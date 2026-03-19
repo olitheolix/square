@@ -54,8 +54,7 @@ class MetaManifest(NamedTuple):
     # name in the `namespace` field.
     name: str | None
 
-    # fixme: rename to skgn for consistency with Selectors
-    def _skgn(self) -> "SelKindGroupNames":
+    def skgn(self) -> "SelKindGroupNames":
         """Return the MetaManifest as a `SelKindGroupNames`."""
         ns = self.namespace if self.namespace else ""
         kind = self.kind.lower()

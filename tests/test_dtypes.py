@@ -190,13 +190,13 @@ class TestSelectors:
 
     def test_metamanifest(self):
         meta = MetaManifest("v1", "Pod", "ns", "name")
-        assert meta._skgn() == SKGN(value="pod.v1/name", ns="ns")
+        assert meta.skgn() == SKGN(value="pod.v1/name", ns="ns")
 
         meta = MetaManifest("", "Pod", "ns", "name")
-        assert meta._skgn() == SKGN(value="pod/name", ns="ns")
+        assert meta.skgn() == SKGN(value="pod/name", ns="ns")
 
         meta = MetaManifest("v1", "Pod", "ns", "")
-        assert meta._skgn() == SKGN(value="pod.v1", ns="ns")
+        assert meta.skgn() == SKGN(value="pod.v1", ns="ns")
 
         meta = MetaManifest("", "Pod", "", "")
-        assert meta._skgn() == SKGN(value="pod", ns="")
+        assert meta.skgn() == SKGN(value="pod", ns="")
