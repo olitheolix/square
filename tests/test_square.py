@@ -145,7 +145,7 @@ class TestBasic:
                 'deploy.apps', 'deployment.apps', 'deployments.apps',
                 'service.v1', 'services.v1', 'svc.v1'
             }
-            assert ret.selectors._metamanifests == {
+            assert ret.selectors.str_skgns == {
                 'deploy.apps', 'deployment.apps', 'deployments.apps',
                 'service.v1', 'services.v1', 'svc.v1'
             }
@@ -163,7 +163,7 @@ class TestBasic:
         ret = sq.translate_resource_kinds(cfg, k8sconfig)
         assert ret.priorities == ["namespace.v1", "deployment.apps"]
         assert ret.selectors.kinds == set()
-        assert ret.selectors._metamanifests == set()
+        assert ret.selectors.str_skgns == set()
 
     def test_translate_resource_kinds_kind_name(self, k8sconfig):
         """Same as previous test but this time also specify `kind/name`."""
@@ -190,7 +190,7 @@ class TestBasic:
             'namespaces.v1/foo', 'ns.v1', 'ns.v1/foo',
             'service.v1/app1', 'services.v1/app1', 'svc.v1/app1',
         }
-        assert ret.selectors._metamanifests == {
+        assert ret.selectors.str_skgns == {
             'deploy.apps/app2', 'deployment.apps/app2', 'deployments.apps/app2',
             'namespace.v1', 'namespace.v1/foo', 'namespaces.v1',
             'namespaces.v1/foo', 'ns.v1', 'ns.v1/foo',

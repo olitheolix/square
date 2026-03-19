@@ -111,8 +111,9 @@ def select(manifest: dict, selectors: Selectors,
     labels = manifest.get("metadata", {}).get("labels", {})
     name = manifest.get("metadata", {}).get("name", "")
 
-    # Ignore any manifests that lack a kind.
-    # fixme: find out when that happens and update doc string.
+    # Ignore any manifests that lack a kind. This is more a hypothetical
+    # scenario in real life but we encounter it during the unit tests when we
+    # indiscriminately load YAML files and not all of them are K8s manifests.
     if not kind:
         return False
 
@@ -146,21 +147,17 @@ def select(manifest: dict, selectors: Selectors,
         return False
 
     # Select this manifest if a selector matches it exactly.
-    meta = MetaManifest(apiVersion=api_version, kind=kind, namespace="", name=name)
-    skgn = meta.skgn()
-    if str(skgn) in selectors._metamanifests:
+    skgn = MetaManifest(apiVersion=api_version, kind=kind, namespace="", name=name).skgn()
+    if str(skgn) in selectors.str_skgns:
         return True
-    del meta
 
     # Reject this manifest if the user did not select its kind. We need to
     # check for both "<kind>" and "<kind>.<group>" because we cannot know how
     # the user specified the selectors. He might have used "pod" or "pod.v1",
     # or "deploy" or "deploy.apps".
-    smm = selectors._metamanifests
-    if not (skgn.kind in smm or skgn.kind_group in smm):
-        logit.info(f"Neither <{skgn.kind}> nor <{skgn.kind_group}> are in {smm}")
+    if len(selectors.str_skgns & {skgn.kind, skgn.kind_group}) == 0:
+        logit.debug(f"<{{{skgn.kind, skgn.kind_group}}}> not in {selectors.str_skgns}")
         return False
-    del smm
 
     # The manifest must match all label selectors to be included.
     if label_selectors and match_labels:
@@ -1031,8 +1028,14 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
     # in the Selectors.
     coroutines = []
     for namespace in all_namespaces:
-        for kgn in config.selectors.skgn:
-            coroutines.append(_download_worker(k8sconfig, kgn, namespace))
+        for kgn_str in config.selectors.str_skgns:
+            # Extract the group and kind without any names.
+            gk = SelKindGroupNames(value=kgn_str).kind_group
+
+            # Construct a new SKGN object for the resource kind, group and
+            # namespace but not any specific names.
+            kgn = SelKindGroupNames(value=gk, ns=namespace or "")
+            coroutines.append(_download_worker(k8sconfig, kgn))
 
     # Schedule all tasks and wait for them to finish.
     awaited_tasks = await asyncio.gather(*coroutines)
@@ -1048,8 +1051,9 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
     return (server_manifests, False)
 
 
-async def _download_worker(k8sconfig: K8sConfig, kgn: SelKindGroupNames,
-                           namespace: str | None) -> Tuple[SquareManifests, bool]:
+async def _download_worker(
+        k8sconfig: K8sConfig, kgn: SelKindGroupNames
+) -> Tuple[SquareManifests, bool]:
     """Download and return the manifests for the specified `kind` and `namespace`.
 
     If the `namespace` or `kind` does not exist then the function will return
@@ -1060,9 +1064,6 @@ async def _download_worker(k8sconfig: K8sConfig, kgn: SelKindGroupNames,
     Return with an error if the resource exists but could not be downloaded.
 
     """
-    # fixme: do this in the caller and remove the `namespace` argument.
-    kgn = SelKindGroupNames(value=str(kgn.kind_group), ns=namespace or "")
-
     # Get the K8s URL for the current resource kind or return an empty manifest
     # list if it does not exist.
     resource, err = square.k8s.resource(k8sconfig, kgn)  # noqa

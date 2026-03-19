@@ -14,7 +14,7 @@ class TestSelectors:
         """
         # Defaults.
         sel = Selectors()
-        assert sel._metamanifests == set()
+        assert sel.str_skgns == set()
 
         # Verify some valid cases to specify a resource kind.
         kinds = {"pod", "pod.v1", "pod.v1/name"}
@@ -22,25 +22,25 @@ class TestSelectors:
         assert sel.kinds == kinds
 
         # Must have produced a MetaManifest for each specified resource.
-        assert sel._metamanifests == {"pod", "pod.v1", "pod.v1/name"}
+        assert sel.str_skgns == {"pod", "pod.v1", "pod.v1/name"}
 
     def test_Selectors_modify_ok(self):
         """Modify the selectors via attribute assignment."""
         # Create default model.
         sel = Selectors()
-        assert sel.kinds == set() and sel._metamanifests == set()
+        assert sel.kinds == set() and sel.str_skgns == set()
 
         # Assign directly to `.kinds` and verify this udpates `_metamanifests`.
         sel.kinds = {"x/y"}
         assert sel.kinds == {"x/y"}
-        assert sel._metamanifests == {"x/y"}
+        assert sel.str_skgns == {"x/y"}
 
         # Use setter methods like `clear` and `update`. This must update
         # `._metamanifests` as well.
         sel.kinds.clear()
         sel.kinds.update({"a/b"})
         assert sel.kinds == {"a/b"}
-        assert sel._metamanifests == {"a/b"}
+        assert sel.str_skgns == {"a/b"}
 
     def test_Selectors_err(self):
         """Various error scenarios of invalid resource kinds."""
@@ -54,7 +54,7 @@ class TestSelectors:
 
         for kind in invalid_kinds:
             with pytest.raises(ValueError):
-                Selectors(kinds={kind})._metamanifests
+                Selectors(kinds={kind}).str_skgns
 
     def test_SelKindGroupNames_valid(self):
         kgn = SelKindGroupNames(value="pod.v1/name-1")

@@ -39,9 +39,9 @@ def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
 
     """
     # Backup the original list of KIND selectors.
-    sel_res = list(cfg.selectors._metamanifests)
+    sel_res = list(cfg.selectors.str_skgns)
     cfg.selectors.kinds.clear()
-    cfg.selectors._metamanifests.clear()
+    cfg.selectors.str_skgns.clear()
 
     # fixme: this is all rather ugly. Refactor this into a method on `Selector`.
     for res in sel_res:
