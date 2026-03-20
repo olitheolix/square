@@ -107,6 +107,41 @@ def normalise_kinds(kinds: Iterable[str], k8sconfig: K8sConfig) -> Tuple[List[st
     return (out, False)
 
 
+def compile_config(cfg: Config, k8sconfig: K8sConfig) -> Tuple[Config, bool]:
+    """Convert `cfg.Selectors.kind` and `cfg.priorities` to Square internal format.
+
+    Examples:
+      - "svc" -> "service.v1"
+      - "svc/name" -> "service.v1/name"
+      - "deployments" -> "deployment.apps".
+
+    NOTE: this function has side effects. It changes `cfg.priorities` and
+    `cfg.selectors` in-place.
+
+    """
+    # Normalise the selected kinds and those from the priority list.
+    kinds, err1 = normalise_kinds(cfg.selectors.kinds, k8sconfig)
+    prio, err2 = normalise_kinds(cfg.priorities, k8sconfig)
+    if err1 or err2:
+        return cfg, True
+
+    # Check: kinds in the priority list must not contain a name.
+    # Valid: "svc"  Invalid: "svc/name"
+    for p in prio:
+        skgn = SelKindGroupNames(value=p)
+        if skgn.name:
+            logit.error(f"priority list items must not contain a name: {skgn}")
+            return cfg, True
+
+    # Replace the original selector.kinds and priority list with their
+    # canonical names.
+    cfg.selectors.kinds.clear()
+    cfg.selectors.kinds.update(kinds)
+    cfg.priorities.clear()
+    cfg.priorities.extend(prio)
+    return cfg, False
+
+
 def kind_group(meta: MetaManifest) -> str:
     """Convert `meta` manifest to `<kind>.<group>`.
 
