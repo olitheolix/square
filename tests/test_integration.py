@@ -669,7 +669,7 @@ class TestMainPlan:
         """PLAN all cluster resources."""
         # Command line arguments.
         args = (
-            "square.py", "plan", "all",
+            "square.py", "plan",
             "--folder", str(tmp_path),
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
         )
