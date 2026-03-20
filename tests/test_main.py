@@ -733,7 +733,7 @@ class TestMain:
     def test_parse_commandline_args_labels_valid(self):
         """The labels must be returned as (name, value) tuples."""
         # No labels.
-        with mock.patch("sys.argv", ["square.py", "get", "all"]):
+        with mock.patch("sys.argv", ["square.py", "get"]):
             ret = main.parse_commandline_args()
             assert ret.labels is None
 
