@@ -249,6 +249,49 @@ class TestBasic:
         _, err = sq.normalise_kinds(["democrd"], k8sconfig)
         assert err
 
+    def test_compile_config_ok(self, k8sconfig):
+        cfg = Config(
+            folder=Path('/tmp'),
+            kubeconfig=Path(),
+            kubecontext=None,
+            groupby=GroupBy(),
+            priorities=["ns", "democrd", "ns", "democrd"],
+            selectors=Selectors(kinds={"svc", "deploy/name"}),
+        )
+
+        got_cfg, err = sq.compile_config(cfg, k8sconfig)
+        assert not err
+
+        # Must have normalised the kinds and preserved the optional name. It
+        # must also have removed all duplicates.
+        assert got_cfg.selectors.kinds == {"service.v1", "deployment.apps/name"}
+        assert got_cfg.priorities == ["namespace.v1", "democrd.mycrd.com"]
+
+    def test_compile_config_err(self, k8sconfig):
+        # Invalid: kinds in priority list must not contain a name.
+        cfg = Config(
+            folder=Path('/tmp'),
+            kubeconfig=Path(),
+            kubecontext=None,
+            groupby=GroupBy(),
+            priorities=["ns/name"],
+            selectors=Selectors(kinds=set()),
+        )
+        _, err = sq.compile_config(cfg, k8sconfig)
+        assert err
+
+        # Invalid: selected kind does not exist in current K8s cluster.
+        cfg = Config(
+            folder=Path('/tmp'),
+            kubeconfig=Path(),
+            kubecontext=None,
+            groupby=GroupBy(),
+            priorities=[],
+            selectors=Selectors(kinds={"unknown"}),
+        )
+        _, err = sq.compile_config(cfg, k8sconfig)
+        assert err
+
     def test_valid_label(self):
         """Test label values (not their key names)."""
         # A specific example of a valid label that triggered a bug once.
