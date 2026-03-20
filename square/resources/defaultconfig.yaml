@@ -27,26 +27,23 @@ connection_parameters:
 # Square will only target resources that match *all* the selectors below.
 # -----------------------------------------------------------------------------
 selectors:
-  # Target these resource kinds.
+  # Target these resource kinds. Capitalisation is irrelevant and  you may
+  # specify explicit groups to avoid ambiguity.
+  # For instance, these are all equivalent: {svc, service, services, svc.v1, service.v1, ...}
+  # You may also target a specific service only with `svc.v1/name`
   kinds:
     - ClusterRole
     - ClusterRoleBinding
     - ConfigMap
-    - CronJob
     - CustomResourceDefinition
-    - DaemonSet
     - Deployment
     - HorizontalPodAutoscaler
     - Ingress
     - Namespace
-    - PersistentVolumeClaim
-    - PodDisruptionBudget
     - Role
     - RoleBinding
-    - Secret
     - Service
     - ServiceAccount
-    - StatefulSet
 
   # Target these namespaces. Use an empty list to target all.
   namespaces: []
@@ -79,27 +76,15 @@ priorities:
   # Namespaces must come before any namespaced resources.
   - Namespace
 
-  # Configuration and PVC before Deployments & friends that may use them.
-  - ConfigMap
-  - PersistentVolumeClaim
-  - Secret
-
   # RBAC.
   - Role
   - RoleBinding
   - ServiceAccount
 
-  # Define Services before Deployments & friends.
-  - PodDisruptionBudget
-  - Service
-
-  # Resources that will spawn pods.
-  - CronJob
-  - DaemonSet
-  - Deployment
-  - StatefulSet
-
   # Everything else.
+  - ConfigMap
+  - Service
+  - Deployment
   - HorizontalPodAutoscaler
   - Ingress
 
