@@ -208,9 +208,9 @@ class TestBasic:
         assert got == (["service.v1/name"], False)
 
         kinds = [
-            "DEPLOYMENT/app1", "deployment/app1", "deployments/app1",
+            "DEPLOYMENT/app1", "deployment/app2", "deployments/app3",
             "ns", "namespace/foo",
-            "svc", "service", "services", "svc/app2",
+            "service", "svc/app1",
         ]
 
         # Convert the selector KINDs to their canonical K8s kinds.
@@ -219,9 +219,9 @@ class TestBasic:
 
         # Must have removed all duplicates.
         assert got_kinds == [
-            'deployment.apps/app1',
+            'deployment.apps/app1', 'deployment.apps/app2', 'deployment.apps/app3',
             'namespace.v1', 'namespace.v1/foo',
-            'service.v1', 'service.v1/app2',
+            'service.v1', 'service.v1/app1',
         ]
 
     def test_normalise_kinds_err(self, k8sconfig):
@@ -255,7 +255,7 @@ class TestBasic:
             kubeconfig=Path(),
             kubecontext=None,
             groupby=GroupBy(),
-            priorities=["ns", "democrd", "ns", "democrd"],
+            priorities=["ns", "democrd"],
             selectors=Selectors(kinds={"svc", "deploy/name"}),
         )
 
@@ -275,6 +275,18 @@ class TestBasic:
             kubecontext=None,
             groupby=GroupBy(),
             priorities=["ns/name"],
+            selectors=Selectors(kinds=set()),
+        )
+        _, err = sq.compile_config(cfg, k8sconfig)
+        assert err
+
+        # Invalid: priority list must not contain duplicates.
+        cfg = Config(
+            folder=Path('/tmp'),
+            kubeconfig=Path(),
+            kubecontext=None,
+            groupby=GroupBy(),
+            priorities=["ns", "ns"],
             selectors=Selectors(kinds=set()),
         )
         _, err = sq.compile_config(cfg, k8sconfig)

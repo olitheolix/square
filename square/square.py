@@ -4,7 +4,7 @@ import logging
 import re
 import sys
 import traceback
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import Any, Callable, Collection, Dict, Iterable, List, Set, Tuple
 
 import colorama
@@ -82,29 +82,35 @@ def normalise_kinds(kinds: Iterable[str], k8sconfig: K8sConfig) -> Tuple[List[st
       - "deployments" -> "deployment.apps".
 
     """
-    ans = []
+    ambiguous = defaultdict(list)
+    normalised_kinds = []
+
+    # Determine the specific K8sResource for each kind and use that to convert
+    # the given `kinds` to the canonical <kind>.<group> format Square uses internally.
     for kind in kinds:
+        # Determine the API of the `kind`.
         skgn = SelKindGroupNames(value=kind)
         r, err = k8s.pick_api(skgn, k8sconfig.apis2)
         if err:
             return [], True
 
+        # Determine the canonical `kind.group[/name]` string.
         group = r.apiVersion.partition("/")[0]
         s = f"{r.kind.lower()}.{group}"
         if skgn.name:
             s += f"/{skgn.name}"
-        ans.append(str(SelKindGroupNames(value=s)))
+        normalised_kinds.append(str(SelKindGroupNames(value=s)))
 
-    # Remove duplicate entries.
-    seen = set()
-    out: List[str] = []
-    for kind in ans:
-        if kind in seen:
-            continue
-        seen.add(kind)
-        out.append(kind)
+        # Track which `kinds` resolved to which resource.
+        ambiguous[normalised_kinds[-1]].append(kind)
 
-    return (out, False)
+    # Abort if any selectors target the same resource.
+    ambiguous = {k: v for k, v in ambiguous.items() if len(v) > 1}
+    if len(ambiguous) > 0:
+        logit.error(f"different selectors target same resources: {ambiguous}")
+        return [], True
+
+    return (normalised_kinds, False)
 
 
 def compile_config(cfg: Config, k8sconfig: K8sConfig) -> Tuple[Config, bool]:
