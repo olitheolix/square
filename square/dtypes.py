@@ -18,20 +18,11 @@ DEFAULT_PRIORITIES = (
     # Namespaces must come before any namespaced resources.
     "Namespace",
 
-    # Configuration and PVC before Deployments & friends use them.
-    "ConfigMap", "PersistentVolumeClaim", "Secret",
-
     # RBAC.
     "Role", "RoleBinding", "ServiceAccount",
 
-    # Define Services before creating Deployments & friends.
-    "PodDisruptionBudget", "Service",
-
-    # Everything that will spawn pods.
-    "CronJob", "DaemonSet", "Deployment", "StatefulSet",
-
-    # Other.
-    "HorizontalPodAutoscaler", "Ingress",
+    # Everything else.
+    "ConfigMap", "Service", "Deployment", "HorizontalPodAutoscaler", "Ingress",
 )
 
 

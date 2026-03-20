@@ -19,34 +19,22 @@ priorities:
   # Custom Resources should come first.
   - CustomResourceDefinition
 
-  # Commone non-namespaced resources.
+  # Common non-namespaced resources.
   - ClusterRole
   - ClusterRoleBinding
 
-  # Namespaces must come before any namespaced resources,
+  # Namespaces must come before any namespaced resources.
   - Namespace
-
-  # Configuration and PVC before Deployments & friends use them.
-  - ConfigMap
-  - PersistentVolumeClaim
-  - Secret
 
   # RBAC.
   - Role
   - RoleBinding
   - ServiceAccount
 
-  # Define Services before creating Deployments & friends.
-  - PodDisruptionBudget
+  # Everything else.
+  - ConfigMap
   - Service
-
-  # Everything that will spawn pods.
-  - CronJob
-  - DaemonSet
   - Deployment
-  - StatefulSet
-
-  # Other.
   - HorizontalPodAutoscaler
   - Ingress
 
@@ -60,21 +48,15 @@ selectors:
     - ClusterRole
     - ClusterRoleBinding
     - ConfigMap
-    - CronJob
     - CustomResourceDefinition
-    - DaemonSet
     - Deployment
     - HorizontalPodAutoscaler
     - Ingress
     - Namespace
-    - PersistentVolumeClaim
-    - PodDisruptionBudget
     - Role
     - RoleBinding
-    - Secret
     - Service
     - ServiceAccount
-    - StatefulSet
   namespaces: ["default", "kube-system"]
   labels:
     - app=square
