@@ -810,12 +810,12 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
         cfg.kubeconfig, cfg.kubecontext, cfg.connection_parameters
     )
 
-    # Abort if we could not get the plan or establish the K8s session.
-    if plan_err or k8s_err:
-        return True
-
     # Convert "Selectors.kinds" to their canonical names.
-    cfg = translate_resource_kinds(cfg, k8sconfig)
+    cfg, compile_err = compile_config(cfg, k8sconfig)
+
+    # Abort if we could not get the plan or establish the K8s session.
+    if plan_err or k8s_err or compile_err:
+        return True
 
     # Create the missing resources. Abort on first error.
     for data_c in plan.create:
@@ -919,7 +919,8 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         assert not err
 
         # Convert "Selectors.kinds" to their canonical names.
-        cfg = translate_resource_kinds(cfg, k8sconfig)
+        cfg, err = compile_config(cfg, k8sconfig)
+        assert not err
 
         # Load manifests from local files.
         local, _, err = manio.load_manifests(cfg.folder, cfg.selectors)
@@ -974,7 +975,8 @@ async def get_resources(cfg: Config) -> bool:
         # NOTE: we cannot do this earlier, eg as part of the Pydantic model
         # because we need access to K8s first so that `k8sconfig` contains all
         # the API resources and groups.
-        cfg = translate_resource_kinds(cfg, k8sconfig)
+        cfg, err = compile_config(cfg, k8sconfig)
+        assert not err
 
         # Use a wildcard Selector to ensure `manio.load` will read _all_ local
         # manifests. This will allow `manio.sync` to modify the ones specified
