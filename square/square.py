@@ -5,7 +5,7 @@ import re
 import sys
 import traceback
 from collections import Counter
-from typing import Any, Callable, Collection, Dict, List, Set, Tuple
+from typing import Any, Callable, Collection, Dict, Iterable, List, Set, Tuple
 
 import colorama
 import jsonpatch
@@ -17,7 +17,7 @@ import square.manio as manio
 from square.dtypes import (
     Config, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
     DeploymentPlanMeta, JsonPatch, K8sConfig, MetaManifest, Selectors,
-    SquareManifests,
+    SelKindGroupNames, SquareManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -68,6 +68,43 @@ def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
             cfg.priorities.append(ans)
 
     return cfg
+
+
+def normalise_kinds(kinds: Iterable[str], k8sconfig: K8sConfig) -> Tuple[List[str], bool]:
+    """Convert `Selectors.{kind, priorities}` to <kind>.<group>/<name> format.
+
+    This is a Square internal format to uniquely identify a resource and its
+    group, optionally also the name of the resource.
+
+    Examples:
+      - "svc" -> "service.v1"
+      - "SERVICE/name" -> "service.v1/name"
+      - "deployments" -> "deployment.apps".
+
+    """
+    ans = []
+    for kind in kinds:
+        skgn = SelKindGroupNames(value=kind)
+        r, err = k8s.pick_api(skgn, k8sconfig.apis2)
+        if err:
+            return [], True
+
+        group = r.apiVersion.partition("/")[0]
+        s = f"{r.kind.lower()}.{group}"
+        if skgn.name:
+            s += f"/{skgn.name}"
+        ans.append(str(SelKindGroupNames(value=s)))
+
+    # Remove duplicate entries.
+    seen = set()
+    out: List[str] = []
+    for kind in ans:
+        if kind in seen:
+            continue
+        seen.add(kind)
+        out.append(kind)
+
+    return (out, False)
 
 
 def kind_group(meta: MetaManifest) -> str:

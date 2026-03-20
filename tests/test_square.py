@@ -15,7 +15,7 @@ import square.square as sq
 from square.dtypes import (
     DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
     DeploymentPlan, DeploymentPlanMeta, GroupBy, JsonPatch, K8sConfig,
-    MetaManifest, Selectors, SquareManifests,
+    K8sResource, MetaManifest, Selectors, SquareManifests,
 )
 from square.k8s import resource
 
@@ -196,6 +196,58 @@ class TestBasic:
             'namespaces.v1/foo', 'ns.v1', 'ns.v1/foo',
             'service.v1/app1', 'services.v1/app1', 'svc.v1/app1',
         }
+
+    def test_normalise_kinds_ok(self, k8sconfig):
+        got = sq.normalise_kinds([], k8sconfig)
+        assert got == ([], False)
+
+        got = sq.normalise_kinds(["svc"], k8sconfig)
+        assert got == (["service.v1"], False)
+
+        got = sq.normalise_kinds(["svc/name"], k8sconfig)
+        assert got == (["service.v1/name"], False)
+
+        kinds = [
+            "DEPLOYMENT/app1", "deployment/app1", "deployments/app1",
+            "ns", "namespace/foo",
+            "svc", "service", "services", "svc/app2",
+        ]
+
+        # Convert the selector KINDs to their canonical K8s kinds.
+        got_kinds, err = sq.normalise_kinds(kinds, k8sconfig)
+        assert not err
+
+        # Must have removed all duplicates.
+        assert got_kinds == [
+            'deployment.apps/app1',
+            'namespace.v1', 'namespace.v1/foo',
+            'service.v1', 'service.v1/app2',
+        ]
+
+    def test_normalise_kinds_err(self, k8sconfig):
+        k8sconfig.apis2.clear()
+
+        r_1 = K8sResource(
+            apiVersion="group-a/v1",
+            kind="DemoCRD",
+            name="democrds",
+            namespaced=True,
+            url="/apis/mycrd.com/v1",
+            all_names=("democrd", "democrds"),
+            preferred=True,
+        )
+        r_2 = r_1._replace(apiVersion="group-b/v1")
+
+        _, err = sq.normalise_kinds(["democrd"], k8sconfig)
+        assert err
+
+        k8sconfig.apis2["democrd"] = [r_1]
+        _, err = sq.normalise_kinds(["democrd"], k8sconfig)
+        assert not err
+
+        k8sconfig.apis2["democrd"].append(r_2)
+        _, err = sq.normalise_kinds(["democrd"], k8sconfig)
+        assert err
 
     def test_valid_label(self):
         """Test label values (not their key names)."""
