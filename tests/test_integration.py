@@ -363,10 +363,10 @@ class TestMainGet:
             ),
         )
 
-        # No manifest must have been downloaded because the resources `mycrd`
-        # is ambiguous as both CRD groups provide one.
+        # Must abort with an error and not download anything because `mycrd` is
+        # ambiguous as two groups provide a resource of that name.
         man_path = tmp_path / "_other.yaml"
-        assert not await square.square.get_resources(config)
+        assert await square.square.get_resources(config)
         assert not man_path.exists()
 
         # Specify the resource groups explicitly and verify we got exactly two
