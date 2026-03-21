@@ -1631,8 +1631,7 @@ class TestSync:
     def test_service_account_support_file(self):
         """Ensure the ServiceAccount support file has the correct setup.
 
-        Some other tests, most notably those for the `align` function, rely on
-        this.
+        Some other tests, most notably those for the `align` function, rely on this.
 
         """
         # Fixtures.
@@ -1657,8 +1656,7 @@ class TestSync:
         assert len(token) == 1 and token[0] == {"name": "demoapp-token-abcde"}
 
     def test_align_serviceaccount(self):
-        """Align the ServiceAccount token secrets among local- and cluster
-        manifest.
+        """Align the ServiceAccount token secrets among local- and cluster manifest.
 
         This test assumes the support file with the ServiceAccount is properly
         setup (see `test_service_account_support_file`).
