@@ -63,7 +63,7 @@ class K8sResource(NamedTuple):
     name: str         # "deployments" (plural name, lower case).
     namespaced: bool  # Whether or not the resource is namespaced.
     url: str          # API endpoint, eg "k8s-host.com/api/v1/pods".
-    all_names: Tuple[str, ...]  # all names (singular, plural, short hands).
+    aliases: Tuple[str, ...]    # all names (singular, plural, short hands).
     preferred: bool = False
 
 

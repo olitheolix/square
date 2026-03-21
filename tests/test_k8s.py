@@ -418,7 +418,7 @@ class TestUrlPathBuilder:
                 assert res == K8sResource(
                     apiVersion="v1", kind="Pod", name="pods", namespaced=True,
                     url=f"{k8sconfig.url}/api/v1/namespaces/ns/pods/name",
-                    all_names=("po", "pod", "pods"),
+                    aliases=("po", "pod", "pods"),
                     preferred=True,
                 )
 
@@ -432,7 +432,7 @@ class TestUrlPathBuilder:
                 assert res == K8sResource(
                     apiVersion="v1", kind="Pod", name="pods", namespaced=True,
                     url=f"{k8sconfig.url}/api/v1/namespaces/ns/pods",
-                    all_names=("po", "pod", "pods"),
+                    aliases=("po", "pod", "pods"),
                     preferred=True,
                 )
 
@@ -446,7 +446,7 @@ class TestUrlPathBuilder:
                 assert res == K8sResource(
                     apiVersion="v1", kind="Pod", name="pods", namespaced=True,
                     url=f"{k8sconfig.url}/api/v1/pods",
-                    all_names=("po", "pod", "pods"),
+                    aliases=("po", "pod", "pods"),
                     preferred=True,
                 )
 
@@ -490,7 +490,7 @@ class TestUrlPathBuilder:
                 name=k8s_name,
                 namespaced=True,
                 url=f"{config.url}/apis/{expected}/namespaces/ns/{k8s_name}/name",
-                all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+                aliases=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
                 preferred=preferred,
             )
 
@@ -503,7 +503,7 @@ class TestUrlPathBuilder:
                 name=k8s_name,
                 namespaced=True,
                 url=f"{config.url}/apis/{expected}/{k8s_name}",
-                all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+                aliases=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
                 preferred=preferred,
             )
 
@@ -516,7 +516,7 @@ class TestUrlPathBuilder:
                 name=k8s_name,
                 namespaced=True,
                 url=f"{config.url}/apis/{expected}/namespaces/ns/{k8s_name}",
-                all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+                aliases=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
                 preferred=preferred,
             )
 
@@ -548,7 +548,7 @@ class TestUrlPathBuilder:
             name=k8s_name,
             namespaced=True,
             url=f"{config.url}/apis/{expected}/namespaces/ns/{k8s_name}/name",
-            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+            aliases=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
             preferred=True,
         )
 
@@ -561,7 +561,7 @@ class TestUrlPathBuilder:
             name=k8s_name,
             namespaced=True,
             url=f"{config.url}/apis/{expected}/{k8s_name}",
-            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+            aliases=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
             preferred=True,
         )
 
@@ -574,7 +574,7 @@ class TestUrlPathBuilder:
             name=k8s_name,
             namespaced=True,
             url=f"{config.url}/apis/{expected}/namespaces/ns/{k8s_name}",
-            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+            aliases=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
             preferred=True,
         )
 
@@ -619,7 +619,7 @@ class TestUrlPathBuilder:
                     name=k8s_name,
                     namespaced=True,
                     url=f"{config.url}/{prefix}/{expected}/namespaces/ns/{k8s_name}/name",
-                    all_names=("ev", "event", "events"),
+                    aliases=("ev", "event", "events"),
                     preferred=True,
                 )
 
@@ -635,7 +635,7 @@ class TestUrlPathBuilder:
                     name=k8s_name,
                     namespaced=True,
                     url=f"{config.url}/{prefix}/{expected}/{k8s_name}",
-                    all_names=("ev", "event", "events"),
+                    aliases=("ev", "event", "events"),
                     preferred=True,
                 )
 
@@ -651,7 +651,7 @@ class TestUrlPathBuilder:
                     name=k8s_name,
                     namespaced=True,
                     url=f"{config.url}/{prefix}/{expected}/namespaces/ns/{k8s_name}",
-                    all_names=("ev", "event", "events"),
+                    aliases=("ev", "event", "events"),
                     preferred=True,
                 )
 
@@ -694,7 +694,7 @@ class TestUrlPathBuilder:
                     name="namespaces",
                     namespaced=False,
                     url=f"{config.url}/api/v1/namespaces",
-                    all_names=('namespace', 'namespaces', 'ns'),
+                    aliases=('namespace', 'namespaces', 'ns'),
                     preferred=True,
                 )
 
@@ -713,7 +713,7 @@ class TestUrlPathBuilder:
                     name="namespaces",
                     namespaced=False,
                     url=f"{config.url}/api/v1/namespaces/name",
-                    all_names=('namespace', 'namespaces', 'ns'),
+                    aliases=('namespace', 'namespaces', 'ns'),
                     preferred=True,
                 )
 
@@ -755,7 +755,7 @@ class TestUrlPathBuilder:
                     name="clusterroles",
                     namespaced=False,
                     url=f"{config.url}/apis/{group}/clusterroles",
-                    all_names=("clusterrole", "clusterroles"),
+                    aliases=("clusterrole", "clusterroles"),
                     preferred=True,
                 )
 
@@ -773,7 +773,7 @@ class TestUrlPathBuilder:
                     name="clusterroles",
                     namespaced=False,
                     url=f"{config.url}/apis/{group}/clusterroles/name",
-                    all_names=("clusterrole", "clusterroles"),
+                    aliases=("clusterrole", "clusterroles"),
                     preferred=True,
                 )
 
@@ -794,7 +794,7 @@ class TestUrlPathBuilder:
                 apiVersion='version',
                 kind='ConfigMap',
                 name='configmaps',
-                all_names=("cm", "configmap", "configmaps"),
+                aliases=("cm", "configmap", "configmaps"),
                 namespaced=True,
                 url='url',
             )
@@ -850,7 +850,7 @@ class TestUrlPathBuilder:
             name="deployments",
             namespaced=True,
             url="/apis/apps/v1",
-            all_names=("deploy", "deployment", "deployments"),
+            aliases=("deploy", "deployment", "deployments"),
             preferred=True,
         )
         r_deploy_apps_v1beta = K8sResource(
@@ -859,7 +859,7 @@ class TestUrlPathBuilder:
             name="deployments",
             namespaced=True,
             url="/apis/apps/v1beta1",
-            all_names=("deploy", "deployment", "deployments"),
+            aliases=("deploy", "deployment", "deployments"),
             preferred=False,
         )
         r_deploy_fake_v1 = K8sResource(
@@ -868,7 +868,7 @@ class TestUrlPathBuilder:
             name="deployments",
             namespaced=True,
             url="/apis/fake.k8s.io/v1",
-            all_names=("configmap", "deployment", "deployments", "fakedeploy"),
+            aliases=("configmap", "deployment", "deployments", "fakedeploy"),
             preferred=True,
         )
         r_cm_v1 = K8sResource(
@@ -877,7 +877,7 @@ class TestUrlPathBuilder:
             name="configmaps",
             namespaced=True,
             url="/api/v1",
-            all_names=("cm", "configmap", "configmaps"),
+            aliases=("cm", "configmap", "configmaps"),
             preferred=True,
         )
         r_po_v1 = K8sResource(
@@ -886,7 +886,7 @@ class TestUrlPathBuilder:
             name="pods",
             namespaced=True,
             url="/api/v1",
-            all_names=("po", "pod", "pods"),
+            aliases=("po", "pod", "pods"),
             preferred=True,
         )
 
@@ -939,7 +939,7 @@ class TestUrlPathBuilder:
             name="deployments",
             namespaced=True,
             url="/apis/apps/v1",
-            all_names=("deploy", "deployment", "deployments"),
+            aliases=("deploy", "deployment", "deployments"),
             preferred=True,
         )
         r_deploy_np = r_deploy_p._replace(preferred=False)
@@ -984,7 +984,7 @@ class TestUrlPathBuilder:
             name="namespaces",
             namespaced=False,
             url=f"{config.url}/api/v1",
-            all_names=("namespace", "namespaces", "ns"),
+            aliases=("namespace", "namespaces", "ns"),
             preferred=True,
         )]
         assert config.apis["pod"] == [K8sResource(
@@ -993,7 +993,7 @@ class TestUrlPathBuilder:
             name="pods",
             namespaced=True,
             url=f"{config.url}/api/v1",
-            all_names=("po", "pod", "pods"),
+            aliases=("po", "pod", "pods"),
             preferred=True,
         )]
         assert config.apis["deployment.apps/v1"] == [K8sResource(
@@ -1002,7 +1002,7 @@ class TestUrlPathBuilder:
             name="deployments",
             namespaced=True,
             url=f"{config.url}/apis/apps/v1",
-            all_names=("deploy", "deployment", "deployments"),
+            aliases=("deploy", "deployment", "deployments"),
             preferred=True,
         )]
         assert config.apis["hpa.autoscaling/v2"] == [K8sResource(
@@ -1011,7 +1011,7 @@ class TestUrlPathBuilder:
             name="horizontalpodautoscalers",
             namespaced=True,
             url=f"{config.url}/apis/autoscaling/v2",
-            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+            aliases=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
             preferred=True,
         )]
 
@@ -1022,7 +1022,7 @@ class TestUrlPathBuilder:
             name="democrds",
             namespaced=True,
             url=f"{config.url}/apis/mycrd.com/v1",
-            all_names=("democrd", "democrds"),
+            aliases=("democrd", "democrds"),
             preferred=True,
         )]
 
@@ -1034,7 +1034,7 @@ class TestUrlPathBuilder:
             name="foo",
             namespaced=True,
             url="",
-            all_names=("foo", "ambiguous"),
+            aliases=("foo", "ambiguous"),
             preferred=True,
         )
         r_bar = K8sResource(
@@ -1043,7 +1043,7 @@ class TestUrlPathBuilder:
             name="bar",
             namespaced=True,
             url="",
-            all_names=("bar", "ambiguous"),
+            aliases=("bar", "ambiguous"),
             preferred=True,
         )
 

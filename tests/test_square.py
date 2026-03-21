@@ -159,7 +159,7 @@ class TestBasic:
             name="democrds",
             namespaced=True,
             url="/apis/mycrd.com/v1",
-            all_names=("democrd", "democrds"),
+            aliases=("democrd", "democrds"),
             preferred=True,
         )
         r_2 = r_1._replace(apiVersion="group-b/v1")
