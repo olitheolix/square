@@ -776,7 +776,7 @@ class TestYamlManifestIO:
 
 
 class TestStripManifest:
-    def test_run_strip_callback_deployment(self, sqcfg: Config, k8sconfig):
+    def test_run_strip_callback_deployment(self, sqcfg: Config):
         """Filter DEPLOYMENT manifests."""
         # A valid DEPLOYMENT manifest with a few optional and irrelevant keys.
         manifest = {
@@ -826,14 +826,15 @@ class TestStripManifest:
         # Define a single resource.
         manifest = make_manifest("Namespace", None, "ns1")
 
-        def cb_ok(cfg: Config, _man: dict):
+        def cb_ok(_cfg: Config, _man: dict):
+            _ = _cfg, _man      # make linter happy.
             return _man
 
-        def cb_change_kind(_cfg: Config, _man: dict):
+        def cb_change_kind(_: Config, _man: dict):
             _man["kind"] = "foo"
             return _man
 
-        def cb_corrupt(_cfg: Config, _man: dict):
+        def cb_corrupt(_: Config, _man: dict):
             del _man["kind"]
             return _man
 
@@ -921,14 +922,16 @@ class TestStripManifest:
         assert fun(sqcfg, {}, server) == ({}, server, False)
 
         # Callback raises an exception.
-        def cb_exception(square_config, manifest):
+        def cb_exception(_cfg: Config, _manifest):
+            _ = _cfg, _manifest  # make linter happy.
             raise RuntimeError()
 
         sqcfg.strip_callback = cb_exception
         assert fun(sqcfg, {}, server) == ({}, {}, True)
 
         # Callback provides too many return values.
-        def cb_invalid_return_values(square_config, manifest):
+        def cb_invalid_return_values(_cfg: Config, _manifest):
+            _ = _cfg, _manifest  # make linter happy.
             return (None, {}, "foo")
 
         sqcfg.strip_callback = cb_invalid_return_values

@@ -5,7 +5,7 @@ except ImportError:
     sh = None
 
 from collections import defaultdict
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 from square.dtypes import K8sConfig, K8sResource
 
