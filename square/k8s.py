@@ -721,16 +721,13 @@ async def cluster_config(kubeconfig: Path,
     return (k8sconfig, False)
 
 
-def parse_api_group(gv, url: str, resp: dict) -> Tuple[List[K8sResource], Dict[str, str]]:
+def parse_api_group(gv, url: str, resp: dict) -> List[K8sResource]:
     """Compile the K8s API `resp` into a `K8sResource` tuple.
 
     The `resp` is the verbatim response from the K8s API group regarding the
     resources it provides. Here we compile those into `K8sResource` tuples iff
     they meet the criteria to be manageable by Square. These criteria are, most
     notably, the ability to create, get, patch and delete the resource.
-
-    Also return a LUT to convert short names like "svc" into the proper resource
-    kind "Service".
 
     """
     resources = resp["resources"]
@@ -774,19 +771,7 @@ def parse_api_group(gv, url: str, resp: dict) -> Tuple[List[K8sResource], Dict[s
 
         group_urls.append(K8sResource(gv, kind, name, namespaced, url, tan))
 
-    # Compile LUT to translate short names into their proper resource
-    # kind: Example short2kind = {"service":, "Service", "svc": "Service"}
-    short2kind: Dict[str, str] = {}
-    for res in resources:
-        kind = res["kind"]
-
-        short2kind[kind.lower()] = kind
-        short2kind[res["name"]] = kind
-        for short_name in res.get("shortNames", []):
-            if short_name:
-                short2kind[short_name] = kind
-
-    return (group_urls, short2kind)
+    return group_urls
 
 
 async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
@@ -842,9 +827,8 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
             logit.error(f"Could not interrogate {k8sconfig.name} ({url})")
             return True
 
-        tmp, _ = parse_api_group(gv, url, resp)
-        resources.extend(tmp)
-        del gv, url, resp, err, tmp
+        resources.extend(parse_api_group(gv, url, resp))
+        del gv, url, resp, err
 
     # Partition the APIs into the list of native (eg Pod, Service) and
     # non-native ones (everything else, like Deployment).
