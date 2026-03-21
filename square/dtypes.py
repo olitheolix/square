@@ -160,10 +160,6 @@ class K8sConfig(NamedTuple):
     # Kubernetes API endpoints (see `k8s.compile_api_endpoints`).
     apis: Dict[str, List[K8sResource]] = {}
 
-    # LUT to translate short names into their proper resource kind,
-    # for instance short = {"service":, "Service", "svc": "Service"}
-    short2kind: Dict[str, str] = {}
-
     # The set of supported K8s resource kinds, eg {"Deployment", "Service"}.
     # NOTE: these are the `manifest.kind` spellings. "Deployment" is a valid
     # K8s resource kind, whereas "deployment" or "Deployments" are not.

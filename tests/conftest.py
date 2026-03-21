@@ -54,19 +54,8 @@ def k8sconfig_fixture() -> K8sConfig:
     cfg.apis.clear()
     cfg.apis.update(k8s_apis2(cfg))
 
-    # Manually insert common short spellings.
-    cfg.short2kind["deployment"] = "Deployment"
-    cfg.short2kind["service"] = "Service"
-    cfg.short2kind["svc"] = "Service"
-    cfg.short2kind["secret"] = "Secret"
-    cfg.short2kind["ns"] = "Namespace"
-    cfg.short2kind["namespace"] = "Namespace"
-    cfg.short2kind["hpa"] = "HorizontalPodAutoscaler"
-    cfg.short2kind["cm"] = "ConfigMap"
-
-    # The set of canonical K8s resources we support.
-    cfg.kinds.update({_ for _ in cfg.short2kind.values()})
-
+    cfg.kinds.clear()
+    cfg.kinds.update(cfg.apis)
     return cfg
 
 
