@@ -96,67 +96,6 @@ def fname_param_config(tmp_path) -> Generator[
     os.chdir(cwd)
 
 
-class TestResourceCleanup:
-    @mock.patch.object(sq.k8s, "cluster_config")
-    async def test_expand_all_kinds(self, m_cluster, k8sconfig):
-        """Must expand the short names if possible, and leave as is otherwise."""
-        m_cluster.side_effect = lambda *args: (k8sconfig, False)
-
-        # Expand an empty list of `Selectors.kinds` to the full range of
-        # available K8s resources that Square could manage.
-        cfg = Config(
-            folder=Path('/tmp'),
-            kubeconfig=Path(),
-            kubecontext=None,
-            selectors=Selectors(
-                kinds=set(),
-                namespaces=['default'],
-                labels=["app=square", "foo=bar"],
-            ),
-            groupby=GroupBy(label="", order=[]),
-            priorities=["Namespace", "Deployment"],
-        )
-
-        # Do nothing if `Selectors.kinds` is non-empty.
-        ret, err = await main.expand_all_kinds(cfg)
-        assert not err and ret.selectors.kinds == set(k8sconfig.kinds)
-
-        cfg = Config(
-            folder=Path('/tmp'),
-            kubeconfig=Path(),
-            kubecontext=None,
-            selectors=Selectors(
-                kinds={"svc", "Deployment"},
-                namespaces=['default'],
-                labels=["app=square", "foo=bar"],
-            ),
-            groupby=GroupBy(label="", order=[]),
-            priorities=["Namespace", "Deployment"],
-        )
-
-        # Convert the resource names to their correct K8s kind.
-        ret, err = await main.expand_all_kinds(cfg)
-        assert not err and ret == cfg
-
-    async def test_expand_all_kinds_err_config(self):
-        """Abort if the kubeconfig file does not exist."""
-        cfg = Config(
-            folder=Path('/tmp'),
-            kubeconfig=Path("/does/not/exist"),
-            kubecontext=None,
-            selectors=Selectors(
-                kinds=set(),
-                namespaces=['default'],
-                labels=["app=square", "foo=bar"],
-            ),
-            groupby=GroupBy(label="", order=[]),
-            priorities=["Namespace", "Deployment"],
-        )
-
-        _, err = await main.expand_all_kinds(cfg)
-        assert err
-
-
 class TestMain:
     def test_boostrap(self):
         """Verify the constants created during package import."""

@@ -346,29 +346,6 @@ async def apply_plan(cfg: Config, confirm_string: str | None) -> bool:
     return False
 
 
-async def expand_all_kinds(cfg: Config) -> Tuple[Config, bool]:
-    """Replace an empty `cfg.selector.kinds` with all available resources.
-
-    Does nothing if `cfg.selectors.kinds` is non-empty.
-
-    """
-    # Do nothing if the user specified at least one resource type.
-    if len(cfg.selectors.kinds) > 0:
-        return cfg, False
-
-    # Create a K8sConfig instance because it will contain all the info we need.
-    k8sconfig, err = await square.k8s.cluster_config(
-        cfg.kubeconfig, cfg.kubecontext, cfg.connection_parameters
-    )
-    if err:
-        return (cfg, True)
-
-    # Replace the empty resource list with all KINDS that K8s has to offer.
-    cfg.selectors.kinds.clear()
-    cfg.selectors.kinds.update(k8sconfig.kinds)
-    return (cfg, False)
-
-
 def show_info(cfg: Config) -> bool:
     """Show some info about the configuration that will be used."""
     sel = cfg.selectors
@@ -406,9 +383,8 @@ async def start() -> int:
     square.square.setup_logging(param.verbosity)
 
     # Create Square configuration from command line arguments.
-    cfg, err1 = compile_config(param)
-    cfg, err2 = await expand_all_kinds(cfg)
-    if err1 or err2:
+    cfg, err = compile_config(param)
+    if err:
         return 1
 
     # Do what the user asked us to do.
