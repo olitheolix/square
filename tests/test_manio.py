@@ -1282,7 +1282,7 @@ class TestSync:
         groupby = GroupBy(order=["ns", "blah"], label="")
         assert fun(meta, man, groupby) == (Path(), True)
 
-    def test_sync_modify_select_kind_and_namespace_ok(self, k8sconfig):
+    def test_sync_modify_select_kind_and_namespace_ok(self):
         """Add, modify and delete a few manifests.
 
         Create fake inputs for the test function, namely local- and remote
@@ -1301,7 +1301,6 @@ class TestSync:
         # Convenience shorthand.
         fun = manio.sync
         groupby = GroupBy(order=[], label="")
-        kinds = k8sconfig.kinds
 
         # Various MetaManifests to use in the tests.
         ns0_man = make_manifest("Namespace", None, "ns0")
@@ -1371,8 +1370,8 @@ class TestSync:
         }, False
 
         # Sync the manifests. The order of `kinds` and `namespaces` must not matter.
-        for kinds in itertools.permutations(["Namespace", "Deployment", "Service"]):
-            kinds = set(kinds)
+        for pkinds in itertools.permutations(["Namespace", "Deployment", "Service"]):
+            kinds = set(pkinds)
 
             # Implicitly use all namespaces.
             selectors = Selectors(kinds=kinds)
@@ -1396,8 +1395,8 @@ class TestSync:
                 (svc_ns1, svc_ns1_man),
             ],
         }, False
-        for kinds in itertools.permutations(["Deployment", "Service"]):
-            selectors = Selectors(kinds=set(kinds), namespaces=["ns0"])
+        for pkinds in itertools.permutations(["Deployment", "Service"]):
+            selectors = Selectors(kinds=set(pkinds), namespaces=["ns0"])
             assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
