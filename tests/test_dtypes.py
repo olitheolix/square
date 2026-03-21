@@ -198,5 +198,5 @@ class TestSelectors:
         meta = MetaManifest("v1", "Pod", "ns", "")
         assert meta.skgn() == SKGN(value="pod.v1", ns="ns")
 
-        meta = MetaManifest("", "Pod", "", "")
+        meta = MetaManifest("", "Pod", None, "")
         assert meta.skgn() == SKGN(value="pod", ns="")
