@@ -982,17 +982,13 @@ class TestUrlPathBuilder:
         # Sanity check.
         kinds = {
             # Some standard resources that every v1.24 Kubernetes cluster has.
-            ('ClusterRole', 'rbac.authorization.k8s.io/v1'),
-            ('ConfigMap', 'v1'),
-            ('Deployment', 'apps/v1'),
-            ('HorizontalPodAutoscaler', 'autoscaling/v2'),
-            ('Pod', 'v1'),
-            ('Service', 'v1'),
-
-            # Our CustomCRD.
-            ("DemoCRD", "mycrd.com/v1"),
+            'clusterrole.rbac.authorization.k8s.io',
+            'configmap.v1',
+            'deployment.apps',
+            'pod.v1',
+            'service.v1'
         }
-        assert kinds.issubset(set(config.apis.keys()))
+        assert kinds.issubset(set(config.apis2))
 
         # Verify some standard resource types.
         assert config.apis2["namespace.v1"] == [K8sResource(

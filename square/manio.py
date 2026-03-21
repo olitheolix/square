@@ -67,9 +67,8 @@ def is_valid_manifest(manifest: dict, k8sconfig: K8sConfig) -> bool:
         logit.error(f"Manifest is missing the <{e.args[0]}> key.")
         return False
 
-    # Admit any resources that are unknown to K8s (see function doc string).
-    key = (meta.kind, meta.apiVersion)
-    if key not in k8sconfig.apis:
+    # Admit any resources that are known to K8s (see function doc string).
+    if meta.skgn().kind_group not in k8sconfig.apis2:
         return True
 
     try:

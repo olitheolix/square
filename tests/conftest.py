@@ -11,7 +11,7 @@ import square.k8s
 import square.square
 from square.dtypes import Config, K8sConfig
 
-from .test_helpers import k8s_apis, k8s_apis2
+from .test_helpers import k8s_apis2
 
 
 def pytest_configure(*args, **kwargs):
@@ -51,8 +51,6 @@ def k8sconfig_fixture() -> K8sConfig:
     )
 
     # The set of API endpoints we can use in the tests.
-    cfg.apis.clear()
-    cfg.apis.update(k8s_apis(cfg))
     cfg.apis2.clear()
     cfg.apis2.update(k8s_apis2(cfg))
 
