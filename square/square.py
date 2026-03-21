@@ -102,26 +102,6 @@ def compile_config(cfg: Config, k8sconfig: K8sConfig) -> Tuple[Config, bool]:
     return cfg, False
 
 
-def kind_group(meta: MetaManifest) -> str:
-    """Convert `meta` manifest to `<kind>.<group>`.
-
-    This is a helper function only. It concatenates the lower case `kind` with
-    the API group but without the API version. This format is canonical to
-    Square only as it will use that in various places, most notably for the
-    user specified selectors.
-
-    Example:
-      meta = MetaManifest(apiVersion="batch/v1", kind="Job", namespace="", name="")
-      assert group_kind(meta) == `job.batch`
-
-    """
-    kind = meta.kind.lower()
-    if not meta.apiVersion:
-        return kind
-    group = meta.apiVersion.partition("/")[0]
-    return f"{kind}.{group}"
-
-
 def make_patch(
         k8sconfig: K8sConfig,
         local: dict,
@@ -680,20 +660,25 @@ def sort_plan(cfg: Config, plan: DeploymentPlan) -> Tuple[DeploymentPlan, bool]:
     # Assign all resource kinds that exist in `plan.{create,delete}` a priority
     # number that is larger than all other numbers in that list. This will
     # ensure they come last when we sort.
-    kg = kind_group
-    missing_create = {kg(_.meta) for _ in plan.create if kg(_.meta) not in priority_id}
+    missing_create = {
+        _.meta.skgn().kind_group for _ in plan.create
+        if _.meta.skgn().kind_group not in priority_id
+    }
     priority_id.update({_: max_id for _ in missing_create})
-    missing_delete = {kg(_.meta) for _ in plan.delete if kg(_.meta) not in priority_id}
+    missing_delete = {
+        _.meta.skgn().kind_group for _ in plan.delete
+        if _.meta.skgn().kind_group not in priority_id
+    }
     priority_id.update({_: max_id for _ in missing_delete})
 
     # Sort the patches by priority ID and MetaManifest.
-    create = [(priority_id[kg(_.meta)], _) for _ in plan.create]
+    create = [(priority_id[_.meta.skgn().kind_group], _) for _ in plan.create]
     create.sort(key=lambda _: _[:2])
 
     # Repeat for the patches that will delete resources but reverse the final
     # list. This will ensure we remove resources in the reverse order in which
     # we would create them.
-    delete = [(priority_id[kg(_.meta)], _) for _ in plan.delete]
+    delete = [(priority_id[_.meta.skgn().kind_group], _) for _ in plan.delete]
     delete.sort(key=lambda _: _[:2])
     delete.reverse()
 
