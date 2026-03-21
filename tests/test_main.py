@@ -514,7 +514,7 @@ class TestMain:
 
         """
         _, _, config = fname_param_config
-        m_cluster.side_effect = lambda *args: (k8sconfig, False)
+        m_cluster.side_effect = lambda *_: (k8sconfig, False)
 
         options = ["get", "plan", "apply"]
 
@@ -585,6 +585,8 @@ class TestMain:
         Either way, the program must abort with a non-zero exit code.
 
         """
+        _ = m_k8s               # make linter happy.
+
         # Do not pass any option.
         with mock.patch("sys.argv", ["square.py"]):
             with pytest.raises(SystemExit) as err:
@@ -638,7 +640,7 @@ class TestMain:
         _, param, _ = fname_param_config
 
         # Pretend the call to get K8s credentials succeeded.
-        m_cluster.side_effect = lambda *args: (k8sconfig, False)
+        m_cluster.side_effect = lambda *_: (k8sconfig, False)
 
         # Simulate an invalid Square command.
         param.parser = "invalid"

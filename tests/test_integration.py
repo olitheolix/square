@@ -1106,7 +1106,7 @@ class TestCallbacks:
 
         call_count = 0
 
-        def add_label_callback(square_config: Config, manifest: dict) -> dict:
+        def add_label_callback(_: Config, manifest: dict) -> dict:
             """Add a dummy label to every downloaded manifest."""
             manifest["metadata"]["labels"] = manifest["metadata"].get("labels", {})
             manifest["metadata"]["labels"]["integration-test-demo"] = "works"

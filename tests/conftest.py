@@ -16,6 +16,8 @@ from .test_helpers import k8s_apis
 
 def pytest_configure(*args, **kwargs):
     """Pytest calls this hook on startup."""
+    _ = args, kwargs            # make linter happy.
+
     # Set log level to DEBUG for all unit tests.
     square.square.setup_logging(9)
 

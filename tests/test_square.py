@@ -1055,6 +1055,7 @@ class TestPlan:
 
         # Install a `strip` callback that corrupts `MetaManifest` info.
         def cb_corrupt(_cfg: Config, _man: dict):
+            _, _ = _cfg, _man
             del _man["kind"]
             return _man
 
@@ -1120,6 +1121,7 @@ class TestPlan:
         local, server = get_dummy_manifests()
 
         def cb1(_cfg: Config, _local: dict, _server: dict):
+            _ = _cfg, _local    # make linter happy
             return (_server, _server)
 
         sqcfg.patch_callback = cb1
@@ -1131,6 +1133,7 @@ class TestPlan:
         # Callback returns wrong number or arguments.
         # ----------------------------------------------------------------------
         def cb2(_cfg: Config, _local: dict, _server: dict):
+            _ = _cfg, _local, _server  # make linter happy
             return None
 
         local, server = get_dummy_manifests()
@@ -1141,7 +1144,7 @@ class TestPlan:
         # ----------------------------------------------------------------------
         # Callback modifies a field that changes the `MetaManifest`.
         # ----------------------------------------------------------------------
-        def cb3(_cfg: Config, _local: dict, _server: dict):
+        def cb3(_: Config, _local: dict, _server: dict):
             _local["kind"] = "foo"
             _server["kind"] = "foo"
             return (_local, _server)
@@ -1154,7 +1157,7 @@ class TestPlan:
         # ----------------------------------------------------------------------
         # Callback deletes a necessary field for the `MetaManifest`.
         # ----------------------------------------------------------------------
-        def cb4(_cfg: Config, _local: dict, _server: dict):
+        def cb4(_: Config, _local: dict, _server: dict):
             del _local["kind"]
             del _server["metadata"]
             return (_local, _server)
@@ -1207,7 +1210,8 @@ class TestPlan:
         assert srv_man == srv_man_bak
 
         # Repeat the test, but this time force an error in the callback function.
-        def cb2(square_config: Config, local_manifest: dict, server_manifest: dict):
+        def cb2(_cfg: Config, _local: dict, _server: dict):
+            _ = _cfg, _local, _server  # make linter happy
             raise ValueError()
 
         sqcfg.patch_callback = cb2
@@ -1472,6 +1476,8 @@ class TestMainOptions:
         tests to cover various edge cases.
 
         """
+        _ = kube_creds          # make linter happy
+
         # Select all Pods in all namespaces. Ignore labels.
         sqcfg.selectors = Selectors(kinds={"Pod"}, namespaces=[], labels=[])
 
@@ -1531,6 +1537,8 @@ class TestMainOptions:
         with different labels.
 
         """
+        _ = kube_creds          # make linter happy
+
         # Select all Pods in all namespaces. We will set labels below.
         sqcfg.selectors = Selectors(kinds={"Pod"}, namespaces=[])
 
@@ -1568,6 +1576,8 @@ class TestMainOptions:
         with different labels.
 
         """
+        _ = kube_creds          # make linter happy
+
         # Define the same resource twice but with different labels.
         meta_pod1 = MetaManifest('v1', 'Pod', "ns1", "pod-1")
         meta_pod2 = MetaManifest('v1', 'Pod', "ns1", "pod-2")
@@ -1613,6 +1623,7 @@ class TestMainOptions:
         The two functions are similar enough to be covered by a single test.
 
         """
+        _ = kube_creds          # make linter happy
 
         # Local Pod manifest does not specify a NAMESPACE.
         loc_man = make_manifest("Pod", None, "loc")
@@ -1702,8 +1713,10 @@ class TestMainOptions:
         assert await sq.get_resources(sqcfg) is True
 
     @mock.patch.object(manio, "download")
-    async def test_get_resources_basic(self, m_down, kube_creds, sqcfg: Config):
+    async def test_get_resources_basic(self, m_down, sqcfg: Config, kube_creds):
         """Simulate an empty local folder and some downloaded manifests."""
+        _ = kube_creds          # make linter happy
+
         # Only show INFO and above or otherwise this test will produce a
         # humongous amount of logs from all the K8s calls.
         square.square.setup_logging(2)
@@ -1740,7 +1753,7 @@ class TestMainOptions:
         # --------------------------------------------------------------------------------
         call_count_cb1 = 0
 
-        def cb1(square_config: Config, manifest: dict) -> dict:
+        def cb1(_: Config, manifest: dict) -> dict:
             nonlocal call_count_cb1
             call_count_cb1 += 1
             manifest["metadata"]["labels"]["cb1"] = "called"
@@ -1768,7 +1781,7 @@ class TestMainOptions:
 
         call_count_cb2 = 0
 
-        def cb2(square_config: Config, manifest: dict) -> dict:
+        def cb2(_: Config, manifest: dict) -> dict:
             nonlocal call_count_cb2
             call_count_cb2 += 1
             manifest["metadata"]["labels"]["cb2"] = "called"
@@ -1798,7 +1811,7 @@ class TestMainOptions:
 
         call_count_cb3 = 0
 
-        def cb3(square_config: Config, manifest: dict) -> dict:
+        def cb3(_: Config, manifest: dict) -> dict:
             nonlocal call_count_cb3
             call_count_cb3 += 1
             manifest["metadata"]["labels"]["cb3"] = "called"

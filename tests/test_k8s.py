@@ -532,7 +532,6 @@ class TestUrlPathBuilder:
 
         """
         config = await self.k8sconfig(False, k8sconfig)
-        MM = MetaManifest
         err_resp = (K8sResource("", "", "", False, "", tuple()), True)
 
         # Convenience.
