@@ -782,13 +782,7 @@ class TestUrlPathBuilder:
         resp = yaml.safe_load(open("tests/support/api-v1.yaml").read())
 
         # Parse the API groups.
-        group_urls, short = k8s.parse_api_group("version", "url", resp)
-        assert short == {
-            'binding': 'Binding', 'bindings': 'Binding',
-            'configmap': 'ConfigMap', 'configmaps': 'ConfigMap', 'cm': 'ConfigMap',
-            'namespace': 'Namespace', 'namespaces/status': 'Namespace'
-        }
-
+        group_urls = k8s.parse_api_group("version", "url", resp)
         assert group_urls == [
             K8sResource(
                 apiVersion='version',
