@@ -25,7 +25,7 @@ def kind_available():
     return True
 
 
-def k8s_apis2(config: K8sConfig) -> Dict[str, List[K8sResource]]:
+def k8s_apis(config: K8sConfig) -> Dict[str, List[K8sResource]]:
     res = [
         K8sResource(
             apiVersion="rbac.authorization.k8s.io/v1",
@@ -207,7 +207,7 @@ def k8s_apis2(config: K8sConfig) -> Dict[str, List[K8sResource]]:
 def make_manifest(kind: str, namespace: str | None, name: str | None,
                   labels: Dict[str, str] = {}) -> dict:
     # Try to find the resource `kind` and lift its associated `apiVersion`.
-    apis = k8s_apis2(K8sConfig(version="1.26"))
+    apis = k8s_apis(K8sConfig(version="1.26"))
     apiVersion = apis[kind.lower()][0].apiVersion
 
     # Compile a manifest.
