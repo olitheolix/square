@@ -824,7 +824,7 @@ class TestMain:
 class TestApplyPlan:
     @mock.patch.object(sq, "make_plan")
     @mock.patch.object(sq, "apply_plan")
-    async def test_apply_plan(self, m_apply, m_plan, config):
+    async def test_apply_plan(self, m_apply, m_plan, sqcfg: Config):
         """Simulate a successful resource update (add, patch delete).
 
         To this end, create a valid (mocked) deployment plan, mock out all
@@ -861,18 +861,18 @@ class TestApplyPlan:
 
         # Function must not apply the plan without the user's confirmation.
         with mock.patch.object(main, 'input', lambda _: "no"):
-            assert await fun(config, "yes") is True
+            assert await fun(sqcfg, "yes") is True
         assert not m_apply.called
 
         # Function must apply the plan if the user confirms it.
         with mock.patch.object(main, 'input', lambda _: "yes"):
-            assert await fun(config, "yes") is False
-        m_apply.assert_called_once_with(config, plan)
+            assert await fun(sqcfg, "yes") is False
+        m_apply.assert_called_once_with(sqcfg, plan)
 
         # Repeat with disabled security question.
         m_apply.reset_mock()
-        assert await fun(config, None) is False
-        m_apply.assert_called_once_with(config, plan)
+        assert await fun(sqcfg, None) is False
+        m_apply.assert_called_once_with(sqcfg, plan)
 
         # -----------------------------------------------------------------
         #                   Simulate An Empty Plan
@@ -882,7 +882,7 @@ class TestApplyPlan:
         m_plan.return_value = (DeploymentPlan(create=[], patch=[], delete=[]), False)
 
         with mock.patch.object(main, 'input', lambda _: "yes"):
-            assert await fun(config, "yes") is False
+            assert await fun(sqcfg, "yes") is False
         assert not m_apply.called
 
         # -----------------------------------------------------------------
@@ -891,4 +891,4 @@ class TestApplyPlan:
         # Make `apply_plan` fail.
         m_plan.return_value = (plan, False)
         m_apply.return_value = (None, True)
-        assert await fun(config, None) is True
+        assert await fun(sqcfg, None) is True

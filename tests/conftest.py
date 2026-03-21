@@ -57,7 +57,7 @@ def k8sconfig_fixture() -> K8sConfig:
 
 
 @pytest.fixture
-def config(k8sconfig, tmp_path) -> Generator[Config, None, None]:
+def sqcfg(k8sconfig, tmp_path) -> Generator[Config, None, None]:
     """Return a valid and fully populated `Config` structure.
 
     The data in the structure matches `tests/support/config.yaml` except for
