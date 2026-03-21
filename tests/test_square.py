@@ -123,80 +123,6 @@ class TestBasic:
         )
         assert sq.show_plan(plan) is False
 
-    def test_translate_resource_kinds_simple(self, k8sconfig):
-        """Translate various spellings in `selectors.kinds`"""
-        k1 = {"service", 'DEPLOYMENT'}
-        k2 = {"service.v1", "deployment.apps"}
-
-        for kinds in [k1, k2]:
-            cfg = Config(
-                folder=Path('/tmp'),
-                kubeconfig=Path(),
-                kubecontext=None,
-                groupby=GroupBy(),
-                priorities=["namespace", "DEPLOYMENT"],
-                selectors=Selectors(kinds=kinds)
-            )
-
-            # Convert the resource names to their correct K8s kind.
-            ret = sq.translate_resource_kinds(cfg, k8sconfig)
-            assert ret.priorities == ["namespace.v1", "deployment.apps"]
-            assert ret.selectors.kinds == {
-                'deploy.apps', 'deployment.apps', 'deployments.apps',
-                'service.v1', 'services.v1', 'svc.v1'
-            }
-            assert ret.selectors.str_skgns == {
-                'deploy.apps', 'deployment.apps', 'deployments.apps',
-                'service.v1', 'services.v1', 'svc.v1'
-            }
-
-        # Add two invalid resource names. This must succeed but return the
-        # resource names without having changed them.
-        cfg = Config(
-            folder=Path('/tmp'),
-            kubeconfig=Path(),
-            kubecontext=None,
-            groupby=GroupBy(),
-            priorities=["namespace", "DEPLOYMENT", "invalid", "k8s-resource-kind"],
-            selectors=Selectors(kinds={"invalid", "k8s-resource-kind"})
-        )
-        ret = sq.translate_resource_kinds(cfg, k8sconfig)
-        assert ret.priorities == ["namespace.v1", "deployment.apps"]
-        assert ret.selectors.kinds == set()
-        assert ret.selectors.str_skgns == set()
-
-    def test_translate_resource_kinds_kind_name(self, k8sconfig):
-        """Same as previous test but this time also specify `kind/name`."""
-        kinds = {"svc/app1", "DEPLOYMENT/app2",
-                 "ns", "namespace/foo",
-                 "unknown-a", "unknown-b/foo"}
-        cfg = Config(
-            folder=Path('/tmp'),
-            kubeconfig=Path(),
-            kubecontext=None,
-            groupby=GroupBy(),
-            priorities=[],
-            selectors=Selectors(kinds=kinds),
-        )
-
-        # Verify the baseline.
-        assert cfg.selectors.kinds == kinds
-
-        # Convert the selector KINDs to their canonical K8s KINDs.
-        ret = sq.translate_resource_kinds(cfg, k8sconfig)
-        assert ret.selectors.kinds == {
-            'deploy.apps/app2', 'deployment.apps/app2', 'deployments.apps/app2',
-            'namespace.v1', 'namespace.v1/foo', 'namespaces.v1',
-            'namespaces.v1/foo', 'ns.v1', 'ns.v1/foo',
-            'service.v1/app1', 'services.v1/app1', 'svc.v1/app1',
-        }
-        assert ret.selectors.str_skgns == {
-            'deploy.apps/app2', 'deployment.apps/app2', 'deployments.apps/app2',
-            'namespace.v1', 'namespace.v1/foo', 'namespaces.v1',
-            'namespaces.v1/foo', 'ns.v1', 'ns.v1/foo',
-            'service.v1/app1', 'services.v1/app1', 'svc.v1/app1',
-        }
-
     def test_normalise_kinds_ok(self, k8sconfig):
         got = sq.normalise_kinds([], k8sconfig)
         assert got == ([], False)
@@ -867,7 +793,8 @@ class TestPlan:
         )
 
         config.priorities = ["Namespace", "Service", "Deployment"]
-        config = sq.translate_resource_kinds(config, k8sconfig)
+        config, err = sq.compile_config(config, k8sconfig)
+        assert not err
         plan = copy.deepcopy(expected)
         for _ in range(10):
             random.shuffle(cast(list, plan.create))
@@ -903,7 +830,8 @@ class TestPlan:
             ],
         )
         config.priorities = ["Namespace", "Deployment"]
-        config = sq.translate_resource_kinds(config, k8sconfig)
+        config, err = sq.compile_config(config, k8sconfig)
+        assert not err
         plan = copy.deepcopy(expected)
         for _ in range(10):
             random.shuffle(cast(list, plan.create))
