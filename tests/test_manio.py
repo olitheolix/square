@@ -84,9 +84,11 @@ class TestHelpers:
         assert manio.is_valid_manifest(manifest, k8sconfig)
 
         # UNKNOWN resources must be silently ignored.
-        manifest = make_manifest("Unknown", None, "name")
+        manifest = make_manifest("Namespace", None, "name")
+        manifest["apiVersion"] = "Unknown"
         assert manio.is_valid_manifest(manifest, k8sconfig)
-        manifest = make_manifest("Unknown", "ns", "name")
+        manifest = make_manifest("Service", "ns", "name")
+        manifest["apiVersion"] = "Unknown"
         assert manio.is_valid_manifest(manifest, k8sconfig)
 
         # Every resource must have several mandatory fields.
