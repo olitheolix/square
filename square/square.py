@@ -24,52 +24,6 @@ from square.dtypes import (
 logit = logging.getLogger("square")
 
 
-def translate_resource_kinds(cfg: Config, k8sconfig: K8sConfig) -> Config:
-    """Convert `cfg.Selectors.kind` and `cfg.priorities` to <kind>.<group>/<name> format.
-
-    Examples:
-      - "svc" -> "service.v1"
-      - "svc/name" -> "service.v1/name"
-      - "deployments" -> "deployment.apps".
-
-    Silently remove unknown resource kinds.
-
-    NOTE: this function has side effects. It changes `cfg.priorities` and
-    `cfg.selectors` in-place.
-
-    """
-    # Backup the original list of KIND selectors.
-    sel_res = list(cfg.selectors.str_skgns)
-    cfg.selectors.kinds.clear()
-    cfg.selectors.str_skgns.clear()
-
-    # fixme: this is all rather ugly. Refactor this into a method on `Selector`.
-    for res in sel_res:
-        kg, _, name = res.partition("/")
-
-        # fixme: should that not be a SelKindGroupName?
-        r, err = k8s.pick_api(MetaManifest("", kg, "", ""), k8sconfig.apis2)
-        if err:
-            continue
-
-        group = r.apiVersion.partition("/")[0]
-        group_and_name = f"{group}/{name}" if name else group
-        for alias in r.all_names:
-            cfg.selectors.kinds.add(f"{alias}.{group_and_name}")
-
-    priorities = list(cfg.priorities)
-    cfg.priorities.clear()
-    for kg in priorities:
-        # fixme: should that not be a SelKindGroupName?
-        r, err = k8s.pick_api(MetaManifest("", kg, "", ""), k8sconfig.apis2)
-        if not err:
-            group = r.apiVersion.partition("/")[0]
-            ans = f"{r.kind.lower()}.{group}"
-            cfg.priorities.append(ans)
-
-    return cfg
-
-
 def normalise_kinds(kinds: Iterable[str], k8sconfig: K8sConfig) -> Tuple[List[str], bool]:
     """Convert `Selectors.{kind, priorities}` to <kind>.<group>/<name> format.
 
