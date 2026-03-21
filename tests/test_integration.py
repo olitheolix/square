@@ -138,8 +138,6 @@ class TestMainGet:
         This test will use `kubectl` to delete some resources.
 
         """
-        assert kubectl is not None
-
         # Convenience.
         man_path = tmp_path / "square-tests-1" / "demoapp-1"
 
@@ -169,6 +167,7 @@ class TestMainGet:
         man_ing = (man_path / "ingress.yaml").read_bytes()
 
         # Delete the Deployment but sync only Ingresses: no change in files.
+        assert kubectl is not None
         kubectl("delete", "deploy", "demoapp-1", "-n", "square-tests-1")
         args = ("square.py", "get", "ingress", *common_args)
         with mock.patch("sys.argv", args):
@@ -193,8 +192,6 @@ class TestMainGet:
         This test will use `kubectl` to delete some resources.
 
         """
-        assert kubectl is not None
-
         def load_manifests(path):
             # Load all manifests and return just the metadata.
             manifests = yaml.safe_load_all(open(path / "_other.yaml"))
@@ -238,6 +235,7 @@ class TestMainGet:
         # Delete the "demoapp-1" Ingress in one namespace then sync only those
         # from the other namespace: must not change the local manifests.
         # ---------------------------------------------------------------------
+        assert kubectl is not None
         kubectl("delete", "ingress", "demoapp-1", "-n", "square-tests-1")
         args = ("square.py", "get", "ingress", "-n", "square-tests-2", *common_args)
         with mock.patch("sys.argv", args):
@@ -322,8 +320,8 @@ class TestMainGet:
         # Deploy two HPAs into the same namespace. One HPA will use
         # `autoscaling/v1` whereas the other uses `autoscaling/v2`.
         # ---------------------------------------------------------------------
-        sh.kubectl("apply", "--kubeconfig", config.kubeconfig,  # type: ignore
-                   "-f", str(man_path))
+        assert kubectl is not None
+        kubectl("apply", "-f", str(man_path))
 
         # ---------------------------------------------------------------------
         # Sync all manifests. This must do nothing. In particular, it must not
@@ -734,8 +732,8 @@ class TestMainPlan:
         # Deploy a new namespace with only a few resources. There are no
         # deployments among them to speed up the deletion of the namespace.
         # ---------------------------------------------------------------------
-        sh.kubectl("apply", "--kubeconfig", config.kubeconfig,  # type: ignore
-                   "-f", "tests/support/k8s-test-resources.yaml")
+        assert kubectl is not None
+        kubectl("apply", "-f", "tests/support/k8s-test-resources.yaml")
 
         # ---------------------------------------------------------------------
         # Create a plan for "square-tests". The plan must delete all resources
@@ -767,8 +765,7 @@ class TestMainPlan:
         for _ in range(120):
             time.sleep(1)
             try:
-                sh.kubectl("get", "ns", namespace, "--kubeconfig",  # type: ignore
-                           config.kubeconfig)
+                kubectl("get", "ns", namespace)
             except sh.ErrorReturnCode_1:  # type: ignore
                 break
         else:
@@ -821,8 +818,8 @@ class TestMainPlan:
         # Deploy the resources: one namespace with two HPAs, deployed via
         # `autoscaling/v1` and `autoscaling/v2`, respectively.
         # ---------------------------------------------------------------------
-        sh.kubectl("apply", "--kubeconfig", config.kubeconfig,  # type: ignore
-                   "-f", str(man_path))
+        assert kubectl is not None
+        kubectl("apply", "-f", str(man_path))
 
         # ---------------------------------------------------------------------
         # The plan must be empty because Square must have interrogated the
