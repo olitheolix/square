@@ -873,7 +873,7 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
         # Create an entry in our `apis` table for possible ways to name a
         # resource. Example:
         # {"deploy", "deployment", "deployments"} x {"", ".apps", ".apps/v1"}
-        for name in res.all_names:
+        for name in res.aliases:
             apis[name].append(res)
             apis[f"{name}.{group}"].append(res)
             apis[f"{name}.{gv}"].append(res)
@@ -886,7 +886,7 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
     for res in res_v1:
         res = res._replace(preferred=True)
 
-        for name in res.all_names:
+        for name in res.aliases:
             apis[name].clear()
             apis[name].append(res)
 
@@ -937,7 +937,7 @@ def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
         # ensure that the first part (ie `deploy`) is one of the aliases.
         name = name.partition(".")[0]
         for res in resources:
-            if name not in res.all_names:
+            if name not in res.aliases:
                 err = True
                 logit.critical(f"bug: <{name}> does not belong to resource")
 
