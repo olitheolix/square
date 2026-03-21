@@ -53,9 +53,6 @@ def k8sconfig_fixture() -> K8sConfig:
     # The set of API endpoints we can use in the tests.
     cfg.apis.clear()
     cfg.apis.update(k8s_apis2(cfg))
-
-    cfg.kinds.clear()
-    cfg.kinds.update(cfg.apis)
     return cfg
 
 

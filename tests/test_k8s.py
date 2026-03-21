@@ -841,7 +841,6 @@ class TestUrlPathBuilder:
         m_get.side_effect = supply_fake_api
 
         k8sconfig.apis.clear()
-        k8sconfig.kinds.clear()
         assert await k8s.compile_api_endpoints2(k8sconfig) is False
         assert isinstance(k8sconfig.apis, dict) and len(k8sconfig.apis) > 0
 
@@ -931,7 +930,6 @@ class TestUrlPathBuilder:
             "configmaps.v1": [r_cm_v1],
             "cm.v1": [r_cm_v1],
         }
-        assert k8sconfig.kinds == set(k8sconfig.apis)
 
     async def test_validate_apis(self):
         # Fixtures.

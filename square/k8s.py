@@ -897,11 +897,6 @@ async def compile_api_endpoints2(k8sconfig: K8sConfig) -> bool:
     k8sconfig.apis.clear()
     k8sconfig.apis.update(dict(apis))
 
-    # Compile the set of all resource kinds that this Kubernetes cluster supports.
-    k8sconfig.kinds.clear()
-    for kind in k8sconfig.apis:
-        k8sconfig.kinds.add(kind)
-
     return _validate_apis(k8sconfig.apis)
 
 
