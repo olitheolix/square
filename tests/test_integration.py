@@ -103,8 +103,6 @@ class TestMainGet:
             "--folder", str(tmp_path),
             "--groupby", "ns", "label=app", "kind",
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
-            "--labels",         # Clear default labels from `config.yaml`.
-            "--namespaces",     # Clear default namespaces from `config.yaml`.
         )
 
         # Temporary folder must be initially empty. After we pulled all
@@ -151,7 +149,6 @@ class TestMainGet:
             "--groupby", "ns", "label=app", "kind",
             "-n", "square-tests-1",
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
-            "--labels",
         )
 
         # Sync Deployments: must create "deployment.yaml".
@@ -214,7 +211,7 @@ class TestMainGet:
         common_args = (
             "--folder", str(tmp_path),
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
-            "--labels", "--groupby"
+            "--groupby",        # Void the default (defined in `defaultconfig.yaml`)
         )
 
         # ---------------------------------------------------------------------
@@ -469,8 +466,7 @@ class TestKindName:
         common_args = (
             "--folder", str(tmp_path),
             "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
-            "--groupby",        # Dump all manifests into a single file.
-            "-n"                # Search all namespaces.
+            "--groupby",        # Void the default (defined in `defaultconfig.yaml`)
         )
 
         # Fetch all ConfigMaps named `demo-configmap-1`, of which there are two
