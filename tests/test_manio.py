@@ -776,7 +776,7 @@ class TestYamlManifestIO:
 
 
 class TestStripManifest:
-    def test_run_strip_callback_deployment(self, config, k8sconfig):
+    def test_run_strip_callback_deployment(self, sqcfg: Config, k8sconfig):
         """Filter DEPLOYMENT manifests."""
         # A valid DEPLOYMENT manifest with a few optional and irrelevant keys.
         manifest = {
@@ -818,11 +818,11 @@ class TestStripManifest:
             },
             "spec": "some spec",
         }
-        out, err = manio.run_strip_callback(config, manifest)
+        out, err = manio.run_strip_callback(sqcfg, manifest)
         assert not err
         assert out == expected
 
-    def test_run_strip_callback_err(self, config: Config):
+    def test_run_strip_callback_err(self, sqcfg: Config):
         # Define a single resource.
         manifest = make_manifest("Namespace", None, "ns1")
 
@@ -837,19 +837,19 @@ class TestStripManifest:
             del _man["kind"]
             return _man
 
-        config.strip_callback = cb_ok
-        _, err = manio.run_strip_callback(config, manifest)
+        sqcfg.strip_callback = cb_ok
+        _, err = manio.run_strip_callback(sqcfg, manifest)
         assert not err
 
-        config.strip_callback = cb_change_kind
-        _, err = manio.run_strip_callback(config, manifest)
+        sqcfg.strip_callback = cb_change_kind
+        _, err = manio.run_strip_callback(sqcfg, manifest)
         assert err
 
-        config.strip_callback = cb_corrupt
-        _, err = manio.run_strip_callback(config, manifest)
+        sqcfg.strip_callback = cb_corrupt
+        _, err = manio.run_strip_callback(sqcfg, manifest)
         assert err
 
-    def test_strip_manifests(self, config):
+    def test_strip_manifests(self, sqcfg: Config):
         """Run some basic tests."""
         # Convenience.
         fun = manio.strip_manifests
@@ -862,16 +862,16 @@ class TestStripManifest:
         server: SquareManifests = {meta_srv: man_srv}
 
         # Must do nothing with empty inputs.
-        assert fun(config, {}, {}) == ({}, {}, False)
+        assert fun(sqcfg, {}, {}) == ({}, {}, False)
 
         # Must return input verbatim because the default filters have no effect
         # on our dummy manifest.
-        assert fun(config, local, server) == (local, server, False)
+        assert fun(sqcfg, local, server) == (local, server, False)
 
         # Add an annotation to our manifest and try again. This must once again
         # do nothing because the default filters do not touch the annotations.
         man_loc["metadata"]["annotations"] = {"foo": "bar"}
-        assert fun(config, local, server) == (local, server, False)
+        assert fun(sqcfg, local, server) == (local, server, False)
         assert man_loc["metadata"]["annotations"] == {"foo": "bar"}
 
         # ----------------------------------------------------------------------
@@ -880,8 +880,8 @@ class TestStripManifest:
         # present in the original.
         # ----------------------------------------------------------------------
         man_loc["metadata"]["annotations"] = {"foo": "bar"}
-        config.filters = {"ClusterRole": [{"metadata": ["annotations"]}]}
-        ret_loc, ret_srv, err = fun(config, local, server)
+        sqcfg.filters = {"ClusterRole": [{"metadata": ["annotations"]}]}
+        ret_loc, ret_srv, err = fun(sqcfg, local, server)
         assert not err
 
         # Annotations must have been removed in the output.
@@ -894,7 +894,7 @@ class TestStripManifest:
         # annotations.
         assert ret_srv == server
 
-    def test_strip_manifests_err(self, config):
+    def test_strip_manifests_err(self, sqcfg: Config):
         """Force an error during a manifest stripping."""
         # Convenience.
         fun = manio.strip_manifests
@@ -905,9 +905,9 @@ class TestStripManifest:
         server: SquareManifests = {meta: man}
 
         # Valid input.
-        assert fun(config, {}, server) == ({}, server, False)
+        assert fun(sqcfg, {}, server) == ({}, server, False)
 
-    def test_strip_manifests_runtime_error(self, config: Config):
+    def test_strip_manifests_runtime_error(self, sqcfg: Config):
         """Gracefully abort if the callback function is ill behaved."""
         # Convenience.
         fun = manio.strip_manifests
@@ -918,21 +918,21 @@ class TestStripManifest:
         server: SquareManifests = {meta: man}
 
         # Must succeed.
-        assert fun(config, {}, server) == ({}, server, False)
+        assert fun(sqcfg, {}, server) == ({}, server, False)
 
         # Callback raises an exception.
         def cb_exception(square_config, manifest):
             raise RuntimeError()
 
-        config.strip_callback = cb_exception
-        assert fun(config, {}, server) == ({}, {}, True)
+        sqcfg.strip_callback = cb_exception
+        assert fun(sqcfg, {}, server) == ({}, {}, True)
 
         # Callback provides too many return values.
         def cb_invalid_return_values(square_config, manifest):
             return (None, {}, "foo")
 
-        config.strip_callback = cb_invalid_return_values
-        assert fun(config, {}, server) == ({}, {}, True)
+        sqcfg.strip_callback = cb_invalid_return_values
+        assert fun(sqcfg, {}, server) == ({}, {}, True)
 
 
 class TestDiff:
@@ -1782,7 +1782,7 @@ class TestSync:
 
 class TestDownloadManifests:
     @mock.patch.object(k8s, 'get')
-    async def test_download_ok(self, m_get, config, k8sconfig):
+    async def test_download_ok(self, m_get, sqcfg: Config, k8sconfig):
         """Download two kinds of manifests: Deployments and Namespaces.
 
         The test only mocks the K8s API call. All other functions run normally.
@@ -1831,9 +1831,9 @@ class TestDownloadManifests:
             (l_ns, False),
             (l_dply, False),
         ]
-        expected = {make_meta(_): run_strip_callback(config, _)[0] for _ in meta}
-        config.selectors = Selectors(kinds={"Namespace", "Deployment", "Unknown"})
-        ret = await manio.download(config, k8sconfig)
+        expected = {make_meta(_): run_strip_callback(sqcfg, _)[0] for _ in meta}
+        sqcfg.selectors = Selectors(kinds={"Namespace", "Deployment", "Unknown"})
+        ret = await manio.download(sqcfg, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_count == 2
         m_get.assert_any_call(k8sconfig, res_deploy.url)
@@ -1852,9 +1852,9 @@ class TestDownloadManifests:
             (l_ns_1, False),
             (l_dply_1, False),
         ]
-        config.selectors = Selectors(kinds={"Namespace", "Deployment"},
-                                     namespaces=["ns0", "ns1"])
-        ret = await manio.download(config, k8sconfig)
+        sqcfg.selectors = Selectors(kinds={"Namespace", "Deployment"},
+                                    namespaces=["ns0", "ns1"])
+        ret = await manio.download(sqcfg, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_count == 4
         m_get.assert_any_call(k8sconfig, res_dply_0.url)
@@ -1874,19 +1874,19 @@ class TestDownloadManifests:
             (l_dply_0, False),
         ]
         expected = {
-            make_meta(meta[0]): run_strip_callback(config, meta[0])[0],
-            make_meta(meta[2]): run_strip_callback(config, meta[2])[0],
+            make_meta(meta[0]): run_strip_callback(sqcfg, meta[0])[0],
+            make_meta(meta[2]): run_strip_callback(sqcfg, meta[2])[0],
         }
-        config.selectors = Selectors(kinds={"Namespace", "Deployment"},
-                                     namespaces=["ns0"])
-        ret = await manio.download(config, k8sconfig)
+        sqcfg.selectors = Selectors(kinds={"Namespace", "Deployment"},
+                                    namespaces=["ns0"])
+        ret = await manio.download(sqcfg, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_count == 2
         m_get.assert_any_call(k8sconfig, res_dply_0.url)
         m_get.assert_any_call(k8sconfig, res_ns_0.url)
 
     @mock.patch.object(k8s, 'get')
-    async def test_download_err(self, m_get, config, k8sconfig):
+    async def test_download_err(self, m_get, sqcfg: Config, k8sconfig):
         """Simulate a download error."""
         # A valid NamespaceList with one element.
         man_list_ns = {
@@ -1903,11 +1903,11 @@ class TestDownloadManifests:
         res_deploy, err2 = resource(k8sconfig, MetaManifest("", "Deployment", None, ""))
         assert not err1 and not err2
 
-        config.selectors = Selectors(kinds={"Namespace", "Deployment"})
+        sqcfg.selectors = Selectors(kinds={"Namespace", "Deployment"})
 
         # Run test function and verify it returns an error and no data, despite
         # a successful `NamespaceList` download.
-        ret = await manio.download(config, k8sconfig)
+        ret = await manio.download(sqcfg, k8sconfig)
         assert ret == ({}, True)
         assert m_get.call_count == 2
         m_get.assert_any_call(k8sconfig, res_deploy.url)
@@ -1915,7 +1915,7 @@ class TestDownloadManifests:
 
 
 class TestManifestStripping:
-    def test_strip_manifest_generic(self, config):
+    def test_strip_manifest_generic(self, sqcfg: Config):
         """Create a completely fake filter set to test all options.
 
         This test has nothing to do with real world manifests. Its only purpose
@@ -1933,7 +1933,7 @@ class TestManifestStripping:
             "status",
             {"spec": [{"ports": ["nodePort"]}]},
         ]
-        config.filters = {"Service": _filters}
+        sqcfg.filters = {"Service": _filters}
 
         # Demo manifest. None of its keys matches the filter and
         # `strip` must therefore not remove anything.
@@ -1943,7 +1943,7 @@ class TestManifestStripping:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        assert manio.strip_manifest(config, manifest) == manifest
+        assert manio.strip_manifest(sqcfg, manifest) == manifest
         del manifest
 
         # Demo manifest. The "labels.foo" matches the filter and must not survive.
@@ -1966,7 +1966,7 @@ class TestManifestStripping:
             },
             "spec": "spec",
         }
-        assert manio.strip_manifest(config, manifest) == expected
+        assert manio.strip_manifest(sqcfg, manifest) == expected
         del manifest
 
         # Valid manifest with all mandatory and *some* optional keys (
@@ -1998,9 +1998,9 @@ class TestManifestStripping:
             },
             "spec": "keep",
         }
-        assert manio.strip_manifest(config, manifest) == expected
+        assert manio.strip_manifest(sqcfg, manifest) == expected
 
-    def test_strip_manifest_ambigous_filters(self, config):
+    def test_strip_manifest_ambigous_filters(self, sqcfg: Config):
         """Must cope with filters that specify the same resource multiple times."""
         # Define filters for this test.
         _filters: FiltersKind = [
@@ -2015,7 +2015,7 @@ class TestManifestStripping:
             {"status": [{"foo": ["bar"]}]},
             "status",
         ]
-        config.filters = {"Service": _filters}
+        sqcfg.filters = {"Service": _filters}
 
         # Demo manifest. None of its keys matches the filter and
         # `strip` must therefore not remove anything.
@@ -2025,7 +2025,7 @@ class TestManifestStripping:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        assert manio.strip_manifest(config, manifest) == manifest
+        assert manio.strip_manifest(sqcfg, manifest) == manifest
         del manifest
 
         # Demo manifest. The "labels.creationTimestamp" matches the filter and
@@ -2049,7 +2049,7 @@ class TestManifestStripping:
             },
             "spec": "spec",
         }
-        assert manio.strip_manifest(config, manifest) == expected
+        assert manio.strip_manifest(sqcfg, manifest) == expected
         del manifest
 
         # Valid manifest with a "status" field that must not survive.
@@ -2072,13 +2072,13 @@ class TestManifestStripping:
             },
             "spec": "keep",
         }
-        assert manio.strip_manifest(config, manifest) == expected
+        assert manio.strip_manifest(sqcfg, manifest) == expected
 
-    def test_strip_manifest_sub_hierarchies(self, config):
+    def test_strip_manifest_sub_hierarchies(self, sqcfg: Config):
         """Remove an entire sub-tree from the manifest."""
         # Remove the "status" key, irrespective of whether it is a string, dict
         # or list in the actual manifest.
-        config.filters = {"Service": ["status"]}
+        sqcfg.filters = {"Service": ["status"]}
 
         # Minimally valid manifest.
         expected = {
@@ -2089,21 +2089,21 @@ class TestManifestStripping:
         manifest: dict = copy.deepcopy(expected)
 
         manifest["status"] = "string"
-        assert manio.strip_manifest(config, manifest) == expected
+        assert manio.strip_manifest(sqcfg, manifest) == expected
 
         manifest["status"] = None
-        assert manio.strip_manifest(config, manifest) == expected
+        assert manio.strip_manifest(sqcfg, manifest) == expected
 
         manifest["status"] = ["foo", "bar"]
-        assert manio.strip_manifest(config, manifest) == expected
+        assert manio.strip_manifest(sqcfg, manifest) == expected
 
         manifest["status"] = {"foo", "bar"}
-        assert manio.strip_manifest(config, manifest) == expected
+        assert manio.strip_manifest(sqcfg, manifest) == expected
 
-    def test_strip_manifest_lists_simple(self, config):
+    def test_strip_manifest_lists_simple(self, sqcfg: Config):
         """Filter the `NodePort` key from a list of dicts."""
         # Filter the "nodePort" element from the port list.
-        config.filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
+        sqcfg.filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
 
         expected = {
             "apiVersion": "v1",
@@ -2116,12 +2116,12 @@ class TestManifestStripping:
             {"nodePort": 1},
             {"nodePort": 3},
         ]
-        assert manio.strip_manifest(config, manifest) == expected
+        assert manio.strip_manifest(sqcfg, manifest) == expected
 
-    def test_strip_manifest_lists_service(self, config):
+    def test_strip_manifest_lists_service(self, sqcfg: Config):
         """Filter the `NodePort` key from a list of dicts."""
         # Filter the "nodePort" element from the port list.
-        config.filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
+        sqcfg.filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
 
         expected: dict = {
             "apiVersion": "v1",
@@ -2140,9 +2140,9 @@ class TestManifestStripping:
             {"name": "http", "port": 82},
             {"name": "http", "port": 83},
         ]
-        assert manio.strip_manifest(config, manifest) == expected
+        assert manio.strip_manifest(sqcfg, manifest) == expected
 
-    def test_strip_manifest_default_filters(self, config):
+    def test_strip_manifest_default_filters(self, sqcfg: Config):
         """Must fall back to default filters unless otherwise specified.
 
         Here we expect the function to strip out the `metadata.uid` because it
@@ -2160,4 +2160,4 @@ class TestManifestStripping:
         expected["metadata"] = {"name": "name", "namespace": "ns"}
 
         # Must remove the `metadata.uid` field.
-        assert manio.strip_manifest(config, manifest)
+        assert manio.strip_manifest(sqcfg, manifest)
