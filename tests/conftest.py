@@ -26,7 +26,7 @@ def pytest_configure(*args, **kwargs):
 
 
 @pytest.fixture
-def kube_creds(request, k8sconfig) -> Generator[K8sConfig, None, None]:
+def kube_creds(k8sconfig) -> Generator[K8sConfig, None, None]:
     with mock.patch.object(square.k8s, "cluster_config") as m:
         m.return_value = (k8sconfig, False)
         yield k8sconfig
@@ -57,7 +57,7 @@ def k8sconfig_fixture() -> K8sConfig:
 
 
 @pytest.fixture
-def sqcfg(k8sconfig, tmp_path) -> Generator[Config, None, None]:
+def sqcfg(tmp_path) -> Generator[Config, None, None]:
     """Return a valid and fully populated `Config` structure.
 
     The data in the structure matches `tests/support/config.yaml` except for
