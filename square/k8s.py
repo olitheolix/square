@@ -707,7 +707,7 @@ async def cluster_config(kubeconfig: Path,
         assert not err and k8sconfig
 
         # Populate the `k8sconfig.apis` field.
-        err = await compile_api_endpoints2(k8sconfig)
+        err = await compile_api_endpoints(k8sconfig)
         assert not err
     except AssertionError:
         return (K8sConfig(), True)
@@ -789,7 +789,7 @@ def parse_api_group(gv, url: str, resp: dict) -> Tuple[List[K8sResource], Dict[s
     return (group_urls, short2kind)
 
 
-async def compile_api_endpoints2(k8sconfig: K8sConfig) -> bool:
+async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
     """Populate `k8sconfig.apis` with all the K8s endpoints.
 
     NOTE: replaces `k8sconfig.apis` in its entirety.

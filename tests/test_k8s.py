@@ -820,15 +820,15 @@ class TestUrlPathBuilder:
         assert k8s.resource(config, MM("", "Bogus", "ns", "name")) == err_resp
 
     @mock.patch.object(k8s, "get")
-    async def test_compile_api_endpoints2(self, m_get, k8sconfig: K8sConfig):
+    async def test_compile_api_endpoints(self, m_get, k8sconfig: K8sConfig):
         """Compile all endpoints from a pre-recorded set of API responses."""
         # Make all web requests fail.
         m_get.return_value = ({}, True)
-        assert await k8s.compile_api_endpoints2(k8sconfig) is True
+        assert await k8s.compile_api_endpoints(k8sconfig) is True
 
         # Make the call to /apis pass, but fail all subsequent ones.
         m_get.side_effect = [({"groups": []}, False), ({}, True)]
-        assert await k8s.compile_api_endpoints2(k8sconfig) is True
+        assert await k8s.compile_api_endpoints(k8sconfig) is True
 
         # Sample return value for `https://k8s.com/apis`
         fake_api = json.loads(open("tests/support/apis-v1-15-short.json").read())
@@ -841,7 +841,7 @@ class TestUrlPathBuilder:
         m_get.side_effect = supply_fake_api
 
         k8sconfig.apis.clear()
-        assert await k8s.compile_api_endpoints2(k8sconfig) is False
+        assert await k8s.compile_api_endpoints(k8sconfig) is False
         assert isinstance(k8sconfig.apis, dict) and len(k8sconfig.apis) > 0
 
         r_deploy_apps_v1 = K8sResource(
@@ -963,7 +963,7 @@ class TestUrlPathBuilder:
         assert k8s._validate_apis({"foo": [r_deploy_p]})
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    async def test_compile_api_endpoints2_integrated(self, integrationtest, k8sconfig):
+    async def test_compile_api_endpoints_integrated(self, integrationtest, k8sconfig):
         """Ask for all endpoints and perform some sanity checks.
 
         This test is about `compile_api_endpoints` but we only inspect the
@@ -1209,7 +1209,7 @@ class TestK8sKubeconfig:
 
     @mock.patch.object(k8s, "load_auto_config")
     @mock.patch.object(k8s, "version")
-    @mock.patch.object(k8s, "compile_api_endpoints2")
+    @mock.patch.object(k8s, "compile_api_endpoints")
     async def test_cluster_config_mock(self, m_compile_endpoints, m_version,
                                        m_load_auto, k8sconfig):
         """Mock all dependent calls and just verify the error handling."""
