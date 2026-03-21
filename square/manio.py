@@ -911,8 +911,6 @@ def sort_manifests(
             not in the list.
 
     """
-    kg = square.square.kind_group
-
     # Sort the manifests in each file.
     out: Dict[Path, List[dict]] = {}
     for fname, manifests in file_manifests.items():
@@ -921,8 +919,8 @@ def sort_manifests(
         man_sorted: list = []
         for kind in priority:
             # Partition the manifest list into the current `kind` and the rest.
-            tmp = [_ for _ in manifests if kg(_[0]) == kind]
-            manifests = [_ for _ in manifests if kg(_[0]) != kind]
+            tmp = [_ for _ in manifests if _[0].skgn().kind_group == kind]
+            manifests = [_ for _ in manifests if _[0].skgn().kind_group != kind]
 
             # Append the manifests ordered by their MetaManifest.
             man_sorted += sorted(tmp, key=lambda _: _[0])
