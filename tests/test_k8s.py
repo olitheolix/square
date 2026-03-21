@@ -801,7 +801,7 @@ class TestUrlPathBuilder:
         ]
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    async def test_resource_err(self, integrationtest, k8sconfig):
+    async def test_resource_err(self, integrationtest, k8sconfig: K8sConfig):
         """Test various error scenarios."""
         # Fixtures.
         config = await self.k8sconfig(integrationtest, k8sconfig)
@@ -820,48 +820,13 @@ class TestUrlPathBuilder:
         assert k8s.resource(config, MM("", "Bogus", "ns", "name")) == err_resp
 
     @mock.patch.object(k8s, "get")
-    async def test_compile_api_endpoints(self, m_get, k8sconfig):
-        """Compile all endpoints from a pre-recorded set of API responses."""
-        # All web requests fail. Function must thus abort with an error.
-        m_get.return_value = ({}, True)
-        assert await k8s.compile_api_endpoints(k8sconfig) is True
-
-        # Sample return value for `https://k8s.com/apis`
-        fake_api = json.loads(open("tests/support/apis-v1-15.json").read())
-
-        # Pretend to be the K8s API and return the requested data from our
-        # recorded set of responses.
-        def supply_fake_api(_, url):
-            path = url.partition("/")[2]
-            return fake_api[path], False
-        m_get.side_effect = supply_fake_api
-
-        k8sconfig.apis.clear()
-        assert await k8s.compile_api_endpoints(k8sconfig) is False
-        assert isinstance(k8sconfig.apis, dict) and len(k8sconfig.apis) > 0
-
-        # Services have a short name.
-        assert k8sconfig.short2kind["service"] == "Service"
-        assert k8sconfig.short2kind["services"] == "Service"
-        assert k8sconfig.short2kind["svc"] == "Service"
-
-        # Sanity check: must contain at least the default resource kinds. The
-        # spelling must match with what would be declared in `manifest.kind`.
-        assert "Service" in k8sconfig.kinds
-        assert "service" not in k8sconfig.kinds
-        assert "Services" not in k8sconfig.kinds
-        assert "Deployment" in k8sconfig.kinds
-        assert "deployment" not in k8sconfig.kinds
-        assert "Deployments" not in k8sconfig.kinds
-
-    @mock.patch.object(k8s, "get")
-    async def test_compile_api_endpoints2(self, m_get, k8sconfig):
+    async def test_compile_api_endpoints2(self, m_get, k8sconfig: K8sConfig):
         """Compile all endpoints from a pre-recorded set of API responses."""
         # Make all web requests fail.
         m_get.return_value = ({}, True)
         assert await k8s.compile_api_endpoints2(k8sconfig) is True
 
-        # Make the call to /apis pass but the next ones fail.
+        # Make the call to /apis pass, but fail all subsequent ones.
         m_get.side_effect = [({"groups": []}, False), ({}, True)]
         assert await k8s.compile_api_endpoints2(k8sconfig) is True
 
@@ -876,6 +841,7 @@ class TestUrlPathBuilder:
         m_get.side_effect = supply_fake_api
 
         k8sconfig.apis2.clear()
+        k8sconfig.kinds.clear()
         assert await k8s.compile_api_endpoints2(k8sconfig) is False
         assert isinstance(k8sconfig.apis2, dict) and len(k8sconfig.apis2) > 0
 
@@ -965,6 +931,7 @@ class TestUrlPathBuilder:
             "configmaps.v1": [r_cm_v1],
             "cm.v1": [r_cm_v1],
         }
+        assert k8sconfig.kinds == set(k8sconfig.apis2)
 
     async def test_validate_apis(self):
         # Fixtures.
@@ -998,51 +965,6 @@ class TestUrlPathBuilder:
         assert k8s._validate_apis({"foo": [r_deploy_p]})
 
     @pytest.mark.parametrize("integrationtest", [False, True])
-    async def test_compile_api_endpoints_resource_kinds(self, integrationtest, k8sconfig):
-        """Manually verify some resource kinds."""
-        # Fixtures.
-        config = await self.k8sconfig(integrationtest, k8sconfig)
-
-        # Sanity check: must contain at least the default resource kinds. The
-        # spelling must match with what would be declared in `manifest.kind`.
-        assert "Service" in config.kinds
-        assert "service" not in config.kinds
-        assert "Services" not in config.kinds
-        assert "Deployment" in config.kinds
-        assert "deployment" not in config.kinds
-        assert "Deployments" not in config.kinds
-        assert "CustomResourceDefinition" in config.kinds
-
-        # Our demo CRD.
-        assert "DemoCRD" in config.kinds
-
-    @mock.patch.object(k8s, "get")
-    async def test_compile_api_endpoints_err(self, m_get, k8sconfig):
-        """Simulate network errors while compiling API endpoints."""
-        # All web requests fail. Function must thus abort with an error.
-        m_get.return_value = ({}, True)
-        assert await k8s.compile_api_endpoints(k8sconfig) is True
-
-        # Sample return value for `https://k8s.com/apis`
-        ret = {
-            "apiVersion": "v1",
-            "groups": [{
-                "name": "apps",
-                "preferredVersion": {"groupVersion": "apps/v1", "version": "v1"},
-                "versions": [
-                    {"groupVersion": "apps/v1", "version": "v1"},
-                    {"groupVersion": "apps/v1beta2", "version": "v1beta2"},
-                    {"groupVersion": "apps/v1beta1", "version": "v1beta1"},
-                ],
-            }],
-        }
-
-        # Pretend that we could get all the API groups, but could not
-        # interrogate the group endpoint to get the resources it offers.
-        m_get.side_effect = [(ret, False), ({}, True)]
-        assert await k8s.compile_api_endpoints(k8sconfig) is True
-
-    @pytest.mark.parametrize("integrationtest", [False, True])
     async def test_compile_api_endpoints_integrated(self, integrationtest, k8sconfig):
         """Ask for all endpoints and perform some sanity checks.
 
@@ -1073,75 +995,107 @@ class TestUrlPathBuilder:
         assert kinds.issubset(set(config.apis.keys()))
 
         # Verify some standard resource types.
-        assert config.apis[("Namespace", "v1")] == K8sResource(
+        assert config.apis2["namespace.v1"] == [K8sResource(
             apiVersion="v1",
             kind="Namespace",
             name="namespaces",
             namespaced=False,
             url=f"{config.url}/api/v1",
             all_names=("namespace", "namespaces", "ns"),
-        )
-        hpa = "HorizontalPodAutoscaler"
-        assert config.apis[(hpa, "autoscaling/v2")] == K8sResource(
-            apiVersion="autoscaling/v2",
-            kind="HorizontalPodAutoscaler",
-            name="horizontalpodautoscalers",
-            namespaced=True,
-            url=f"{config.url}/apis/autoscaling/v2",
-            all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
-        )
+            preferred=True,
+        )]
 
         # The current integration test cluster does not have those endpoints
         # anymore, but for dry-run tests without a cluster they are still
         # defined in `test_helpers` and help to verify that Square
         # accurately lists all versions of the same resource.
-        if not integrationtest:
-            assert config.apis[(hpa, "autoscaling/v2beta1")] == K8sResource(
-                apiVersion="autoscaling/v2beta1",
-                kind="HorizontalPodAutoscaler",
-                name="horizontalpodautoscalers",
-                namespaced=True,
-                url=f"{config.url}/apis/autoscaling/v2beta1",
-                all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
-            )
-            assert config.apis[(hpa, "autoscaling/v2beta2")] == K8sResource(
-                apiVersion="autoscaling/v2beta2",
-                kind="HorizontalPodAutoscaler",
-                name="horizontalpodautoscalers",
-                namespaced=True,
-                url=f"{config.url}/apis/autoscaling/v2beta2",
-                all_names=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
-            )
-        assert config.apis[("Pod", "v1")] == K8sResource(
+        hpa_aliases = ("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
+        if integrationtest:
+            assert config.apis2["horizontalpodautoscalers.autoscaling"] == [
+                K8sResource(
+                    apiVersion="autoscaling/v1",
+                    kind="HorizontalPodAutoscaler",
+                    name="horizontalpodautoscalers",
+                    namespaced=True,
+                    url=f"{config.url}/apis/autoscaling/v1",
+                    all_names=hpa_aliases,
+                    preferred=False,
+                ),
+                K8sResource(
+                    apiVersion="autoscaling/v2",
+                    kind="HorizontalPodAutoscaler",
+                    name="horizontalpodautoscalers",
+                    namespaced=True,
+                    url=f"{config.url}/apis/autoscaling/v2",
+                    all_names=hpa_aliases,
+                    preferred=True,
+                )
+            ]
+        else:
+            assert config.apis2["horizontalpodautoscalers.autoscaling"] == [
+                K8sResource(
+                    apiVersion="autoscaling/v2",
+                    kind="HorizontalPodAutoscaler",
+                    name="horizontalpodautoscalers",
+                    namespaced=True,
+                    url=f"{config.url}/apis/autoscaling/v2",
+                    all_names=hpa_aliases,
+                    preferred=True,
+                ),
+                K8sResource(
+                    apiVersion="autoscaling/v1",
+                    kind="HorizontalPodAutoscaler",
+                    name="horizontalpodautoscalers",
+                    namespaced=True,
+                    url=f"{config.url}/apis/autoscaling/v1",
+                    all_names=hpa_aliases,
+                ),
+                K8sResource(
+                    apiVersion="autoscaling/v2beta1",
+                    kind="HorizontalPodAutoscaler",
+                    name="horizontalpodautoscalers",
+                    namespaced=True,
+                    url=f"{config.url}/apis/autoscaling/v2beta1",
+                    all_names=hpa_aliases,
+                ),
+                K8sResource(
+                    apiVersion="autoscaling/v2beta2",
+                    kind="HorizontalPodAutoscaler",
+                    name="horizontalpodautoscalers",
+                    namespaced=True,
+                    url=f"{config.url}/apis/autoscaling/v2beta2",
+                    all_names=hpa_aliases,
+                )
+            ]
+        assert config.apis2["pod.v1"] == [K8sResource(
             apiVersion="v1",
             kind="Pod",
             name="pods",
             namespaced=True,
             url=f"{config.url}/api/v1",
             all_names=("po", "pod", "pods"),
-        )
-        assert config.apis[("Deployment", "apps/v1")] == K8sResource(
+            preferred=True,
+        )]
+        assert config.apis2["deployment.apps"] == [K8sResource(
             apiVersion="apps/v1",
             kind="Deployment",
             name="deployments",
             namespaced=True,
             url=f"{config.url}/apis/apps/v1",
             all_names=("deploy", "deployment", "deployments"),
-        )
+            preferred=True,
+        )]
 
         # Verify our CRD.
-        assert config.apis[("DemoCRD", "mycrd.com/v1")] == K8sResource(
+        assert config.apis2["democrd.mycrd.com/v1"] == [K8sResource(
             apiVersion="mycrd.com/v1",
             kind="DemoCRD",
             name="democrds",
             namespaced=True,
             url=f"{config.url}/apis/mycrd.com/v1",
             all_names=("democrd", "democrds"),
-        )
-
-        # Verify default resource versions for a Deployment. In 1.24 the
-        # default (and only) API version for Deployments is `apps/v1`.
-        assert config.apis[("Deployment", "")].apiVersion == "apps/v1"
+            preferred=True,
+        )]
 
     @pytest.mark.parametrize("integrationtest", [False, True])
     async def test_compile_api_endpoints2_integrated(self, integrationtest, k8sconfig):
@@ -1390,7 +1344,7 @@ class TestK8sKubeconfig:
 
     @mock.patch.object(k8s, "load_auto_config")
     @mock.patch.object(k8s, "version")
-    @mock.patch.object(k8s, "compile_api_endpoints")
+    @mock.patch.object(k8s, "compile_api_endpoints2")
     async def test_cluster_config_mock(self, m_compile_endpoints, m_version,
                                        m_load_auto, k8sconfig):
         """Mock all dependent calls and just verify the error handling."""

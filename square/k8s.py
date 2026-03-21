@@ -707,7 +707,7 @@ async def cluster_config(kubeconfig: Path,
         assert not err and k8sconfig
 
         # Populate the `k8sconfig.apis` field.
-        err = await compile_api_endpoints(k8sconfig)
+        err = await compile_api_endpoints2(k8sconfig)
         assert not err
     except AssertionError:
         return (K8sConfig(), True)
@@ -787,141 +787,6 @@ def parse_api_group(gv, url: str, resp: dict) -> Tuple[List[K8sResource], Dict[s
                 short2kind[short_name] = kind
 
     return (group_urls, short2kind)
-
-
-async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
-    """Populate `k8sconfig.apis` with all the K8s endpoints.
-
-    NOTE: This will purge the existing content in `k8sconfig.apis`.
-
-    Returns a dictionary like the following:
-    {
-      ('ConfigMap', 'v1'): K8sResource(
-        apiVersion=v1, kind='ConfigMap', name='configmaps', namespaced=True,
-        url='https://localhost:8443/api/v1/configmaps'),
-      ('CronJob', 'batch/v1beta1): K8sResource(
-        apiVersion='batch/v1beta1', kind='CronJob', name='cronjobs', namespaced=True,
-        url='https://localhost:8443/apis/batch/v1beta1/cronjobs'),
-      ('DaemonSet', 'apps/v1'): K8sResource(
-        apiVersion='apps/v1', kind='DaemonSet', name='daemonsets', namespaced=True,
-        url='https://localhost:8443/apis/apps/v1/daemonsets',
-      ('DaemonSet', apps/v1beta1): K8sResource(
-        apiVersion='apps/v1beta1', kind='DaemonSet', name='daemonsets', namespaced=True,
-        url='https://localhost:8443/apis/extensions/v1beta1/daemonsets'),
-    }
-
-    Inputs:
-        k8sconfig: K8sConfig
-
-    """
-    # Compile the list of all K8s API groups that this K8s instance knows about.
-    resp, err = await get(k8sconfig, f"{k8sconfig.url}/apis")
-    if err:
-        logit.error(f"Could not interrogate {k8sconfig.name} ({k8sconfig.url}/apis)")
-        return True
-
-    # Compile the list of all API groups and their endpoints. Example
-    # apigroups = {
-    #     'extensions': {('extensions/v1beta1', 'apis/extensions/v1beta1')},
-    #     'apps': {('apps/v1', 'apis/apps/v1'),
-    #              ('apps/v1beta1', 'apis/apps/v1beta1'),
-    #              ('apps/v1beta2', 'apis/apps/v1beta2')},
-    #     'batch': {('batch/v1', 'apis/batch/v1'),
-    #               ('batch/v1beta1', 'apis/batch/v1beta1')},
-    #     ...
-    # }
-    apigroups: Dict[str, Set[Tuple[str, str]]] = {}
-    preferred_grpver: Dict[str, str] = {}
-    for group in resp["groups"]:
-        name = group["name"]
-
-        # Store the preferred version, eg ("", "apis/v1").
-        apigroups[name] = set()
-
-        # Compile all alternative versions into the same set.
-        for version in group["versions"]:
-            gv = version["groupVersion"]
-            apigroups[name].add((gv, f"apis/{gv}"))
-            preferred_grpver[gv] = group["preferredVersion"]["groupVersion"]
-        del group
-
-    # The "v1" group is special. It comprises the core components like Service
-    # and Pod and is always exposed under "api/v1" instead of the usual
-    # `apis/...` path.
-    apigroups["v1"] = {("v1", "api/v1")}
-    preferred_grpver["v1"] = "v1"
-
-    # Contact K8s to find out which resources each API group offers.
-    # This will produce the following group_urls below (K = `K8sResource`): {
-    #  ('apps', 'apps/v1', 'apis/apps/v1'): [
-    #   K(*, kind='DaemonSet', name='daemonsets', namespaced=True, url='apis/apps/v1'),
-    #   K(*, kind='Deployment', name='deployments', namespaced=True, url='apis/apps/v1'),
-    #   K(*, kind='ReplicaSet', name='replicasets', namespaced=True, url='apis/apps/v1'),
-    #   K(*, kind='StatefulSet', name='statefulsets', namespaced=True, url='apis/apps/v1')
-    #  ],
-    #  ('apps', 'apps/v1beta1', 'apis/apps/v1beta1')': [
-    #   K(..., kind='Deployment', name='deployments', namespaced=True, url=...),
-    #   K(..., kind='StatefulSet', name='statefulsets', namespaced=True, url=...)
-    #  ],
-    # }
-    group_urls: Dict[Tuple[str, str, str], List[K8sResource]] = {}
-    for group_name, ver_url in apigroups.items():
-        for api_version, url in ver_url:
-            resp, err = await get(k8sconfig, f"{k8sconfig.url}/{url}")
-            if err:
-                msg = f"Could not interrogate {k8sconfig.name} ({k8sconfig.url}/{url})"
-                logit.error(msg)
-                return True
-
-            k8s_resources, short2kind = parse_api_group(api_version, url, resp)
-            group_urls[(group_name, api_version, url)] = k8s_resources
-            k8sconfig.short2kind.update(short2kind)
-
-    # Produce the entries for `K8sConfig.apis` as described in the doc string.
-    k8sconfig.apis.clear()
-    default: Dict[str, Set[K8sResource]] = defaultdict(set)
-    for (group_name, api_version, url), resources in group_urls.items():
-        for res in resources:
-            key = (res.kind, res.apiVersion)  # fixme: define namedtuple
-            k8sconfig.apis[key] = res._replace(url=f"{k8sconfig.url}/{res.url}")
-
-            if preferred_grpver[api_version] == api_version:
-                default[res.kind].add(k8sconfig.apis[key])
-                k8sconfig.apis[(res.kind, "")] = k8sconfig.apis[key]
-
-    # Determine the default API endpoint Square should query for each resource.
-    for kind, resources in default.items():
-        # Happy case: the resource is only available from a single API group.
-        if len(resources) == 1:
-            k8sconfig.apis[(kind, "")] = resources.pop()
-            continue
-
-        # If we get here then it means a resource is available in different
-        # versions. Here we use heuristics to pick one. The heuristic is simply
-        # to look for one that is neither alpha nor beta. In Kubernetes v1.15
-        # this resolves almost all disputes.
-        all_apis = list(sorted([_.apiVersion for _ in resources]))
-
-        # Remove all alpha/beta resources.
-        prod_apis = [_ for _ in all_apis if not ("alpha" in _ or "beta" in _)]
-
-        # Re-add the alpha/beta resources to the candidate set if we have no
-        # production ones to choose from.
-        apis = prod_apis if len(prod_apis) > 0 else list(all_apis)
-
-        # Pick the one with probably the highest version number.
-        apis.sort()
-        version = apis.pop()
-        k8sconfig.apis[(kind, "")] = [_ for _ in resources if _.apiVersion == version][0]
-
-        # Log the available options. Mark the one Square chose with a "*".
-        tmp = [_ if _ != version else f"*{_}*" for _ in all_apis]
-        logit.info(f"Ambiguous {kind.upper()} endpoints: {tmp}")
-
-    # Compile the set of all resource kinds that this Kubernetes cluster supports.
-    for kind, _ in k8sconfig.apis:
-        k8sconfig.kinds.add(kind)
-    return await compile_api_endpoints2(k8sconfig)
 
 
 async def compile_api_endpoints2(k8sconfig: K8sConfig) -> bool:
@@ -1031,6 +896,12 @@ async def compile_api_endpoints2(k8sconfig: K8sConfig) -> bool:
     # Replace the existing apis.
     k8sconfig.apis2.clear()
     k8sconfig.apis2.update(dict(apis))
+
+    # Compile the set of all resource kinds that this Kubernetes cluster supports.
+    k8sconfig.kinds.clear()
+    for kind in k8sconfig.apis2:
+        k8sconfig.kinds.add(kind)
+
     return _validate_apis(k8sconfig.apis2)
 
 
