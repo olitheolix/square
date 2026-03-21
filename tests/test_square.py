@@ -39,16 +39,16 @@ class TestLogging:
 
 class TestBasic:
     def test_kind_group(self):
-        meta = MetaManifest(apiVersion="", kind="", namespace="", name="")
+        meta = MetaManifest(apiVersion="", kind="", namespace=None, name="")
         assert sq.kind_group(meta) == ""
 
-        meta = MetaManifest(apiVersion="", kind="Pod", namespace="", name="")
+        meta = MetaManifest(apiVersion="", kind="Pod", namespace=None, name="")
         assert sq.kind_group(meta) == "pod"
 
-        meta = MetaManifest(apiVersion="v1", kind="Pod", namespace="", name="")
+        meta = MetaManifest(apiVersion="v1", kind="Pod", namespace=None, name="")
         assert sq.kind_group(meta) == "pod.v1"
 
-        meta = MetaManifest(apiVersion="batch/v1", kind="Job", namespace="", name="")
+        meta = MetaManifest(apiVersion="batch/v1", kind="Job", namespace=None, name="")
         assert sq.kind_group(meta) == "job.batch"
 
     def test_config_default(self, tmp_path):

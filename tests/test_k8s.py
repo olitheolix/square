@@ -437,7 +437,7 @@ class TestUrlPathBuilder:
                 )
 
             # All Pods in all namespaces.
-            meta = MetaManifest("v1", "Pod", namespace="", name="")
+            meta = MetaManifest("v1", "Pod", namespace=None, name="")
             skgn = SKGN(value=gv)
             for data in [meta, skgn]:
                 assert isinstance(data, (MetaManifest, SKGN))
