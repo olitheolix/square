@@ -150,8 +150,8 @@ class TestBasic:
             'service.v1', 'service.v1/app1',
         ]
 
-    def test_normalise_kinds_err(self, k8sconfig):
-        k8sconfig.apis2.clear()
+    def test_normalise_kinds_err(self, k8sconfig: K8sConfig):
+        k8sconfig.apis.clear()
 
         r_1 = K8sResource(
             apiVersion="group-a/v1",
@@ -167,11 +167,11 @@ class TestBasic:
         _, err = sq.normalise_kinds(["democrd"], k8sconfig)
         assert err
 
-        k8sconfig.apis2["democrd"] = [r_1]
+        k8sconfig.apis["democrd"] = [r_1]
         _, err = sq.normalise_kinds(["democrd"], k8sconfig)
         assert not err
 
-        k8sconfig.apis2["democrd"].append(r_2)
+        k8sconfig.apis["democrd"].append(r_2)
         _, err = sq.normalise_kinds(["democrd"], k8sconfig)
         assert err
 

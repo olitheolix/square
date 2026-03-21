@@ -603,7 +603,7 @@ def resource(
 
     # Retrieve the specific `K8sResource` for the specified
     # group/version/kind/namespace/name.
-    resource, err = pick_api(gvknn, k8sconfig.apis2)
+    resource, err = pick_api(gvknn, k8sconfig.apis)
     if err:
         return err_resp
 
@@ -856,7 +856,7 @@ async def compile_api_endpoints2(k8sconfig: K8sConfig) -> bool:
     res_v1.sort(key=lambda _: _.apiVersion)
     res_not_v1.sort(key=lambda _: _.apiVersion)
 
-    # Temporary buffer that will be inserted into `k8sconfig.apis2` later.
+    # Temporary buffer that will be inserted into `k8sconfig.apis` later.
     apis: Dict[str, List[K8sResource]]
     apis = defaultdict(list)
 
@@ -894,15 +894,15 @@ async def compile_api_endpoints2(k8sconfig: K8sConfig) -> bool:
             apis[name+".v1"].append(res)
 
     # Replace the existing apis.
-    k8sconfig.apis2.clear()
-    k8sconfig.apis2.update(dict(apis))
+    k8sconfig.apis.clear()
+    k8sconfig.apis.update(dict(apis))
 
     # Compile the set of all resource kinds that this Kubernetes cluster supports.
     k8sconfig.kinds.clear()
-    for kind in k8sconfig.apis2:
+    for kind in k8sconfig.apis:
         k8sconfig.kinds.add(kind)
 
-    return _validate_apis(k8sconfig.apis2)
+    return _validate_apis(k8sconfig.apis)
 
 
 def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:

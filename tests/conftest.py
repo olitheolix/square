@@ -51,8 +51,8 @@ def k8sconfig_fixture() -> K8sConfig:
     )
 
     # The set of API endpoints we can use in the tests.
-    cfg.apis2.clear()
-    cfg.apis2.update(k8s_apis2(cfg))
+    cfg.apis.clear()
+    cfg.apis.update(k8s_apis2(cfg))
 
     # Manually insert common short spellings.
     cfg.short2kind["deployment"] = "Deployment"

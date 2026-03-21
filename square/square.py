@@ -44,7 +44,7 @@ def normalise_kinds(kinds: Iterable[str], k8sconfig: K8sConfig) -> Tuple[List[st
     for kind in kinds:
         # Determine the API of the `kind`.
         skgn = SelKindGroupNames(value=kind)
-        r, err = k8s.pick_api(skgn, k8sconfig.apis2)
+        r, err = k8s.pick_api(skgn, k8sconfig.apis)
         if err:
             return [], True
 
