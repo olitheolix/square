@@ -158,7 +158,7 @@ class K8sConfig(NamedTuple):
     client: httpx.AsyncClient = httpx.AsyncClient()
 
     # Kubernetes API endpoints (see `k8s.compile_api_endpoints`).
-    apis2: Dict[str, List[K8sResource]] = {}
+    apis: Dict[str, List[K8sResource]] = {}
 
     # LUT to translate short names into their proper resource kind,
     # for instance short = {"service":, "Service", "svc": "Service"}

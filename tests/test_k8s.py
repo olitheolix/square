@@ -840,10 +840,10 @@ class TestUrlPathBuilder:
             return fake_api[path], False
         m_get.side_effect = supply_fake_api
 
-        k8sconfig.apis2.clear()
+        k8sconfig.apis.clear()
         k8sconfig.kinds.clear()
         assert await k8s.compile_api_endpoints2(k8sconfig) is False
-        assert isinstance(k8sconfig.apis2, dict) and len(k8sconfig.apis2) > 0
+        assert isinstance(k8sconfig.apis, dict) and len(k8sconfig.apis) > 0
 
         r_deploy_apps_v1 = K8sResource(
             apiVersion="apps/v1",
@@ -891,7 +891,7 @@ class TestUrlPathBuilder:
             preferred=True,
         )
 
-        assert k8sconfig.apis2 == {
+        assert k8sconfig.apis == {
             "deploy": [r_deploy_apps_v1, r_deploy_apps_v1beta],
             "deployment": [r_deploy_apps_v1, r_deploy_apps_v1beta, r_deploy_fake_v1],
             "deployments": [r_deploy_apps_v1, r_deploy_apps_v1beta, r_deploy_fake_v1],
@@ -931,7 +931,7 @@ class TestUrlPathBuilder:
             "configmaps.v1": [r_cm_v1],
             "cm.v1": [r_cm_v1],
         }
-        assert k8sconfig.kinds == set(k8sconfig.apis2)
+        assert k8sconfig.kinds == set(k8sconfig.apis)
 
     async def test_validate_apis(self):
         # Fixtures.
@@ -988,10 +988,10 @@ class TestUrlPathBuilder:
             'pod.v1',
             'service.v1'
         }
-        assert kinds.issubset(set(config.apis2))
+        assert kinds.issubset(set(config.apis))
 
         # Verify some standard resource types.
-        assert config.apis2["namespace.v1"] == [K8sResource(
+        assert config.apis["namespace.v1"] == [K8sResource(
             apiVersion="v1",
             kind="Namespace",
             name="namespaces",
@@ -1007,7 +1007,7 @@ class TestUrlPathBuilder:
         # accurately lists all versions of the same resource.
         hpa_aliases = ("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa")
         if integrationtest:
-            assert config.apis2["horizontalpodautoscalers.autoscaling"] == [
+            assert config.apis["horizontalpodautoscalers.autoscaling"] == [
                 K8sResource(
                     apiVersion="autoscaling/v1",
                     kind="HorizontalPodAutoscaler",
@@ -1028,7 +1028,7 @@ class TestUrlPathBuilder:
                 )
             ]
         else:
-            assert config.apis2["horizontalpodautoscalers.autoscaling"] == [
+            assert config.apis["horizontalpodautoscalers.autoscaling"] == [
                 K8sResource(
                     apiVersion="autoscaling/v2",
                     kind="HorizontalPodAutoscaler",
@@ -1063,7 +1063,7 @@ class TestUrlPathBuilder:
                     all_names=hpa_aliases,
                 )
             ]
-        assert config.apis2["pod.v1"] == [K8sResource(
+        assert config.apis["pod.v1"] == [K8sResource(
             apiVersion="v1",
             kind="Pod",
             name="pods",
@@ -1072,7 +1072,7 @@ class TestUrlPathBuilder:
             all_names=("po", "pod", "pods"),
             preferred=True,
         )]
-        assert config.apis2["deployment.apps"] == [K8sResource(
+        assert config.apis["deployment.apps"] == [K8sResource(
             apiVersion="apps/v1",
             kind="Deployment",
             name="deployments",
@@ -1083,7 +1083,7 @@ class TestUrlPathBuilder:
         )]
 
         # Verify our CRD.
-        assert config.apis2["democrd.mycrd.com/v1"] == [K8sResource(
+        assert config.apis["democrd.mycrd.com/v1"] == [K8sResource(
             apiVersion="mycrd.com/v1",
             kind="DemoCRD",
             name="democrds",
@@ -1109,7 +1109,7 @@ class TestUrlPathBuilder:
         config = await self.k8sconfig(integrationtest, k8sconfig)
 
         # Verify some standard resource types.
-        assert config.apis2["namespace"] == [K8sResource(
+        assert config.apis["namespace"] == [K8sResource(
             apiVersion="v1",
             kind="Namespace",
             name="namespaces",
@@ -1118,7 +1118,7 @@ class TestUrlPathBuilder:
             all_names=("namespace", "namespaces", "ns"),
             preferred=True,
         )]
-        assert config.apis2["pod"] == [K8sResource(
+        assert config.apis["pod"] == [K8sResource(
             apiVersion="v1",
             kind="Pod",
             name="pods",
@@ -1127,7 +1127,7 @@ class TestUrlPathBuilder:
             all_names=("po", "pod", "pods"),
             preferred=True,
         )]
-        assert config.apis2["deployment.apps/v1"] == [K8sResource(
+        assert config.apis["deployment.apps/v1"] == [K8sResource(
             apiVersion="apps/v1",
             kind="Deployment",
             name="deployments",
@@ -1136,7 +1136,7 @@ class TestUrlPathBuilder:
             all_names=("deploy", "deployment", "deployments"),
             preferred=True,
         )]
-        assert config.apis2["hpa.autoscaling/v2"] == [K8sResource(
+        assert config.apis["hpa.autoscaling/v2"] == [K8sResource(
             apiVersion="autoscaling/v2",
             kind="HorizontalPodAutoscaler",
             name="horizontalpodautoscalers",
@@ -1147,7 +1147,7 @@ class TestUrlPathBuilder:
         )]
 
         # Verify our CRD.
-        assert config.apis2["democrd.mycrd.com/v1"] == [K8sResource(
+        assert config.apis["democrd.mycrd.com/v1"] == [K8sResource(
             apiVersion="mycrd.com/v1",
             kind="DemoCRD",
             name="democrds",
