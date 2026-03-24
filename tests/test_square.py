@@ -1714,7 +1714,7 @@ class TestMainOptions:
         svc = "Service"
         hpa = "HorizontalPodAutoscaler"
 
-        # Dummy manifests.
+        # Three dummy manifests.
         man_svc_1 = make_manifest(svc, "ns", "svc-1", labels=dict(app="app-1"))
         man_svc_2 = make_manifest(svc, "ns", "svc-2", labels=dict(app="app-2"))
         man_hpa_1 = make_manifest(hpa, "ns", "svc-2", labels=dict(app="app-1"))
@@ -1733,7 +1733,8 @@ class TestMainOptions:
         m_down.return_value = (square_manifests, False)
 
         # --------------------------------------------------------------------------------
-        # Download all three manifest and verify that callback was called three times.
+        # Download all three manifests. The callback must have been called
+        # three times, ie once of each manifest from the server.
         # --------------------------------------------------------------------------------
         call_count_cb1 = 0
 
@@ -1758,7 +1759,7 @@ class TestMainOptions:
 
         # --------------------------------------------------------------------------------
         # Delete downloaded resources and select only HPAs this time.
-        # The callback must be called once only.
+        # The callback must be called only once.
         # --------------------------------------------------------------------------------
         # Delete downloaded manifests.
         man_path.unlink()
@@ -1785,7 +1786,7 @@ class TestMainOptions:
         del call_count_cb2
 
         # --------------------------------------------------------------------------------
-        # Keep the previously downloaded HPA resources and select only SERVICEs.
+        # Keep the previously downloaded HPA resources and select only Services.
         #
         # The callback must be called three times because Square will apply it
         # to the union of all downloaded manifests that fit the selectors as
