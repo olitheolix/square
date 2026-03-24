@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple, Set, Tuple
 
 import httpx
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import Annotated
 
 # Square will first save/deploy the resources in this list in this order.
@@ -138,8 +138,10 @@ class SelKindGroupNames(BaseModel):
         return self.ns
 
 
-class K8sConfig(NamedTuple):
+class K8sConfig(BaseModel):
     """Everything we need to know to connect and authenticate with Kubernetes."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     # Kubernetes URL, version and name.
     url: str = ""
     name: str = ""

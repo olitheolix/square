@@ -577,7 +577,7 @@ def create_httpx_client(k8sconfig: K8sConfig,
     client.headers.update(conparam.k8s_extra_headers)
 
     # Add the web client to the `k8sconfig` object.
-    k8sconfig = k8sconfig._replace(client=client, headers=headers)
+    k8sconfig = k8sconfig.model_copy(update=dict(client=client, headers=headers))
 
     # Return the configured client object.
     return k8sconfig, False
@@ -668,7 +668,7 @@ async def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     version = f"{major}.{minor}"
 
     # Return an updated `K8sconfig` tuple.
-    k8sconfig = k8sconfig._replace(version=version)
+    k8sconfig = k8sconfig.model_copy(update=dict(version=version))
     return (k8sconfig, False)
 
 

@@ -22,19 +22,17 @@ from .test_helpers import kind_available
 
 
 class TestK8sDeleteGetPatchPost:
-    def test_create_httpx_client_ok(self, k8sconfig):
+    def test_create_httpx_client_ok(self, k8sconfig: K8sConfig):
         """Verify the HttpX client is correctly setup."""
         conparam = ConnectionParameters(connect=2, read=3, write=4, pool=5)
 
-        # Create basic Kubernetes configuration.
-        cfg = k8sconfig._replace(token="")
-        new_cfg, err = k8s.create_httpx_client(cfg, conparam)
+        new_cfg, err = k8s.create_httpx_client(k8sconfig, conparam)
         assert not err
         assert "authorization" not in new_cfg.client.headers
         assert new_cfg.headers == {}
 
         # Create token based Kubernetes configuration.
-        cfg = k8sconfig._replace(token="token")
+        cfg = k8sconfig.model_copy(update=dict(token="token"))
         new_cfg, err = k8s.create_httpx_client(cfg, conparam)
         assert not err
         assert isinstance(new_cfg.client, httpx.AsyncClient)
@@ -46,25 +44,22 @@ class TestK8sDeleteGetPatchPost:
         fname_client_key = Path("tests/support/client.key")
 
         ccert = (fname_client_crt, fname_client_key)
-        cfg = k8sconfig._replace(token="token", cert=ccert)
+        cfg = k8sconfig.model_copy(update=dict(token="token", cert=ccert))
         new_cfg, err = k8s.create_httpx_client(cfg, conparam)
         assert not err
         assert isinstance(new_cfg.client, httpx.AsyncClient)
         assert new_cfg.client.headers["authorization"] == "Bearer token"
         assert new_cfg.headers == {"authorization": "Bearer token"}
 
-    def test_create_httpx_client_extra_headers_ok(self, k8sconfig):
+    def test_create_httpx_client_extra_headers_ok(self, k8sconfig: K8sConfig):
         """Verify the HttpX client is correctly setup."""
-        # Create basic Kubernetes configuration.
-        cfg = k8sconfig._replace(token="")
-
         conparam = ConnectionParameters()
-        new_cfg, err = k8s.create_httpx_client(cfg, conparam)
+        new_cfg, err = k8s.create_httpx_client(k8sconfig, conparam)
         assert not err
         assert "foo" not in new_cfg.client.headers
 
         conparam = ConnectionParameters(k8s_extra_headers={"foo": "bar"})
-        new_cfg, err = k8s.create_httpx_client(cfg, conparam)
+        new_cfg, err = k8s.create_httpx_client(k8sconfig, conparam)
         assert not err
         assert new_cfg.client.headers["foo"] == "bar"
 
@@ -79,19 +74,17 @@ class TestK8sDeleteGetPatchPost:
         ssl_ctx = k8s.create_ssl_context(cadata, disable_x509_strict=True)
         assert not ssl_ctx.verify_flags & ssl.VERIFY_X509_STRICT
 
-    def test_create_httpx_client_timeout(self, k8sconfig):
+    def test_create_httpx_client_timeout(self, k8sconfig: K8sConfig):
         """Verify that the function installs the correct timeouts."""
-        cfg = k8sconfig._replace(token="")
-
         timeout = ConnectionParameters(connect=2, read=3, write=4, pool=5)
-        new_cfg, err = k8s.create_httpx_client(cfg, timeout)
+        new_cfg, err = k8s.create_httpx_client(k8sconfig, timeout)
         assert not err
         assert new_cfg.client.timeout.connect == timeout.connect
         assert new_cfg.client.timeout.read == timeout.read
         assert new_cfg.client.timeout.write == timeout.write
         assert new_cfg.client.timeout.pool == timeout.pool
 
-    def test_create_httpx_client_timeout_mocked(self, k8sconfig):
+    def test_create_httpx_client_timeout_mocked(self, k8sconfig: K8sConfig):
         """Use mocks to ascertain the connection parameters.
 
         This test is necessary because some parameters, eg the connection
@@ -99,8 +92,6 @@ class TestK8sDeleteGetPatchPost:
         to ensure the client was created with the correct parameters.
 
         """
-        cfg = k8sconfig._replace(token="")
-
         # Construct an explicit `Timeout` instance.
         timeout = ConnectionParameters(
             connect=2, read=3, write=4, pool=5,
@@ -112,7 +103,7 @@ class TestK8sDeleteGetPatchPost:
         # Create the client.
         with mock.patch.object(k8s.httpx, "AsyncHTTPTransport") as m_trans:
             with mock.patch.object(k8s.httpx, "AsyncClient") as m_client:
-                k8s.create_httpx_client(cfg, timeout)
+                k8s.create_httpx_client(k8sconfig, timeout)
 
         # Verify that the correct limits were used.
         assert m_client.call_args_list[0][1]["limits"] == httpx.Limits(
@@ -125,7 +116,7 @@ class TestK8sDeleteGetPatchPost:
         assert m_trans.call_args_list[0][1]["http1"] is True
         assert m_trans.call_args_list[0][1]["http2"] is True
 
-    def test_create_httpx_client_err(self, k8sconfig, tmp_path: Path):
+    def test_create_httpx_client_err(self, k8sconfig: K8sConfig, tmp_path: Path):
         """Must gracefully abort when there are certificate problems."""
         timeout = ConnectionParameters(connect=2, read=3, write=4, pool=5)
 
@@ -134,7 +125,7 @@ class TestK8sDeleteGetPatchPost:
         fname_client_key = tmp_path / "does-not-exist.key"
 
         cert = (fname_client_crt, fname_client_key)
-        cfg = k8sconfig._replace(cert=cert)
+        cfg = k8sconfig.model_copy(update=dict(cert=cert))
         assert k8s.create_httpx_client(cfg, timeout) == (cfg, True)
 
         # Must gracefully abort when the certificates are corrupt.
@@ -142,11 +133,11 @@ class TestK8sDeleteGetPatchPost:
         fname_client_key.write_text("not a valid certificate")
 
         cert = (fname_client_crt, fname_client_key)
-        cfg = k8sconfig._replace(cert=cert)
+        cfg = k8sconfig.model_copy(update=dict(cert=cert))
         assert k8s.create_httpx_client(cfg, timeout) == (cfg, True)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    async def test_request_ok(self, method, k8sconfig, respx_mock):
+    async def test_request_ok(self, method, k8sconfig: K8sConfig, respx_mock):
         """Simulate a successful K8s response for GET request."""
         # Dummy values for the K8s API request.
         url = 'http://examples.com/'
@@ -165,7 +156,7 @@ class TestK8sDeleteGetPatchPost:
         assert ret == (response, status_code, False)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
-    async def test_request_err_json(self, method, k8sconfig, respx_mock):
+    async def test_request_err_json(self, method, k8sconfig: K8sConfig, respx_mock):
         """Simulate a corrupt JSON response from K8s."""
         # Dummies for K8s API URL and `httpx` client.
         url = 'http://examples.com/'
@@ -322,7 +313,7 @@ class TestK8sDeleteGetPatchPost:
 
 class TestK8sVersion:
     @mock.patch.object(k8s, "get")
-    async def test_version_auto_ok(self, m_get, k8sconfig):
+    async def test_version_auto_ok(self, m_get, k8sconfig: K8sConfig):
         """Get K8s version number from API server."""
 
         # This is a genuine K8s response from Minikube.
@@ -338,7 +329,7 @@ class TestK8sVersion:
         m_get.return_value = (response, None)
 
         # Create vanilla `Config` instance.
-        k8sconfig = k8sconfig._replace(client=mock.MagicMock())
+        k8sconfig = k8sconfig.model_copy(update=dict(client=mock.MagicMock()))
 
         # Test function must contact the K8s API and return a `Config` tuple
         # with the correct version number.
@@ -350,19 +341,16 @@ class TestK8sVersion:
         # Test function must have called out to `get` to retrieve the
         # version. Here we ensure it called the correct URL.
         m_get.assert_called_once_with(k8sconfig, f"{k8sconfig.url}/version")
-        assert not k8sconfig.client.called
+        assert not k8sconfig.client.called  # type: ignore
 
-        # The return `Config` tuple must be identical to the input except for
+        # The returned `K8sConfig` must be identical to the input except for
         # the version number because "k8s.version" will have overwritten it.
-        assert k8sconfig._replace(version="None") == config2._replace(version="None")
+        k8sconfig.version = config2.version = ""
         del config2, err
 
     @mock.patch.object(k8s, "get")
-    async def test_version_auto_err(self, m_get, k8sconfig):
+    async def test_version_auto_err(self, m_get, k8sconfig: K8sConfig):
         """Simulate an error when fetching the K8s version."""
-        # Create vanilla `K8sConfig` instance.
-        k8sconfig = k8sconfig._replace(client=mock.MagicMock())
-
         # Simulate an error in `get`.
         m_get.return_value = (None, True)
 
