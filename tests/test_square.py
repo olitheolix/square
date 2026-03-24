@@ -1710,6 +1710,7 @@ class TestMainOptions:
 
         config.groupby = GroupBy()
         man_path = config.folder / "_other.yaml"
+        assert not man_path.exists()
 
         svc = "Service"
         hpa = "HorizontalPodAutoscaler"
@@ -1717,20 +1718,21 @@ class TestMainOptions:
         # Three dummy manifests.
         man_svc_1 = make_manifest(svc, "ns", "svc-1", labels=dict(app="app-1"))
         man_svc_2 = make_manifest(svc, "ns", "svc-2", labels=dict(app="app-2"))
-        man_hpa_1 = make_manifest(hpa, "ns", "svc-2", labels=dict(app="app-1"))
+        man_hpa_1 = make_manifest(hpa, "ns", "hpa-1", labels=dict(app="app-1"))
 
         # MetaManifests for the dummy manifests.
         meta_svc_1 = manio.make_meta(man_svc_1)
         meta_svc_2 = manio.make_meta(man_svc_2)
         meta_hpa_1 = manio.make_meta(man_hpa_1)
 
-        # Pretend that this is what we downloaded from K8s.
-        square_manifests: SquareManifests = {
+        # Pretend that this is what K8s provides us with.
+        server_manifests: SquareManifests = {
             meta_svc_1: man_svc_1,
             meta_svc_2: man_svc_2,
             meta_hpa_1: man_hpa_1,
         }
-        m_down.return_value = (square_manifests, False)
+        m_down.return_value = (server_manifests, False)
+        del server_manifests
 
         # --------------------------------------------------------------------------------
         # Download all three manifests. The callback must have been called
