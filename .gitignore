@@ -12,6 +12,7 @@ htmlcov/
 # Binaries.
 build/
 dist/
+kubernetes_square.egg-info/
 
 # Personal files and folders.
 .square.yaml

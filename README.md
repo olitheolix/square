@@ -464,7 +464,7 @@ only a few lines of code.
 # Automated Tests
 *Square* ships with a comprehensive set of unit tests:
 
-    pipenv run pytest
+    uv run pytest
 
 To run the integration tests as well you need to have
 [KinD](https://github.com/kubernetes-sigs/kind/releases) and start it with:
