@@ -2,12 +2,14 @@
 
 ## Latest
 ### Highlights
-* feat: change from `pipenv` to `uv`
+Switched development to a `uv` `based workflow.
 
-### Breaking Changes
+### BREAKING Changes
 None
 
 ### Changes
+* feat: use `ruff` for code formatting and linting.
+* feat: change from `pipenv` to `uv`
 
 ## v2.4.0 (2026-03-26)
 ### Highlights
