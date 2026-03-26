@@ -9,6 +9,20 @@ None
 
 ### Changes
 
+## v2.4.0 (2026-03-26)
+### Highlights
+Square now accepts resource groups like `pods.v1` or `deployments.apps`, as
+well as all their aliases (`po`, `pod`, `pods`, `po.v1`, ...). The old way to
+specify `Pod` or `Deployment` remains valid but Square will abort with an
+error if the name is not unique in the cluster.
+
+### Breaking Changes
+None
+
+### Changes
+* feat: support resource groups.
+* feat: abort if a resource is ambiguous.
+
 ## v2.3.0 (2025-12-11)
 ### Highlights
 None
