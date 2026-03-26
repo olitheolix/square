@@ -13,9 +13,20 @@ import square.k8s as k8s
 import square.manio as manio
 import square.square as sq
 from square.dtypes import (
-    DEFAULT_PRIORITIES, Config, DeltaCreate, DeltaDelete, DeltaPatch,
-    DeploymentPlan, DeploymentPlanMeta, GroupBy, JsonPatch, K8sConfig,
-    K8sResource, MetaManifest, Selectors, SquareManifests,
+    DEFAULT_PRIORITIES,
+    Config,
+    DeltaCreate,
+    DeltaDelete,
+    DeltaPatch,
+    DeploymentPlan,
+    DeploymentPlanMeta,
+    GroupBy,
+    JsonPatch,
+    K8sConfig,
+    K8sResource,
+    MetaManifest,
+    Selectors,
+    SquareManifests,
 )
 from square.k8s import resource
 
@@ -40,7 +51,9 @@ class TestLogging:
 class TestBasic:
     def test_config_default(self, tmp_path):
         """Default values for Config."""
-        assert Config(folder=tmp_path, kubeconfig=tmp_path, kubecontext="ctx") == Config(
+        assert Config(
+            folder=tmp_path, kubeconfig=tmp_path, kubecontext="ctx"
+        ) == Config(
             folder=tmp_path,
             kubecontext="ctx",
             kubeconfig=tmp_path,
@@ -64,25 +77,25 @@ class TestBasic:
         # Two deployments in the same non-existing Namespace. Both are orphaned
         # because the namespace `ns1` does not exist.
         man = {
-            MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
-            MetaManifest('v1', 'Deployment', 'ns1', 'bar'),
+            MetaManifest("v1", "Deployment", "ns1", "foo"),
+            MetaManifest("v1", "Deployment", "ns1", "bar"),
         }
         assert fun(man) == (man, True)
 
         # Two namespaces - neither is orphaned by definition.
         man = {
-            MetaManifest('v1', 'Namespace', None, 'ns1'),
-            MetaManifest('v1', 'Namespace', None, 'ns2'),
+            MetaManifest("v1", "Namespace", None, "ns1"),
+            MetaManifest("v1", "Namespace", None, "ns2"),
         }
         assert fun(man) == (set(), True)
 
         # Two deployments, only one of which is inside a defined Namespace.
         man = {
-            MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar'),
-            MetaManifest('v1', 'Namespace', None, 'ns1'),
+            MetaManifest("v1", "Deployment", "ns1", "foo"),
+            MetaManifest("v1", "Deployment", "ns2", "bar"),
+            MetaManifest("v1", "Namespace", None, "ns1"),
         }
-        assert fun(man) == ({MetaManifest('v1', 'Deployment', 'ns2', 'bar')}, True)
+        assert fun(man) == ({MetaManifest("v1", "Deployment", "ns2", "bar")}, True)
 
     def test_show_plan(self):
         """Just verify it runs.
@@ -96,15 +109,15 @@ class TestBasic:
         patch = JsonPatch(
             url="url",
             ops=[
-                {'op': 'remove', 'path': '/metadata/labels/old'},
-                {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'}
+                {"op": "remove", "path": "/metadata/labels/old"},
+                {"op": "add", "path": "/metadata/labels/new", "value": "new"},
             ],
         )
         plan = DeploymentPlan(
             create=[DeltaCreate(meta, "url", {})],
             patch=[
                 DeltaPatch(meta, "", patch),
-                DeltaPatch(meta, "  normal\n+  add\n-  remove", patch)
+                DeltaPatch(meta, "  normal\n+  add\n-  remove", patch),
             ],
             delete=[DeltaDelete(meta, "url", {})],
         )
@@ -121,9 +134,13 @@ class TestBasic:
         assert got == (["service.v1/name"], False)
 
         kinds = [
-            "DEPLOYMENT/app1", "deployment/app2", "deployments/app3",
-            "ns", "namespace/foo",
-            "service", "svc/app1",
+            "DEPLOYMENT/app1",
+            "deployment/app2",
+            "deployments/app3",
+            "ns",
+            "namespace/foo",
+            "service",
+            "svc/app1",
         ]
 
         # Convert the selector KINDs to their canonical K8s kinds.
@@ -132,9 +149,13 @@ class TestBasic:
 
         # Must have removed all duplicates.
         assert got_kinds == [
-            'deployment.apps/app1', 'deployment.apps/app2', 'deployment.apps/app3',
-            'namespace.v1', 'namespace.v1/foo',
-            'service.v1', 'service.v1/app1',
+            "deployment.apps/app1",
+            "deployment.apps/app2",
+            "deployment.apps/app3",
+            "namespace.v1",
+            "namespace.v1/foo",
+            "service.v1",
+            "service.v1/app1",
         ]
 
     def test_normalise_kinds_err(self, k8sconfig: K8sConfig):
@@ -164,7 +185,7 @@ class TestBasic:
 
     def test_compile_config_ok(self, k8sconfig):
         cfg = Config(
-            folder=Path('/tmp'),
+            folder=Path("/tmp"),
             kubeconfig=Path(),
             kubecontext=None,
             groupby=GroupBy(),
@@ -183,7 +204,7 @@ class TestBasic:
     def test_compile_config_err(self, k8sconfig):
         # Invalid: kinds in priority list must not contain a name.
         cfg = Config(
-            folder=Path('/tmp'),
+            folder=Path("/tmp"),
             kubeconfig=Path(),
             kubecontext=None,
             groupby=GroupBy(),
@@ -195,7 +216,7 @@ class TestBasic:
 
         # Invalid: priority list must not contain duplicates.
         cfg = Config(
-            folder=Path('/tmp'),
+            folder=Path("/tmp"),
             kubeconfig=Path(),
             kubecontext=None,
             groupby=GroupBy(),
@@ -207,7 +228,7 @@ class TestBasic:
 
         # Invalid: selected kind does not exist in current K8s cluster.
         cfg = Config(
-            folder=Path('/tmp'),
+            folder=Path("/tmp"),
             kubeconfig=Path(),
             kubecontext=None,
             groupby=GroupBy(),
@@ -227,11 +248,26 @@ class TestBasic:
 
         # Invalid specimen.
         invalid = [
-            "fo o/valid", "f*o/valid", "foo-/valid", "-foo/valid",
-            ".foo/valid", "foo./valid", "_foo/valid", "foo_/valid",
-            "./valid", "-/valid", "_/valid", "b ar/valid",
-            "foo /bar", "foo/ bar", "foo / bar", "foo/bar/foobar",
-            "foo//bar", "/bar", "foo/", "tags.datadoghq.com/",
+            "fo o/valid",
+            "f*o/valid",
+            "foo-/valid",
+            "-foo/valid",
+            ".foo/valid",
+            "foo./valid",
+            "_foo/valid",
+            "foo_/valid",
+            "./valid",
+            "-/valid",
+            "_/valid",
+            "b ar/valid",
+            "foo /bar",
+            "foo/ bar",
+            "foo / bar",
+            "foo/bar/foobar",
+            "foo//bar",
+            "/bar",
+            "foo/",
+            "tags.datadoghq.com/",
         ]
 
         valid = [f"{_}=value" for _ in valid]
@@ -275,11 +311,11 @@ class TestPartition:
         # create/add anything but mark all resources for (possible)
         # patching.
         manifests: SquareManifests = {
-            MetaManifest('v1', 'Namespace', None, 'ns3'): {},
-            MetaManifest('v1', 'Namespace', None, 'ns1'): {},
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar'): {},
-            MetaManifest('v1', 'Namespace', None, 'ns2'): {},
-            MetaManifest('v1', 'Deployment', 'ns1', 'foo'): {},
+            MetaManifest("v1", "Namespace", None, "ns3"): {},
+            MetaManifest("v1", "Namespace", None, "ns1"): {},
+            MetaManifest("v1", "Deployment", "ns2", "bar"): {},
+            MetaManifest("v1", "Namespace", None, "ns2"): {},
+            MetaManifest("v1", "Deployment", "ns1", "foo"): {},
         }
         plan = DeploymentPlanMeta(create=[], patch=list(manifests.keys()), delete=[])
         assert sq.partition_manifests(manifests, manifests) == (plan, False)
@@ -295,25 +331,25 @@ class TestPartition:
 
         # Local and cluster manifests are orthogonal.
         local_man: SquareManifests = {
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar'): {},
-            MetaManifest('v1', 'Namespace', None, 'ns2'): {},
+            MetaManifest("v1", "Deployment", "ns2", "bar"): {},
+            MetaManifest("v1", "Namespace", None, "ns2"): {},
         }
         cluster_man: SquareManifests = {
-            MetaManifest('v1', 'Deployment', 'ns1', 'foo'): {},
-            MetaManifest('v1', 'Namespace', None, 'ns1'): {},
-            MetaManifest('v1', 'Namespace', None, 'ns3'): {},
+            MetaManifest("v1", "Deployment", "ns1", "foo"): {},
+            MetaManifest("v1", "Namespace", None, "ns1"): {},
+            MetaManifest("v1", "Namespace", None, "ns3"): {},
         }
         plan = DeploymentPlanMeta(
             create=[
-                MetaManifest('v1', 'Deployment', 'ns2', 'bar'),
-                MetaManifest('v1', 'Namespace', None, 'ns2'),
+                MetaManifest("v1", "Deployment", "ns2", "bar"),
+                MetaManifest("v1", "Namespace", None, "ns2"),
             ],
             patch=[],
             delete=[
-                MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
-                MetaManifest('v1', 'Namespace', None, 'ns1'),
-                MetaManifest('v1', 'Namespace', None, 'ns3'),
-            ]
+                MetaManifest("v1", "Deployment", "ns1", "foo"),
+                MetaManifest("v1", "Namespace", None, "ns1"),
+                MetaManifest("v1", "Namespace", None, "ns3"),
+            ],
         )
         assert fun(local_man, cluster_man) == (plan, False)
 
@@ -331,29 +367,29 @@ class TestPartition:
         # must contain patches for those resources that exist locally and on
         # the server. All the other manifest on the server are obsolete.
         local_man: SquareManifests = {
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar1'): {},
-            MetaManifest('v1', 'Namespace', None, 'ns2'): {},
+            MetaManifest("v1", "Deployment", "ns2", "bar1"): {},
+            MetaManifest("v1", "Namespace", None, "ns2"): {},
         }
         cluster_man: SquareManifests = {
-            MetaManifest('v1', 'Deployment', 'ns1', 'foo'): {},
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar1'): {},
-            MetaManifest('v1', 'Deployment', 'ns2', 'bar2'): {},
-            MetaManifest('v1', 'Namespace', None, 'ns1'): {},
-            MetaManifest('v1', 'Namespace', None, 'ns2'): {},
-            MetaManifest('v1', 'Namespace', None, 'ns3'): {},
+            MetaManifest("v1", "Deployment", "ns1", "foo"): {},
+            MetaManifest("v1", "Deployment", "ns2", "bar1"): {},
+            MetaManifest("v1", "Deployment", "ns2", "bar2"): {},
+            MetaManifest("v1", "Namespace", None, "ns1"): {},
+            MetaManifest("v1", "Namespace", None, "ns2"): {},
+            MetaManifest("v1", "Namespace", None, "ns3"): {},
         }
         plan = DeploymentPlanMeta(
             create=[],
             patch=[
-                MetaManifest('v1', 'Deployment', 'ns2', 'bar1'),
-                MetaManifest('v1', 'Namespace', None, 'ns2'),
+                MetaManifest("v1", "Deployment", "ns2", "bar1"),
+                MetaManifest("v1", "Namespace", None, "ns2"),
             ],
             delete=[
-                MetaManifest('v1', 'Deployment', 'ns1', 'foo'),
-                MetaManifest('v1', 'Deployment', 'ns2', 'bar2'),
-                MetaManifest('v1', 'Namespace', None, 'ns1'),
-                MetaManifest('v1', 'Namespace', None, 'ns3'),
-            ]
+                MetaManifest("v1", "Deployment", "ns1", "foo"),
+                MetaManifest("v1", "Deployment", "ns2", "bar2"),
+                MetaManifest("v1", "Namespace", None, "ns1"),
+                MetaManifest("v1", "Namespace", None, "ns3"),
+            ],
         )
         assert fun(local_man, cluster_man) == (plan, False)
 
@@ -362,7 +398,7 @@ class TestPatchK8s:
     def test_make_patch_empty(self, k8sconfig):
         """Basic test: compute patch between two identical resources."""
         # Setup.
-        kind, ns, name = 'Deployment', 'ns', 'foo'
+        kind, ns, name = "Deployment", "ns", "foo"
 
         # PATCH URLs require the resource name at the end of the request path.
         url = resource(k8sconfig, MetaManifest("apps/v1", kind, ns, name))[0].url
@@ -382,27 +418,27 @@ class TestPatchK8s:
 
         """
         # Demo Deployment manifest.
-        srv = make_manifest('Deployment', 'Namespace', 'name')
+        srv = make_manifest("Deployment", "Namespace", "name")
         err_resp = (JsonPatch("", []), True)
 
         # `apiVersion` must match.
         loc = copy.deepcopy(srv)
-        loc['apiVersion'] = 'mismatch'
+        loc["apiVersion"] = "mismatch"
         assert sq.make_patch(k8sconfig, loc, srv) == err_resp
 
         # `kind` must match.
         loc = copy.deepcopy(srv)
-        loc['kind'] = 'Mismatch'
+        loc["kind"] = "Mismatch"
         assert sq.make_patch(k8sconfig, loc, srv) == err_resp
 
         # `name` must match.
         loc = copy.deepcopy(srv)
-        loc['metadata']['name'] = 'mismatch'
+        loc["metadata"]["name"] = "mismatch"
         assert sq.make_patch(k8sconfig, loc, srv) == err_resp
 
         # `namespace` must match.
         loc = copy.deepcopy(srv)
-        loc['metadata']['namespace'] = 'mismatch'
+        loc["metadata"]["namespace"] = "mismatch"
         assert sq.make_patch(k8sconfig, loc, srv) == err_resp
 
     def test_make_patch_special(self, k8sconfig):
@@ -427,7 +463,7 @@ class TestPatchK8s:
             # different `metadata.labels`. This must succeed.
             loc = make_manifest(kind, None, "name")
             srv = copy.deepcopy(loc)
-            loc['metadata']['labels'] = {"key": "value"}
+            loc["metadata"]["labels"] = {"key": "value"}
 
             data, err = sq.make_patch(k8sconfig, loc, srv)
             assert err is False and len(data) > 0
@@ -606,7 +642,6 @@ class TestMatchApiVersions:
         assert not err and srv == {
             meta_hpa_1_srv: man_hpa_1_srv,
             meta_hpa_2_srv_v1: man_hpa_2_srv_v1,
-
             # This must have been downloaded.
             meta_hpa_3_srv: man_hpa_3_srv,
         }
@@ -719,9 +754,9 @@ class TestPlan:
         expected = JsonPatch(
             url=res.url,
             ops=[
-                {'op': 'remove', 'path': '/metadata/labels/old'},
-                {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'}
-            ]
+                {"op": "remove", "path": "/metadata/labels/old"},
+                {"op": "add", "path": "/metadata/labels/new", "value": "new"},
+            ],
         )
         assert sq.make_patch(k8sconfig, loc, srv) == (expected, False)
 
@@ -745,12 +780,12 @@ class TestPlan:
 
     def test_sort_plan(self, sqcfg: Config, k8sconfig: K8sConfig):
         # Dummy MetaManifests that we will use in our test plan.
-        meta_ns0 = MetaManifest('v1', 'Namespace', None, 'ns0')
-        meta_ns1 = MetaManifest('v1', 'Namespace', None, 'ns1')
-        meta_svc0 = MetaManifest('v1', 'Service', "ns0", 'svc0')
-        meta_svc1 = MetaManifest('v1', 'Service', "ns1", 'svc1')
-        meta_dpl0 = MetaManifest('apps/v1', 'Deployment', 'ns0', 'deploy_0')
-        meta_dpl1 = MetaManifest('apps/v1', 'Deployment', 'ns1', 'deploy_1')
+        meta_ns0 = MetaManifest("v1", "Namespace", None, "ns0")
+        meta_ns1 = MetaManifest("v1", "Namespace", None, "ns1")
+        meta_svc0 = MetaManifest("v1", "Service", "ns0", "svc0")
+        meta_svc1 = MetaManifest("v1", "Service", "ns1", "svc1")
+        meta_dpl0 = MetaManifest("apps/v1", "Deployment", "ns0", "deploy_0")
+        meta_dpl1 = MetaManifest("apps/v1", "Deployment", "ns1", "deploy_1")
 
         expected = DeploymentPlan(
             create=[
@@ -849,13 +884,12 @@ class TestPlan:
         """
         # Local: defines Namespace "ns1" with 1 deployment.
         meta = [
-            MetaManifest('v1', 'Namespace', None, 'ns1'),
-            MetaManifest('apps/v1', 'Deployment', 'ns1', 'res_0'),
-
+            MetaManifest("v1", "Namespace", None, "ns1"),
+            MetaManifest("apps/v1", "Deployment", "ns1", "res_0"),
             # Server: has a Namespace "ns2" with 2 deployments.
-            MetaManifest('v1', 'Namespace', None, 'ns2'),
-            MetaManifest('apps/v1', 'Deployment', 'ns2', 'res_1'),
-            MetaManifest('apps/v1', 'Deployment', 'ns2', 'res_2'),
+            MetaManifest("v1", "Namespace", None, "ns2"),
+            MetaManifest("apps/v1", "Deployment", "ns2", "res_1"),
+            MetaManifest("apps/v1", "Deployment", "ns2", "res_2"),
         ]
 
         # Determine the K8sResource for all involved resources. Also verify
@@ -910,7 +944,7 @@ class TestPlan:
         # `resource` error in its code path.
         m_part.return_value = (
             DeploymentPlan(create=[DeltaCreate(meta, "url", {})], patch=[], delete=[]),
-            False
+            False,
         )
 
         # We must not be able to compile a plan because of the `resource` error.
@@ -922,7 +956,7 @@ class TestPlan:
         # `resource` error in its code path.
         m_part.return_value = (
             DeploymentPlan(create=[], patch=[], delete=[DeltaDelete(meta, "url", {})]),
-            False
+            False,
         )
         with mock.patch.object(sq.k8s, "resource") as m_url:
             m_url.return_value = (None, True)
@@ -932,10 +966,10 @@ class TestPlan:
         """The plan must be empty if the local and server manifests are too."""
         # Define two namespaces with 1 deployment in each.
         meta = [
-            MetaManifest('v1', 'Namespace', None, 'ns1'),
-            MetaManifest('apps/v1', 'Deployment', 'ns1', 'res_0'),
-            MetaManifest('v1', 'Namespace', None, 'ns2'),
-            MetaManifest('apps/v1', 'Deployment', 'ns2', 'res_1'),
+            MetaManifest("v1", "Namespace", None, "ns1"),
+            MetaManifest("apps/v1", "Deployment", "ns1", "res_0"),
+            MetaManifest("v1", "Namespace", None, "ns2"),
+            MetaManifest("apps/v1", "Deployment", "ns2", "res_1"),
         ]
 
         # Local and server manifests are identical. The plan must therefore
@@ -974,7 +1008,7 @@ class TestPlan:
 
         """
         # Define a single resource.
-        meta = MetaManifest('v1', 'Namespace', None, 'ns1')
+        meta = MetaManifest("v1", "Namespace", None, "ns1")
 
         # Local and server manifests have the same resources but their
         # definition differs. This will ensure a non-empty patch in the plan.
@@ -992,9 +1026,7 @@ class TestPlan:
 
         # Verify the test function returns the correct Patch and diff.
         expected = DeploymentPlan(
-            create=[],
-            patch=[DeltaPatch(meta, diff_str, patch)],
-            delete=[]
+            create=[], patch=[DeltaPatch(meta, diff_str, patch)], delete=[]
         )
         ret = await sq.compile_plan(sqcfg, k8sconfig, loc_man, srv_man)
         assert ret == (expected, False)
@@ -1008,7 +1040,7 @@ class TestPlan:
 
         # Define a single resource and valid dummy return value for
         # `sq.partition_manifests`.
-        meta = MetaManifest('v1', 'Namespace', None, 'ns1')
+        meta = MetaManifest("v1", "Namespace", None, "ns1")
         plan = DeploymentPlanMeta(create=[], patch=[meta], delete=[])
 
         # Local and server manifests have the same resources but their
@@ -1057,6 +1089,7 @@ class TestPlan:
 
     def test_call_external_function(self):
         """Test various scenarios when calling a user supplied function."""
+
         def cb(data: str):
             assert data == "foo"
             return ("it", "worked")
@@ -1084,7 +1117,7 @@ class TestPlan:
 
         """
         # Define a single resource.
-        meta = MetaManifest('v1', 'Namespace', None, 'ns1')
+        meta = MetaManifest("v1", "Namespace", None, "ns1")
 
         def get_dummy_manifests():
             """Return a valid local/server manfiest pair to force a patch."""
@@ -1108,7 +1141,7 @@ class TestPlan:
         local, server = get_dummy_manifests()
 
         def cb1(_cfg: Config, _local: dict, _server: dict):
-            _ = _cfg, _local    # make linter happy
+            _ = _cfg, _local  # make linter happy
             return (_server, _server)
 
         sqcfg.patch_callback = cb1
@@ -1163,7 +1196,7 @@ class TestPlan:
 
         """
         # Define a single resource.
-        meta = MetaManifest('v1', 'Namespace', None, 'ns1')
+        meta = MetaManifest("v1", "Namespace", None, "ns1")
 
         # Local and server manifests have the same resources but their
         # definition differs. This will ensure a non-empty patch in the plan.
@@ -1229,8 +1262,8 @@ class TestMainOptions:
         patch = JsonPatch(
             url="patch_url",
             ops=[
-                {'op': 'remove', 'path': '/metadata/labels/old'},
-                {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'},
+                {"op": "remove", "path": "/metadata/labels/old"},
+                {"op": "add", "path": "/metadata/labels/new", "value": "new"},
             ],
         )
 
@@ -1307,9 +1340,9 @@ class TestMainOptions:
 
         """
         # Define two Pods and a Service.
-        meta_ns1_pod1 = MetaManifest('v1', 'Pod', "ns1", "pod-1")
-        meta_ns2_pod2 = MetaManifest('v1', 'Pod', "ns2", "pod-2")
-        meta_ns1_svc1 = MetaManifest('v1', 'Service', "ns1", "svc-1")
+        meta_ns1_pod1 = MetaManifest("v1", "Pod", "ns1", "pod-1")
+        meta_ns2_pod2 = MetaManifest("v1", "Pod", "ns2", "pod-2")
+        meta_ns1_svc1 = MetaManifest("v1", "Service", "ns1", "svc-1")
         man_ns1_pod1 = make_manifest("Pod", "ns1", "pod-1")
         man_ns2_pod2 = make_manifest("Pod", "ns2", "pod-2")
         man_ns1_svc1 = make_manifest("Service", "ns1", "svc-1")
@@ -1381,7 +1414,7 @@ class TestMainOptions:
     def test_pick_manifests_for_plan_same_resource_different_labels(self):
         """Must retain only the manifests that match the selectors."""
         # Define the same Pod resource but with different labels.
-        meta_pod = MetaManifest('v1', 'Pod', "ns1", "pod-1")
+        meta_pod = MetaManifest("v1", "Pod", "ns1", "pod-1")
         man_loc = make_manifest("Pod", "ns1", "pod-1", labels={"app": "local"})
         man_srv = make_manifest("Pod", "ns1", "pod-1", labels={"app": "server"})
 
@@ -1407,8 +1440,9 @@ class TestMainOptions:
     @mock.patch.object(sq, "pick_manifests_for_plan")
     @mock.patch.object(manio, "align_serviceaccount")
     @mock.patch.object(sq, "compile_plan")
-    async def test_make_plan_full_mock(self, m_plan, m_align, m_pick, m_down, m_load,
-                                       sqcfg: Config, kube_creds):
+    async def test_make_plan_full_mock(
+        self, m_plan, m_align, m_pick, m_down, m_load, sqcfg: Config, kube_creds
+    ):
         """Verify that `make_plan` calls the right functions with the right arguments."""
         k8sconfig: K8sConfig = kube_creds
         err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
@@ -1463,15 +1497,15 @@ class TestMainOptions:
         tests to cover various edge cases.
 
         """
-        _ = kube_creds          # make linter happy
+        _ = kube_creds  # make linter happy
 
         # Select all Pods in all namespaces. Ignore labels.
         sqcfg.selectors = Selectors(kinds={"Pod"}, namespaces=[], labels=[])
 
         # Define a single resource.
-        meta_pod1 = MetaManifest('v1', 'Pod', "ns1", "pod-1")
+        meta_pod1 = MetaManifest("v1", "Pod", "ns1", "pod-1")
         man_pod1 = make_manifest("Pod", "ns1", "pod-1")
-        meta_pod2 = MetaManifest('v1', 'Pod', "ns1", "pod-2")
+        meta_pod2 = MetaManifest("v1", "Pod", "ns1", "pod-2")
         man_pod2 = make_manifest("Pod", "ns1", "pod-2")
 
         # Local and server manifests are in sync.
@@ -1524,13 +1558,13 @@ class TestMainOptions:
         with different labels.
 
         """
-        _ = kube_creds          # make linter happy
+        _ = kube_creds  # make linter happy
 
         # Select all Pods in all namespaces. We will set labels below.
         sqcfg.selectors = Selectors(kinds={"Pod"}, namespaces=[])
 
         # Define the same resource twice but with different labels.
-        meta_pod = MetaManifest('v1', 'Pod', "ns1", "pod-1")
+        meta_pod = MetaManifest("v1", "Pod", "ns1", "pod-1")
         man_loc = make_manifest("Pod", "ns1", "pod-1", labels={"app": "local"})
         man_srv = make_manifest("Pod", "ns1", "pod-1", labels={"app": "server"})
 
@@ -1563,11 +1597,11 @@ class TestMainOptions:
         with different labels.
 
         """
-        _ = kube_creds          # make linter happy
+        _ = kube_creds  # make linter happy
 
         # Define the same resource twice but with different labels.
-        meta_pod1 = MetaManifest('v1', 'Pod', "ns1", "pod-1")
-        meta_pod2 = MetaManifest('v1', 'Pod', "ns1", "pod-2")
+        meta_pod1 = MetaManifest("v1", "Pod", "ns1", "pod-1")
+        meta_pod2 = MetaManifest("v1", "Pod", "ns1", "pod-2")
         man_pod1 = make_manifest("Pod", "ns1", "pod-1")
         man_pod2 = make_manifest("Pod", "ns1", "pod-2")
 
@@ -1602,15 +1636,16 @@ class TestMainOptions:
     @pytest.mark.parametrize("function", ("get_resources", "make_plan"))
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
-    async def test_invalid_local_manifests(self, m_down, m_load,
-                                           function, kube_creds, sqcfg):
+    async def test_invalid_local_manifests(
+        self, m_down, m_load, function, kube_creds, sqcfg
+    ):
         """Simulate a local Pod manifest that lacks a namespace.
 
         This must fail the validation in both `get_resources` and `make_plan`.
         The two functions are similar enough to be covered by a single test.
 
         """
-        _ = kube_creds          # make linter happy
+        _ = kube_creds  # make linter happy
 
         # Local Pod manifest does not specify a NAMESPACE.
         loc_man = make_manifest("Pod", None, "loc")
@@ -1634,8 +1669,9 @@ class TestMainOptions:
     @mock.patch.object(manio, "strip_manifests")
     @mock.patch.object(manio, "sync")
     @mock.patch.object(manio, "save")
-    async def test_get_resources_full_mock(self, m_save, m_sync, m_strip, m_mapi,
-                                           m_down, m_load, kube_creds, sqcfg):
+    async def test_get_resources_full_mock(
+        self, m_save, m_sync, m_strip, m_mapi, m_down, m_load, kube_creds, sqcfg
+    ):
         """Basic test.
 
         The `get_resource` function is more of a linear script than anything
@@ -1676,12 +1712,13 @@ class TestMainOptions:
         m_load.assert_called_once_with(sqcfg.folder, load_selectors)
         m_down.assert_called_once_with(sqcfg, k8sconfig)
         m_mapi.assert_called_once_with(k8sconfig, loc_sqm, srv_sqm)
-        m_sync.assert_called_once_with("local_path", "matched",
-                                       sqcfg.selectors, sqcfg.groupby)
-        m_strip.assert_called_once_with(
-            sqcfg, {}, {"meta": "manifest"})
+        m_sync.assert_called_once_with(
+            "local_path", "matched", sqcfg.selectors, sqcfg.groupby
+        )
+        m_strip.assert_called_once_with(sqcfg, {}, {"meta": "manifest"})
         m_save.assert_called_once_with(
-            sqcfg.folder, {"path": [("meta", "manifest-strip")]}, sqcfg.priorities)
+            sqcfg.folder, {"path": [("meta", "manifest-strip")]}, sqcfg.priorities
+        )
 
         # Simulate an error with `manio.save`.
         m_save.return_value = (None, True)
@@ -1702,7 +1739,7 @@ class TestMainOptions:
     @mock.patch.object(manio, "download")
     async def test_get_resources_basic(self, m_down, sqcfg: Config, kube_creds):
         """Simulate an empty local folder and some downloaded manifests."""
-        _ = kube_creds          # make linter happy
+        _ = kube_creds  # make linter happy
 
         # Only show INFO and above or otherwise this test will produce a
         # humongous amount of logs from all the K8s calls.

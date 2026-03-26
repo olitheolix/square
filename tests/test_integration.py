@@ -12,7 +12,11 @@ import square.k8s
 import square.main
 import square.manio as manio
 from square.dtypes import (
-    Config, ConnectionParameters, GroupBy, K8sConfig, Selectors,
+    Config,
+    ConnectionParameters,
+    GroupBy,
+    K8sConfig,
+    Selectors,
 )
 
 from .test_helpers import kind_available, make_manifest
@@ -36,7 +40,7 @@ def create_temporary_k8s_namespace():
         kubectl("create", "ns", namespace)  # type: ignore
         yield namespace
     finally:
-        kubectl("delete", "ns", namespace, "--force",  _bg=True)  # type: ignore
+        kubectl("delete", "ns", namespace, "--force", _bg=True)  # type: ignore
 
 
 @pytest.mark.skipif(not kind_available(), reason="No Integration Test Cluster")
@@ -99,10 +103,18 @@ class TestMainGet:
         # Command line arguments: get all manifests and group them by namespace,
         # "app" label and resource kind.
         args = (
-            "square.py", "get", *namespaced, *non_namespaced,
-            "--folder", str(tmp_path),
-            "--groupby", "ns", "label=app", "kind",
-            "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
+            "square.py",
+            "get",
+            *namespaced,
+            *non_namespaced,
+            "--folder",
+            str(tmp_path),
+            "--groupby",
+            "ns",
+            "label=app",
+            "kind",
+            "--kubeconfig",
+            "/tmp/kubeconfig-kind.yaml",
         )
 
         # Temporary folder must be initially empty. After we pulled all
@@ -143,10 +155,16 @@ class TestMainGet:
 
         # Common command line arguments for GET command used in this test.
         common_args = (
-            "--folder", str(tmp_path),
-            "--groupby", "ns", "label=app", "kind",
-            "-n", "square-tests-1",
-            "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
+            "--folder",
+            str(tmp_path),
+            "--groupby",
+            "ns",
+            "label=app",
+            "kind",
+            "-n",
+            "square-tests-1",
+            "--kubeconfig",
+            "/tmp/kubeconfig-kind.yaml",
         )
 
         # Sync Deployments: must create "deployment.yaml".
@@ -192,6 +210,7 @@ class TestMainGet:
         This test will use `kubectl` to delete some resources.
 
         """
+
         def load_manifests(path):
             # Load all manifests and return just the metadata.
             manifests = yaml.safe_load_all(open(path / "_other.yaml"))
@@ -206,17 +225,26 @@ class TestMainGet:
         # Unlike in the previous test, we will store all manifests in a single
         # file (ie we omit the "--groupby" option).
         common_args = (
-            "--folder", str(tmp_path),
-            "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
-            "--groupby",        # Void the default (defined in `defaultconfig.yaml`)
+            "--folder",
+            str(tmp_path),
+            "--kubeconfig",
+            "/tmp/kubeconfig-kind.yaml",
+            "--groupby",  # Void the default (defined in `defaultconfig.yaml`)
         )
 
         # ---------------------------------------------------------------------
         # Sync Deployments & Ingresses: must create catchall file "_other.yaml".
         # ---------------------------------------------------------------------
-        args = ("square.py", "get", "deploy", "ingress",
-                "-n", "square-tests-1", "square-tests-2",
-                *common_args)
+        args = (
+            "square.py",
+            "get",
+            "deploy",
+            "ingress",
+            "-n",
+            "square-tests-1",
+            "square-tests-2",
+            *common_args,
+        )
 
         with mock.patch("sys.argv", args):
             assert await square.main.start() == 0
@@ -225,10 +253,10 @@ class TestMainGet:
 
         # Ensure we got 4 manifests: one ingress and one deployment for each namespace.
         assert load_manifests(man_path) == {
-            ('Deployment', 'square-tests-1', 'demoapp-1'),
-            ('Deployment', 'square-tests-2', 'demoapp-1'),
-            ('Ingress', 'square-tests-1', 'demoapp-1'),
-            ('Ingress', 'square-tests-2', 'demoapp-1'),
+            ("Deployment", "square-tests-1", "demoapp-1"),
+            ("Deployment", "square-tests-2", "demoapp-1"),
+            ("Ingress", "square-tests-1", "demoapp-1"),
+            ("Ingress", "square-tests-2", "demoapp-1"),
         }
 
         # ---------------------------------------------------------------------
@@ -241,10 +269,10 @@ class TestMainGet:
         with mock.patch("sys.argv", args):
             assert await square.main.start() == 0
         assert load_manifests(man_path) == {
-            ('Deployment', 'square-tests-1', 'demoapp-1'),
-            ('Deployment', 'square-tests-2', 'demoapp-1'),
-            ('Ingress', 'square-tests-1', 'demoapp-1'),
-            ('Ingress', 'square-tests-2', 'demoapp-1'),
+            ("Deployment", "square-tests-1", "demoapp-1"),
+            ("Deployment", "square-tests-2", "demoapp-1"),
+            ("Ingress", "square-tests-1", "demoapp-1"),
+            ("Ingress", "square-tests-2", "demoapp-1"),
         }
 
         # ---------------------------------------------------------------------
@@ -254,26 +282,40 @@ class TestMainGet:
         # ---------------------------------------------------------------------
         kubectl("delete", "deploy", "demoapp-1", "-n", "square-tests-1")
         kubectl("delete", "deploy", "demoapp-1", "-n", "square-tests-2")
-        args = ("square.py", "get", "ingress",
-                "-n", "square-tests-1", "square-tests-2", *common_args)
+        args = (
+            "square.py",
+            "get",
+            "ingress",
+            "-n",
+            "square-tests-1",
+            "square-tests-2",
+            *common_args,
+        )
         with mock.patch("sys.argv", args):
             assert await square.main.start() == 0
         assert load_manifests(man_path) == {
-            ('Deployment', 'square-tests-1', 'demoapp-1'),
-            ('Deployment', 'square-tests-2', 'demoapp-1'),
-            ('Ingress', 'square-tests-2', 'demoapp-1'),
+            ("Deployment", "square-tests-1", "demoapp-1"),
+            ("Deployment", "square-tests-2", "demoapp-1"),
+            ("Ingress", "square-tests-2", "demoapp-1"),
         }
 
         # ---------------------------------------------------------------------
         # Sync Deployments from both namespaces: must not leave any Deployments
         # because we deleted them in a previous step.
         # ---------------------------------------------------------------------
-        args = ("square.py", "get", "deploy",
-                "-n", "square-tests-1", "square-tests-2", *common_args)
+        args = (
+            "square.py",
+            "get",
+            "deploy",
+            "-n",
+            "square-tests-1",
+            "square-tests-2",
+            *common_args,
+        )
         with mock.patch("sys.argv", args):
             assert await square.main.start() == 0
         assert load_manifests(man_path) == {
-            ('Ingress', 'square-tests-2', 'demoapp-1'),
+            ("Ingress", "square-tests-2", "demoapp-1"),
         }
 
         # ---------------------------------------------------------------------
@@ -281,8 +323,15 @@ class TestMainGet:
         # altogether because now we have no resources left anymore.
         # ---------------------------------------------------------------------
         kubectl("delete", "ingress", "demoapp-1", "-n", "square-tests-2")
-        args = ("square.py", "get", "ingress",
-                "-n", "square-tests-1", "square-tests-2", *common_args)
+        args = (
+            "square.py",
+            "get",
+            "ingress",
+            "-n",
+            "square-tests-1",
+            "square-tests-2",
+            *common_args,
+        )
         with mock.patch("sys.argv", args):
             assert await square.main.start() == 0
         assert len(list(tmp_path.rglob("*.yaml"))) == 0
@@ -392,17 +441,15 @@ class TestKindName:
         config = Config(
             kubecontext=None,
             kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
-
             # Store manifests in this folder.
-            folder=tmp_path / 'manifests',
+            folder=tmp_path / "manifests",
         )
 
         # ----------------------------------------------------------------------
         # Must find 8 Configmaps in our two test namespaces.
         # ----------------------------------------------------------------------
         config.selectors = Selectors(
-            kinds={"Configmap"},
-            namespaces=["square-tests-1", "square-tests-2"]
+            kinds={"Configmap"}, namespaces=["square-tests-1", "square-tests-2"]
         )
         plan, err = await square.plan(config)
         assert not err
@@ -411,10 +458,7 @@ class TestKindName:
         # ----------------------------------------------------------------------
         # Must find 3 Configmaps in "square-tests-1".
         # ----------------------------------------------------------------------
-        config.selectors = Selectors(
-            kinds={"Configmap"},
-            namespaces=["square-tests-1"]
-        )
+        config.selectors = Selectors(kinds={"Configmap"}, namespaces=["square-tests-1"])
         plan, err = await square.plan(config)
         assert not err
         assert len(plan.create) == len(plan.patch) == 0 and len(plan.delete) == 3
@@ -423,8 +467,7 @@ class TestKindName:
         # Must find exactly one Configmap if we specify it explicitly.
         # ----------------------------------------------------------------------
         config.selectors = Selectors(
-            kinds={"Configmap/demoapp-1"},
-            namespaces=["square-tests-1"]
+            kinds={"Configmap/demoapp-1"}, namespaces=["square-tests-1"]
         )
 
         plan, err = await square.plan(config)
@@ -436,10 +479,7 @@ class TestKindName:
         # ----------------------------------------------------------------------
         # Must find the explicit ConfigMap if it exists in multiple namespaces.
         # ----------------------------------------------------------------------
-        config.selectors = Selectors(
-            kinds={"Configmap/demoapp-1"},
-            namespaces=[]
-        )
+        config.selectors = Selectors(kinds={"Configmap/demoapp-1"}, namespaces=[])
 
         plan, err = await square.plan(config)
         assert not err
@@ -462,9 +502,11 @@ class TestKindName:
 
         # Common command line arguments for GET command used in this test.
         common_args = (
-            "--folder", str(tmp_path),
-            "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
-            "--groupby",        # Void the default (defined in `defaultconfig.yaml`)
+            "--folder",
+            str(tmp_path),
+            "--kubeconfig",
+            "/tmp/kubeconfig-kind.yaml",
+            "--groupby",  # Void the default (defined in `defaultconfig.yaml`)
         )
 
         # Fetch all ConfigMaps named `demo-configmap-1`, of which there are two
@@ -509,13 +551,11 @@ class TestLabels:
         config = Config(
             kubecontext=None,
             kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
-
             # Store manifests in this folder.
-            folder=tmp_path / 'manifests',
-
+            folder=tmp_path / "manifests",
             selectors=Selectors(
                 kinds={"Configmap"},
-            )
+            ),
         )
 
         # ----------------------------------------------------------------------
@@ -552,10 +592,8 @@ class TestLabels:
         config = Config(
             kubecontext=None,
             kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
-
             # Store manifests in this folder.
-            folder=tmp_path / 'manifests',
-
+            folder=tmp_path / "manifests",
             selectors=Selectors(kinds={"Configmap"}),
         )
 
@@ -578,12 +616,16 @@ class TestLabels:
         # Create local manifest for a new ConfigMap with labels.
         # ----------------------------------------------------------------------
         manifest_new = make_manifest(
-            kind="ConfigMap", namespace="square-tests-1",
-            name="new", labels={"app": "new"}
+            kind="ConfigMap",
+            namespace="square-tests-1",
+            name="new",
+            labels={"app": "new"},
         )
         manifest_foo = make_manifest(
-            kind="ConfigMap", namespace="square-tests-1",
-            name="foo", labels={"app": "foo"}
+            kind="ConfigMap",
+            namespace="square-tests-1",
+            name="foo",
+            labels={"app": "foo"},
         )
         config.folder.mkdir()
         fname = config.folder / "manifest.yaml"
@@ -615,9 +657,8 @@ class TestLabels:
         config = Config(
             kubecontext=None,
             kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
-
             # Store manifests in this folder.
-            folder=tmp_path / 'manifests',
+            folder=tmp_path / "manifests",
         )
 
         # Define path to local ConfigMap manifest. The test will create it later.
@@ -645,8 +686,10 @@ class TestLabels:
         # ----------------------------------------------------------------------
         for labels in ({}, {"app": "local"}, {"app": "demoapp-2"}):
             manifest = make_manifest(
-                kind="ConfigMap", namespace=cm_ns,
-                name=cm_name, labels=labels,
+                kind="ConfigMap",
+                namespace=cm_ns,
+                name=cm_name,
+                labels=labels,
             )
             fname.write_text(yaml.dump_all([manifest]))
             plan, err = await square.plan(config)
@@ -663,9 +706,12 @@ class TestMainPlan:
         """PLAN all cluster resources."""
         # Command line arguments.
         args = (
-            "square.py", "plan",
-            "--folder", str(tmp_path),
-            "--kubeconfig", "/tmp/kubeconfig-kind.yaml",
+            "square.py",
+            "plan",
+            "--folder",
+            str(tmp_path),
+            "--kubeconfig",
+            "/tmp/kubeconfig-kind.yaml",
         )
 
         # Merely verify that the program does not break.
@@ -711,8 +757,13 @@ class TestMainPlan:
         # manifests. Only target the `test-workflow` labels to avoid problems
         # with non-namespaced resources.
         priorities = [
-            "Namespace", "Secret", "ConfigMap", "ClusterRole",
-            "ClusterRoleBinding", "Role", "RoleBinding",
+            "Namespace",
+            "Secret",
+            "ConfigMap",
+            "ClusterRole",
+            "ClusterRoleBinding",
+            "Role",
+            "RoleBinding",
         ]
         namespace = "test-workflow"
 
@@ -725,7 +776,8 @@ class TestMainPlan:
             selectors=Selectors(
                 kinds=set(priorities),
                 namespaces=[namespace],
-                labels=["app=test-workflow"]),
+                labels=["app=test-workflow"],
+            ),
         )
 
         # ---------------------------------------------------------------------
@@ -802,9 +854,7 @@ class TestMainPlan:
             kubecontext=None,
             kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
             selectors=Selectors(
-                kinds={"HorizontalPodAutoscaler"},
-                namespaces=["test-hpa"],
-                labels=[]
+                kinds={"HorizontalPodAutoscaler"}, namespaces=["test-hpa"], labels=[]
             ),
         )
 
@@ -875,7 +925,8 @@ class TestMainPlan:
         assert plan_4.delete == plan_4.patch == [] and len(plan_4.create) == 2
         assert {_.meta.name for _ in plan_4.create} == {"hpav1", "hpav2"}
         assert {_.meta.apiVersion for _ in plan_4.create} == {
-            "autoscaling/v1", "autoscaling/v2"
+            "autoscaling/v1",
+            "autoscaling/v2",
         }
         assert not await square.square.apply_plan(config, plan_4)
         del plan_4
@@ -922,8 +973,9 @@ class TestCRUD:
             labels = dict(labels)
             labels["app"] = "test-kind-group-v1"
             return {
-                'apiVersion': "v1", 'kind': 'ServiceAccount',
-                'metadata': {'name': name, 'namespace': ns, "labels": labels},
+                "apiVersion": "v1",
+                "kind": "ServiceAccount",
+                "metadata": {"name": name, "namespace": ns, "labels": labels},
             }
 
         with create_temporary_k8s_namespace() as ns:
@@ -933,9 +985,7 @@ class TestCRUD:
                 kubecontext=None,
                 kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
                 selectors=Selectors(
-                    kinds={kind},
-                    namespaces=[ns],
-                    labels=["app=test-kind-group-v1"]
+                    kinds={kind}, namespaces=[ns], labels=["app=test-kind-group-v1"]
                 ),
             )
 
@@ -1000,11 +1050,12 @@ class TestCRUD:
         square.square.setup_logging(2)
 
         def _makecrd(name, ns, value: str, is_a: bool) -> dict:
-            group = 'group-a.example.com/v1' if is_a else 'group-b.example.com/v1'
+            group = "group-a.example.com/v1" if is_a else "group-b.example.com/v1"
             return {
-                'apiVersion': group, 'kind': 'MyCRD',
-                'metadata': {'name': name, 'namespace': ns},
-                'value': value,
+                "apiVersion": group,
+                "kind": "MyCRD",
+                "metadata": {"name": name, "namespace": ns},
+                "value": value,
             }
 
         with create_temporary_k8s_namespace() as ns:
@@ -1019,7 +1070,7 @@ class TestCRUD:
                         "mycrd.group-b.example.com",
                     },
                     namespaces=[ns],
-                    labels=[]
+                    labels=[],
                 ),
             )
 

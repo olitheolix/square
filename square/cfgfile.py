@@ -7,6 +7,7 @@ dangerous, for Square to compute diffs on such field or patch them.
 This module defines utility functions to define these filters.
 
 """
+
 import copy
 import logging
 from pathlib import Path

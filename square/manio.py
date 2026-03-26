@@ -13,8 +13,15 @@ import yaml.scanner
 import square.k8s
 import square.square
 from square.dtypes import (
-    Config, FiltersKind, GroupBy, K8sConfig, LocalManifestLists, MetaManifest,
-    Selectors, SelKindGroupNames, SquareManifests,
+    Config,
+    FiltersKind,
+    GroupBy,
+    K8sConfig,
+    LocalManifestLists,
+    MetaManifest,
+    Selectors,
+    SelKindGroupNames,
+    SquareManifests,
 )
 from square.yaml_io import Dumper, Loader
 
@@ -36,14 +43,14 @@ def make_meta(manifest: dict) -> MetaManifest:
     else:
         # For non-Namespace manifests, the namespace may genuinely be None if
         # the resource applies globally, eg ClusterRole.
-        ns = manifest['metadata'].get("namespace", None)
+        ns = manifest["metadata"].get("namespace", None)
 
     # Return the populated MetaManifest.
     return MetaManifest(
-        apiVersion=manifest['apiVersion'],
-        kind=manifest['kind'],
+        apiVersion=manifest["apiVersion"],
+        kind=manifest["kind"],
         namespace=ns,
-        name=manifest['metadata']['name']
+        name=manifest["metadata"]["name"],
     )
 
 
@@ -145,7 +152,9 @@ def select(manifest: dict, selectors: Selectors, match_labels: bool) -> bool:
         return False
 
     # Select this manifest if a selector matches it exactly.
-    skgn = MetaManifest(apiVersion=api_version, kind=kind, namespace="", name=name).skgn()
+    skgn = MetaManifest(
+        apiVersion=api_version, kind=kind, namespace="", name=name
+    ).skgn()
     if str(skgn) in selectors.str_skgns:
         return True
 
@@ -196,7 +205,7 @@ def unpack_k8s_resource_list(manifest_list: dict) -> Tuple[SquareManifests, bool
 
     # Sanity check: resource kind must end in "List", eg "DeploymentList".
     kind = manifest_list["kind"]
-    if not kind.endswith('List'):
+    if not kind.endswith("List"):
         logit.error(f"Kind {kind} is not a list")
         return ({}, True)
 
@@ -214,13 +223,12 @@ def unpack_k8s_resource_list(manifest_list: dict) -> Tuple[SquareManifests, bool
         # properly formatted stand-alone manifest.
         manifest = copy.deepcopy(manifest)
         manifest["kind"] = kind
-        manifest['apiVersion'] = apiversion
+        manifest["apiVersion"] = apiversion
         manifests[make_meta(manifest)] = manifest
     return (manifests, False)
 
 
-def _parse_worker(fname: Path,
-                  yaml_str: str) -> Tuple[List[dict], bool]:
+def _parse_worker(fname: Path, yaml_str: str) -> Tuple[List[dict], bool]:
     logit.debug(f"Parsing <{fname}>")
 
     # Decode the YAML documents in the current file.
@@ -230,15 +238,13 @@ def _parse_worker(fname: Path,
     except (yaml.parser.ParserError, yaml.scanner.ScannerError) as err:
         # To satisfy MyPy we need to check that `problem_mark` is not None.
         line = err.problem_mark.line if err.problem_mark else ""
-        logit.error(
-            f"Cannot YAML parse <{fname}>"
-            f" - {err.problem} - Line {line}"
-        )
+        logit.error(f"Cannot YAML parse <{fname}> - {err.problem} - Line {line}")
         return ([], True)
 
 
-def parse(file_yaml: Dict[Path, str],
-          selectors: Selectors) -> Tuple[LocalManifestLists, bool]:
+def parse(
+    file_yaml: Dict[Path, str], selectors: Selectors
+) -> Tuple[LocalManifestLists, bool]:
     """Parse all YAML strings from `file_yaml` into `LocalManifestLists`.
 
     Exclude all manifests that do not satisfy the `selectors`.
@@ -265,7 +271,9 @@ def parse(file_yaml: Dict[Path, str],
         fnames = sorted(list(file_yaml))
 
         # Parse the YAMLs in a process pool.
-        for fname, (manifests, err) in zip(fnames, pool.starmap(_parse_worker, funargs)):
+        for fname, (manifests, err) in zip(
+            fnames, pool.starmap(_parse_worker, funargs)
+        ):
             if err:
                 return ({}, err)
 
@@ -301,7 +309,9 @@ def parse(file_yaml: Dict[Path, str],
     return (out, False)
 
 
-def compile_square_manifests(manifests: LocalManifestLists) -> Tuple[SquareManifests, bool]:  # noqa
+def compile_square_manifests(
+    manifests: LocalManifestLists,
+) -> Tuple[SquareManifests, bool]:  # noqa
     """Convert `manifests` into `SquareManifests` for internal processing.
 
     Returns `False` unless all resources in `manifests` are unique. For
@@ -345,10 +355,12 @@ def compile_square_manifests(manifests: LocalManifestLists) -> Tuple[SquareManif
     return (out, False)
 
 
-def sync(local_manifests: LocalManifestLists,
-         server_manifests: SquareManifests,
-         selectors: Selectors,
-         groupby: GroupBy) -> Tuple[LocalManifestLists, bool]:
+def sync(
+    local_manifests: LocalManifestLists,
+    server_manifests: SquareManifests,
+    selectors: Selectors,
+    groupby: GroupBy,
+) -> Tuple[LocalManifestLists, bool]:
     """Update the local manifests with the server values and return the result.
 
     Inputs:
@@ -368,7 +380,8 @@ def sync(local_manifests: LocalManifestLists,
 
     # Only retain server manifests that match the selectors.
     server_manifests = {
-        meta: manifest for meta, manifest in server_manifests.items()
+        meta: manifest
+        for meta, manifest in server_manifests.items()
         if select(manifest, selectors, True)
     }
 
@@ -427,8 +440,8 @@ def sync(local_manifests: LocalManifestLists,
 
 
 def filename_for_manifest(
-        meta: MetaManifest, manifest: dict,
-        grouping: GroupBy) -> Tuple[Path, bool]:
+    meta: MetaManifest, manifest: dict, grouping: GroupBy
+) -> Tuple[Path, bool]:
     """Return the file for the manifest based on `groupby`.
 
     Inputs:
@@ -462,7 +475,9 @@ def filename_for_manifest(
         # The only exception are `Namespaces` themselves because it is neater
         # to save their manifest in the relevant namespace folder, together
         # with all the other resources that are in that namespace.
-        "ns": (meta.name if meta.kind == "Namespace" else None) or meta.namespace or "_global_",  # noqa
+        "ns": (meta.name if meta.kind == "Namespace" else None)
+        or meta.namespace
+        or "_global_",  # noqa
         "kind": meta.kind.lower(),
         # Try to find the user specified label. If the current resource lacks
         # that label then put it into the catchall file.
@@ -504,7 +519,7 @@ def diff(local: dict, server: dict) -> Tuple[str, bool]:
     loc_lines = yaml.dump(local, default_flow_style=False, Dumper=Dumper).splitlines()
 
     # Compute and return the lines of the diff.
-    diff_lines = difflib.unified_diff(srv_lines, loc_lines, lineterm='')
+    diff_lines = difflib.unified_diff(srv_lines, loc_lines, lineterm="")
     return (str.join("\n", diff_lines), False)
 
 
@@ -571,21 +586,18 @@ def strip_manifest(config: Config, manifest: dict) -> dict:
 
 
 def strip_manifests(
-        config: Config,
-        local: SquareManifests,
-        server: SquareManifests) -> Tuple[SquareManifests, SquareManifests, bool]:
+    config: Config, local: SquareManifests, server: SquareManifests
+) -> Tuple[SquareManifests, SquareManifests, bool]:
     """Returned stripped versions of `local` and `server` manifests."""
     local = copy.deepcopy(local)
     server = copy.deepcopy(server)
 
     # Strip the unwanted sections from the manifests before we compute patches.
     stripped_server = {
-        meta: run_strip_callback(config, man)
-        for meta, man in server.items()
+        meta: run_strip_callback(config, man) for meta, man in server.items()
     }
     stripped_local = {
-        meta: run_strip_callback(config, man)
-        for meta, man in local.items()
+        meta: run_strip_callback(config, man) for meta, man in local.items()
     }
 
     # Abort if any of the manifests could not be stripped.
@@ -603,7 +615,7 @@ def strip_manifests(
     return local, server, False
 
 
-def run_strip_callback(config: Config,  manifest: dict) -> Tuple[dict, bool]:
+def run_strip_callback(config: Config, manifest: dict) -> Tuple[dict, bool]:
     """Remove unwanted entries from `manifest` according to the `filters`.
 
     Inputs:
@@ -634,7 +646,9 @@ def run_strip_callback(config: Config,  manifest: dict) -> Tuple[dict, bool]:
             return {}, True
 
         if ret_meta != orig_meta:
-            logit.error(f"Strip callback changed MetaManifest: {orig_meta} -> {ret_meta}")
+            logit.error(
+                f"Strip callback changed MetaManifest: {orig_meta} -> {ret_meta}"
+            )
             return {}, True
     except (TypeError, AssertionError):
         return {}, True
@@ -642,8 +656,8 @@ def run_strip_callback(config: Config,  manifest: dict) -> Tuple[dict, bool]:
 
 
 def align_serviceaccount(
-        local_manifests: SquareManifests,
-        server_manifests: SquareManifests) -> Tuple[SquareManifests, bool]:
+    local_manifests: SquareManifests, server_manifests: SquareManifests
+) -> Tuple[SquareManifests, bool]:
     """Insert the token secret from `server_manifest` into `local_manifest`.
 
     Every ServiceAccount (SA) has a "secrets" section that K8s automatically
@@ -789,7 +803,7 @@ def save_files(folder: Path, file_data: Dict[Path, str]) -> bool:
     # Iterate over the dict and write each file. Abort on error.
     for fname, yaml_str in file_data.items():
         # Skip the file if its content would be empty.
-        if yaml_str == '':
+        if yaml_str == "":
             continue
 
         # Construct absolute file path.
@@ -809,9 +823,7 @@ def save_files(folder: Path, file_data: Dict[Path, str]) -> bool:
     return False
 
 
-def load_files(
-        folder: Path,
-        fnames: Iterable[Path]) -> Tuple[Dict[Path, str], bool]:
+def load_files(folder: Path, fnames: Iterable[Path]) -> Tuple[Dict[Path, str], bool]:
     """Load all `fnames` in `folder` and return their content.
 
     This is a convenience function for Square to recursively load all manifests
@@ -849,9 +861,9 @@ def load_files(
     return (out, False)
 
 
-def load_manifests(folder: Path,
-                   selectors: Selectors) -> Tuple[SquareManifests,
-                                                  LocalManifestLists, bool]:
+def load_manifests(
+    folder: Path, selectors: Selectors
+) -> Tuple[SquareManifests, LocalManifestLists, bool]:
     """Return all K8s manifest found in `folder`.
 
     Recursively load all "*.yaml" files in `folder` and return those manifests
@@ -896,8 +908,7 @@ def load_manifests(folder: Path,
 
 
 def sort_manifests(
-        file_manifests: LocalManifestLists,
-        priority: List[str]
+    file_manifests: LocalManifestLists, priority: List[str]
 ) -> Dict[Path, List[dict]]:
     """Sort the manifests in each `file_manifests` by their `priority`.
 
@@ -949,9 +960,7 @@ def sort_manifests(
     return out
 
 
-def save(folder: Path,
-         manifests: LocalManifestLists,
-         priority: List[str]) -> bool:
+def save(folder: Path, manifests: LocalManifestLists, priority: List[str]) -> bool:
     """Saves all `manifests` as YAMLs in `folder`.
 
     Input:
@@ -972,7 +981,8 @@ def save(folder: Path,
 
     # Ignore all empty and hidden files.
     sorted_manifests = {
-        fname: manifests for fname, manifests in sorted_manifests.items()
+        fname: manifests
+        for fname, manifests in sorted_manifests.items()
         if len(manifests) > 0 and not fname.name.startswith(".")
     }
 
@@ -992,7 +1002,9 @@ def save(folder: Path,
     return save_files(folder, ret)
 
 
-async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifests, bool]:
+async def download(
+    config: Config, k8sconfig: K8sConfig
+) -> Tuple[SquareManifests, bool]:
     """Download and return the resources that match `config.selectors`.
 
     Use `selectors.namespace=None` to download from all namespaces.
@@ -1048,7 +1060,7 @@ async def download(config: Config, k8sconfig: K8sConfig) -> Tuple[SquareManifest
 
 
 async def _download_worker(
-        k8sconfig: K8sConfig, kgn: SelKindGroupNames
+    k8sconfig: K8sConfig, kgn: SelKindGroupNames
 ) -> Tuple[SquareManifests, bool]:
     """Download and return the manifests for the specified `kind` and `namespace`.
 

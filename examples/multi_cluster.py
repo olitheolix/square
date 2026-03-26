@@ -3,6 +3,7 @@
 This example just shows how to asynchronously import two clusters.
 
 """
+
 import asyncio
 from pathlib import Path
 
@@ -17,13 +18,10 @@ def make_config(kubeconfig: Path, kubecontext: str, folder: Path):
     return Config(
         kubeconfig=kubeconfig,
         kubecontext=kubecontext,
-
         # Store manifests in this folder.
         folder=folder,
-
         # Group the downloaded manifests by namespace, label and kind.
         groupby=GroupBy(label="app", order=["ns", "label", "kind"]),
-
         # Specify the resources types to operate on. These ones in particular
         # will work with the demo setup in the `../integration-test-cluster`.
         selectors=Selectors(

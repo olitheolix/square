@@ -13,6 +13,7 @@ To make use of this, the other modules can simply use:
    from yaml_io import Loader, Dumper
 
 """
+
 import logging
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -24,13 +25,16 @@ logit = logging.getLogger("square")
 #       exist on the host. I deem this acceptable in this case because it is a
 #       widely used snippet and devoid of logic.
 # ----------------------------------------------------------------------------
-try:                                 # codecov-skip
+try:  # codecov-skip
     from yaml import (  # type: ignore
-        CSafeDumper as Dumper, CSafeLoader as Loader,
+        CSafeDumper as Dumper,
+        CSafeLoader as Loader,
     )
+
     logit.debug("Using LibYAML C library")
-except ImportError:                  # codecov-skip
+except ImportError:  # codecov-skip
     from yaml import Dumper, Loader  # type: ignore
+
     logit.debug("Using Python YAML library")
 
 
@@ -43,9 +47,9 @@ def fold_yaml_strings(dumper, data):
       a multi-line string.
 
     """
-    if '\n' in data:
-        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
-    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+    if "\n" in data:
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
 
 
 # Install the new string converter into the Dumper.

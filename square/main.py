@@ -18,6 +18,7 @@ logit = logging.getLogger("square")
 
 def parse_commandline_args():
     """Return parsed command line."""
+
     def _validate_label(label: str) -> str:
         """Sanity check the label"""
         if not square.square.valid_label(label):
@@ -32,54 +33,92 @@ def parse_commandline_args():
         prog="square",
     )
     parent.add_argument(
-        "-v", "--verbosity", action="count", default=0,
-        help="Log level (-v: WARNING -vv: INFO -vvv: DEBUG)"
+        "-v",
+        "--verbosity",
+        action="count",
+        default=0,
+        help="Log level (-v: WARNING -vv: INFO -vvv: DEBUG)",
     )
     parent.add_argument(
-        "--info", action='store_true',
-        help="Print compiled configuration (useful to debug)"
+        "--info",
+        action="store_true",
+        help="Print compiled configuration (useful to debug)",
     )
     parent.add_argument(
-        "-c", "--config", type=str, default="", dest="configfile",
-        help="Read configuration from this file"
+        "-c",
+        "--config",
+        type=str,
+        default="",
+        dest="configfile",
+        help="Read configuration from this file",
     )
     parent.add_argument(
-        "--no-config", dest="no_config", action="store_true",
-        help="Ignore .square.yaml file"
+        "--no-config",
+        dest="no_config",
+        action="store_true",
+        help="Ignore .square.yaml file",
     )
     parent.add_argument(
-        "-n", "--namespace", "--namespaces", type=str, nargs="*",
-        metavar="ns", dest="namespaces", default=None,
+        "-n",
+        "--namespace",
+        "--namespaces",
+        type=str,
+        nargs="*",
+        metavar="ns",
+        dest="namespaces",
+        default=None,
         help="List of namespaces (omit to select all)",
     )
     parent.add_argument(
-        "-l", "--label", "--labels", type=_validate_label, nargs="*",
-        metavar="labels", dest="labels", default=None,
+        "-l",
+        "--label",
+        "--labels",
+        type=_validate_label,
+        nargs="*",
+        metavar="labels",
+        dest="labels",
+        default=None,
         help="Target only these labels (eg 'app=foo')",
     )
     parent.add_argument(
-        "-p", "--priorities", nargs="*",
-        metavar="priorities", dest="priorities", default=None,
+        "-p",
+        "--priorities",
+        nargs="*",
+        metavar="priorities",
+        dest="priorities",
+        default=None,
         help="Sort resource in this order when saving and applying",
     )
     parent.add_argument(
-        "--kubeconfig", type=str, metavar="path",
-        default=None, help="Location of kubeconfig file",
+        "--kubeconfig",
+        type=str,
+        metavar="path",
+        default=None,
+        help="Location of kubeconfig file",
     )
     parent.add_argument(
-        "--kubecontext", type=str, metavar="kubecontext", default=None,
+        "--kubecontext",
+        type=str,
+        metavar="kubecontext",
+        default=None,
         help="Kubernetes context (defaults to default context)",
     )
     parent.add_argument(
-        "--folder", type=str, metavar="path", default=None,
+        "--folder",
+        type=str,
+        metavar="path",
+        default=None,
         help="Manifest folder (defaults to ./)",
     )
 
     # The primary parser for the top level options (eg GET, PATCH, ...).
     parser = argparse.ArgumentParser(add_help=True, prog="square")
     subparsers = parser.add_subparsers(
-        help='Mode', dest='parser', metavar="ACTION",
-        title="Operation", required=True,
+        help="Mode",
+        dest="parser",
+        metavar="ACTION",
+        title="Operation",
+        required=True,
     )
 
     # Configuration for `kinds` positional arguments. Every sub-parser must
@@ -88,41 +127,44 @@ def parse_commandline_args():
     kinds_kwargs: Dict[str, Any] = {
         "dest": "kinds",
         "type": str,
-        "nargs": '*',
+        "nargs": "*",
         "metavar": "resource",
     }
 
     # Sub-command GET.
     parser_get = subparsers.add_parser(
-        'get', help="Get manifests from K8s and save them locally", parents=[parent]
+        "get", help="Get manifests from K8s and save them locally", parents=[parent]
     )
     parser_get.add_argument(**kinds_kwargs)
     parser_get.add_argument(
-        "--groupby", type=str, nargs="*",
-        metavar="", dest="groupby",
+        "--groupby",
+        type=str,
+        nargs="*",
+        metavar="",
+        dest="groupby",
         help="Folder hierarchy (eg '--groupby ns label=app kind')",
     )
 
     # Sub-command DIFF.
     parser_plan = subparsers.add_parser(
-        'plan', help="Diff local and K8s manifests", parents=[parent]
+        "plan", help="Diff local and K8s manifests", parents=[parent]
     )
     parser_plan.add_argument(**kinds_kwargs)
 
     # Sub-command PATCH.
     parser_apply = subparsers.add_parser(
-        'apply', help="Patch K8s to match local manifests", parents=[parent]
+        "apply", help="Patch K8s to match local manifests", parents=[parent]
     )
     parser_apply.add_argument(**kinds_kwargs)
 
     # Sub-command VERSION.
     subparsers.add_parser(
-        'version', help="Show Square version and exit", parents=[parent]
+        "version", help="Show Square version and exit", parents=[parent]
     )
 
     # Sub-command CONFIG.
     subparsers.add_parser(
-        'init', help="Create .square.yaml (works with --folder)", parents=[parent]
+        "init", help="Create .square.yaml (works with --folder)", parents=[parent]
     )
 
     # Parse the actual arguments.
@@ -166,14 +208,17 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         Config, err
 
     """
-    err_resp = Config(
-        folder=Path(""),
-        kubeconfig=Path(""),
-        kubecontext=None,
-        selectors=Selectors(),
-        groupby=GroupBy(label="", order=[]),
-        priorities=[],
-    ), True
+    err_resp = (
+        Config(
+            folder=Path(""),
+            kubeconfig=Path(""),
+            kubecontext=None,
+            selectors=Selectors(),
+            groupby=GroupBy(label="", order=[]),
+            priorities=[],
+        ),
+        True,
+    )
 
     # Convenience.
     p = cmdline_param
@@ -205,7 +250,9 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
             kubeconfig = p.kubeconfig or os.getenv("KUBECONFIG", "")
             cfg.folder = Path.cwd()
         else:
-            kubeconfig = p.kubeconfig or str(cfg.kubeconfig) or os.getenv("KUBECONFIG", "")  # noqa
+            kubeconfig = (
+                p.kubeconfig or str(cfg.kubeconfig) or os.getenv("KUBECONFIG", "")
+            )  # noqa
 
         del dot_square, default_cfg
 
@@ -404,5 +451,5 @@ async def start() -> int:
     return 1 if err else 0
 
 
-def main():                     # codecov-skip
+def main():  # codecov-skip
     return asyncio.run(start())

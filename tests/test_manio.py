@@ -12,7 +12,12 @@ import yaml
 import square.k8s as k8s
 import square.manio as manio
 from square.dtypes import (
-    Config, FiltersKind, GroupBy, LocalManifestLists, MetaManifest, Selectors,
+    Config,
+    FiltersKind,
+    GroupBy,
+    LocalManifestLists,
+    MetaManifest,
+    Selectors,
     SquareManifests,
 )
 from square.k8s import resource
@@ -37,7 +42,7 @@ class TestHelpers:
             apiVersion=manifest["apiVersion"],
             kind=manifest["kind"],
             namespace="namespace",
-            name=manifest["metadata"]["name"]
+            name=manifest["metadata"]["name"],
         )
         assert manio.make_meta(manifest) == expected
 
@@ -48,7 +53,7 @@ class TestHelpers:
             apiVersion=manifest["apiVersion"],
             kind=manifest["kind"],
             namespace=None,
-            name=manifest["metadata"]["name"]
+            name=manifest["metadata"]["name"],
         )
         assert manio.make_meta(manifest) == expected
 
@@ -60,7 +65,7 @@ class TestHelpers:
             apiVersion=manifest["apiVersion"],
             kind=manifest["kind"],
             namespace=None,
-            name=manifest["metadata"]["name"]
+            name=manifest["metadata"]["name"],
         )
         assert manio.make_meta(manifest) == expected
 
@@ -145,7 +150,9 @@ class TestSelect:
         #                      Deployment Manifest
         # ---------------------------------------------------------------------
         # Iterate over (almost) all valid selectors.
-        manifest = make_manifest("Deployment", "my-ns", "name", {"app": "a", "env": "e"})
+        manifest = make_manifest(
+            "Deployment", "my-ns", "name", {"app": "a", "env": "e"}
+        )
         kinds = ({"Deployment"}, {"Deployment", "Namespace"})
         namespaces = (["my-ns"], ["my-ns", "other-ns"])
         for kind, ns, lab in itertools.product(kinds, namespaces, labels):
@@ -275,8 +282,7 @@ class TestUnpackParse:
         """Convert eg a `DeploymentList` into a Python dict of `Deployments`."""
         # Demo manifests for this test.
         manifests_withkind = [
-            make_manifest('Deployment', f'ns_{_}', f'name_{_}')
-            for _ in range(3)
+            make_manifest("Deployment", f"ns_{_}", f"name_{_}") for _ in range(3)
         ]
         # K8s does not include the "kind" key when it provides a resource in a
         # list. Here we mimic this behaviour and manually delete it. The test
@@ -287,9 +293,9 @@ class TestUnpackParse:
 
         # The actual DeploymentList returned from K8s.
         manifest_list = {
-            'apiVersion': 'apps/v1',
-            'kind': 'DeploymentList',
-            'items': manifests_nokind,
+            "apiVersion": "apps/v1",
+            "kind": "DeploymentList",
+            "items": manifests_nokind,
         }
 
         # Parse the DeploymentList into a dict. The keys are ManifestTuples and
@@ -306,9 +312,9 @@ class TestUnpackParse:
         # Verify the Python dict.
         MM = MetaManifest
         assert data == {
-            MM('apps/v1', 'Deployment', 'ns_0', 'name_0'): manifests_withkind[0],
-            MM('apps/v1', 'Deployment', 'ns_1', 'name_1'): manifests_withkind[1],
-            MM('apps/v1', 'Deployment', 'ns_2', 'name_2'): manifests_withkind[2],
+            MM("apps/v1", "Deployment", "ns_0", "name_0"): manifests_withkind[0],
+            MM("apps/v1", "Deployment", "ns_1", "name_1"): manifests_withkind[1],
+            MM("apps/v1", "Deployment", "ns_2", "name_2"): manifests_withkind[2],
         }
 
         # Function must return deep copies of the manifests to avoid difficult
@@ -325,26 +331,28 @@ class TestUnpackParse:
 
         """
         # Valid input.
-        src = {'apiVersion': 'v1', 'kind': 'DeploymentList', 'items': []}
+        src = {"apiVersion": "v1", "kind": "DeploymentList", "items": []}
         ret = manio.unpack_k8s_resource_list(src)
         assert ret == ({}, False)
 
         # Missing `apiVersion`.
-        src = {'kind': 'DeploymentList', 'items': []}
+        src = {"kind": "DeploymentList", "items": []}
         assert manio.unpack_k8s_resource_list(src) == ({}, True)
 
         # Missing `kind`.
-        src = {'apiVersion': 'v1', 'items': []}
+        src = {"apiVersion": "v1", "items": []}
         assert manio.unpack_k8s_resource_list(src) == ({}, True)
 
         # Missing `items`.
-        src = {'apiVersion': 'v1', 'kind': 'DeploymentList'}
+        src = {"apiVersion": "v1", "kind": "DeploymentList"}
         assert manio.unpack_k8s_resource_list(src) == ({}, True)
 
         # All fields present but `kind` does not end in List (case sensitive).
-        for invalid_kind in ('Deploymentlist', 'Deployment'):
+        for invalid_kind in ("Deploymentlist", "Deployment"):
             src_invalid: Dict[str, Any] = {
-                'apiVersion': 'v1', 'kind': invalid_kind, 'items': []
+                "apiVersion": "v1",
+                "kind": invalid_kind,
+                "items": [],
             }
             assert manio.unpack_k8s_resource_list(src_invalid) == ({}, True)
 
@@ -352,8 +360,7 @@ class TestUnpackParse:
 class TestYamlManifestIO:
     def yamlfy(self, data):
         return {
-            k: yaml.safe_dump_all(v, default_flow_style=False)
-            for k, v in data.items()
+            k: yaml.safe_dump_all(v, default_flow_style=False) for k, v in data.items()
         }
 
     def test_sort_manifests(self):
@@ -589,9 +596,9 @@ class TestYamlManifestIO:
         # Same as before, but this time with an explicit namespace. Function
         # must ignore label selectors.
         for labels in ([], ["cluster=test"]):
-            selectors = Selectors(kinds={"Deployment"},
-                                  namespaces=["namespace"],
-                                  labels=labels)
+            selectors = Selectors(
+                kinds={"Deployment"}, namespaces=["namespace"], labels=labels
+            )
             assert manio.parse(fdata_test_in, selectors) == (expected, False)
 
         # Must match the same resources because the function must not apply
@@ -600,13 +607,15 @@ class TestYamlManifestIO:
         assert manio.parse(fdata_test_in, selectors) == (expected, False)
 
         # Must match nothing because we do not have a namespace "blah".
-        selectors = Selectors(kinds={"Deployment"}, namespaces=["blah"],
-                              labels=["cluster=test"])
+        selectors = Selectors(
+            kinds={"Deployment"}, namespaces=["blah"], labels=["cluster=test"]
+        )
         assert manio.parse(fdata_test_in, selectors) == ({}, False)
 
         # Must match nothing because we do not have a resource kind "blah".
-        selectors = Selectors(kinds={"blah"}, namespaces=["namespace"],
-                              labels=["cluster=test"])
+        selectors = Selectors(
+            kinds={"blah"}, namespaces=["namespace"], labels=["cluster=test"]
+        )
         assert manio.parse(fdata_test_in, selectors) == ({}, False)
 
     def test_parse_err(self):
@@ -622,10 +631,10 @@ class TestYamlManifestIO:
         # files that are not actually K8s manifests). This one looks valid
         # except it misses the `metadata.name` field.
         not_a_k8s_manifest = {
-            'apiVersion': 'v1',
-            'kind': 'Deployment',
-            'metadata': {'namespace': 'namespace'},
-            'items': [{"invalid": "manifest"}]
+            "apiVersion": "v1",
+            "kind": "Deployment",
+            "metadata": {"namespace": "namespace"},
+            "items": [{"invalid": "manifest"}],
         }
         fdata_test_in = {"m0.yaml": yaml.safe_dump(not_a_k8s_manifest)}
         fdata_test_in = cast(Dict[Path, str], fdata_test_in)
@@ -642,8 +651,8 @@ class TestYamlManifestIO:
 
         # Must return the manifest if the source string was valid.
         valid_yaml = {
-            'apiVersion': 'v1',
-            'kind': 'Deployment',
+            "apiVersion": "v1",
+            "kind": "Deployment",
         }
         assert fun(m1_yaml, yaml.safe_dump(valid_yaml)) == ([valid_yaml], False)
 
@@ -654,9 +663,9 @@ class TestYamlManifestIO:
         `test_compile_square_manifests_err` for what happens if not.
 
         """
-        meta0 = MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_0')
-        meta1 = MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_1')
-        meta2 = MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_2')
+        meta0 = MetaManifest("apps/v1", "Deployment", "ns_0", "name_0")
+        meta1 = MetaManifest("apps/v1", "Deployment", "ns_0", "name_1")
+        meta2 = MetaManifest("apps/v1", "Deployment", "ns_0", "name_2")
 
         src: LocalManifestLists = {
             Path("file0.txt"): [
@@ -675,12 +684,11 @@ class TestYamlManifestIO:
 
     def test_compile_square_manifests_err(self):
         """The MetaManifests must be unique across all source files."""
-        meta = MetaManifest('apps/v1', 'Deployment', 'ns_0', 'name_0')
+        meta = MetaManifest("apps/v1", "Deployment", "ns_0", "name_0")
 
         # Two resources with same meta information in same file.
         src: LocalManifestLists = {
-            Path("file0.txt"): [(meta, {"manifest": "0"}),
-                                (meta, {"manifest": "0"})],
+            Path("file0.txt"): [(meta, {"manifest": "0"}), (meta, {"manifest": "0"})],
         }
         assert manio.compile_square_manifests(src) == ({}, True)
 
@@ -747,7 +755,8 @@ class TestYamlManifestIO:
         # * Delete the manifests that do not exist on the server.
         # :: Dict[MetaManifests:YamlDict] -> Dict[Filename:List[(MetaManifest, YamlDict)]]
         updated_manifests, err = manio.sync(
-            fdata_meta, server_manifests,
+            fdata_meta,
+            server_manifests,
             Selectors(kinds={"Deployment"}),
             groupby,
         )
@@ -827,7 +836,7 @@ class TestStripManifest:
         manifest = make_manifest("Namespace", None, "ns1")
 
         def cb_ok(_cfg: Config, _man: dict):
-            _ = _cfg, _man      # make linter happy.
+            _ = _cfg, _man  # make linter happy.
             return _man
 
         def cb_change_kind(_: Config, _man: dict):
@@ -1012,7 +1021,7 @@ class TestYamlManifestIOIntegration:
         # Create a dummy file and save an empty set of files. This must delete
         # the dummy file because the test function will first clean out all
         # stale manifests.
-        tmp_file = (tmp_path / "foo.yaml")
+        tmp_file = tmp_path / "foo.yaml"
         tmp_file.touch()
         assert manio.save_files(tmp_path, {}) is False
         assert not tmp_file.exists()
@@ -1076,7 +1085,9 @@ class TestYamlManifestIOIntegration:
         # Save the hidden and non-hidden files. The function must accept the
         # hidden files but silently ignore and not save them.
         assert manio.save(tmp_path, visible_files, priority) is False
-        assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == {str(tmp_path / "m0.yaml")}  # noqa
+        assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == {
+            str(tmp_path / "m0.yaml")
+        }  # noqa
         assert manio.save(tmp_path, hidden_files, priority) is False
         assert set(str(_) for _ in tmp_path.rglob("*.yaml")) == set()
 
@@ -1157,7 +1168,7 @@ class TestYamlManifestIOIntegration:
         file_manifests: LocalManifestLists = {
             Path("m0.yaml"): [
                 (meta[0], {"0": "0"}),
-                (meta[1], frozenset(("invalid", "input")))  # type: ignore
+                (meta[1], frozenset(("invalid", "input"))),  # type: ignore
             ],
             Path("m1.yaml"): [(meta[2], {"2": "2"})],
         }
@@ -1238,11 +1249,17 @@ class TestSync:
 
             # Group by NAMESPACE and kind: must use "_global_" as folder name.
             groupby = GroupBy(order=["ns", "kind"], label="")
-            assert fun(meta, man, groupby) == (FP(f"_global_/{kind.lower()}.yaml"), False)
+            assert fun(meta, man, groupby) == (
+                FP(f"_global_/{kind.lower()}.yaml"),
+                False,
+            )
 
             # Group by KIND and NAMESPACE (inverse of previous test).
             groupby = GroupBy(order=["kind", "ns"], label="")
-            assert fun(meta, man, groupby) == (FP(f"{kind.lower()}/_global_.yaml"), False)
+            assert fun(meta, man, groupby) == (
+                FP(f"{kind.lower()}/_global_.yaml"),
+                False,
+            )
 
             # Group by the existing LABEL "app".
             groupby = GroupBy(order=["label"], label="app")
@@ -1294,6 +1311,7 @@ class TestSync:
         server ones do not.
 
         """
+
         def modify(manifest):
             # Return modified version of `manifest` that Square must identify
             # as different from the original.
@@ -1361,16 +1379,19 @@ class TestSync:
         # ----------------------------------------------------------------------
         # Sync all namespaces implicitly (Namespaces, Deployments, Services).
         # ----------------------------------------------------------------------
-        expected = {
-            Path("m0.yaml"): [
-                (ns0, modify(ns0_man)),
-                (dpl_ns0, modify(dpl_ns0_man)),
-                (svc_ns0, modify(svc_ns0_man)),
-                (ns1, modify(ns1_man)),
-                (dpl_ns1, modify(dpl_ns1_man)),
-                (svc_ns1, modify(svc_ns1_man)),
-            ],
-        }, False
+        expected = (
+            {
+                Path("m0.yaml"): [
+                    (ns0, modify(ns0_man)),
+                    (dpl_ns0, modify(dpl_ns0_man)),
+                    (svc_ns0, modify(svc_ns0_man)),
+                    (ns1, modify(ns1_man)),
+                    (dpl_ns1, modify(dpl_ns1_man)),
+                    (svc_ns1, modify(svc_ns1_man)),
+                ],
+            },
+            False,
+        )
 
         # Sync the manifests. The order of `kinds` and `namespaces` must not matter.
         for pkinds in itertools.permutations(["Namespace", "Deployment", "Service"]):
@@ -1388,16 +1409,19 @@ class TestSync:
         # ----------------------------------------------------------------------
         # Sync the server manifests in namespace "ns0".
         # ----------------------------------------------------------------------
-        expected = {
-            Path("m0.yaml"): [
-                (ns0, ns0_man),
-                (dpl_ns0, modify(dpl_ns0_man)),
-                (svc_ns0, modify(svc_ns0_man)),
-                (ns1, ns1_man),
-                (dpl_ns1, dpl_ns1_man),
-                (svc_ns1, svc_ns1_man),
-            ],
-        }, False
+        expected = (
+            {
+                Path("m0.yaml"): [
+                    (ns0, ns0_man),
+                    (dpl_ns0, modify(dpl_ns0_man)),
+                    (svc_ns0, modify(svc_ns0_man)),
+                    (ns1, ns1_man),
+                    (dpl_ns1, dpl_ns1_man),
+                    (svc_ns1, svc_ns1_man),
+                ],
+            },
+            False,
+        )
         for pkinds in itertools.permutations(["Deployment", "Service"]):
             selectors = Selectors(kinds=set(pkinds), namespaces=["ns0"])
             assert fun(loc_man, srv_man, selectors, groupby) == expected
@@ -1405,48 +1429,57 @@ class TestSync:
         # ----------------------------------------------------------------------
         # Sync only Deployments (all namespaces).
         # ----------------------------------------------------------------------
-        expected = {
-            Path("m0.yaml"): [
-                (ns0, ns0_man),
-                (dpl_ns0, modify(dpl_ns0_man)),
-                (svc_ns0, svc_ns0_man),
-                (ns1, ns1_man),
-                (dpl_ns1, modify(dpl_ns1_man)),
-                (svc_ns1, svc_ns1_man),
-            ],
-        }, False
+        expected = (
+            {
+                Path("m0.yaml"): [
+                    (ns0, ns0_man),
+                    (dpl_ns0, modify(dpl_ns0_man)),
+                    (svc_ns0, svc_ns0_man),
+                    (ns1, ns1_man),
+                    (dpl_ns1, modify(dpl_ns1_man)),
+                    (svc_ns1, svc_ns1_man),
+                ],
+            },
+            False,
+        )
         selectors = Selectors(kinds={"Deployment"})
         assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
         # Sync only Deployments in namespace "ns0".
         # ----------------------------------------------------------------------
-        expected = {
-            Path("m0.yaml"): [
-                (ns0, ns0_man),
-                (dpl_ns0, modify(dpl_ns0_man)),
-                (svc_ns0, svc_ns0_man),
-                (ns1, ns1_man),
-                (dpl_ns1, dpl_ns1_man),
-                (svc_ns1, svc_ns1_man),
-            ],
-        }, False
+        expected = (
+            {
+                Path("m0.yaml"): [
+                    (ns0, ns0_man),
+                    (dpl_ns0, modify(dpl_ns0_man)),
+                    (svc_ns0, svc_ns0_man),
+                    (ns1, ns1_man),
+                    (dpl_ns1, dpl_ns1_man),
+                    (svc_ns1, svc_ns1_man),
+                ],
+            },
+            False,
+        )
         selectors = Selectors(kinds={"Deployment"}, namespaces=["ns0"])
         assert fun(loc_man, srv_man, selectors, groupby) == expected
 
         # ----------------------------------------------------------------------
         # Sync only Services in namespace "ns1".
         # ----------------------------------------------------------------------
-        expected = {
-            Path("m0.yaml"): [
-                (ns0, ns0_man),
-                (dpl_ns0, dpl_ns0_man),
-                (svc_ns0, svc_ns0_man),
-                (ns1, ns1_man),
-                (dpl_ns1, dpl_ns1_man),
-                (svc_ns1, modify(svc_ns1_man)),
-            ],
-        }, False
+        expected = (
+            {
+                Path("m0.yaml"): [
+                    (ns0, ns0_man),
+                    (dpl_ns0, dpl_ns0_man),
+                    (svc_ns0, svc_ns0_man),
+                    (ns1, ns1_man),
+                    (dpl_ns1, dpl_ns1_man),
+                    (svc_ns1, modify(svc_ns1_man)),
+                ],
+            },
+            False,
+        )
         selectors = Selectors(kinds={"Service"}, namespaces=["ns1"])
         assert fun(loc_man, srv_man, selectors, groupby) == expected
 
@@ -1460,6 +1493,7 @@ class TestSync:
         server ones do not.
 
         """
+
         def modify(manifest):
             # Return modified version of `manifest` that Square must identify
             # as different from the original.
@@ -1480,8 +1514,11 @@ class TestSync:
         meta_1 = [manio.make_meta(_) for _ in man_1]
         meta_2 = [manio.make_meta(_) for _ in man_2]
         loc_man: LocalManifestLists = {
-            Path("m0.yaml"): [(meta_1[0], man_1[0]), (meta_1[1], man_1[1]),
-                              (meta_2[2], man_2[2])],
+            Path("m0.yaml"): [
+                (meta_1[0], man_1[0]),
+                (meta_1[1], man_1[1]),
+                (meta_2[2], man_2[2]),
+            ],
             Path("m1.yaml"): [(meta_2[3], man_2[3]), (meta_1[4], man_1[4])],
             Path("m2.yaml"): [(meta_1[5], man_1[5])],
         }
@@ -1490,32 +1527,35 @@ class TestSync:
         # the MetaManifests (ie dict keys) are relevant whereas the dict values
         # are not but serve to improve code readability here.
         srv_man = {
-            meta_1[0]: man_1[0],            # same
-            meta_1[1]: modify(man_1[1]),    # modified
-            meta_2[2]: man_2[2],            # same
-            meta_1[4]: man_1[4],            # same
-                                            # delete [5]
-            meta_1[6]: man_1[6],            # new
-            meta_2[7]: man_2[7],            # new
-            meta_1[8]: man_1[8],            # new
+            meta_1[0]: man_1[0],  # same
+            meta_1[1]: modify(man_1[1]),  # modified
+            meta_2[2]: man_2[2],  # same
+            meta_1[4]: man_1[4],  # same
+            # delete [5]
+            meta_1[6]: man_1[6],  # new
+            meta_2[7]: man_2[7],  # new
+            meta_1[8]: man_1[8],  # new
         }
 
         # The expected outcome is that the local manifests were updated,
         # overwritten (modified), deleted or put into a default manifest.
-        expected = {
-            Path("m0.yaml"): [
-                (meta_1[0], man_1[0]),
-                (meta_1[1], modify(man_1[1])),
-                (meta_2[2], man_2[2])
-            ],
-            Path("m1.yaml"): [(meta_1[4], man_1[4])],
-            Path("m2.yaml"): [],
-            Path("catchall.yaml"): [
-                (meta_1[6], man_1[6]),
-                (meta_2[7], man_2[7]),
-                (meta_1[8], man_1[8])
-            ],
-        }, False
+        expected = (
+            {
+                Path("m0.yaml"): [
+                    (meta_1[0], man_1[0]),
+                    (meta_1[1], modify(man_1[1])),
+                    (meta_2[2], man_2[2]),
+                ],
+                Path("m1.yaml"): [(meta_1[4], man_1[4])],
+                Path("m2.yaml"): [],
+                Path("catchall.yaml"): [
+                    (meta_1[6], man_1[6]),
+                    (meta_2[7], man_2[7]),
+                    (meta_1[8], man_1[8]),
+                ],
+            },
+            False,
+        )
         selectors = Selectors(kinds=kinds)
         assert manio.sync(loc_man, srv_man, selectors, groupby) == expected
 
@@ -1526,6 +1566,7 @@ class TestSync:
         files behave like their "normal" user created counterparts.
 
         """
+
         def modify(manifest):
             # Return modified version of `manifest` that Square must identify
             # as different from the original.
@@ -1556,7 +1597,7 @@ class TestSync:
             Path("_ns2.yaml"): [
                 (meta_2[2], man_2[2]),
                 (meta_2[6], man_2[6]),
-            ]
+            ],
         }
 
         # Create server manifests as `download_manifests` would return it. Only
@@ -1564,21 +1605,20 @@ class TestSync:
         # are not but serve to improve code readability here.
         srv_man = {
             # --- _ns1.yaml ---
-            meta_1[0]: man_1[0],          # new
+            meta_1[0]: man_1[0],  # new
             meta_1[1]: modify(man_1[1]),  # modified
-            meta_1[2]: man_1[2],          # same
-                                          # delete [3]
-                                          # [4] never existed
-                                          # delete [5]
-
+            meta_1[2]: man_1[2],  # same
+            # delete [3]
+            # [4] never existed
+            # delete [5]
             # --- _ns2.yaml ---
-            meta_2[0]: man_2[0],          # new
-            meta_2[9]: man_2[9],          # new
-            meta_2[7]: man_2[7],          # new
+            meta_2[0]: man_2[0],  # new
+            meta_2[9]: man_2[9],  # new
+            meta_2[7]: man_2[7],  # new
             meta_2[6]: modify(man_2[6]),  # modified
-                                          # delete [2]
-            meta_2[5]: man_2[5],          # new
-            meta_2[3]: man_2[3],          # new
+            # delete [2]
+            meta_2[5]: man_2[5],  # new
+            meta_2[3]: man_2[3],  # new
         }
 
         # The expected outcome is that the local manifests were updated,
@@ -1586,23 +1626,26 @@ class TestSync:
         # manifest.
         # NOTE: this test _assumes_ that the `srv_man` dict iterates over its
         # keys in insertion order, which is guaranteed for Python 3.7.
-        expected = {
-            Path("_ns1.yaml"): [
-                (meta_1[1], modify(man_1[1])),
-                (meta_1[2], man_1[2]),
-            ],
-            Path("_ns2.yaml"): [
-                (meta_2[6], modify(man_2[6])),
-            ],
-            Path("_other.yaml"): [
-                (meta_1[0], man_1[0]),
-                (meta_2[0], man_2[0]),
-                (meta_2[9], man_2[9]),
-                (meta_2[7], man_2[7]),
-                (meta_2[5], man_2[5]),
-                (meta_2[3], man_2[3]),
-            ],
-        }, False
+        expected = (
+            {
+                Path("_ns1.yaml"): [
+                    (meta_1[1], modify(man_1[1])),
+                    (meta_1[2], man_1[2]),
+                ],
+                Path("_ns2.yaml"): [
+                    (meta_2[6], modify(man_2[6])),
+                ],
+                Path("_other.yaml"): [
+                    (meta_1[0], man_1[0]),
+                    (meta_2[0], man_2[0]),
+                    (meta_2[9], man_2[9]),
+                    (meta_2[7], man_2[7]),
+                    (meta_2[5], man_2[5]),
+                    (meta_2[3], man_2[3]),
+                ],
+            },
+            False,
+        )
         selectors = Selectors(kinds=kinds)
         assert manio.sync(loc_man, srv_man, selectors, groupby) == expected
 
@@ -1636,7 +1679,7 @@ class TestSync:
         """
         # Fixtures.
         selectors = Selectors(kinds={"ServiceAccount"})
-        name = 'demoapp'
+        name = "demoapp"
 
         # Load the test support file and ensure it contains exactly one manifest.
         local_meta, _, err = manio.load_manifests(Path("tests/support/"), selectors)
@@ -1645,14 +1688,15 @@ class TestSync:
 
         # The manifest must be a ServiceAccount with the correct name.
         meta, manifest = local_meta.copy().popitem()
-        assert meta == MetaManifest(apiVersion='v1',
-                                    kind='ServiceAccount',
-                                    namespace='default',
-                                    name=name)
+        assert meta == MetaManifest(
+            apiVersion="v1", kind="ServiceAccount", namespace="default", name=name
+        )
 
         # The manifest must contain exactly one secret that starts with "demoapp-token-".
         assert "secrets" in manifest
-        token = [_ for _ in manifest["secrets"] if _["name"].startswith(f"{name}-token-")]
+        token = [
+            _ for _ in manifest["secrets"] if _["name"].startswith(f"{name}-token-")
+        ]
         assert len(token) == 1 and token[0] == {"name": "demoapp-token-abcde"}
 
     def test_align_serviceaccount(self):
@@ -1686,14 +1730,15 @@ class TestSync:
         # ----------------------------------------------------------------------
         local_meta[meta]["secrets"] = [{"name": "loc-foo"}]
         server_meta[meta]["secrets"] = [
-            {"name": "srv-foo"}, {"name": "srv-bar"},
-            {"name": "demoapp-token-srvfoo"}
+            {"name": "srv-foo"},
+            {"name": "srv-bar"},
+            {"name": "demoapp-token-srvfoo"},
         ]
         local_meta_out, err = manio.align_serviceaccount(local_meta, server_meta)
         assert not err
         assert local_meta_out[meta]["secrets"] == [
             {"name": "loc-foo"},
-            {"name": "demoapp-token-srvfoo"}
+            {"name": "demoapp-token-srvfoo"},
         ]
 
         # ----------------------------------------------------------------------
@@ -1702,12 +1747,12 @@ class TestSync:
         # ----------------------------------------------------------------------
         local_meta[meta]["secrets"] = [
             {"name": "loc-foo"},
-            {"name": "demoapp-token-locfoo"}
+            {"name": "demoapp-token-locfoo"},
         ]
         server_meta[meta]["secrets"] = [
             {"name": "srv-foo"},
             {"name": "srv-bar"},
-            {"name": "demoapp-token-srvfoo"}
+            {"name": "demoapp-token-srvfoo"},
         ]
         local_meta_out, err = manio.align_serviceaccount(local_meta, server_meta)
         assert not err
@@ -1722,13 +1767,11 @@ class TestSync:
         server_meta[meta]["secrets"] = [
             {"name": "srv-foo"},
             {"name": "srv-bar"},
-            {"name": "demoapp-token-srvfoo"}
+            {"name": "demoapp-token-srvfoo"},
         ]
         local_meta_out, err = manio.align_serviceaccount(local_meta, server_meta)
         assert not err
-        assert local_meta_out[meta]["secrets"] == [
-            {"name": "demoapp-token-srvfoo"}
-        ]
+        assert local_meta_out[meta]["secrets"] == [{"name": "demoapp-token-srvfoo"}]
 
         # ----------------------------------------------------------------------
         # Neither server nor local manifests contain a "secrets" key. Again,
@@ -1773,16 +1816,14 @@ class TestSync:
             {"name": "demoapp-token-loc1"},
             {"name": "demoapp-token-loc2"},
         ]
-        server_meta[meta]["secrets"] = [
-            {"name": "demoapp-token-srv"}
-        ]
+        server_meta[meta]["secrets"] = [{"name": "demoapp-token-srv"}]
         local_meta_out, err = manio.align_serviceaccount(local_meta, server_meta)
         assert not err
         assert local_meta_out == local_meta
 
 
 class TestDownloadManifests:
-    @mock.patch.object(k8s, 'get')
+    @mock.patch.object(k8s, "get")
     async def test_download_ok(self, m_get, sqcfg: Config, k8sconfig):
         """Download two kinds of manifests: Deployments and Namespaces.
 
@@ -1806,21 +1847,40 @@ class TestDownloadManifests:
         # Namespaced resource URLs.
         res_ns_0, err3 = resource(k8sconfig, MetaManifest("", "Namespace", "ns0", ""))
         res_ns_1, err4 = resource(k8sconfig, MetaManifest("", "Namespace", "ns1", ""))
-        res_dply_0, err5 = resource(k8sconfig, MetaManifest("", "Deployment", "ns0", ""))
-        res_dply_1, err6 = resource(k8sconfig, MetaManifest("", "Deployment", "ns1", ""))
+        res_dply_0, err5 = resource(
+            k8sconfig, MetaManifest("", "Deployment", "ns0", "")
+        )
+        res_dply_1, err6 = resource(
+            k8sconfig, MetaManifest("", "Deployment", "ns1", "")
+        )
         assert not any([err1, err2, err3, err4, err5, err6])
         del err1, err2, err3, err4, err5, err6
 
         # NamespaceList and DeploymentList (all namespaces).
-        l_ns = {'apiVersion': 'v1', 'kind': 'NamespaceList', "items": [meta[0], meta[1]]}
-        l_dply = {'apiVersion': 'apps/v1', 'kind': 'DeploymentList',
-                  "items": [meta[2], meta[3]]}
+        l_ns = {
+            "apiVersion": "v1",
+            "kind": "NamespaceList",
+            "items": [meta[0], meta[1]],
+        }
+        l_dply = {
+            "apiVersion": "apps/v1",
+            "kind": "DeploymentList",
+            "items": [meta[2], meta[3]],
+        }
 
         # Namespaced NamespaceList and DeploymentList.
-        l_ns_0 = {'apiVersion': 'v1', 'kind': 'NamespaceList', "items": [meta[0]]}
-        l_ns_1 = {'apiVersion': 'v1', 'kind': 'NamespaceList', "items": [meta[1]]}
-        l_dply_0 = {'apiVersion': 'apps/v1', 'kind': 'DeploymentList', "items": [meta[2]]}
-        l_dply_1 = {'apiVersion': 'apps/v1', 'kind': 'DeploymentList', "items": [meta[3]]}
+        l_ns_0 = {"apiVersion": "v1", "kind": "NamespaceList", "items": [meta[0]]}
+        l_ns_1 = {"apiVersion": "v1", "kind": "NamespaceList", "items": [meta[1]]}
+        l_dply_0 = {
+            "apiVersion": "apps/v1",
+            "kind": "DeploymentList",
+            "items": [meta[2]],
+        }
+        l_dply_1 = {
+            "apiVersion": "apps/v1",
+            "kind": "DeploymentList",
+            "items": [meta[3]],
+        }
 
         # ----------------------------------------------------------------------
         # Request resources from all namespaces implicitly via namespaces=[]
@@ -1853,8 +1913,9 @@ class TestDownloadManifests:
             (l_ns_1, False),
             (l_dply_1, False),
         ]
-        sqcfg.selectors = Selectors(kinds={"Namespace", "Deployment"},
-                                    namespaces=["ns0", "ns1"])
+        sqcfg.selectors = Selectors(
+            kinds={"Namespace", "Deployment"}, namespaces=["ns0", "ns1"]
+        )
         ret = await manio.download(sqcfg, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_count == 4
@@ -1878,22 +1939,23 @@ class TestDownloadManifests:
             make_meta(meta[0]): run_strip_callback(sqcfg, meta[0])[0],
             make_meta(meta[2]): run_strip_callback(sqcfg, meta[2])[0],
         }
-        sqcfg.selectors = Selectors(kinds={"Namespace", "Deployment"},
-                                    namespaces=["ns0"])
+        sqcfg.selectors = Selectors(
+            kinds={"Namespace", "Deployment"}, namespaces=["ns0"]
+        )
         ret = await manio.download(sqcfg, k8sconfig)
         assert ret == (expected, False)
         assert m_get.call_count == 2
         m_get.assert_any_call(k8sconfig, res_dply_0.url)
         m_get.assert_any_call(k8sconfig, res_ns_0.url)
 
-    @mock.patch.object(k8s, 'get')
+    @mock.patch.object(k8s, "get")
     async def test_download_err(self, m_get, sqcfg: Config, k8sconfig):
         """Simulate a download error."""
         # A valid NamespaceList with one element.
         man_list_ns = {
-            'apiVersion': 'v1',
-            'kind': 'NamespaceList',
-            'items': [make_manifest("Namespace", None, "ns0")],
+            "apiVersion": "v1",
+            "kind": "NamespaceList",
+            "items": [make_manifest("Namespace", None, "ns0")],
         }
 
         # The first call to get will succeed whereas the second will not.
@@ -1926,11 +1988,13 @@ class TestManifestStripping:
         # Define filters for this test.
         _filters: FiltersKind = [
             "invalid",
-            {"metadata": [
-                "creationTimestamp",
-                {"labels": ["foo"]},
-                "foo",
-            ]},
+            {
+                "metadata": [
+                    "creationTimestamp",
+                    {"labels": ["foo"]},
+                    "foo",
+                ]
+            },
             "status",
             {"spec": [{"ports": ["nodePort"]}]},
         ]
@@ -1954,7 +2018,7 @@ class TestManifestStripping:
             "metadata": {
                 "name": "name",
                 "namespace": "ns",
-                "labels": {"foo": "remove"}
+                "labels": {"foo": "remove"},
             },
             "spec": "spec",
         }
@@ -1982,7 +2046,7 @@ class TestManifestStripping:
                 "labels": {
                     "foo": "remove",
                     "bar": "keep",
-                }
+                },
             },
             "spec": "keep",
             "status": "remove",
@@ -1995,7 +2059,7 @@ class TestManifestStripping:
                 "namespace": "ns",
                 "labels": {
                     "bar": "keep",
-                }
+                },
             },
             "spec": "keep",
         }
@@ -2005,13 +2069,14 @@ class TestManifestStripping:
         """Must cope with filters that specify the same resource multiple times."""
         # Define filters for this test.
         _filters: FiltersKind = [
-            {"metadata": [
-                # Specify "creationTimestamp" twice. Must behave no different
-                # than if it was specified only once.
-                "creationTimestamp",
-                "creationTimestamp",
-            ]},
-
+            {
+                "metadata": [
+                    # Specify "creationTimestamp" twice. Must behave no different
+                    # than if it was specified only once.
+                    "creationTimestamp",
+                    "creationTimestamp",
+                ]
+            },
             # Reference "status" twice. This must remove the entire "status" field.
             {"status": [{"foo": ["bar"]}]},
             "status",

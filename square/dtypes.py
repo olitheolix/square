@@ -11,18 +11,21 @@ from typing_extensions import Annotated
 DEFAULT_PRIORITIES = (
     # Custom Resources should come first.
     "CustomResourceDefinition",
-
     # Common non-namespaced resources.
-    "ClusterRole", "ClusterRoleBinding",
-
+    "ClusterRole",
+    "ClusterRoleBinding",
     # Namespaces must come before any namespaced resources.
     "Namespace",
-
     # RBAC.
-    "Role", "RoleBinding", "ServiceAccount",
-
+    "Role",
+    "RoleBinding",
+    "ServiceAccount",
     # Everything else.
-    "ConfigMap", "Service", "Deployment", "HorizontalPodAutoscaler", "Ingress",
+    "ConfigMap",
+    "Service",
+    "Deployment",
+    "HorizontalPodAutoscaler",
+    "Ingress",
 )
 
 
@@ -36,6 +39,7 @@ class MetaManifest(NamedTuple):
     we can use as keys in dictionaries and sets.
 
     """
+
     apiVersion: str
     kind: str
     namespace: str | None
@@ -58,12 +62,13 @@ class MetaManifest(NamedTuple):
 
 class K8sResource(NamedTuple):
     """Describe a specific K8s resource kind."""
-    apiVersion: str   # "batch/v1beta1" or "extensions/v1beta1".
-    kind: str         # "Deployment" (as specified in manifest).
-    name: str         # "deployments" (plural name, lower case).
+
+    apiVersion: str  # "batch/v1beta1" or "extensions/v1beta1".
+    kind: str  # "Deployment" (as specified in manifest).
+    name: str  # "deployments" (plural name, lower case).
     namespaced: bool  # Whether or not the resource is namespaced.
-    url: str          # API endpoint, eg "k8s-host.com/api/v1/pods".
-    aliases: Tuple[str, ...]    # all names (singular, plural, short hands).
+    url: str  # API endpoint, eg "k8s-host.com/api/v1/pods".
+    aliases: Tuple[str, ...]  # all names (singular, plural, short hands).
     preferred: bool = False
 
 
@@ -81,6 +86,7 @@ class SelKindGroupNames(BaseModel):
     reverse is not true.
 
     """
+
     value: str
     ns: str = ""
 
@@ -88,7 +94,7 @@ class SelKindGroupNames(BaseModel):
         kg = self.kind_group
         return f"{kg}/{self.name}" if self.name else kg
 
-    @field_validator('value')
+    @field_validator("value")
     def validate_kind_group_names(cls, v):
         if not v:
             raise ValueError("String must not be empty")
@@ -101,9 +107,9 @@ class SelKindGroupNames(BaseModel):
             raise ValueError(f"value has no kind <{v}>")
 
         # pod.v1/name -> ["pod.v1", "name"]
-        parts = v.split('/')
+        parts = v.split("/")
         if len(parts) > 2 or v.endswith("/"):
-            raise ValueError(f"At most one \"/\" is allowed <{v}>")
+            raise ValueError(f'At most one "/" is allowed <{v}>')
 
         for part in parts:
             if part.strip() != part:
@@ -113,20 +119,20 @@ class SelKindGroupNames(BaseModel):
 
     @property
     def kind(self) -> str:
-        kind_name = self.value.partition('.')[0]
+        kind_name = self.value.partition(".")[0]
         kind = kind_name.partition("/")[0]
         return kind
 
     @property
     def group(self) -> str:
-        group_name = self.value.partition('.')[2]
+        group_name = self.value.partition(".")[2]
         group = group_name.partition("/")[0]
         return group
 
     @property
     def name(self) -> str:
-        if '/' in self.value:
-            return self.value.split('/', 1)[1]
+        if "/" in self.value:
+            return self.value.split("/", 1)[1]
         return ""
 
     @property
@@ -140,6 +146,7 @@ class SelKindGroupNames(BaseModel):
 
 class K8sConfig(BaseModel):
     """Everything we need to know to connect and authenticate with Kubernetes."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # Kubernetes URL, version and name.
@@ -168,6 +175,7 @@ class K8sConfig(BaseModel):
 # -----------------------------------------------------------------------------
 class JsonPatch(NamedTuple):
     """The URL for the patches as well as the patch payloads themselves."""
+
     # Send the patch to https://1.2.3.4/api/v1/namespace/foo/services
     url: str
 
@@ -200,6 +208,7 @@ class DeploymentPlan(NamedTuple):
     patches that make up a full plan.
 
     """
+
     create: List[DeltaCreate] | Tuple[DeltaCreate, ...]
     patch: List[DeltaPatch] | Tuple[DeltaPatch, ...]
     delete: List[DeltaDelete] | Tuple[DeltaDelete, ...]
@@ -207,6 +216,7 @@ class DeploymentPlan(NamedTuple):
 
 class DeploymentPlanMeta(NamedTuple):
     """Same as `DeploymentPlan` but contains `MetaManifests` only."""
+
     create: List[MetaManifest] | Tuple[MetaManifest, ...]
     patch: List[MetaManifest] | Tuple[MetaManifest, ...]
     delete: List[MetaManifest] | Tuple[MetaManifest, ...]
@@ -217,6 +227,7 @@ class DeploymentPlanMeta(NamedTuple):
 # -----------------------------------------------------------------------------
 class Selectors(BaseModel):
     """Parameters to target specific groups of manifests."""
+
     model_config = {"str_strip_whitespace": True}
 
     kinds: Set[str] = set()
@@ -231,12 +242,14 @@ class Selectors(BaseModel):
 
 class GroupBy(BaseModel):
     """Define how to organise downloaded manifests on the files system."""
-    label: str = ""                  # "app"
-    order: List[str] = []            # ["ns", "label=app", kind"]
+
+    label: str = ""  # "app"
+    order: List[str] = []  # ["ns", "label=app", kind"]
 
 
 class ConnectionParameters(BaseModel):
     """Define HttpX specific connection parameters."""
+
     # Extra headers to pass along to the Kubernetes API.
     k8s_extra_headers: Dict[str, str] = dict()
 
@@ -271,11 +284,13 @@ Filters = Dict[str, FiltersKind]
 # To break the cycle we use this dummy function as the default callback and
 # install the proper callbacks during the validation phase of the `Config`
 # ctor at runtime.
-def do_nothing(): return        # codecov-skip
+def do_nothing():
+    return  # codecov-skip
 
 
 class Config(BaseModel):
     """Uniform interface into top level Square API."""
+
     # Path to local manifests eg "./foo"
     folder: Path
 
@@ -305,18 +320,12 @@ class Config(BaseModel):
     user_data: Any = None
 
     # Invoked for every local/server manifest that requires patching.
-    patch_callback: Annotated[
-        Callable,
-        Field(validate_default=True)
-    ] = do_nothing
+    patch_callback: Annotated[Callable, Field(validate_default=True)] = do_nothing
 
     # Invoked for every manifest downloaded from cluster.
-    strip_callback: Annotated[
-        Callable,
-        Field(validate_default=True)
-    ] = do_nothing
+    strip_callback: Annotated[Callable, Field(validate_default=True)] = do_nothing
 
-    @field_validator('filters')
+    @field_validator("filters")
     @classmethod
     def validate_filters(cls, filters: Filters) -> Filters:
         # The top level filter structure must be a Dict that denotes a resource
@@ -332,6 +341,7 @@ class Config(BaseModel):
     def default_patch_callback(cls, cb: Callable) -> Callable:
         if cb == do_nothing:
             import square.callbacks
+
             return square.callbacks.patch_manifests
         return cb
 
@@ -340,6 +350,7 @@ class Config(BaseModel):
     def default_strip_callback(cls, cb: Callable) -> Callable:
         if cb == do_nothing:
             import square.callbacks
+
             return square.callbacks.strip_manifest
         return cb
 

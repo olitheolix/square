@@ -2,7 +2,10 @@ import pydantic
 import pytest
 
 from square.dtypes import (
-    MetaManifest, Selectors, SelKindGroupNames, SelKindGroupNames as SKGN,
+    MetaManifest,
+    Selectors,
+    SelKindGroupNames,
+    SelKindGroupNames as SKGN,
 )
 
 
@@ -46,9 +49,15 @@ class TestSelectors:
         """Various error scenarios of invalid resource kinds."""
         # Various cases of invalid "kind" names.
         invalid_kinds = [
-            "", "/", "/bar",
-            " /", "/ ", " / ",
-            "foo / bar", "foo/ bar", "foo /bar",
+            "",
+            "/",
+            "/bar",
+            " /",
+            "/ ",
+            " / ",
+            "foo / bar",
+            "foo/ bar",
+            "foo /bar",
             "/ foo / bar",
         ]
 
@@ -174,14 +183,15 @@ class TestSelectors:
 
     def test_SelKindGroupNames_invalid(self):
         invalid = [
-            "",                 # empty
-            " pod ", "pod / name",  # whitespace
+            "",  # empty
+            " pod ",
+            "pod / name",  # whitespace
             # "pod.apps./example",  # group ends in "/"
             "pod.v1/name1/name2",
             # "pod.apps!@#/example",  # invalid chars in group
-            "pod.apps/",            # empty name
+            "pod.apps/",  # empty name
             # "pod-1.apps",            # empty name
-            "/name",            # no kind
+            "/name",  # no kind
         ]
         for value in invalid:
             print(value)

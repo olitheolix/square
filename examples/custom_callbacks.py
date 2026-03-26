@@ -8,6 +8,7 @@ DEPLOYMENTS and compute the same plan again. This time, the plan will contain
 some patches.
 
 """
+
 import asyncio
 from pathlib import Path
 from typing import Tuple
@@ -24,9 +25,9 @@ def strip_callback(cfg: Config, manifest: dict):
     return manifest
 
 
-def patch_callback(cfg: Config,
-                   local_manifest: dict,
-                   server_manifest: dict) -> Tuple[dict, dict]:
+def patch_callback(
+    cfg: Config, local_manifest: dict, server_manifest: dict
+) -> Tuple[dict, dict]:
     """Modify the local manifest before Square compiles patches."""
     # Make no modifications if the manifest is not a DEPLOYMENT.
     if local_manifest["kind"] != "Deployment":
@@ -61,7 +62,7 @@ async def main():
     # and `apply` need one.
     config = Config(
         kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
-        folder=Path('manifests'),
+        folder=Path("manifests"),
         selectors=Selectors(
             kinds={"Deployment", "Service", "Namespace"},
         ),
