@@ -48,8 +48,7 @@ jobs:
 
       - name: Linting and Static Analysis
         run: |
-          uv tool run isort --check-only ./
-          uv tool run pycodestyle ./
+          uv tool run ruff check
           uv run mypy ./
 
       - name: Unit Tests
