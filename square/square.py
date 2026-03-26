@@ -916,12 +916,8 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         # selectors have not been applied yet.
         local, server = pick_manifests_for_plan(local, server, cfg.selectors)
 
-        # Align non-plannable fields, like the ServiceAccount tokens.
-        local_meta, err = manio.align_serviceaccount(local, server)
-        assert not err
-
         # Create deployment plan.
-        plan, err = await compile_plan(cfg, k8sconfig, local_meta, server)
+        plan, err = await compile_plan(cfg, k8sconfig, local, server)
         assert not err and plan
     except AssertionError:
         return (DeploymentPlan(tuple(), tuple(), tuple()), True)

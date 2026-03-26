@@ -1438,10 +1438,9 @@ class TestMainOptions:
     @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
     @mock.patch.object(sq, "pick_manifests_for_plan")
-    @mock.patch.object(manio, "align_serviceaccount")
     @mock.patch.object(sq, "compile_plan")
     async def test_make_plan_full_mock(
-        self, m_plan, m_align, m_pick, m_down, m_load, sqcfg: Config, kube_creds
+        self, m_plan, m_pick, m_down, m_load, sqcfg: Config, kube_creds
     ):
         """Verify that `make_plan` calls the right functions with the right arguments."""
         k8sconfig: K8sConfig = kube_creds
@@ -1461,7 +1460,6 @@ class TestMainOptions:
         m_down.return_value = (server, False)
         m_pick.return_value = (local, server)
         m_plan.return_value = (plan, False)
-        m_align.side_effect = lambda loc_man, _: (loc_man, False)
 
         # A successful DIFF only computes and prints the plan.
         assert not k8sconfig.client.is_closed
