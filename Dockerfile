@@ -1,15 +1,15 @@
 FROM python:3.14-slim
 
-# Install Pip and Pipenv.
+# Install UV.
 RUN apt update && apt install -y git
-RUN pip install pipenv pip --upgrade
+RUN pip install uv
 
 # Copy the repository into the container.
 WORKDIR /square
 COPY . /square
 
 # Install the dependencies for Square.
-RUN pipenv install --system
+RUN uv pip install . --break-system-packages --system
 
 # Allow convenient execution of Square in Docker.
 ENTRYPOINT ["python", "-m", "square"]

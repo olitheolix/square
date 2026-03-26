@@ -53,20 +53,19 @@ jobs:
           echo "SQUARE_BUILD_PATH=dist/square.exe"  >> "$GITHUB_ENV"
           echo "SQUARE_ASSET_NAME=square-${GITHUB_REF_NAME}-windows-amd64"  >> "$GITHUB_ENV"
 
-      - name: Install Pipenv
+      - name: Install UV
         run: |
-          python -m pip install --upgrade pip
-          pip install pipenv pyinstaller
+          pip install uv
 
-      - name: Install extra dependencies (Windows only)
+      - name: Install Extra Dependencies (Windows only)
         if: matrix.os == 'windows-latest'
         run: |
-          pip install macholib pypiwin32 atomicwrites
+          uv add macholib pypiwin32 atomicwrites
 
       - name: Build Binary
         run: |
-          pipenv install --system --deploy --dev
-          pyinstaller square.spec --clean
+          uv add pyinstaller==6.19.0 --dev
+          uv run pyinstaller square.spec --clean
           dist/square version
 
       - name: Upload Asset
