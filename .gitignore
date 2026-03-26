@@ -21,3 +21,4 @@ kubernetes_square.egg-info/
 delme*
 manifests/
 personal/
+.aider*
