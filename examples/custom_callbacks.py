@@ -64,7 +64,7 @@ async def main():
         kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
         folder=Path("manifests"),
         selectors=Selectors(
-            kinds={"Deployment", "Service", "Namespace"},
+            kinds={"deployments.apps", "services.v1", "namespace"},
         ),
         strip_callback=strip_callback,
     )
@@ -79,7 +79,7 @@ async def main():
     # Create the plan and verify that it is clean.
     plan, err = await square.plan(config)
     assert not err
-    assert plan.create == plan.patch == plan.delete == []
+    assert plan.create == plan.patch == plan.delete == [], plan
 
     # Install our custom patch callback to insert a new label to all
     # DEPLOYMENTS. The plan must now contain patches.
