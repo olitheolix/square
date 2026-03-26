@@ -2,7 +2,7 @@
 
 ## Latest
 ### Highlights
-None
+* feat: change from `pipenv` to `uv`
 
 ### Breaking Changes
 None
