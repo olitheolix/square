@@ -17,7 +17,10 @@ import tenacity as tc
 import yaml
 
 from square.dtypes import (
-    ConnectionParameters, K8sConfig, K8sResource, MetaManifest,
+    ConnectionParameters,
+    K8sConfig,
+    K8sResource,
+    MetaManifest,
     SelKindGroupNames,
 )
 
@@ -55,20 +58,23 @@ async def _mysleep(delay: float):
     reraise=True,
     sleep=_mysleep,
 )
-async def _call(k8sconfig: K8sConfig,
-                method: str,
-                url: str,
-                payload: dict | list | None,
-                headers: dict | None) -> httpx.Response:
+async def _call(
+    k8sconfig: K8sConfig,
+    method: str,
+    url: str,
+    payload: dict | list | None,
+    headers: dict | None,
+) -> httpx.Response:
     return await k8sconfig.client.request(method, url, json=payload, headers=headers)
 
 
 async def request(
-        k8sconfig: K8sConfig,
-        method: str,
-        url: str,
-        payload: dict | list | None,
-        headers: dict | None) -> Tuple[dict, int, bool]:
+    k8sconfig: K8sConfig,
+    method: str,
+    url: str,
+    payload: dict | list | None,
+    headers: dict | None,
+) -> Tuple[dict, int, bool]:
     """Return response of web request made with `client`.
 
     Inputs:
@@ -115,7 +121,7 @@ async def request(
 
 async def delete(k8sconfig: K8sConfig, url: str, payload: dict) -> Tuple[dict, bool]:
     """Make DELETE requests to K8s (see `k8s_request`)."""
-    resp, code, err = await request(k8sconfig, 'DELETE', url, payload, headers=None)
+    resp, code, err = await request(k8sconfig, "DELETE", url, payload, headers=None)
     if err or code not in (200, 202):
         logit.error(f"{code} - DELETE - {url} - {resp}")
         return (resp, True)
@@ -124,18 +130,19 @@ async def delete(k8sconfig: K8sConfig, url: str, payload: dict) -> Tuple[dict, b
 
 async def get(k8sconfig: K8sConfig, url: str) -> Tuple[dict, bool]:
     """Make GET requests to K8s (see `request`)."""
-    resp, code, err = await request(k8sconfig, 'GET', url, payload=None, headers=None)
+    resp, code, err = await request(k8sconfig, "GET", url, payload=None, headers=None)
     if err or code != 200:
         logit.error(f"{code} - GET - {url} - {resp}")
         return (resp, True)
     return (resp, False)
 
 
-async def patch(k8sconfig: K8sConfig, url: str,
-                payload: List[Dict[str, str]]) -> Tuple[dict, bool]:
+async def patch(
+    k8sconfig: K8sConfig, url: str, payload: List[Dict[str, str]]
+) -> Tuple[dict, bool]:
     """Make PATCH requests to K8s (see `request`)."""
-    headers = {'Content-Type': 'application/json-patch+json'}
-    resp, code, err = await request(k8sconfig, 'PATCH', url, payload, headers)
+    headers = {"Content-Type": "application/json-patch+json"}
+    resp, code, err = await request(k8sconfig, "PATCH", url, payload, headers)
     if err or code != 200:
         logit.error(f"{code} - PATCH - {url} - {resp}")
         return (resp, True)
@@ -144,16 +151,17 @@ async def patch(k8sconfig: K8sConfig, url: str,
 
 async def post(k8sconfig: K8sConfig, url: str, payload: dict) -> Tuple[dict, bool]:
     """Make POST requests to K8s (see `request`)."""
-    resp, code, err = await request(k8sconfig, 'POST', url, payload, headers=None)
-    err = (code != 201)
+    resp, code, err = await request(k8sconfig, "POST", url, payload, headers=None)
+    err = code != 201
     if err:
         logit.error(f"{code} - POST - {url} - {resp}")
         return (resp, True)
     return (resp, False)
 
 
-def load_kubeconfig(kubeconf_path: Path,
-                    context: str | None) -> Tuple[str, dict, dict, bool]:
+def load_kubeconfig(
+    kubeconf_path: Path, context: str | None
+) -> Tuple[str, dict, dict, bool]:
     """Return user name as well as user- and cluster information.
 
     Return None on error.
@@ -213,8 +221,8 @@ def load_kubeconfig(kubeconf_path: Path,
 
 
 def load_incluster_config(
-        tokenfile: Path = TOKENFILE,
-        cafile: Path = CAFILE) -> Tuple[K8sConfig, bool]:
+    tokenfile: Path = TOKENFILE, cafile: Path = CAFILE
+) -> Tuple[K8sConfig, bool]:
     """Return K8s access config from Pod service account.
 
     Returns None if we are not running in a Pod.
@@ -227,7 +235,7 @@ def load_incluster_config(
 
     """
     # These exist inside every Kubernetes pod.
-    server_ip = os.getenv('KUBERNETES_PORT_443_TCP_ADDR', None)
+    server_ip = os.getenv("KUBERNETES_PORT_443_TCP_ADDR", None)
     cafile = Path(cafile)
     tokenfile = Path(tokenfile)
 
@@ -244,7 +252,7 @@ def load_incluster_config(
     # Return the compiled K8s access configuration.
     logit.info("Use incluster (service account) credentials.")
     return K8sConfig(
-        url=f'https://{server_ip}',
+        url=f"https://{server_ip}",
         token=tokenfile.read_text(),
         cadata=cafile.read_text(),
         cert=None,
@@ -276,8 +284,9 @@ def run_external_command(cmd: List[str], env: Dict[str, str]) -> Tuple[str, str,
     return stdout, "", False
 
 
-def load_authenticator_config(kubeconf_path: Path,
-                              context: str | None) -> Tuple[K8sConfig, bool]:
+def load_authenticator_config(
+    kubeconf_path: Path, context: str | None
+) -> Tuple[K8sConfig, bool]:
     """Return K8s config based on authenticator app specified in `kubeconfig`.
 
     Returns None if `kubeconfig` does not exist or could not be parsed.
@@ -329,8 +338,7 @@ def load_authenticator_config(kubeconf_path: Path,
 
     # Pre-format the command for the log message.
     log_cmd = (
-        f"kubeconf={kubeconf_path} kubectx={context} "
-        f"cmd={cmd_args}  env={env_kubeconf}"
+        f"kubeconf={kubeconf_path} kubectx={context} cmd={cmd_args}  env={env_kubeconf}"
     )
 
     # Run the external tool to produce the access token. That program must
@@ -361,8 +369,9 @@ def load_authenticator_config(kubeconf_path: Path,
     ), False
 
 
-def load_minikube_config(kubeconf_path: Path,
-                         context: str | None) -> Tuple[K8sConfig, bool]:
+def load_minikube_config(
+    kubeconf_path: Path, context: str | None
+) -> Tuple[K8sConfig, bool]:
     """Load Minikube configuration from `fname`.
 
     Return None on error.
@@ -401,7 +410,9 @@ def load_minikube_config(kubeconf_path: Path,
         return (K8sConfig(), True)
 
 
-def load_kind_config(kubeconf_path: Path, context: str | None) -> Tuple[K8sConfig, bool]:
+def load_kind_config(
+    kubeconf_path: Path, context: str | None
+) -> Tuple[K8sConfig, bool]:
     """Load Kind configuration from `fname`.
 
     https://github.com/bsycorp/kind
@@ -452,13 +463,13 @@ def load_kind_config(kubeconf_path: Path, context: str | None) -> Tuple[K8sConfi
             name=name,
         ), False
     except KeyError:
-        logit.debug(
-            f"Context {context} in <{kubeconf_path}> is not a Minikube config"
-        )
+        logit.debug(f"Context {context} in <{kubeconf_path}> is not a Minikube config")
         return (K8sConfig(), True)
 
 
-def load_auto_config(kubeconf_path: Path, context: str | None) -> Tuple[K8sConfig, bool]:
+def load_auto_config(
+    kubeconf_path: Path, context: str | None
+) -> Tuple[K8sConfig, bool]:
     """Automagically find and load the correct K8s configuration.
 
     This function will sequentially load all supported authentication schemes
@@ -531,8 +542,9 @@ def create_ssl_context(cadata: str | None, disable_x509_strict: bool) -> ssl.SSL
     return sslcontext
 
 
-def create_httpx_client(k8sconfig: K8sConfig,
-                        conparam: ConnectionParameters) -> Tuple[K8sConfig, bool]:
+def create_httpx_client(
+    k8sconfig: K8sConfig, conparam: ConnectionParameters
+) -> Tuple[K8sConfig, bool]:
     """Return configured HttpX client."""
     # Configure Httpx client with the K8s service account token.
     sslcontext = create_ssl_context(k8sconfig.cadata, conparam.disable_x509_strict)
@@ -555,8 +567,8 @@ def create_httpx_client(k8sconfig: K8sConfig,
     try:
         transport = httpx.AsyncHTTPTransport(
             verify=sslcontext,
-            cert=k8sconfig.cert,      # type: ignore
-            retries=0,                # Square has its own retry logic.
+            cert=k8sconfig.cert,  # type: ignore
+            retries=0,  # Square has its own retry logic.
             http1=conparam.http1,
             http2=conparam.http2,
         )
@@ -570,7 +582,7 @@ def create_httpx_client(k8sconfig: K8sConfig,
         return k8sconfig, True
 
     # Add the bearer token if we have one.
-    headers = {'authorization': f'Bearer {k8sconfig.token}'} if k8sconfig.token else {}
+    headers = {"authorization": f"Bearer {k8sconfig.token}"} if k8sconfig.token else {}
     client.headers.update(headers)
 
     # Merge in user supplied headers.
@@ -584,7 +596,7 @@ def create_httpx_client(k8sconfig: K8sConfig,
 
 
 def resource(
-        k8sconfig: K8sConfig, gvknn: SelKindGroupNames | MetaManifest
+    k8sconfig: K8sConfig, gvknn: SelKindGroupNames | MetaManifest
 ) -> Tuple[K8sResource, bool]:
     """Return the `K8sResource` object that corresponds to `meta`.
 
@@ -664,7 +676,7 @@ async def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
         return (K8sConfig(), True)
 
     # Construct the version number of the K8s API.
-    major, minor = resp['major'], resp['minor']
+    major, minor = resp["major"], resp["minor"]
     version = f"{major}.{minor}"
 
     # Return an updated `K8sconfig` tuple.
@@ -672,9 +684,9 @@ async def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
     return (k8sconfig, False)
 
 
-async def cluster_config(kubeconfig: Path,
-                         context: str | None,
-                         conparams: ConnectionParameters) -> Tuple[K8sConfig, bool]:
+async def cluster_config(
+    kubeconfig: Path, context: str | None, conparams: ConnectionParameters
+) -> Tuple[K8sConfig, bool]:
     """Return the `K8sConfig` to connect to the API.
 
     This will read the Kubernetes credentials, create a client and use it to
@@ -714,9 +726,7 @@ async def cluster_config(kubeconfig: Path,
 
     # Log the K8s API address and version.
     logit.info(
-        f"name: {k8sconfig.name}  "
-        f"url {k8sconfig.url}  "
-        f"version {k8sconfig.version}"
+        f"name: {k8sconfig.name}  url {k8sconfig.url}  version {k8sconfig.version}"
     )
     return (k8sconfig, False)
 
@@ -807,7 +817,9 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
 
     # Determine the set of preferred groups. We will use this to mark the
     # corresponding `K8sResource` instance.
-    preferred: Set[str] = {_["preferredVersion"]["groupVersion"] for _ in resp["groups"]}
+    preferred: Set[str] = {
+        _["preferredVersion"]["groupVersion"] for _ in resp["groups"]
+    }
 
     # Determine the URL where we can get information for each group and version.
     all_groups = [("v1", f"{k8sconfig.url}/api/v1")]
@@ -874,8 +886,8 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
             apis[name].clear()
             apis[name].append(res)
 
-            apis[name+".v1"].clear()
-            apis[name+".v1"].append(res)
+            apis[name + ".v1"].clear()
+            apis[name + ".v1"].append(res)
 
     # Replace the existing apis.
     k8sconfig.apis.clear()
@@ -899,7 +911,8 @@ def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
                 tmp = str.join(", ", [_.apiVersion for _ in resources])
                 logit.critical(
                     f"bug: API <{name}> must contain exactly one resource "
-                    f"but contains {len(resources)}: {tmp}")
+                    f"but contains {len(resources)}: {tmp}"
+                )
                 continue
         else:
             # Each API resource must contain at least one resource.
@@ -929,7 +942,7 @@ def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
 
 
 def pick_api(
-        kgn: SelKindGroupNames | MetaManifest, apis: Dict[str, List[K8sResource]]
+    kgn: SelKindGroupNames | MetaManifest, apis: Dict[str, List[K8sResource]]
 ) -> Tuple[K8sResource, bool]:
     """Selects the most appropriate API version for a given Kubernetes resource name.
 
@@ -981,9 +994,7 @@ def pick_api(
     if len(preferred) == 1:
         return preferred[0], False
     elif len(preferred) > 1:
-        logit.error(
-            f"resource <{name}> has multiple preferred versions: {preferred}"
-        )
+        logit.error(f"resource <{name}> has multiple preferred versions: {preferred}")
         return err_resp
 
     # If we got here it means we have no preferred API version. In that case,

@@ -14,7 +14,10 @@ import yaml
 import square.k8s as k8s
 import square.square
 from square.dtypes import (
-    ConnectionParameters, K8sConfig, K8sResource, MetaManifest,
+    ConnectionParameters,
+    K8sConfig,
+    K8sResource,
+    MetaManifest,
     SelKindGroupNames as SKGN,
 )
 
@@ -94,7 +97,10 @@ class TestK8sDeleteGetPatchPost:
         """
         # Construct an explicit `Timeout` instance.
         timeout = ConnectionParameters(
-            connect=2, read=3, write=4, pool=5,
+            connect=2,
+            read=3,
+            write=4,
+            pool=5,
             max_keepalive_connections=None,
             max_connections=None,
             keepalive_expiry=5.0,
@@ -140,7 +146,7 @@ class TestK8sDeleteGetPatchPost:
     async def test_request_ok(self, method, k8sconfig: K8sConfig, respx_mock):
         """Simulate a successful K8s response for GET request."""
         # Dummy values for the K8s API request.
-        url = 'http://examples.com/'
+        url = "http://examples.com/"
         headers = {"some": "headers"}
         payload = {"some": "payload"}
         response = {"some": "response"}
@@ -159,7 +165,7 @@ class TestK8sDeleteGetPatchPost:
     async def test_request_err_json(self, method, k8sconfig: K8sConfig, respx_mock):
         """Simulate a corrupt JSON response from K8s."""
         # Dummies for K8s API URL and `httpx` client.
-        url = 'http://examples.com/'
+        url = "http://examples.com/"
 
         # Construct a response with a corrupt JSON string.
         corrupt_json = "{this is not valid] json;"
@@ -174,7 +180,7 @@ class TestK8sDeleteGetPatchPost:
     async def test_request_connection_err(self, method, k8sconfig, respx_mock):
         """Simulate an unsuccessful K8s response for GET request."""
         # Dummies for K8s API URL and `httpx` client.
-        url = 'http://examples.com/'
+        url = "http://examples.com/"
         m_http = respx_mock.request(method, url)
         expected: Tuple[dict, int, bool] = ({}, -1, True)
         args = k8sconfig, method, url, None, None
@@ -199,7 +205,7 @@ class TestK8sDeleteGetPatchPost:
     async def test_request_retries(self, k8sconfig, method):
         """Simulate error to validate retry logic."""
         # Dummies for K8s API URL and `httpx` client.
-        url = 'http://localhost.foo.blah.'
+        url = "http://localhost.foo.blah."
 
         # Trick: we cannot mock any of the `Tenacity` callback functions
         # because they are imported before PyTest can patch them. Therefore, we
@@ -218,7 +224,7 @@ class TestK8sDeleteGetPatchPost:
     async def test_request_invalid(self, method, k8sconfig):
         """Simulate connection errors due to invalid URL schemes."""
         urls = [
-            "localhost",        # missing schema like "http://"
+            "localhost",  # missing schema like "http://"
             "httpinvalid://localhost",
             "http://localhost.foo.blah",
         ]
@@ -250,20 +256,25 @@ class TestK8sDeleteGetPatchPost:
             m_req.return_value = (response, code, False)
             assert await k8s.delete(k8sconfig, path, payload) == (response, False)
             m_req.assert_called_once_with(
-                k8sconfig, "DELETE", path, payload, headers=None)
+                k8sconfig, "DELETE", path, payload, headers=None
+            )
 
         # K8s GET request was successful iff its return status is 200.
         m_req.reset_mock()
         m_req.return_value = (response, 200, False)
         assert await k8s.get(k8sconfig, path) == (response, False)
-        m_req.assert_called_once_with(k8sconfig, "GET", path, payload=None, headers=None)
+        m_req.assert_called_once_with(
+            k8sconfig, "GET", path, payload=None, headers=None
+        )
 
         # K8s PATCH request was successful iff its return status is 200.
         m_req.reset_mock()
         m_req.return_value = (response, 200, False)
         assert await k8s.patch(k8sconfig, path, [payload]) == (response, False)
-        patch_headers = {'Content-Type': 'application/json-patch+json'}
-        m_req.assert_called_once_with(k8sconfig, "PATCH", path, [payload], patch_headers)
+        patch_headers = {"Content-Type": "application/json-patch+json"}
+        m_req.assert_called_once_with(
+            k8sconfig, "PATCH", path, [payload], patch_headers
+        )
 
         # K8s POST request was successful iff its return status is 201.
         m_req.reset_mock()
@@ -295,14 +306,18 @@ class TestK8sDeleteGetPatchPost:
         m_req.reset_mock()
         m_req.return_value = (response, 400, False)
         assert await k8s.get(k8sconfig, path) == (response, True)
-        m_req.assert_called_once_with(k8sconfig, "GET", path, payload=None, headers=None)
+        m_req.assert_called_once_with(
+            k8sconfig, "GET", path, payload=None, headers=None
+        )
 
         # K8s PATCH request was unsuccessful because its returns status is not 200.
         m_req.reset_mock()
         m_req.return_value = (response, 400, False)
         assert await k8s.patch(k8sconfig, path, [payload]) == (response, True)
-        patch_headers = {'Content-Type': 'application/json-patch+json'}
-        m_req.assert_called_once_with(k8sconfig, "PATCH", path, [payload], patch_headers)
+        patch_headers = {"Content-Type": "application/json-patch+json"}
+        m_req.assert_called_once_with(
+            k8sconfig, "PATCH", path, [payload], patch_headers
+        )
 
         # K8s POST request was unsuccessful because its returns status is not 201.
         m_req.reset_mock()
@@ -318,13 +333,15 @@ class TestK8sVersion:
 
         # This is a genuine K8s response from Minikube.
         response = {
-            'major': '1', 'minor': '10',
-            'gitVersion': 'v1.10.0',
-            'gitCommit': 'fc32d2f3698e36b93322a3465f63a14e9f0eaead',
-            'gitTreeState': 'clean',
-            'buildDate': '2018-03-26T16:44:10Z',
-            'goVersion': 'go1.9.3',
-            'compiler': 'gc', 'platform': 'linux/amd64'
+            "major": "1",
+            "minor": "10",
+            "gitVersion": "v1.10.0",
+            "gitCommit": "fc32d2f3698e36b93322a3465f63a14e9f0eaead",
+            "gitTreeState": "clean",
+            "buildDate": "2018-03-26T16:44:10Z",
+            "goVersion": "go1.9.3",
+            "compiler": "gc",
+            "platform": "linux/amd64",
         }
         m_get.return_value = (response, None)
 
@@ -404,7 +421,10 @@ class TestUrlPathBuilder:
                 res, err = k8s.resource(k8sconfig, data)
                 assert not err
                 assert res == K8sResource(
-                    apiVersion="v1", kind="Pod", name="pods", namespaced=True,
+                    apiVersion="v1",
+                    kind="Pod",
+                    name="pods",
+                    namespaced=True,
                     url=f"{k8sconfig.url}/api/v1/namespaces/ns/pods/name",
                     aliases=("po", "pod", "pods"),
                     preferred=True,
@@ -418,7 +438,10 @@ class TestUrlPathBuilder:
                 res, err = k8s.resource(k8sconfig, data)
                 assert not err
                 assert res == K8sResource(
-                    apiVersion="v1", kind="Pod", name="pods", namespaced=True,
+                    apiVersion="v1",
+                    kind="Pod",
+                    name="pods",
+                    namespaced=True,
                     url=f"{k8sconfig.url}/api/v1/namespaces/ns/pods",
                     aliases=("po", "pod", "pods"),
                     preferred=True,
@@ -432,7 +455,10 @@ class TestUrlPathBuilder:
                 res, err = k8s.resource(k8sconfig, data)
                 assert not err
                 assert res == K8sResource(
-                    apiVersion="v1", kind="Pod", name="pods", namespaced=True,
+                    apiVersion="v1",
+                    kind="Pod",
+                    name="pods",
+                    namespaced=True,
                     url=f"{k8sconfig.url}/api/v1/pods",
                     aliases=("po", "pod", "pods"),
                     preferred=True,
@@ -460,7 +486,6 @@ class TestUrlPathBuilder:
             ("autoscaling/v1", "autoscaling/v1", False),
             ("autoscaling/v2beta1", "autoscaling/v2beta1", False),
             ("autoscaling/v2beta2", "autoscaling/v2beta2", False),
-
             # Function must automatically determine the latest version of the resource.
             ("", "autoscaling/v2", True),
         ]
@@ -566,7 +591,9 @@ class TestUrlPathBuilder:
         )
 
         # A particular HPA in all namespaces -> Invalid.
-        assert k8s.resource(config, SKGN(value="hpa.autoscaling/name", ns="")) == err_resp
+        assert (
+            k8s.resource(config, SKGN(value="hpa.autoscaling/name", ns="")) == err_resp
+        )
 
     async def test_resource_event_integration(self, k8sconfig):
         """Verify API version retrieval for `Event` resource.
@@ -585,7 +612,6 @@ class TestUrlPathBuilder:
             # We expect to get the version we asked for.
             ("v1", "api", "v1"),
             ("events.k8s.io/v1", "apis", "events.k8s.io/v1"),
-
             # Function must automatically determine the latest version of the resource.
             ("", "api", "v1"),
         ]
@@ -681,7 +707,7 @@ class TestUrlPathBuilder:
                     name="namespaces",
                     namespaced=False,
                     url=f"{config.url}/api/v1/namespaces",
-                    aliases=('namespace', 'namespaces', 'ns'),
+                    aliases=("namespace", "namespaces", "ns"),
                     preferred=True,
                 )
 
@@ -700,7 +726,7 @@ class TestUrlPathBuilder:
                     name="namespaces",
                     namespaced=False,
                     url=f"{config.url}/api/v1/namespaces/name",
-                    aliases=('namespace', 'namespaces', 'ns'),
+                    aliases=("namespace", "namespaces", "ns"),
                     preferred=True,
                 )
 
@@ -721,7 +747,6 @@ class TestUrlPathBuilder:
         api_versions = [
             # We expect to get the version we asked for.
             group,
-
             # Function must automatically determine the latest version of the resource.
             "",
         ]
@@ -772,12 +797,12 @@ class TestUrlPathBuilder:
         group_urls = k8s.parse_api_group("version", "url", resp)
         assert group_urls == [
             K8sResource(
-                apiVersion='version',
-                kind='ConfigMap',
-                name='configmaps',
+                apiVersion="version",
+                kind="ConfigMap",
+                name="configmaps",
                 aliases=("cm", "configmap", "configmaps"),
                 namespaced=True,
-                url='url',
+                url="url",
             )
         ]
 
@@ -819,6 +844,7 @@ class TestUrlPathBuilder:
         def supply_fake_api(_, url):
             path = url.partition("/")[2]
             return fake_api[path], False
+
         m_get.side_effect = supply_fake_api
 
         k8sconfig.apis.clear()
@@ -899,7 +925,6 @@ class TestUrlPathBuilder:
             "pod.v1": [r_po_v1],
             "pods.v1": [r_po_v1],
             "po.v1": [r_po_v1],
-
             # NOTE: `configmap` technically exists in r_deploy_fake_v1 as well
             # but native resources are special and will never be shadowed. This
             # matches the kubectl behaviour where `kubectl get pods` will always
@@ -959,53 +984,63 @@ class TestUrlPathBuilder:
         config = await self.k8sconfig(integrationtest, k8sconfig)
 
         # Verify some standard resource types.
-        assert config.apis["namespace"] == [K8sResource(
-            apiVersion="v1",
-            kind="Namespace",
-            name="namespaces",
-            namespaced=False,
-            url=f"{config.url}/api/v1",
-            aliases=("namespace", "namespaces", "ns"),
-            preferred=True,
-        )]
-        assert config.apis["pod"] == [K8sResource(
-            apiVersion="v1",
-            kind="Pod",
-            name="pods",
-            namespaced=True,
-            url=f"{config.url}/api/v1",
-            aliases=("po", "pod", "pods"),
-            preferred=True,
-        )]
-        assert config.apis["deployment.apps/v1"] == [K8sResource(
-            apiVersion="apps/v1",
-            kind="Deployment",
-            name="deployments",
-            namespaced=True,
-            url=f"{config.url}/apis/apps/v1",
-            aliases=("deploy", "deployment", "deployments"),
-            preferred=True,
-        )]
-        assert config.apis["hpa.autoscaling/v2"] == [K8sResource(
-            apiVersion="autoscaling/v2",
-            kind="HorizontalPodAutoscaler",
-            name="horizontalpodautoscalers",
-            namespaced=True,
-            url=f"{config.url}/apis/autoscaling/v2",
-            aliases=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
-            preferred=True,
-        )]
+        assert config.apis["namespace"] == [
+            K8sResource(
+                apiVersion="v1",
+                kind="Namespace",
+                name="namespaces",
+                namespaced=False,
+                url=f"{config.url}/api/v1",
+                aliases=("namespace", "namespaces", "ns"),
+                preferred=True,
+            )
+        ]
+        assert config.apis["pod"] == [
+            K8sResource(
+                apiVersion="v1",
+                kind="Pod",
+                name="pods",
+                namespaced=True,
+                url=f"{config.url}/api/v1",
+                aliases=("po", "pod", "pods"),
+                preferred=True,
+            )
+        ]
+        assert config.apis["deployment.apps/v1"] == [
+            K8sResource(
+                apiVersion="apps/v1",
+                kind="Deployment",
+                name="deployments",
+                namespaced=True,
+                url=f"{config.url}/apis/apps/v1",
+                aliases=("deploy", "deployment", "deployments"),
+                preferred=True,
+            )
+        ]
+        assert config.apis["hpa.autoscaling/v2"] == [
+            K8sResource(
+                apiVersion="autoscaling/v2",
+                kind="HorizontalPodAutoscaler",
+                name="horizontalpodautoscalers",
+                namespaced=True,
+                url=f"{config.url}/apis/autoscaling/v2",
+                aliases=("horizontalpodautoscaler", "horizontalpodautoscalers", "hpa"),
+                preferred=True,
+            )
+        ]
 
         # Verify our CRD.
-        assert config.apis["democrd.mycrd.com/v1"] == [K8sResource(
-            apiVersion="mycrd.com/v1",
-            kind="DemoCRD",
-            name="democrds",
-            namespaced=True,
-            url=f"{config.url}/apis/mycrd.com/v1",
-            aliases=("democrd", "democrds"),
-            preferred=True,
-        )]
+        assert config.apis["democrd.mycrd.com/v1"] == [
+            K8sResource(
+                apiVersion="mycrd.com/v1",
+                kind="DemoCRD",
+                name="democrds",
+                namespaced=True,
+                url=f"{config.url}/apis/mycrd.com/v1",
+                aliases=("democrd", "democrds"),
+                preferred=True,
+            )
+        ]
 
     def test_pick_api_kind_only(self):
         """Infer the correct resource just from the Kind without the group."""
@@ -1180,7 +1215,7 @@ class TestK8sKubeconfig:
         ret, err = k8s.load_incluster_config(tokenfile, cafile)
         assert not err
         assert ret == K8sConfig(
-            url='https://1.2.3.4',
+            url="https://1.2.3.4",
             token="token",
             cadata="cert",
             cert=None,
@@ -1191,8 +1226,9 @@ class TestK8sKubeconfig:
     @mock.patch.object(k8s, "load_auto_config")
     @mock.patch.object(k8s, "version")
     @mock.patch.object(k8s, "compile_api_endpoints")
-    async def test_cluster_config_mock(self, m_compile_endpoints, m_version,
-                                       m_load_auto, k8sconfig):
+    async def test_cluster_config_mock(
+        self, m_compile_endpoints, m_version, m_load_auto, k8sconfig
+    ):
         """Mock all dependent calls and just verify the error handling."""
         kubeconfig = Path("kubeconfig")
         kubecontext = None

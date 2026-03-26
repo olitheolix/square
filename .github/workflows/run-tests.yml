@@ -49,6 +49,7 @@ jobs:
       - name: Linting and Static Analysis
         run: |
           uv tool run ruff check
+          uv tool run ruff format --check
           uv run mypy ./
 
       - name: Unit Tests

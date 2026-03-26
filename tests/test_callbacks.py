@@ -1,4 +1,3 @@
-
 import square
 import square.callbacks
 from square.dtypes import Config

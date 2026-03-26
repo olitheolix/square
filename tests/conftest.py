@@ -16,14 +16,16 @@ from .test_helpers import k8s_apis
 
 def pytest_configure(*args, **kwargs):
     """Pytest calls this hook on startup."""
-    _ = args, kwargs            # make linter happy.
+    _ = args, kwargs  # make linter happy.
 
     # Set log level to DEBUG for all unit tests.
     square.square.setup_logging(9)
 
     if Path(".square.yaml").exists():
-        print("\n--- Found `.square.yaml` in root folder. "
-              "The tests cannot tolerate that. ABORT ---\n")
+        print(
+            "\n--- Found `.square.yaml` in root folder. "
+            "The tests cannot tolerate that. ABORT ---\n"
+        )
         assert False
 
 
@@ -46,10 +48,7 @@ def k8sconfig_fixture() -> K8sConfig:
     # Kubernetes v1.25.
     cadata = Path("tests/support/client.crt").read_text()
     cfg = K8sConfig(
-        name="mycluster",
-        version="1.25",
-        client=httpx.AsyncClient(),
-        cadata=cadata
+        name="mycluster", version="1.25", client=httpx.AsyncClient(), cadata=cadata
     )
 
     # The set of API endpoints we can use in the tests.
@@ -73,7 +72,7 @@ def sqcfg(tmp_path) -> Generator[Config, None, None]:
 
     # Point the folder and kubeconfig to temporary versions.
     cfg.folder = tmp_path
-    cfg.kubeconfig = (tmp_path / "kubeconf")
+    cfg.kubeconfig = tmp_path / "kubeconf"
 
     # Ensure the dummy kubeconfig file exists.
     cfg.kubeconfig.write_text("")

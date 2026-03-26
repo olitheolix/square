@@ -24,9 +24,9 @@ from square.dtypes import Config
 logit = logging.getLogger("square")
 
 
-def patch_manifests(config: Config,
-                    local_manifest: dict,
-                    server_manifest: dict) -> Tuple[dict, dict]:
+def patch_manifests(
+    config: Config, local_manifest: dict, server_manifest: dict
+) -> Tuple[dict, dict]:
     """Return a possibly modified version of local and server manifest.
 
     Square will call this function for every resource that may require a patch

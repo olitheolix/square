@@ -15,16 +15,27 @@ from colorlog import ColoredFormatter
 import square.k8s as k8s
 import square.manio as manio
 from square.dtypes import (
-    Config, DeltaCreate, DeltaDelete, DeltaPatch, DeploymentPlan,
-    DeploymentPlanMeta, JsonPatch, K8sConfig, MetaManifest, Selectors,
-    SelKindGroupNames, SquareManifests,
+    Config,
+    DeltaCreate,
+    DeltaDelete,
+    DeltaPatch,
+    DeploymentPlan,
+    DeploymentPlanMeta,
+    JsonPatch,
+    K8sConfig,
+    MetaManifest,
+    Selectors,
+    SelKindGroupNames,
+    SquareManifests,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
 
 
-def normalise_kinds(kinds: Iterable[str], k8sconfig: K8sConfig) -> Tuple[List[str], bool]:
+def normalise_kinds(
+    kinds: Iterable[str], k8sconfig: K8sConfig
+) -> Tuple[List[str], bool]:
     """Convert `Selectors.{kind, priorities}` to <kind>.<group>/<name> format.
 
     This is a Square internal format to uniquely identify a resource and its
@@ -103,9 +114,8 @@ def compile_config(cfg: Config, k8sconfig: K8sConfig) -> Tuple[Config, bool]:
 
 
 def make_patch(
-        k8sconfig: K8sConfig,
-        local: dict,
-        server: dict) -> Tuple[JsonPatch, bool]:
+    k8sconfig: K8sConfig, local: dict, server: dict
+) -> Tuple[JsonPatch, bool]:
     """Return JSON patch to transition `server` to `local`.
 
     Inputs:
@@ -154,8 +164,8 @@ def make_patch(
 
 
 def partition_manifests(
-        local: SquareManifests,
-        server: SquareManifests) -> Tuple[DeploymentPlanMeta, bool]:
+    local: SquareManifests, server: SquareManifests
+) -> Tuple[DeploymentPlanMeta, bool]:
     """Compile `{local,server}` into CREATE, PATCH and DELETE groups.
 
     The returned deployment plan will contain *every* resource in
@@ -197,9 +207,8 @@ def partition_manifests(
 
 
 async def match_api_version(
-        k8sconfig: K8sConfig,
-        local: SquareManifests,
-        server: SquareManifests) -> Tuple[SquareManifests, bool]:
+    k8sconfig: K8sConfig, local: SquareManifests, server: SquareManifests
+) -> Tuple[SquareManifests, bool]:
     """Fetch the manifests from the endpoints defined in the local manifest.
 
     Re-fetch the manifests where the local files specify a different API
@@ -270,10 +279,12 @@ async def match_api_version(
     return server, False
 
 
-def run_patch_callback(config: Config,
-                       plan_patch: List[MetaManifest],
-                       local: Dict[MetaManifest, dict],
-                       server: Dict[MetaManifest, dict]) -> bool:
+def run_patch_callback(
+    config: Config,
+    plan_patch: List[MetaManifest],
+    local: Dict[MetaManifest, dict],
+    server: Dict[MetaManifest, dict],
+) -> bool:
     """Run the user supplied callback function for all manifests to patch.
 
     This function will run *after* the manifests were stripped.
@@ -298,7 +309,8 @@ def run_patch_callback(config: Config,
     try:
         for meta in plan_patch:
             (local[meta], server[meta]), err = call_external_function(
-                cb, config, local[meta], server[meta])
+                cb, config, local[meta], server[meta]
+            )
             assert not err
 
             # The `MetaManifest` information must not have changed.
@@ -311,7 +323,7 @@ def run_patch_callback(config: Config,
 
                 # All is well if the returned manifest still produces the same
                 # `MetaManifest` as the original.
-                if (meta == ret_meta):
+                if meta == ret_meta:
                     continue
 
                 # The callback destroyed the `MetaManifest` information. Square
@@ -349,10 +361,11 @@ def call_external_function(fun: Callable, *args, **kwargs) -> Tuple[Any, bool]:
 
 
 async def compile_plan(
-        config: Config,
-        k8sconfig: K8sConfig,
-        local: SquareManifests,
-        server: SquareManifests) -> Tuple[DeploymentPlan, bool]:
+    config: Config,
+    k8sconfig: K8sConfig,
+    local: SquareManifests,
+    server: SquareManifests,
+) -> Tuple[DeploymentPlan, bool]:
     """Return the `DeploymentPlan` that would propagate the `local` state to K8s.
 
     The deployment plan is a named tuple. It specifies which resources to
@@ -482,7 +495,9 @@ def show_plan(plan: DeploymentPlan) -> bool:
 
     # Use Green to list all the resources that we should create.
     for delta_c in plan.create:
-        name = f"{delta_c.meta.kind.upper()} {delta_c.meta.namespace}/{delta_c.meta.name}"
+        name = (
+            f"{delta_c.meta.kind.upper()} {delta_c.meta.namespace}/{delta_c.meta.name}"
+        )
         name += f" ({delta_c.meta.apiVersion})"
 
         # Convert manifest to YAML string and print every line in Green.
@@ -494,7 +509,7 @@ def show_plan(plan: DeploymentPlan) -> bool:
         txt.insert(0, cAdd + f"Create {name}" + cReset)
 
         # Print the reassembled string.
-        print(str.join('\n', txt) + '\n')
+        print(str.join("\n", txt) + "\n")
         n_add += 1
 
     # Print the diff (already contains terminal colours) for all the resources
@@ -506,23 +521,27 @@ def show_plan(plan: DeploymentPlan) -> bool:
         # Add some terminal colours to make it look prettier.
         colour_lines = []
         for line in delta_p.diff.splitlines():
-            if line.startswith('+'):
+            if line.startswith("+"):
                 colour_lines.append(cAdd + line + cReset)
-            elif line.startswith('-'):
+            elif line.startswith("-"):
                 colour_lines.append(cDel + line + cReset)
             else:
                 colour_lines.append(line)
         colour_lines = [f"    {line}" for line in colour_lines]
-        formatted_diff = str.join('\n', colour_lines)
+        formatted_diff = str.join("\n", colour_lines)
 
-        name = f"{delta_p.meta.kind.upper()} {delta_p.meta.namespace}/{delta_p.meta.name}"
+        name = (
+            f"{delta_p.meta.kind.upper()} {delta_p.meta.namespace}/{delta_p.meta.name}"
+        )
         name += f" ({delta_p.meta.apiVersion})"
         print(cMod + f"Patch {name}" + cReset + "\n" + formatted_diff + "\n")
         n_mod += 1
 
     # Use Red to list all the resources that we should delete.
     for delta_d in plan.delete:
-        name = f"{delta_d.meta.kind.upper()} {delta_d.meta.namespace}/{delta_d.meta.name}"
+        name = (
+            f"{delta_d.meta.kind.upper()} {delta_d.meta.namespace}/{delta_d.meta.name}"
+        )
         name += f" ({delta_d.meta.apiVersion})"
         print(cDel + f"Delete {name}" + cReset)
         n_del += 1
@@ -533,16 +552,25 @@ def show_plan(plan: DeploymentPlan) -> bool:
     cDel = cDel if len(plan.delete) else colorama.Style.BRIGHT + colorama.Fore.WHITE
 
     print("-" * 80)
-    print("Plan: " +                         # noqa
-          cReset + cAdd + f"{n_add:,} to add, " +     # noqa
-          cReset + cMod + f"{n_mod:,} to change, " +  # noqa
-          cReset + cDel + f"{n_del:,} to destroy." +  # noqa
-          cReset + "\n")
+    print(
+        "Plan: "  # noqa
+        + cReset
+        + cAdd
+        + f"{n_add:,} to add, "  # noqa
+        + cReset
+        + cMod
+        + f"{n_mod:,} to change, "  # noqa
+        + cReset
+        + cDel
+        + f"{n_del:,} to destroy."  # noqa
+        + cReset
+        + "\n"
+    )
     return False
 
 
 def find_namespace_orphans(
-        meta_manifests: Collection[MetaManifest]
+    meta_manifests: Collection[MetaManifest],
 ) -> Tuple[Set[MetaManifest], bool]:
     """Return all orphaned resources in the `meta_manifest` set.
 
@@ -564,12 +592,13 @@ def find_namespace_orphans(
     meta_manifests = set(meta_manifests)
 
     # Extract all declared namespaces so we can find the orphans next.
-    namespaces = {_.name for _ in meta_manifests if _.kind == 'Namespace'}
+    namespaces = {_.name for _ in meta_manifests if _.kind == "Namespace"}
 
     # Find all manifests that are neither a Namespace nor belong to any of the
     # `namespaces` from the previous step
     orphans = {
-        _ for _ in meta_manifests
+        _
+        for _ in meta_manifests
         if _.kind != "Namespace" and _.namespace not in namespaces
     }
 
@@ -661,12 +690,14 @@ def sort_plan(cfg: Config, plan: DeploymentPlan) -> Tuple[DeploymentPlan, bool]:
     # number that is larger than all other numbers in that list. This will
     # ensure they come last when we sort.
     missing_create = {
-        _.meta.skgn().kind_group for _ in plan.create
+        _.meta.skgn().kind_group
+        for _ in plan.create
         if _.meta.skgn().kind_group not in priority_id
     }
     priority_id.update({_: max_id for _ in missing_create})
     missing_delete = {
-        _.meta.skgn().kind_group for _ in plan.delete
+        _.meta.skgn().kind_group
+        for _ in plan.delete
         if _.meta.skgn().kind_group not in priority_id
     }
     priority_id.update({_: max_id for _ in missing_delete})
@@ -700,7 +731,7 @@ def valid_label(label: str) -> bool:
     # K8s uses this regex to validate the three individual label components
     # `name`, `part` and `suffix`.
     # Example: "name=part/suffix" -> ("name", "part", "value").
-    pat = re.compile(r'^([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$')
+    pat = re.compile(r"^([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$")
 
     try:
         # Split `app=part/file` into (`app`, `part/value`).
@@ -764,7 +795,9 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
 
     # Create the missing resources. Abort on first error.
     for data_c in plan.create:
-        msg_res = f"{data_c.meta.kind.upper()} {data_c.meta.namespace}/{data_c.meta.name}"
+        msg_res = (
+            f"{data_c.meta.kind.upper()} {data_c.meta.namespace}/{data_c.meta.name}"
+        )
         print(f"Creating {msg_res}")
         _, err = await k8s.post(k8sconfig, data_c.url, data_c.manifest)
         if err:
@@ -783,7 +816,9 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
 
     # Delete the excess resources. Abort on first error.
     for data_d in plan.delete:
-        msg_res = f"{data_d.meta.kind.upper()} {data_d.meta.namespace}/{data_d.meta.name}"
+        msg_res = (
+            f"{data_d.meta.kind.upper()} {data_d.meta.namespace}/{data_d.meta.name}"
+        )
         print(f"Deleting {msg_res}")
         _, err = await k8s.delete(k8sconfig, data_d.url, data_d.manifest)
         if err:
@@ -799,21 +834,18 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
 
 
 def pick_manifests_for_plan(
-        local: SquareManifests,
-        server: SquareManifests,
-        selectors: Selectors) -> Tuple[SquareManifests, SquareManifests]:
+    local: SquareManifests, server: SquareManifests, selectors: Selectors
+) -> Tuple[SquareManifests, SquareManifests]:
     """Return the subset of `local` and `server` that satisfy the `selectors`."""
 
     # Compile the server manifests that match the selectors.
     sel_local = {
-        meta: man for meta, man in local.items()
-        if manio.select(man, selectors, True)
+        meta: man for meta, man in local.items() if manio.select(man, selectors, True)
     }
 
     # Compile the local manifests that match the selectors.
     sel_server = {
-        meta: man for meta, man in server.items()
-        if manio.select(man, selectors, True)
+        meta: man for meta, man in server.items() if manio.select(man, selectors, True)
     }
 
     # Every selected resource which exists both locally and on the server

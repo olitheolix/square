@@ -11,7 +11,10 @@ import square
 import square.callbacks
 import square.cfgfile as cfgfile
 from square.dtypes import (
-    DEFAULT_PRIORITIES, Config, ConnectionParameters, GroupBy,
+    DEFAULT_PRIORITIES,
+    Config,
+    ConnectionParameters,
+    GroupBy,
 )
 
 
@@ -56,6 +59,7 @@ class TestLoadConfig:
         This used to be a bug.
 
         """
+
         def cb_strip(_: Config, manifest: dict):
             return manifest
 
@@ -64,7 +68,7 @@ class TestLoadConfig:
 
         # Pass explicit callbacks.
         cfg = Config(
-            kubeconfig=tmp_path/"config.yaml",
+            kubeconfig=tmp_path / "config.yaml",
             folder=tmp_path,
             strip_callback=cb_strip,
             patch_callback=cb_patch,
@@ -97,7 +101,11 @@ class TestLoadConfig:
         assert cfg.selectors.namespaces == ["default", "kube-system"]
         assert cfg.selectors.labels == ["app=square"]
         assert set(cfg.filters.keys()) == {
-            "_common_", "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
+            "_common_",
+            "ConfigMap",
+            "Deployment",
+            "HorizontalPodAutoscaler",
+            "Service",
         }
         assert cfg.strip_callback is square.callbacks.strip_manifest
         assert cfg.patch_callback is square.callbacks.patch_manifests
@@ -210,48 +218,58 @@ class TestFilters:
         custom = [{"foo": ["bar"]}]
         expected = [
             {"foo": ["bar"]},
-            {"metadata": [
-                {"annotations": [
-                    "autoscaling.alpha.kubernetes.io/conditions",
-                    "deployment.kubernetes.io/revision",
-                    "kubectl.kubernetes.io/last-applied-configuration",
-                    "kubernetes.io/change-cause",
-                ]},
-                "creationTimestamp",
-                "generation",
-                "managedFields",
-                "resourceVersion",
-                "selfLink",
-                "uid",
-            ]},
+            {
+                "metadata": [
+                    {
+                        "annotations": [
+                            "autoscaling.alpha.kubernetes.io/conditions",
+                            "deployment.kubernetes.io/revision",
+                            "kubectl.kubernetes.io/last-applied-configuration",
+                            "kubernetes.io/change-cause",
+                        ]
+                    },
+                    "creationTimestamp",
+                    "generation",
+                    "managedFields",
+                    "resourceVersion",
+                    "selfLink",
+                    "uid",
+                ]
+            },
             "status",
         ]
         assert cfgfile.merge(defaults, custom) == expected
 
         # Repeat the test but with a more complex `custom` filter.
         custom = [
-            {"metadata": [
-                {"annotations": ["orig-annot"]},
-                "orig-meta",
-            ]},
+            {
+                "metadata": [
+                    {"annotations": ["orig-annot"]},
+                    "orig-meta",
+                ]
+            },
         ]
         expected = [
-            {"metadata": [
-                {"annotations": [
-                    "autoscaling.alpha.kubernetes.io/conditions",
-                    "deployment.kubernetes.io/revision",
-                    "kubectl.kubernetes.io/last-applied-configuration",
-                    "kubernetes.io/change-cause",
-                    "orig-annot",
-                ]},
-                "creationTimestamp",
-                "generation",
-                "managedFields",
-                "orig-meta",
-                "resourceVersion",
-                "selfLink",
-                "uid",
-            ]},
+            {
+                "metadata": [
+                    {
+                        "annotations": [
+                            "autoscaling.alpha.kubernetes.io/conditions",
+                            "deployment.kubernetes.io/revision",
+                            "kubectl.kubernetes.io/last-applied-configuration",
+                            "kubernetes.io/change-cause",
+                            "orig-annot",
+                        ]
+                    },
+                    "creationTimestamp",
+                    "generation",
+                    "managedFields",
+                    "orig-meta",
+                    "resourceVersion",
+                    "selfLink",
+                    "uid",
+                ]
+            },
             "status",
         ]
         assert cfgfile.merge(defaults, custom) == expected
@@ -262,21 +280,25 @@ class TestFilters:
             {"metadata": ["orig-meta"]},
         ]
         expected = [
-            {"metadata": [
-                {"annotations": [
-                    "autoscaling.alpha.kubernetes.io/conditions",
-                    "deployment.kubernetes.io/revision",
-                    "kubectl.kubernetes.io/last-applied-configuration",
-                    "kubernetes.io/change-cause",
-                ]},
-                "creationTimestamp",
-                "generation",
-                "managedFields",
-                "orig-meta",
-                "resourceVersion",
-                "selfLink",
-                "uid",
-            ]},
+            {
+                "metadata": [
+                    {
+                        "annotations": [
+                            "autoscaling.alpha.kubernetes.io/conditions",
+                            "deployment.kubernetes.io/revision",
+                            "kubectl.kubernetes.io/last-applied-configuration",
+                            "kubernetes.io/change-cause",
+                        ]
+                    },
+                    "creationTimestamp",
+                    "generation",
+                    "managedFields",
+                    "orig-meta",
+                    "resourceVersion",
+                    "selfLink",
+                    "uid",
+                ]
+            },
             "status",
         ]
         assert cfgfile.merge(defaults, custom) == expected
@@ -284,7 +306,7 @@ class TestFilters:
 
 class TestModels:
     def test_config_basic(self):
-        kwargs = dict(kubeconfig=Path(), folder=Path('/tmp'))
+        kwargs = dict(kubeconfig=Path(), folder=Path("/tmp"))
 
         # The top level entry must always be a dict.
         valid_filters: Any = (
@@ -300,28 +322,24 @@ class TestModels:
 
         invalid_filters: Any = (
             # Must be a dict.
-            [], set(), tuple(),
-
+            [],
+            set(),
+            tuple(),
             # The dict value must be a List.
             {"foo": "bar"},
             {"foo": {"bar": ["bar"]}},
-
             # Each dict must have exactly one key.
             {"foo": [{}]},
             {"foo": [{"key1": [], "key2": []}]},
-
             # Dict keys and list entries must be non-empty strings.
             {"foo": [""]},
             {"foo": [{"": []}]},
-
             # Each list entry must be either a string or dict.
             {"foo": [{"bar": [set()]}]},
             {"foo": [{"bar": {"foo"}}]},
-
             # Dict keys must be non-empty strings.
             {"": []},
             {10: []},
-
             {"foo": [{"": []}]},
             {"foo": [{10: []}]},
         )

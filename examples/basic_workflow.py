@@ -4,6 +4,7 @@ This example will download some manifests from the KinD integration test
 server, create a plan and then apply it.
 
 """
+
 import asyncio
 from pathlib import Path
 
@@ -26,13 +27,10 @@ async def main():
     config = Config(
         kubeconfig=kubeconfig,
         kubecontext=kubecontext,
-
         # Store manifests in this folder.
-        folder=Path('manifests'),
-
+        folder=Path("manifests"),
         # Group the downloaded manifests by namespace, label and kind.
         groupby=GroupBy(label="app", order=["ns", "label", "kind"]),
-
         # Specify the resources types to operate on. These ones in particular
         # will work with the demo setup in the `../integration-test-cluster`.
         selectors=Selectors(

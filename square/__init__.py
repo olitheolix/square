@@ -7,7 +7,7 @@ from pathlib import Path
 from . import square
 from .cfgfile import load
 
-__version__ = '2.4.0'
+__version__ = "2.4.0"
 
 # This is a workaround for a multiprocessing problem on Linux that started with
 # Python 3.14. In that version, Python made the `forkserver` the default method
@@ -23,8 +23,8 @@ if sys.platform.startswith("linux"):
 # ---------------------------------------------------------------------------
 # Determine the base folder. This is usually the folder of this very file but
 # will be different if we run inside a bundle produced by PyInstaller.
-if getattr(sys, '_MEIPASS', None):
-    BASE_DIR = Path(getattr(sys, '_MEIPASS'))
+if getattr(sys, "_MEIPASS", None):
+    BASE_DIR = Path(getattr(sys, "_MEIPASS"))
     DEFAULT_CONFIG_FILE = BASE_DIR / "resources" / "defaultconfig.yaml"
 else:
     with importlib.resources.path("square.resources", "defaultconfig.yaml") as f:

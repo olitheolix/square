@@ -20,7 +20,7 @@ def kind_available():
     # a cluster that the tests can use, otherwise not.
     try:
         sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "version")  # type: ignore
-    except (ImportError, sh.CommandNotFound, sh.ErrorReturnCode_1):         # type: ignore
+    except (ImportError, sh.CommandNotFound, sh.ErrorReturnCode_1):  # type: ignore
         return False
     return True
 
@@ -204,8 +204,9 @@ def k8s_apis(config: K8sConfig) -> Dict[str, List[K8sResource]]:
     return ans
 
 
-def make_manifest(kind: str, namespace: str | None, name: str | None,
-                  labels: Dict[str, str] = {}) -> dict:
+def make_manifest(
+    kind: str, namespace: str | None, name: str | None, labels: Dict[str, str] = {}
+) -> dict:
     # Try to find the resource `kind` and lift its associated `apiVersion`.
     apis = k8s_apis(K8sConfig(version="1.26"))
     apiVersion = apis[kind.lower()][0].apiVersion
@@ -213,16 +214,14 @@ def make_manifest(kind: str, namespace: str | None, name: str | None,
     # Compile a manifest.
     manifest: Dict[str, Any]
     manifest = {
-        'apiVersion': apiVersion,
-        'kind': kind,
-        'metadata': {
-            'name': name,
-            'labels': labels,
+        "apiVersion": apiVersion,
+        "kind": kind,
+        "metadata": {
+            "name": name,
+            "labels": labels,
         },
-        'spec': {
-            'finalizers': ['kubernetes']
-        },
-        'garbage': 'more garbage',
+        "spec": {"finalizers": ["kubernetes"]},
+        "garbage": "more garbage",
     }
 
     # Do not include an empty label dict.
@@ -231,7 +230,7 @@ def make_manifest(kind: str, namespace: str | None, name: str | None,
 
     # Only create namespace entry if one was specified.
     if namespace is not None:
-        manifest['metadata']['namespace'] = namespace
+        manifest["metadata"]["namespace"] = namespace
 
     return manifest
 

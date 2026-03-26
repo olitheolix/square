@@ -16,8 +16,16 @@ import square.manio as manio
 import square.square as sq
 from square import DEFAULT_CONFIG_FILE
 from square.dtypes import (
-    DEFAULT_PRIORITIES, Config, ConnectionParameters, DeltaCreate, DeltaDelete,
-    DeltaPatch, DeploymentPlan, GroupBy, JsonPatch, Selectors,
+    DEFAULT_PRIORITIES,
+    Config,
+    ConnectionParameters,
+    DeltaCreate,
+    DeltaDelete,
+    DeltaPatch,
+    DeploymentPlan,
+    GroupBy,
+    JsonPatch,
+    Selectors,
 )
 
 from .test_helpers import make_manifest
@@ -27,8 +35,9 @@ TEST_CONFIG_FNAME = Path(__file__).parent / "support/config.yaml"
 
 
 @pytest.fixture
-def fname_param_config(tmp_path) -> Generator[
-        Tuple[Path, types.SimpleNamespace, Config], None, None]:
+def fname_param_config(
+    tmp_path,
+) -> Generator[Tuple[Path, types.SimpleNamespace, Config], None, None]:
     """Parsed command line args to produce the default configuration.
 
     The return values are what `parse_commandline_args` would return, as well
@@ -72,10 +81,8 @@ def fname_param_config(tmp_path) -> Generator[
         verbosity=9,
         info=False,
         no_config=False,
-
         # Dummy kubeconfig created by the `config` fixture.
         kubeconfig=str(config.kubeconfig),
-
         # These were not specified on the command line.
         folder=".",
         kinds=DEFAULT_PRIORITIES,
@@ -85,9 +92,8 @@ def fname_param_config(tmp_path) -> Generator[
         groupby=["ns", "label=app", "kind"],
         priorities=DEFAULT_PRIORITIES,
         connection_parameters=ConnectionParameters(
-            disable_x509_strict=False,
-            k8s_extra_headers={"foo": "bar"}
-        )
+            disable_x509_strict=False, k8s_extra_headers={"foo": "bar"}
+        ),
     )
 
     cwd = Path.cwd()
@@ -152,11 +158,9 @@ class TestMain:
         # ---------------------------------------------------------------------
         param = types.SimpleNamespace(
             configfile=Path("tests/support/config.yaml"),
-
             # Must override this and point it to a dummy file or
             # `compile_config` will complain it does not exist.
             kubeconfig=str(kubeconfig_override),
-
             # User did not specify anything else.
             kubecontext=None,
             folder=None,
@@ -182,7 +186,11 @@ class TestMain:
         )
         assert cfg.groupby == GroupBy(label="app", order=["ns", "label", "kind"])
         assert set(cfg.filters.keys()) == {
-            "_common_", "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
+            "_common_",
+            "ConfigMap",
+            "Deployment",
+            "HorizontalPodAutoscaler",
+            "Service",
         }
 
         # ---------------------------------------------------------------------
@@ -215,7 +223,11 @@ class TestMain:
         )
         assert cfg.groupby == GroupBy(label="foo", order=["kind", "label", "ns"])
         assert set(cfg.filters.keys()) == {
-            "_common_", "ConfigMap", "Deployment", "HorizontalPodAutoscaler", "Service"
+            "_common_",
+            "ConfigMap",
+            "Deployment",
+            "HorizontalPodAutoscaler",
+            "Service",
         }
 
     def test_compile_config_default_folder(self, fname_param_config):
@@ -451,20 +463,25 @@ class TestMain:
                 selectors=Selectors(),
                 groupby=GroupBy(),
                 priorities=[],
-            ), True)
+            ),
+            True,
+        )
 
     def test_compile_hierarchy_ok(self, fname_param_config):
         """Parse the `--groupby` argument."""
         _, param, _ = fname_param_config
 
-        err_resp = Config(
-            folder=Path(""),
-            kubeconfig=Path(""),
-            kubecontext=None,
-            selectors=Selectors(),
-            groupby=GroupBy(),
-            priorities=[],
-        ), True
+        err_resp = (
+            Config(
+                folder=Path(""),
+                kubeconfig=Path(""),
+                kubecontext=None,
+                selectors=Selectors(),
+                groupby=GroupBy(),
+                priorities=[],
+            ),
+            True,
+        )
 
         # ----------------------------------------------------------------------
         # Default hierarchy.
@@ -505,8 +522,9 @@ class TestMain:
     @mock.patch.object(sq, "make_plan")
     @mock.patch.object(main, "apply_plan")
     @mock.patch.object(sq.k8s, "cluster_config")
-    async def test_main_valid_options(self, m_cluster, m_apply, m_plan, m_get,
-                                      k8sconfig, fname_param_config):
+    async def test_main_valid_options(
+        self, m_cluster, m_apply, m_plan, m_get, k8sconfig, fname_param_config
+    ):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
@@ -526,11 +544,17 @@ class TestMain:
         # Simulate all input options.
         for option in options:
             args = (
-                "square.py", option, *config.selectors.kinds,
-                "--folder", str(config.folder),
-                "--kubeconfig", str(config.kubeconfig),
-                "--labels", "app=demo",
-                "--namespace", "default",
+                "square.py",
+                option,
+                *config.selectors.kinds,
+                "--folder",
+                str(config.folder),
+                "--kubeconfig",
+                str(config.kubeconfig),
+                "--labels",
+                "app=demo",
+                "--namespace",
+                "default",
             )
             with mock.patch("sys.argv", args):
                 assert await main.start() == 0
@@ -553,11 +577,17 @@ class TestMain:
 
         for option in options:
             args = (
-                "square.py", option, *config.selectors.kinds,
-                "--folder", str(config.folder),
-                "--kubeconfig", str(config.kubeconfig),
-                "--labels", "app=demo",
-                "--namespace", "default",
+                "square.py",
+                option,
+                *config.selectors.kinds,
+                "--folder",
+                str(config.folder),
+                "--kubeconfig",
+                str(config.kubeconfig),
+                "--labels",
+                "app=demo",
+                "--namespace",
+                "default",
                 "--info",
             )
             with mock.patch("sys.argv", args):
@@ -585,7 +615,7 @@ class TestMain:
         Either way, the program must abort with a non-zero exit code.
 
         """
-        _ = m_k8s               # make linter happy.
+        _ = m_k8s  # make linter happy.
 
         # Do not pass any option.
         with mock.patch("sys.argv", ["square.py"]):
@@ -603,8 +633,9 @@ class TestMain:
     @mock.patch.object(sq, "get_resources")
     @mock.patch.object(sq, "make_plan")
     @mock.patch.object(sq, "apply_plan")
-    async def test_main_nonzero_exit_on_error(self, m_apply, m_plan, m_get,
-                                              m_k8s, k8sconfig):
+    async def test_main_nonzero_exit_on_error(
+        self, m_apply, m_plan, m_get, m_k8s, k8sconfig
+    ):
         """Simulate sane program invocation.
 
         This test verifies that the bootstrapping works and the correct
@@ -629,8 +660,9 @@ class TestMain:
 
     @mock.patch.object(main, "parse_commandline_args")
     @mock.patch.object(k8s, "cluster_config")
-    async def test_main_invalid_option_in_main(self, m_cluster, m_cmd, k8sconfig,
-                                               fname_param_config):
+    async def test_main_invalid_option_in_main(
+        self, m_cluster, m_cmd, k8sconfig, fname_param_config
+    ):
         """Simulate an option that `square` does not know about.
 
         This is a somewhat pathological test and exists primarily to close some
@@ -668,7 +700,7 @@ class TestMain:
         with mock.patch("sys.argv", ["square.py", "init", "--folder", str(folder)]):
             assert await main.start() == 0
 
-        fname = (folder / ".square.yaml")
+        fname = folder / ".square.yaml"
         assert DEFAULT_CONFIG_FILE.read_text() == fname.read_text()
 
     def test_parse_commandline_args_labels_valid(self):
@@ -684,8 +716,9 @@ class TestMain:
             assert ret.labels == ["foo=bar"]
 
         # Two labels.
-        with mock.patch("sys.argv",
-                        ["square.py", "get", "all", "-l", "foo=bar", "x=y"]):
+        with mock.patch(
+            "sys.argv", ["square.py", "get", "all", "-l", "foo=bar", "x=y"]
+        ):
             ret = main.parse_commandline_args()
             assert ret.labels == ["foo=bar", "x=y"]
 
@@ -707,8 +740,13 @@ class TestMain:
         """GET supports file hierarchy options."""
         kubeconfig = tmp_path / "kubeconfig.yaml"
         kubeconfig.write_text("")
-        base_cmd = ("square.py", "get", "all",
-                    "--kubeconfig", str(tmp_path / "kubeconfig.yaml"))
+        base_cmd = (
+            "square.py",
+            "get",
+            "all",
+            "--kubeconfig",
+            str(tmp_path / "kubeconfig.yaml"),
+        )
 
         # ----------------------------------------------------------------------
         # Default file system hierarchy.
@@ -763,7 +801,11 @@ class TestMain:
     def test_parse_commandline_args_labels_invalid(self):
         """Must abort on invalid labels."""
         invalid_labels = (
-            "foo", "foo=", "=foo", "foo=bar=foobar", "foo==bar",
+            "foo",
+            "foo=",
+            "=foo",
+            "foo=bar=foobar",
+            "foo==bar",
             "foo=ba/r",
         )
         for label in invalid_labels:
@@ -782,8 +824,8 @@ class TestMain:
             # Square must use the supplied Kubeconfig file and ignore the
             # environment variable.
             with mock.patch(
-                    "sys.argv",
-                    ["square.py", "get", "svc", "--kubeconfig", "/file"]):
+                "sys.argv", ["square.py", "get", "svc", "--kubeconfig", "/file"]
+            ):
                 ret = main.parse_commandline_args()
                 assert ret.kubeconfig == "/file"
 
@@ -808,17 +850,17 @@ class TestMain:
         assert main.user_confirmed(None) is True
 
         # Answer matches expected answer: must return True.
-        with mock.patch.object(main, 'input', lambda _: "yes"):
+        with mock.patch.object(main, "input", lambda _: "yes"):
             assert main.user_confirmed("yes") is True
 
         # Every other answer must return False.
         answers = ("YES", "", "y", "ye", "yess", "blah")
         for answer in answers:
-            with mock.patch.object(main, 'input', lambda _: answer):
+            with mock.patch.object(main, "input", lambda _: answer):
                 assert main.user_confirmed("yes") is False
 
         # Must gracefully handle keyboard interrupts and return False.
-        with mock.patch.object(main, 'input') as m_input:
+        with mock.patch.object(main, "input") as m_input:
             m_input.side_effect = KeyboardInterrupt
             assert main.user_confirmed("yes") is False
 
@@ -845,8 +887,8 @@ class TestApplyPlan:
         patch = JsonPatch(
             url="patch_url",
             ops=[
-                {'op': 'remove', 'path': '/metadata/labels/old'},
-                {'op': 'add', 'path': '/metadata/labels/new', 'value': 'new'},
+                {"op": "remove", "path": "/metadata/labels/old"},
+                {"op": "add", "path": "/metadata/labels/new", "value": "new"},
             ],
         )
         # Valid non-empty deployment plan.
@@ -862,12 +904,12 @@ class TestApplyPlan:
         m_apply.return_value = False
 
         # Function must not apply the plan without the user's confirmation.
-        with mock.patch.object(main, 'input', lambda _: "no"):
+        with mock.patch.object(main, "input", lambda _: "no"):
             assert await fun(sqcfg, "yes") is True
         assert not m_apply.called
 
         # Function must apply the plan if the user confirms it.
-        with mock.patch.object(main, 'input', lambda _: "yes"):
+        with mock.patch.object(main, "input", lambda _: "yes"):
             assert await fun(sqcfg, "yes") is False
         m_apply.assert_called_once_with(sqcfg, plan)
 
@@ -883,7 +925,7 @@ class TestApplyPlan:
         m_apply.reset_mock()
         m_plan.return_value = (DeploymentPlan(create=[], patch=[], delete=[]), False)
 
-        with mock.patch.object(main, 'input', lambda _: "yes"):
+        with mock.patch.object(main, "input", lambda _: "yes"):
             assert await fun(sqcfg, "yes") is False
         assert not m_apply.called
 
