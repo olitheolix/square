@@ -1165,10 +1165,10 @@ class TestYamlManifestIOIntegration:
         # converted to a YAML string, eg a Python frozenset. This assumption
         # also violates the definition of `LocalManifestLists` which is why we
         # need to tell MyPy to ignore it.
-        file_manifests: LocalManifestLists = {
+        file_manifests: LocalManifestLists = {  # type: ignore
             Path("m0.yaml"): [
                 (meta[0], {"0": "0"}),
-                (meta[1], frozenset(("invalid", "input"))),  # type: ignore
+                (meta[1], frozenset(("invalid", "input"))),
             ],
             Path("m1.yaml"): [(meta[2], {"2": "2"})],
         }
@@ -2002,7 +2002,7 @@ class TestManifestStripping:
             "kind": "Service",
             "metadata": {"name": "mandatory", "namespace": "ns"},
         }
-        manifest: dict = copy.deepcopy(expected)
+        manifest = cast(dict, copy.deepcopy(expected))
 
         manifest["status"] = "string"
         assert manio.strip_manifest(sqcfg, manifest) == expected
@@ -2027,7 +2027,7 @@ class TestManifestStripping:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": {"type": "NodePort"},
         }
-        manifest: dict = copy.deepcopy(expected)
+        manifest = cast(dict, copy.deepcopy(expected))
         manifest["spec"]["ports"] = [
             {"nodePort": 1},
             {"nodePort": 3},
@@ -2043,9 +2043,9 @@ class TestManifestStripping:
             "apiVersion": "v1",
             "kind": "Service",
             "metadata": {"name": "name", "namespace": "ns"},
-            "spec": {"type": "NodePort"},
+            "spec": {"type": "NodePort", "ports": []},
         }
-        manifest: dict = copy.deepcopy(expected)
+        manifest = copy.deepcopy(expected)
         manifest["spec"]["ports"] = [
             {"name": "http", "port": 81, "nodePort": 1},
             {"name": "http", "port": 82},

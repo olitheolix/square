@@ -48,9 +48,10 @@ jobs:
 
       - name: Linting and Static Analysis
         run: |
+          uv sync
           uv tool run ruff check
           uv tool run ruff format --check
-          uv run mypy ./
+          uv tool run ty check
 
       - name: Unit Tests
         if: matrix.os != 'ubuntu-latest'
