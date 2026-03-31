@@ -486,10 +486,10 @@ def show_plan(plan: DeploymentPlan) -> bool:
 
     """
     # Terminal colours for convenience.
-    cAdd = colorama.Fore.GREEN
-    cMod = colorama.Fore.YELLOW + colorama.Style.BRIGHT
-    cDel = colorama.Fore.RED
-    cReset = colorama.Fore.RESET + colorama.Style.RESET_ALL
+    cAdd = str(colorama.Fore.GREEN)
+    cMod = str(colorama.Fore.YELLOW + colorama.Style.BRIGHT)
+    cDel = str(colorama.Fore.RED)
+    cReset = str(colorama.Fore.RESET + colorama.Style.RESET_ALL)
 
     n_add, n_mod, n_del = 0, 0, 0
 
@@ -550,10 +550,11 @@ def show_plan(plan: DeploymentPlan) -> bool:
     cAdd = cAdd if len(plan.create) else colorama.Style.BRIGHT + colorama.Fore.WHITE
     cMod = cMod if len(plan.patch) else colorama.Style.BRIGHT + colorama.Fore.WHITE
     cDel = cDel if len(plan.delete) else colorama.Style.BRIGHT + colorama.Fore.WHITE
+    cAdd, cMod, cDel = str(cAdd), str(cMod), str(cDel)
 
     print("-" * 80)
     print(
-        "Plan: "  # noqa
+        "Plan: "
         + cReset
         + cAdd
         + f"{n_add:,} to add, "  # noqa

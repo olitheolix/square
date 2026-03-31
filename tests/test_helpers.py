@@ -2,7 +2,7 @@
 try:
     import sh
 except ImportError:
-    sh = None
+    sh = None  # type: ignore
 
 from collections import defaultdict
 from typing import Any, Dict, List

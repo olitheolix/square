@@ -26,14 +26,14 @@ logit = logging.getLogger("square")
 #       widely used snippet and devoid of logic.
 # ----------------------------------------------------------------------------
 try:  # codecov-skip
-    from yaml import (  # type: ignore
+    from yaml import (
         CSafeDumper as Dumper,
         CSafeLoader as Loader,
     )
 
     logit.debug("Using LibYAML C library")
 except ImportError:  # codecov-skip
-    from yaml import Dumper, Loader  # type: ignore
+    from yaml import Dumper, Loader
 
     logit.debug("Using Python YAML library")
 

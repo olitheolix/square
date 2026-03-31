@@ -79,11 +79,11 @@ class TestMainGet:
     async def test_main_get(self, tmp_path):
         """GET all cluster resources."""
         # The "square-tests" namespace must have these manifests.
-        non_namespaced = [
+        non_namespaced = (
             "clusterrole",
             "clusterrolebinding",
-        ]
-        namespaced = [
+        )
+        namespaced = (
             "configmap",
             "cronjob",
             "daemonset",
@@ -98,7 +98,7 @@ class TestMainGet:
             "service",
             "serviceaccount",
             "statefulset",
-        ]
+        )
 
         # Command line arguments: get all manifests and group them by namespace,
         # "app" label and resource kind.
