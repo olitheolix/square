@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple, Set, Tuple
 
+import jsonpath_ng as jp
+from jsonpath_ng.exceptions import JsonPathParserError
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import Annotated
@@ -286,6 +288,9 @@ class ConnectionParameters(BaseModel):
 FiltersKind = List[str | dict]
 Filters = Dict[str, FiltersKind]  # eg {"Deployment": ["spec.replicas"]}
 
+"""Define the new-style filters using JSON path strings."""
+Filters2 = Dict[str, List[str]]  # eg {"Deployment": [".spec.replicas"]}
+
 
 # Workaround for a circular import with `callbacks`. The `callbacks` module
 # needs the `Config` type annotation but `dtypes.Config` needs the callbacks.
@@ -318,8 +323,11 @@ class Config(BaseModel):
     # How to structure the folder directory when syncing manifests.
     groupby: GroupBy = GroupBy()
 
-    # Define which fields to skip for which resource.
+    # Define which fields to skip for which resource (legacy nested dict format).
     filters: Filters = {}
+
+    # Define which fields to skip for which resource (new JSON path format).
+    filters2: Filters2 = {}
 
     # Connection timeouts, headers and extra SSL configurations.
     connection_parameters: ConnectionParameters = ConnectionParameters()
@@ -333,6 +341,11 @@ class Config(BaseModel):
     # Invoked for every manifest downloaded from cluster.
     strip_callback: Annotated[Callable, Field(validate_default=True)] = do_nothing
 
+    class Config:
+        # Pydantic config: ensure that all fields are validated on assignment,
+        # not just at initialisation.
+        validate_assignment = True
+
     @field_validator("filters")
     @classmethod
     def validate_filters(cls, filters: Filters) -> Filters:
@@ -343,6 +356,30 @@ class Config(BaseModel):
                 raise ValueError(f"Dict key <{k}> must be a non-empty string")
             validate_subfilters(v)
         return filters
+
+    @field_validator("filters2")
+    @classmethod
+    def validate_filters2(cls, filters2: Filters2) -> Filters2:
+        """Ensure the keys denote valid resource types and the values are valid
+        JSON paths.
+
+        Returns the original `filters2` dict with all the keys lowercased for
+        easier matching and consistency later on.
+
+        """
+        for key, paths in filters2.items():
+            # Run Pydantic validation on the key (eg "Deployment") to ensure it
+            # is a valid `SelKindGroupNames` string.
+            SelKindGroupNames(value=key)
+
+            try:
+                for path in paths:
+                    jp.parse(path)
+            except JsonPathParserError:
+                raise ValueError(f"Path <{path}> is not a valid JSON path")
+
+        lower = {k.lower(): v for k, v in filters2.items()}
+        return lower
 
     @field_validator("patch_callback")
     @classmethod
