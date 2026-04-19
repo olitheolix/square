@@ -88,7 +88,7 @@ def load(fname: Path) -> Tuple[Config, bool]:
 
         # Explicitly access the computed attributes since Pydantic will not
         # create and validate them until accessed, and we want all the error
-        # checking to happen right here and now when we load the file.
+        # checking to happen right now when we load the file.
         cfg.selectors.str_skgns
     except (pydantic.ValidationError, TypeError) as e:
         logit.error(f"Schema is invalid: {e}")
