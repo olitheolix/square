@@ -1,16 +1,16 @@
 """Templates for user callbacks.
 
-Square uses these callbacks by default but users can supply their in the
+Square uses these callbacks by default but users can supply their own in the
 `Config` structure.
 
-The `strip_manifest` and `patch_manifest` serve different purposes. The
-`strip_manifest` callback determines the content of the local manifests
-when they get imported. This is useful to exclude, for instance the `.status`
-and `.metadata.uid` fields in the locally saved manifests.
+The `strip_manifest` and `patch_manifest` serve different purposes.
+`strip_manifest` determines the content of the local manifests upon import.
+This is useful to exclude, for instance the `.status` and `.metadata.uid`
+fields in the locally saved manifests.
 
-The `patch_manifest`, on the other hand offers the means to propagate only
-specific changes to a cluster, eg patch the labels and ignore all other
-differences between local and cluster manifests.
+`patch_manifest`, on the other hand offers the means to propagate only specific
+changes to a cluster, eg patch the labels and ignore all other differences
+between local and cluster manifests.
 
 """
 

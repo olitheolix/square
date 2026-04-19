@@ -253,9 +253,9 @@ class ConnectionParameters(BaseModel):
     # Extra headers to pass along to the Kubernetes API.
     k8s_extra_headers: Dict[str, str] = dict()
 
-    # Disable strict SSL certificate checks for cluster. This is only recommended
-    # if the control plane of your cluster was created a few years ago. See this
-    # link for more info: https://github.com/aws/containers-roadmap/issues/2638
+    # Disable strict SSL certificate checks for cluster. This is only
+    # recommended for old clusters that were years ago. See this link for more
+    # info: https://github.com/aws/containers-roadmap/issues/2638
     disable_x509_strict: bool = False
 
     # https://www.python-httpx.org/advanced/#timeout-configuration
@@ -276,7 +276,7 @@ class ConnectionParameters(BaseModel):
 
 """Define the filters to exclude sections of manifests."""
 FiltersKind = List[str | dict]
-Filters = Dict[str, FiltersKind]
+Filters = Dict[str, FiltersKind]  # eg {"Deployment": ["spec.replicas"]}
 
 
 # Workaround for a circular import with `callbacks`. The `callbacks` module
