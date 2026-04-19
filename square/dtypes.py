@@ -78,9 +78,9 @@ class SelKindGroupNames(BaseModel):
     This is similar to `MetaManifest` but tailored specifically to how users
     can target specific resources with Square. In particular, users can specify
     "pod", or "pod.v1", or "PoD", or "POD/name" etc in the configuration file
-    or on the command line. These strings are devoid of the specific API version
-    and ignore capitalisation. This improves the UX and Square contains logic
-    to pick the preferred API version automatically.
+    or on the command line. These strings are devoid of the specific API
+    version and ignore capitalisation. This improves the UX. Square also
+    contains logic to pick the preferred API version automatically.
 
     NOTE: every `MetaManifest` can be converted to a `SelKindGroupName`, but the
     reverse is not true.
@@ -119,24 +119,32 @@ class SelKindGroupNames(BaseModel):
 
     @property
     def kind(self) -> str:
+        # Extract the kind and group from the `value` string.
+        # Example: pod.v1/name -> "pod"
         kind_name = self.value.partition(".")[0]
         kind = kind_name.partition("/")[0]
         return kind
 
     @property
     def group(self) -> str:
+        # Extract the kind and group from the `value` string.
+        # Example: deploy.apps/v1 -> "apps"
         group_name = self.value.partition(".")[2]
         group = group_name.partition("/")[0]
         return group
 
     @property
     def name(self) -> str:
+        # Extract the resource name from the `value` string.
+        # Example: pod.v1/name -> "name"
         if "/" in self.value:
             return self.value.split("/", 1)[1]
         return ""
 
     @property
     def kind_group(self) -> str:
+        # Extract the kind and group from the `value` string.
+        # Example: pod.v1/name -> "pod.v1"
         return f"{self.kind}.{self.group}" if self.group else self.kind
 
     @property
