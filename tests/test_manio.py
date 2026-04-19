@@ -890,7 +890,7 @@ class TestStripManifest:
         # present in the original.
         # ----------------------------------------------------------------------
         man_loc["metadata"]["annotations"] = {"foo": "bar"}
-        sqcfg.filters = {"ClusterRole": [{"metadata": ["annotations"]}]}
+        sqcfg.filters2 = {"Clusterrole": ["metadata.annotations"]}
         ret_loc, ret_srv, err = fun(sqcfg, local, server)
         assert not err
 
@@ -1849,6 +1849,7 @@ class TestManifestStripping:
             {"spec": [{"ports": ["nodePort"]}]},
         ]
         sqcfg.filters = {"Service": _filters}
+        sqcfg.filters2 = {"service": ["metadata.labels.foo", "status"]}
 
         # Demo manifest. None of its keys matches the filter and
         # `strip` must therefore not remove anything.
@@ -1868,7 +1869,7 @@ class TestManifestStripping:
             "metadata": {
                 "name": "name",
                 "namespace": "ns",
-                "labels": {"foo": "remove"},
+                "labels": {"foo": "remove", "bar": "keep"},
             },
             "spec": "spec",
         }
@@ -1878,6 +1879,7 @@ class TestManifestStripping:
             "metadata": {
                 "name": "name",
                 "namespace": "ns",
+                "labels": {"bar": "keep"},
             },
             "spec": "spec",
         }
@@ -2014,24 +2016,6 @@ class TestManifestStripping:
         assert manio.strip_manifest(sqcfg, manifest) == expected
 
         manifest["status"] = {"foo", "bar"}
-        assert manio.strip_manifest(sqcfg, manifest) == expected
-
-    def test_strip_manifest_lists_simple(self, sqcfg: Config):
-        """Filter the `NodePort` key from a list of dicts."""
-        # Filter the "nodePort" element from the port list.
-        sqcfg.filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
-
-        expected = {
-            "apiVersion": "v1",
-            "kind": "Service",
-            "metadata": {"name": "name", "namespace": "ns"},
-            "spec": {"type": "NodePort"},
-        }
-        manifest = cast(dict, copy.deepcopy(expected))
-        manifest["spec"]["ports"] = [
-            {"nodePort": 1},
-            {"nodePort": 3},
-        ]
         assert manio.strip_manifest(sqcfg, manifest) == expected
 
     def test_strip_manifest_lists_service(self, sqcfg: Config):

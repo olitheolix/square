@@ -325,6 +325,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # Use filters from (default) config file because they cannot be specified
     # on the command line.
     filters = cfg.filters
+    filters2 = cfg.filters2
 
     # ------------------------------------------------------------------------
     # Verify inputs.
@@ -345,6 +346,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         groupby=groupby,
         priorities=priorities,
         filters=filters,
+        filters2=filters2,
         connection_parameters=cfg.connection_parameters,
     )
     return cfg, False
