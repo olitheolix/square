@@ -13,6 +13,7 @@ dependencies = [
     "h2>=4.3.0",
     "httpx>=0.28.1",
     "jsonpatch>=1.33",
+    "jsonpath-ng>=1.8.0",
     "pydantic>=2.12.5",
     "pyyaml>=6.0.3",
     "tenacity>=9.1.4",
