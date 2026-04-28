@@ -30,6 +30,25 @@ except sh.CommandNotFound:
     kubectl = None
 
 
+def add_default_filters(config: Config) -> None:
+    if "_common_" in config.filters2:
+        return
+
+    config.filters2["_common_"] = [
+        'metadata.annotations["autoscaling.alpha.kubernetes.io/conditions"]',
+        'metadata.annotations["deployment.kubernetes.io/revision"]',
+        'metadata.annotations["kubectl.kubernetes.io/last-applied-configuration"]',
+        'metadata.annotations["kubernetes.io/change-cause"]',
+        "metadata.creationTimestamp",
+        "metadata.generation",
+        "metadata.managedFields",
+        "metadata.resourceVersion",
+        "metadata.selfLink",
+        "metadata.uid",
+        "status",
+    ]
+
+
 @contextmanager
 def create_temporary_k8s_namespace():
     ts = int(1000 * time.time())
@@ -358,6 +377,7 @@ class TestMainGet:
                 labels=[],
             ),
         )
+        add_default_filters(config)
 
         # Copy the manifest with the namespace and HPAs to a temporary path.
         manifests = list(yaml.safe_load_all(open("tests/support/k8s-test-hpa.yaml")))
@@ -779,6 +799,7 @@ class TestMainPlan:
                 labels=["app=test-workflow"],
             ),
         )
+        add_default_filters(config)
 
         # ---------------------------------------------------------------------
         # Deploy a new namespace with only a few resources. There are no
@@ -857,6 +878,7 @@ class TestMainPlan:
                 kinds={"HorizontalPodAutoscaler"}, namespaces=["test-hpa"], labels=[]
             ),
         )
+        add_default_filters(config)
 
         # Copy the manifest with the namespace and the two HPAs to the temporary path.
         manifests = list(yaml.safe_load_all(open("tests/support/k8s-test-hpa.yaml")))
@@ -988,6 +1010,7 @@ class TestCRUD:
                     kinds={kind}, namespaces=[ns], labels=["app=test-kind-group-v1"]
                 ),
             )
+            add_default_filters(config)
 
             # ------------------------------------------------------------------
             # Deploy one instance of each CRD with `kubectl`.
@@ -1073,6 +1096,7 @@ class TestCRUD:
                     labels=[],
                 ),
             )
+            add_default_filters(config)
 
             # ------------------------------------------------------------------
             # Deploy one instance of each CRD with `kubectl`.
