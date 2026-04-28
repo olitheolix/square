@@ -1,5 +1,6 @@
-import copy
 import time
+
+import copy
 import unittest.mock as mock
 from contextlib import contextmanager
 from pathlib import Path
@@ -31,10 +32,12 @@ except sh.CommandNotFound:
 
 
 def add_default_filters(config: Config) -> None:
+    """Add default filters to the configuration if they are not already present."""
     if "_common_" in config.filters2:
         return
 
-    config.filters2["_common_"] = [
+    tmp = config.filters2
+    tmp["_common_"] = [
         'metadata.annotations["autoscaling.alpha.kubernetes.io/conditions"]',
         'metadata.annotations["deployment.kubernetes.io/revision"]',
         'metadata.annotations["kubectl.kubernetes.io/last-applied-configuration"]',
@@ -47,6 +50,10 @@ def add_default_filters(config: Config) -> None:
         "metadata.uid",
         "status",
     ]
+
+    # Explicitly assign the entire dict to ensure that Pydantic re-validates
+    # the filters.
+    config.filters2 = tmp
 
 
 @contextmanager
