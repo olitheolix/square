@@ -1,5 +1,5 @@
 from square.manio_filters import strip_manifest_paths, remove_empty_dicts
-
+import jsonpath_ng as jp
 
 # ---------------------------------------------------------------------------
 # Tests for remove_empty_dicts
@@ -123,9 +123,7 @@ def test_basic_stripping():
         "spec": {"containers": [{"name": "nginx", "image": "nginx:latest"}]},
     }
 
-    result, error = strip_manifest_paths(manifest, ["metadata.labels"])
-
-    assert not error
+    result = strip_manifest_paths(manifest, [jp.parse("metadata.labels")])
     assert result == {
         "apiVersion": "v1",
         "kind": "Pod",
@@ -145,9 +143,7 @@ def test_array_index_stripping():
         }
     }
 
-    result, error = strip_manifest_paths(manifest, ["spec.containers[1]"])
-
-    assert not error
+    result = strip_manifest_paths(manifest, [jp.parse("spec.containers[1]")])
     assert result == {
         "spec": {
             "containers": [
@@ -169,11 +165,8 @@ def test_array_index_stripping_multi():
         }
     }
 
-    result, error = strip_manifest_paths(
-        manifest, ["spec.containers[0]", "spec.containers[2]"]
-    )
-
-    assert not error
+    paths = [jp.parse("spec.containers[0]"), jp.parse("spec.containers[2]")]
+    result = strip_manifest_paths(manifest, paths)
     assert result == {
         "spec": {"containers": [{"name": "nginx", "image": "nginx:latest"}]}
     }
@@ -189,9 +182,8 @@ def test_wildcard_stripping():
         }
     }
 
-    result, error = strip_manifest_paths(manifest, ["spec.containers[*].env"])
-
-    assert not error
+    paths = [jp.parse("spec.containers[*].env")]
+    result = strip_manifest_paths(manifest, paths)
     assert result == {
         "spec": {
             "containers": [
@@ -210,9 +202,8 @@ def test_nested_path_stripping():
         }
     }
 
-    result, error = strip_manifest_paths(manifest, ["metadata.annotations.key1"])
-
-    assert not error
+    paths = [jp.parse("metadata.annotations.key1")]
+    result = strip_manifest_paths(manifest, paths)
     assert result == {
         "metadata": {
             "name": "test",
@@ -233,9 +224,8 @@ def test_multiple_paths_stripping():
         "spec": {"containers": [{"name": "nginx"}], "replicas": 3},
     }
 
-    result, error = strip_manifest_paths(manifest, ["metadata.labels", "spec.replicas"])
-
-    assert not error
+    paths = [jp.parse("metadata.labels"), jp.parse("spec.replicas")]
+    result = strip_manifest_paths(manifest, paths)
     assert result == {
         "apiVersion": "v1",
         "kind": "Pod",
@@ -257,11 +247,8 @@ def test_multiple_paths_stripping2():
         },
     }
 
-    result, error = strip_manifest_paths(
-        manifest, ["metadata.labels", "metadata.labels.app"]
-    )
-
-    assert not error
+    paths = [jp.parse("metadata.labels"), jp.parse("metadata.labels.app")]
+    result = strip_manifest_paths(manifest, paths)
     assert result == {
         "apiVersion": "v1",
         "kind": "Pod",
@@ -272,25 +259,14 @@ def test_multiple_paths_stripping2():
 
 
 def test_empty_manifest():
-    result, error = strip_manifest_paths({}, ["metadata"])
-
-    assert not error
+    result = strip_manifest_paths({}, [jp.parse("metadata")])
     assert result == {}
 
 
 def test_nonexistent_path():
     manifest = {"metadata": {"name": "test"}}
-    result, error = strip_manifest_paths(manifest, ["metadata.labels"])
-
-    assert not error
+    result = strip_manifest_paths(manifest, [jp.parse("metadata.labels")])
     assert result == manifest
-
-
-def test_invalid_path():
-    manifest = {"metadata": {"name": "test"}}
-    _, error = strip_manifest_paths(manifest, ["]$0metadata.labels"])
-
-    assert error
 
 
 def test_complex_k8s_manifest():
@@ -330,9 +306,8 @@ def test_complex_k8s_manifest():
         "spec.replicas",
         "metadata.labels['kubernetes.io/name']",
     ]
-    result, error = strip_manifest_paths(manifest, paths)
-
-    assert not error
+    paths = [jp.parse(p) for p in paths]
+    result = strip_manifest_paths(manifest, paths)
     assert result == {
         "apiVersion": "apps/v1",
         "kind": "Deployment",

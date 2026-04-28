@@ -1,6 +1,5 @@
-from jsonpath_ng.exceptions import JSONPathError
 import copy
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import jsonpath_ng as jp
 
@@ -58,8 +57,8 @@ def _delete_match(jpmatch: jp.DatumInContext) -> None:
 
 
 def strip_manifest_paths(
-    manifest: Dict[str, Any], paths_to_remove: List[str]
-) -> Tuple[Dict[str, Any], bool]:
+    manifest: Dict[str, Any], paths: List[jp.JSONPath]
+) -> Dict[str, Any]:
     """
     Remove specified JSONPath paths from a Kubernetes manifest.
 
@@ -75,13 +74,6 @@ def strip_manifest_paths(
     """
     manifest = copy.deepcopy(manifest)
 
-    # Fail fast: parse and validate all expressions before we mutate the result.
-    paths: List[jp.JSONPath]
-    try:
-        paths = [jp.parse(path) for path in paths_to_remove]
-    except JSONPathError:
-        return manifest, True
-
     # Collect all matches across all expressions, then sort by index descending
     # so that deleting array elements by index doesn't shift subsequent indices.
     all_matches: List[jp.DatumInContext] = []
@@ -92,5 +84,4 @@ def strip_manifest_paths(
     for jpmatch in all_matches:
         _delete_match(jpmatch)
 
-    manifest = remove_empty_dicts(manifest)
-    return manifest, False
+    return remove_empty_dicts(manifest)

@@ -5,11 +5,12 @@ import difflib
 import logging
 import multiprocessing
 from pathlib import Path
-from typing import DefaultDict, Dict, Iterable, List, Tuple
+from typing import DefaultDict, Dict, Iterable, List, Tuple, cast
 
 import yaml.parser
 import yaml.scanner
 
+import jsonpath_ng as jp
 import square.k8s
 import square.square
 import square.manio_filters
@@ -522,14 +523,15 @@ def strip_manifest(config: Config, manifest: dict) -> dict:
     group = manifest["apiVersion"].split("/")[0]
     kg = SelKindGroupNames(value=f"{kind.lower()}.{group}").kind_group
 
-    # print(kg, kind, config.filters2)
     filters = config.filters2.get("_common_", [])
     filters += config.filters2.get(kg, []) + config.filters2.get(kind, [])
     filters = list(set(filters))
 
-    out, err = square.manio_filters.strip_manifest_paths(manifest, filters)
-    assert not err, "bug: filters should have been validated beforehand"
-    return out
+    # Sleight of hand (cf `dtypes.Config.validate_filters`) to satisfy MyPy
+    # that `filters` is indeed a List[jp.JSONPath] and will never contain
+    # any strings.
+    filters = cast(List[jp.JSONPath], filters)
+    return square.manio_filters.strip_manifest_paths(manifest, filters)
 
 
 def strip_manifests(

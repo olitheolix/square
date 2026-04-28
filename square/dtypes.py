@@ -289,7 +289,7 @@ FiltersKind = List[str | dict]
 Filters = Dict[str, FiltersKind]  # eg {"Deployment": ["spec.replicas"]}
 
 """Define the new-style filters using JSON path strings."""
-Filters2 = Dict[str, List[str]]  # eg {"Deployment": [".spec.replicas"]}
+Filters2 = Dict[str, List[str | jp.JSONPath]]  # eg {"Deployment": [".spec.replicas"]}
 
 
 # Workaround for a circular import with `callbacks`. The `callbacks` module
@@ -327,7 +327,7 @@ class Config(BaseModel):
     filters: Filters = {}
 
     # Define which fields to skip for which resource (new JSON path format).
-    filters2: Filters2 = {}
+    filters2: Filters2 = Field(default_factory=dict)
 
     # Connection timeouts, headers and extra SSL configurations.
     connection_parameters: ConnectionParameters = ConnectionParameters()
@@ -345,6 +345,7 @@ class Config(BaseModel):
         # Pydantic config: ensure that all fields are validated on assignment,
         # not just at initialisation.
         validate_assignment = True
+        arbitrary_types_allowed = True
 
     @field_validator("filters")
     @classmethod
@@ -367,19 +368,27 @@ class Config(BaseModel):
         easier matching and consistency later on.
 
         """
+        # External representation accepts JSONPath expressions as strings, but the
+        # internal representation stores only compiled `jp.JSONPath` objects.
+        #
+        # Compilation occurs during validation so that runtime access operates solely
+        # on pre-parsed expressions, avoiding repeated parsing overhead.
+        out: Dict[str, List[str | jp.JSONPath]] = {}
         for key, paths in filters2.items():
+            key = key.lower()
+            out[key] = []
+
             # Run Pydantic validation on the key (eg "Deployment") to ensure it
             # is a valid `SelKindGroupNames` string.
             SelKindGroupNames(value=key)
 
             try:
                 for path in paths:
-                    jp.parse(path)
+                    out[key].append(jp.parse(path) if isinstance(path, str) else path)
             except JsonPathParserError:
                 raise ValueError(f"Path <{path}> is not a valid JSON path")
 
-        lower = {k.lower(): v for k, v in filters2.items()}
-        return lower
+        return out
 
     @field_validator("patch_callback")
     @classmethod
