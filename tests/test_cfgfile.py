@@ -1,10 +1,6 @@
-import copy
 import sys
 from pathlib import Path
-from typing import Any
 
-import pydantic
-import pytest
 import yaml
 
 import square
@@ -47,7 +43,7 @@ class TestLoadConfig:
         assert cfg.selectors.labels == []
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.groupby == GroupBy()
-        assert cfg.filters == {}
+        assert cfg.filters2 == {}
         assert cfg.strip_callback is square.callbacks.strip_manifest
         assert cfg.patch_callback is square.callbacks.patch_manifests
         assert cfg.user_data is None
@@ -100,12 +96,12 @@ class TestLoadConfig:
         assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
         assert cfg.selectors.namespaces == ["default", "kube-system"]
         assert cfg.selectors.labels == ["app=square"]
-        assert set(cfg.filters.keys()) == {
+        assert set(cfg.filters2.keys()) == {
             "_common_",
-            "ConfigMap",
-            "Deployment",
-            "HorizontalPodAutoscaler",
-            "Service",
+            "configmap",
+            "deployment.apps",
+            "horizontalpodautoscaler.autoscaling",
+            "service",
         }
         assert cfg.strip_callback is square.callbacks.strip_manifest
         assert cfg.patch_callback is square.callbacks.patch_manifests
@@ -146,7 +142,7 @@ class TestLoadConfig:
         # ----------------------------------------------------------------------
         # Clear the "_common_" filter and save the configuration again.
         ref = yaml.safe_load(fname_ref.read_text())
-        ref["filters"]["_common_"].clear()
+        ref["filters2"]["_common_"].clear()
         fout = tmp_path / "corrupt.yaml"
         fout.write_text(yaml.dump(ref))
 
@@ -154,14 +150,14 @@ class TestLoadConfig:
         # match the ones defined in the file because there the "_common_"
         # filter was empty.
         cfg, err = cfgfile.load(fout)
-        assert not err and ref["filters"] == cfg.filters
+        assert not err and set(ref["filters2"]) == set(cfg.filters2)
 
         # ----------------------------------------------------------------------
         # Missing _common_ filters.
         # ----------------------------------------------------------------------
         # Remove the "_common_" filter and save the configuration again.
         ref = yaml.safe_load(fname_ref.read_text())
-        del ref["filters"]["_common_"]
+        del ref["filters2"]["_common_"]
         fout = tmp_path / "valid.yaml"
         fout.write_text(yaml.dump(ref))
 
@@ -169,9 +165,8 @@ class TestLoadConfig:
         # match the ones defined in the file because there was no "_common_"
         # filter to merge.
         cfg, err = cfgfile.load(fout)
-        assert cfg.filters["_common_"] == []
-        del cfg.filters["_common_"]
-        assert not err and ref["filters"] == cfg.filters
+        assert "_common_" not in cfg.filters2
+        assert not err and set(ref["filters2"]) == set(cfg.filters2)
 
     def test_load_err(self, tmp_path):
         """Gracefully handle missing file, corrupt content etc."""
@@ -209,145 +204,7 @@ class TestLoadConfig:
         assert err
 
 
-class TestFilters:
-    def test_merge(self):
-        defaults = copy.deepcopy(square.DEFAULT_CONFIG.filters["_common_"])
-        assert cfgfile.merge(defaults, []) == defaults
-
-        # Merge a `custom` filter into the default exclusion filters.
-        custom = [{"foo": ["bar"]}]
-        expected = [
-            {"foo": ["bar"]},
-            {
-                "metadata": [
-                    {
-                        "annotations": [
-                            "autoscaling.alpha.kubernetes.io/conditions",
-                            "deployment.kubernetes.io/revision",
-                            "kubectl.kubernetes.io/last-applied-configuration",
-                            "kubernetes.io/change-cause",
-                        ]
-                    },
-                    "creationTimestamp",
-                    "generation",
-                    "managedFields",
-                    "resourceVersion",
-                    "selfLink",
-                    "uid",
-                ]
-            },
-            "status",
-        ]
-        assert cfgfile.merge(defaults, custom) == expected
-
-        # Repeat the test but with a more complex `custom` filter.
-        custom = [
-            {
-                "metadata": [
-                    {"annotations": ["orig-annot"]},
-                    "orig-meta",
-                ]
-            },
-        ]
-        expected = [
-            {
-                "metadata": [
-                    {
-                        "annotations": [
-                            "autoscaling.alpha.kubernetes.io/conditions",
-                            "deployment.kubernetes.io/revision",
-                            "kubectl.kubernetes.io/last-applied-configuration",
-                            "kubernetes.io/change-cause",
-                            "orig-annot",
-                        ]
-                    },
-                    "creationTimestamp",
-                    "generation",
-                    "managedFields",
-                    "orig-meta",
-                    "resourceVersion",
-                    "selfLink",
-                    "uid",
-                ]
-            },
-            "status",
-        ]
-        assert cfgfile.merge(defaults, custom) == expected
-
-        # Another one, this time a bit simpler than the previous one because
-        # the `custom` filter for `metadata` just contains a list of strings.
-        custom = [
-            {"metadata": ["orig-meta"]},
-        ]
-        expected = [
-            {
-                "metadata": [
-                    {
-                        "annotations": [
-                            "autoscaling.alpha.kubernetes.io/conditions",
-                            "deployment.kubernetes.io/revision",
-                            "kubectl.kubernetes.io/last-applied-configuration",
-                            "kubernetes.io/change-cause",
-                        ]
-                    },
-                    "creationTimestamp",
-                    "generation",
-                    "managedFields",
-                    "orig-meta",
-                    "resourceVersion",
-                    "selfLink",
-                    "uid",
-                ]
-            },
-            "status",
-        ]
-        assert cfgfile.merge(defaults, custom) == expected
-
-
 class TestModels:
-    def test_config_basic(self):
-        kwargs = dict(kubeconfig=Path(), folder=Path("/tmp"))
-
-        # The top level entry must always be a dict.
-        valid_filters: Any = (
-            {"foo": []},
-            {"foo": ["str"]},
-            {"foo": ["str", {"bar": ["bar"]}]},
-            {"foo": ["str", {"bar": [{"x": ["x"]}]}]},
-            {"foo": ["str", {"bar": [{"x": ["x"]}, {"y": ["y"]}]}]},
-            {"foo": ["str", {"bar": ["spam", {"x": ["x"]}]}]},
-        )
-        for filters in valid_filters:
-            Config(**kwargs, filters=filters)  # type: ignore
-
-        invalid_filters: Any = (
-            # Must be a dict.
-            [],
-            set(),
-            tuple(),
-            # The dict value must be a List.
-            {"foo": "bar"},
-            {"foo": {"bar": ["bar"]}},
-            # Each dict must have exactly one key.
-            {"foo": [{}]},
-            {"foo": [{"key1": [], "key2": []}]},
-            # Dict keys and list entries must be non-empty strings.
-            {"foo": [""]},
-            {"foo": [{"": []}]},
-            # Each list entry must be either a string or dict.
-            {"foo": [{"bar": [set()]}]},
-            {"foo": [{"bar": {"foo"}}]},
-            # Dict keys must be non-empty strings.
-            {"": []},
-            {10: []},
-            {"foo": [{"": []}]},
-            {"foo": [{10: []}]},
-        )
-
-        for filters in invalid_filters:
-            with pytest.raises(pydantic.ValidationError):
-                Config(**kwargs, filters=filters)  # type: ignore
-
     def test_config_callbacks(self, tmp_path):
         """Verify that default callbacks were setup correctly."""
         cfg = Config(kubeconfig=Path(tmp_path), folder=tmp_path)

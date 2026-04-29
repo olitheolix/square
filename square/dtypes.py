@@ -284,10 +284,6 @@ class ConnectionParameters(BaseModel):
     http2: bool = True
 
 
-"""Define the filters to exclude sections of manifests."""
-FiltersKind = List[str | dict]
-Filters = Dict[str, FiltersKind]  # eg {"Deployment": ["spec.replicas"]}
-
 """Define the new-style filters using JSON path strings."""
 Filters2 = Dict[str, List[str | jp.JSONPath]]  # eg {"Deployment": [".spec.replicas"]}
 
@@ -323,9 +319,6 @@ class Config(BaseModel):
     # How to structure the folder directory when syncing manifests.
     groupby: GroupBy = GroupBy()
 
-    # Define which fields to skip for which resource (legacy nested dict format).
-    filters: Filters = {}
-
     # Define which fields to skip for which resource (new JSON path format).
     filters2: Filters2 = Field(default_factory=dict)
 
@@ -346,17 +339,6 @@ class Config(BaseModel):
         # not just at initialisation.
         validate_assignment = True
         arbitrary_types_allowed = True
-
-    @field_validator("filters")
-    @classmethod
-    def validate_filters(cls, filters: Filters) -> Filters:
-        # The top level filter structure must be a Dict that denotes a resource
-        # type, eg `{"Deployment": [...], "Service": [...]}`.
-        for k, v in filters.items():
-            if k == "" or not isinstance(k, str):
-                raise ValueError(f"Dict key <{k}> must be a non-empty string")
-            validate_subfilters(v)
-        return filters
 
     @field_validator("filters2")
     @classmethod
@@ -407,31 +389,6 @@ class Config(BaseModel):
 
             return square.callbacks.strip_manifest
         return cb
-
-
-def validate_subfilters(filter_list):
-    """Recursively verify that every element in `filter_list` is valid."""
-    if not isinstance(filter_list, list):
-        raise ValueError(f"<{filter_list}> must be a list")
-
-    for el in filter_list:
-        if not isinstance(el, (dict, str)):
-            raise ValueError(f"<{el}> must be a string or dict")
-
-        if el == "":
-            raise ValueError("Strings must be non-empty")
-
-        # All dicts must contain exactly one non-empty key.
-        if isinstance(el, dict):
-            if "" in el or len(el) != 1:
-                raise ValueError(f"<{el}> must have exactly one key")
-
-            key = list(el)[0]
-            if not isinstance(key, str):
-                raise ValueError(f"Dict key <{key}> must be a string")
-
-            # Recursively check the dictionary values.
-            validate_subfilters(el[key])
 
 
 # -----------------------------------------------------------------------------

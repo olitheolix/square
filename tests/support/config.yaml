@@ -75,38 +75,6 @@ groupby:
 # -----------------------------------------------------------------------------
 # Define the manifest keys Square should ignore.
 # -----------------------------------------------------------------------------
-filters:
-  # These apply to all manifests.
-  _common_:
-    - metadata:
-      - annotations:
-        - deployment.kubernetes.io/revision
-        - kubectl.kubernetes.io/last-applied-configuration
-        - kubernetes.io/change-cause
-        - autoscaling.alpha.kubernetes.io/conditions
-      - creationTimestamp
-      - generation
-      - resourceVersion
-      - selfLink
-      - uid
-    - status
-
-  ConfigMap:
-    - metadata:
-      - annotations
-      - control-plane.alpha.kubernetes.io/leader
-  Deployment: []
-  HorizontalPodAutoscaler:
-    - metadata:
-      - annotations:
-        - autoscaling.alpha.kubernetes.io/conditions
-        - autoscaling.alpha.kubernetes.io/current-metrics
-        - control-plane.alpha.kubernetes.io/leader
-  Service:
-    - spec:
-      - ports:
-        - nodePort
-
 filters2:
   # --- These will be inserted into all resource types to reduce boiler plate. ---
   _common_:
