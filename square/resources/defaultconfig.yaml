@@ -93,45 +93,6 @@ priorities:
 # Square will omit all manifest keys defined here in its plan and patches. It
 # will also skip those keys if it creates a new resource.
 # -----------------------------------------------------------------------------
-filters:
-  # --- These will be inserted into all resource types to reduce boiler plate. ---
-  _common_:
-    - metadata:
-      - annotations:
-        - autoscaling.alpha.kubernetes.io/conditions
-        - deployment.kubernetes.io/revision
-        - kubectl.kubernetes.io/last-applied-configuration
-        - kubernetes.io/change-cause
-      - creationTimestamp
-      - generation
-      - managedFields
-      - resourceVersion
-      - selfLink
-      - uid
-    - status
-
-  # --- Individual resource types. ---
-  ConfigMap:
-    - metadata:
-      - annotations
-      - control-plane.alpha.kubernetes.io/leader
-
-  Deployment: []
-
-  HorizontalPodAutoscaler:
-    - metadata:
-      - annotations:
-        - autoscaling.alpha.kubernetes.io/conditions
-        - autoscaling.alpha.kubernetes.io/current-metrics
-        - control-plane.alpha.kubernetes.io/leader
-
-  Service:
-    - spec:
-      - clusterIP
-      - ports:
-        - nodePort
-      - sessionAffinity
-
 filters2:
   # --- These will be inserted into all resource types to reduce boiler plate. ---
   _common_:

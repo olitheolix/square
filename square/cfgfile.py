@@ -8,7 +8,6 @@ This module defines utility functions to define these filters.
 
 """
 
-import copy
 import logging
 from pathlib import Path
 from types import SimpleNamespace
@@ -21,45 +20,6 @@ from square.dtypes import Config
 
 # Convenience.
 logit = logging.getLogger("square")
-
-
-def merge(src: list, dst: list) -> list:
-    """Merge `src` into `dst` and return a copy of `dst`."""
-    # Avoid side effects.
-    dst = copy.deepcopy(dst)
-
-    def find_dict(data: list, key: str) -> dict:
-        """Find and return the dictionary in `data` that has the `key`."""
-        tmp = [_ for _ in data if isinstance(_, dict) and set(_.keys()) == {key}]
-        assert len(tmp) == 1
-        return tmp[0]
-
-    def _update(src, dst):
-        # Add all string keys from `src` to `dst` if they are not yet in `dst`.
-        str_keys = [_ for _ in src if isinstance(_, str) and _ not in dst]
-        dst.extend(str_keys)
-
-        # Find the all dicts and their one and only key.
-        dict_src = {tuple(_.keys())[0] for _ in src if isinstance(_, dict)}
-        dict_dst = {tuple(_.keys())[0] for _ in dst if isinstance(_, dict)}
-
-        # Recursively merge the dictionaries.
-        for key in dict_src:
-            if key not in dict_dst:
-                # `dst` does not have the dict at all - just copy it.
-                dst.append(find_dict(src, key))
-            else:
-                # `dst` already has a dict for `key` -> recursively update it.
-                src_val = find_dict(src, key)[key]
-                dst_val = find_dict(dst, key)[key]
-                _update(src_val, dst_val)
-
-        # Sort the list alphabetically (if the entry is a dict then use its one
-        # and only key as the comparative element).
-        dst.sort(key=lambda _: _ if isinstance(_, str) else tuple(_.keys())[0])
-
-    _update(src, dst)
-    return dst
 
 
 def load(fname: Path) -> Tuple[Config, bool]:
@@ -93,11 +53,6 @@ def load(fname: Path) -> Tuple[Config, bool]:
     except (pydantic.ValidationError, TypeError) as e:
         logit.error(f"Schema is invalid: {e}")
         return err_resp
-
-    # Remove the "_common_" filter and merge it into all the other filters.
-    common = cfg.filters.pop("_common_", [])
-    cfg.filters = {k: merge(common, v) for k, v in cfg.filters.items()}
-    cfg.filters["_common_"] = common
 
     # Ensure the path is absolute.
     cfg.folder = fname.parent.absolute() / cfg.folder

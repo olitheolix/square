@@ -185,12 +185,12 @@ class TestMain:
             labels=["app=square"],
         )
         assert cfg.groupby == GroupBy(label="app", order=["ns", "label", "kind"])
-        assert set(cfg.filters.keys()) == {
+        assert set(cfg.filters2.keys()) == {
             "_common_",
-            "ConfigMap",
-            "Deployment",
-            "HorizontalPodAutoscaler",
-            "Service",
+            "configmap",
+            "deployment.apps",
+            "horizontalpodautoscaler.autoscaling",
+            "service",
         }
 
         # ---------------------------------------------------------------------
@@ -222,12 +222,12 @@ class TestMain:
             labels=["app=square", "foo=bar"],
         )
         assert cfg.groupby == GroupBy(label="foo", order=["kind", "label", "ns"])
-        assert set(cfg.filters.keys()) == {
+        assert set(cfg.filters2.keys()) == {
             "_common_",
-            "ConfigMap",
-            "Deployment",
-            "HorizontalPodAutoscaler",
-            "Service",
+            "configmap",
+            "deployment.apps",
+            "horizontalpodautoscaler.autoscaling",
+            "service",
         }
 
     def test_compile_config_default_folder(self, fname_param_config):
