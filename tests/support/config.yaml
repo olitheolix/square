@@ -75,7 +75,7 @@ groupby:
 # -----------------------------------------------------------------------------
 # Define the manifest keys Square should ignore.
 # -----------------------------------------------------------------------------
-filters2:
+filters:
   # --- These will be inserted into all resource types to reduce boiler plate. ---
   _common_:
     - metadata.annotations["autoscaling.alpha.kubernetes.io/conditions"]

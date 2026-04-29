@@ -322,10 +322,6 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     priorities = p.priorities or cfg.priorities
     selectors = Selectors(kinds=kinds, namespaces=namespaces, labels=sel_labels)
 
-    # Use filters from (default) config file because they cannot be specified
-    # on the command line.
-    filters2 = cfg.filters2
-
     # ------------------------------------------------------------------------
     # Verify inputs.
     # ------------------------------------------------------------------------
@@ -344,7 +340,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         selectors=selectors,
         groupby=groupby,
         priorities=priorities,
-        filters2=filters2,
+        filters=cfg.filters,
         connection_parameters=cfg.connection_parameters,
     )
     return cfg, False

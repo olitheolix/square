@@ -43,7 +43,7 @@ class TestLoadConfig:
         assert cfg.selectors.labels == []
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.groupby == GroupBy()
-        assert cfg.filters2 == {}
+        assert cfg.filters == {}
         assert cfg.strip_callback is square.callbacks.strip_manifest
         assert cfg.patch_callback is square.callbacks.patch_manifests
         assert cfg.user_data is None
@@ -96,7 +96,7 @@ class TestLoadConfig:
         assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
         assert cfg.selectors.namespaces == ["default", "kube-system"]
         assert cfg.selectors.labels == ["app=square"]
-        assert set(cfg.filters2.keys()) == {
+        assert set(cfg.filters.keys()) == {
             "_common_",
             "configmap",
             "deployment.apps",
@@ -142,7 +142,7 @@ class TestLoadConfig:
         # ----------------------------------------------------------------------
         # Clear the "_common_" filter and save the configuration again.
         ref = yaml.safe_load(fname_ref.read_text())
-        ref["filters2"]["_common_"].clear()
+        ref["filters"]["_common_"].clear()
         fout = tmp_path / "corrupt.yaml"
         fout.write_text(yaml.dump(ref))
 
@@ -150,14 +150,14 @@ class TestLoadConfig:
         # match the ones defined in the file because there the "_common_"
         # filter was empty.
         cfg, err = cfgfile.load(fout)
-        assert not err and set(ref["filters2"]) == set(cfg.filters2)
+        assert not err and set(ref["filters"]) == set(cfg.filters)
 
         # ----------------------------------------------------------------------
         # Missing _common_ filters.
         # ----------------------------------------------------------------------
         # Remove the "_common_" filter and save the configuration again.
         ref = yaml.safe_load(fname_ref.read_text())
-        del ref["filters2"]["_common_"]
+        del ref["filters"]["_common_"]
         fout = tmp_path / "valid.yaml"
         fout.write_text(yaml.dump(ref))
 
@@ -165,8 +165,8 @@ class TestLoadConfig:
         # match the ones defined in the file because there was no "_common_"
         # filter to merge.
         cfg, err = cfgfile.load(fout)
-        assert "_common_" not in cfg.filters2
-        assert not err and set(ref["filters2"]) == set(cfg.filters2)
+        assert "_common_" not in cfg.filters
+        assert not err and set(ref["filters"]) == set(cfg.filters)
 
     def test_load_err(self, tmp_path):
         """Gracefully handle missing file, corrupt content etc."""

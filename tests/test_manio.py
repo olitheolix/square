@@ -889,7 +889,7 @@ class TestStripManifest:
         # present in the original.
         # ----------------------------------------------------------------------
         man_loc["metadata"]["annotations"] = {"foo": "bar"}
-        sqcfg.filters2 = {"Clusterrole": ["metadata.annotations"]}
+        sqcfg.filters = {"Clusterrole": ["metadata.annotations"]}
         ret_loc, ret_srv, err = fun(sqcfg, local, server)
         assert not err
 
@@ -1836,7 +1836,7 @@ class TestManifestStripping:
 
         """
         # Define filters for this test.
-        sqcfg.filters2 = {resource: ["metadata.labels.foo"]}
+        sqcfg.filters = {resource: ["metadata.labels.foo"]}
 
         # Demo manifest. The "labels.foo" matches the filter and must not survive.
         manifest = {

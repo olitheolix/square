@@ -33,10 +33,10 @@ except sh.CommandNotFound:
 
 def add_default_filters(config: Config) -> None:
     """Add default filters to the configuration if they are not already present."""
-    if "_common_" in config.filters2:
+    if "_common_" in config.filters:
         return
 
-    tmp = config.filters2
+    tmp = config.filters
     tmp["_common_"] = [
         'metadata.annotations["autoscaling.alpha.kubernetes.io/conditions"]',
         'metadata.annotations["deployment.kubernetes.io/revision"]',
@@ -53,7 +53,7 @@ def add_default_filters(config: Config) -> None:
 
     # Explicitly assign the entire dict to ensure that Pydantic re-validates
     # the filters.
-    config.filters2 = tmp
+    config.filters = tmp
 
 
 @contextmanager

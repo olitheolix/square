@@ -185,7 +185,7 @@ class TestMain:
             labels=["app=square"],
         )
         assert cfg.groupby == GroupBy(label="app", order=["ns", "label", "kind"])
-        assert set(cfg.filters2.keys()) == {
+        assert set(cfg.filters.keys()) == {
             "_common_",
             "configmap",
             "deployment.apps",
@@ -222,7 +222,7 @@ class TestMain:
             labels=["app=square", "foo=bar"],
         )
         assert cfg.groupby == GroupBy(label="foo", order=["kind", "label", "ns"])
-        assert set(cfg.filters2.keys()) == {
+        assert set(cfg.filters.keys()) == {
             "_common_",
             "configmap",
             "deployment.apps",

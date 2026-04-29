@@ -215,51 +215,51 @@ class TestSelectors:
         assert meta.skgn() == SKGN(value="pod", ns="")
 
 
-class TestConfigFilters2:
-    """Tests for the filters2 field validator on Config."""
+class TestConfigFilters:
+    """Tests for the filters field validator on Config."""
 
-    def make_config(self, filters2):
-        """Helper to construct a minimal Config with the given filters2."""
+    def make_config(self, filters):
+        """Helper to construct a minimal Config with the given filters."""
         return Config(
             folder=Path("/tmp"),
             kubeconfig=Path("/tmp/kubeconfig"),
-            filters2=filters2,
+            filters=filters,
         )
 
-    def test_filters2_empty(self):
-        """An empty filters2 dict is valid."""
+    def test_filters_empty(self):
+        """An empty filters dict is valid."""
         cfg = self.make_config({})
-        assert cfg.filters2 == {}
+        assert cfg.filters == {}
 
-    def test_filters2_valid_simple(self):
-        """Valid filters2 with simple JSON paths."""
+    def test_filters_valid_simple(self):
+        """Valid filters with simple JSON paths."""
         filters = {
             "deployment": ["metadata.labels", "spec.replicas"],
             "service": ["spec.clusterIP"],
         }
         cfg = self.make_config(filters)
-        assert cfg.filters2 == {k: [jp.parse(_) for _ in v] for k, v in filters.items()}
+        assert cfg.filters == {k: [jp.parse(_) for _ in v] for k, v in filters.items()}
 
-    def test_filters2_valid_lowercase_manual_assign(self):
+    def test_filters_valid_lowercase_manual_assign(self):
         """The filters must be lower-cased upon import as well as when directly
         assigned to the `.filters` attribute.
 
         """
         # Import.
         cfg = self.make_config({"DEPLOYMENT": [], "Service": []})
-        assert cfg.filters2 == {"deployment": [], "service": []}
+        assert cfg.filters == {"deployment": [], "service": []}
 
         # Assign values directly.
-        cfg.filters2 = {"FOO": [], "BAR": []}
-        assert cfg.filters2 == {"foo": [], "bar": []}
+        cfg.filters = {"FOO": [], "BAR": []}
+        assert cfg.filters == {"foo": [], "bar": []}
 
-    def test_filters2_valid_empty_path_list(self):
+    def test_filters_valid_empty_path_list(self):
         """A valid key with an empty list of paths is allowed."""
         cfg = self.make_config({"deployment": []})
-        assert cfg.filters2 == {"deployment": []}
+        assert cfg.filters == {"deployment": []}
 
-    def test_filters2_valid_complex_paths(self):
-        """Valid filters2 with array wildcard and nested paths."""
+    def test_filters_valid_complex_paths(self):
+        """Valid filters with array wildcard and nested paths."""
         filters = {
             "deployment": [
                 "spec.containers[*].env",
@@ -267,9 +267,9 @@ class TestConfigFilters2:
             ],
         }
         cfg = self.make_config(filters)
-        assert cfg.filters2 == {k: [jp.parse(_) for _ in v] for k, v in filters.items()}
+        assert cfg.filters == {k: [jp.parse(_) for _ in v] for k, v in filters.items()}
 
-    def test_filters2_invalid_key(self):
+    def test_filters_invalid_key(self):
         """An invalid SelKindGroupNames key must raise a ValidationError."""
         invalid_keys = [
             "",  # empty string
@@ -280,13 +280,13 @@ class TestConfigFilters2:
             with pytest.raises(pydantic.ValidationError):
                 self.make_config({key: [".metadata.name"]})
 
-    def test_filters2_invalid_path(self):
+    def test_filters_invalid_path(self):
         """An invalid JSON path must raise a ValidationError."""
         with pytest.raises(pydantic.ValidationError):
             self.make_config({"deployment": ["]$0metadata.labels"]})
 
-    def test_filters2_valid_key_with_group(self):
+    def test_filters_valid_key_with_group(self):
         """A key with an explicit API group is valid."""
         res = "role.rbac.authorization.k8s.io"
         cfg = self.make_config({res: ["metadata.labels"]})
-        assert jp.parse("metadata.labels") in cfg.filters2[res]
+        assert jp.parse("metadata.labels") in cfg.filters[res]
