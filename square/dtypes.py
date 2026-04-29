@@ -285,7 +285,7 @@ class ConnectionParameters(BaseModel):
 
 
 """Define the new-style filters using JSON path strings."""
-Filters2 = Dict[str, List[str | jp.JSONPath]]  # eg {"Deployment": [".spec.replicas"]}
+Filters = Dict[str, List[str | jp.JSONPath]]  # eg {"Deployment": [".spec.replicas"]}
 
 
 # Workaround for a circular import with `callbacks`. The `callbacks` module
@@ -320,7 +320,7 @@ class Config(BaseModel):
     groupby: GroupBy = GroupBy()
 
     # Define which fields to skip for which resource (new JSON path format).
-    filters2: Filters2 = Field(default_factory=dict)
+    filters: Filters = Field(default_factory=dict)
 
     # Connection timeouts, headers and extra SSL configurations.
     connection_parameters: ConnectionParameters = ConnectionParameters()
@@ -340,13 +340,13 @@ class Config(BaseModel):
         validate_assignment = True
         arbitrary_types_allowed = True
 
-    @field_validator("filters2")
+    @field_validator("filters")
     @classmethod
-    def validate_filters2(cls, filters2: Filters2) -> Filters2:
+    def validate_filters(cls, filters: Filters) -> Filters:
         """Ensure the keys denote valid resource types and the values are valid
         JSON paths.
 
-        Returns the original `filters2` dict with all the keys lowercased for
+        Returns the original `filters` dict with all the keys lowercased for
         easier matching and consistency later on.
 
         """
@@ -356,7 +356,7 @@ class Config(BaseModel):
         # Compilation occurs during validation so that runtime access operates solely
         # on pre-parsed expressions, avoiding repeated parsing overhead.
         out: Dict[str, List[str | jp.JSONPath]] = {}
-        for key, paths in filters2.items():
+        for key, paths in filters.items():
             key = key.lower()
             out[key] = []
 
