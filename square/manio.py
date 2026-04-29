@@ -519,10 +519,19 @@ def diff(local: dict, server: dict) -> Tuple[str, bool]:
 
 
 def strip_single_manifest(config: Config, manifest: dict) -> dict:
+    """Return a stripped version of `manifest` according to `config.filters`.
+
+    The filters are JSON path expressions and all matching entries will be removed.
+
+    """
+    # Convenience.
     kind = manifest["kind"].lower()
     group = manifest["apiVersion"].split("/")[0]
     kg = SelKindGroupNames(value=f"{kind.lower()}.{group}").kind_group
 
+    # Fetch the filters for this GVK. The user may have specified them via
+    # their short or full names, eg "deploy" or "deploy.apps". We need to check
+    # for both to cover all bases.
     filters = config.filters2.get("_common_", [])
     filters += config.filters2.get(kg, []) + config.filters2.get(kind, [])
     filters = list(set(filters))
