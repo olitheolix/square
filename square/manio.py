@@ -518,7 +518,7 @@ def diff(local: dict, server: dict) -> Tuple[str, bool]:
     return (str.join("\n", diff_lines), False)
 
 
-def strip_manifest(config: Config, manifest: dict) -> dict:
+def strip_single_manifest(config: Config, manifest: dict) -> dict:
     kind = manifest["kind"].lower()
     group = manifest["apiVersion"].split("/")[0]
     kg = SelKindGroupNames(value=f"{kind.lower()}.{group}").kind_group

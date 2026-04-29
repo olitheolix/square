@@ -1828,7 +1828,7 @@ class TestDownloadManifests:
 
 
 class TestManifestStripping:
-    def test_strip_manifest_generic(self, sqcfg: Config):
+    def test_strip_single_manifest_generic(self, sqcfg: Config):
         """Create a completely fake filter set to test all options.
 
         This test has nothing to do with real world manifests. Its only purpose
@@ -1859,7 +1859,7 @@ class TestManifestStripping:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        assert manio.strip_manifest(sqcfg, manifest) == manifest
+        assert manio.strip_single_manifest(sqcfg, manifest) == manifest
         del manifest
 
         # Demo manifest. The "labels.foo" matches the filter and must not survive.
@@ -1883,7 +1883,7 @@ class TestManifestStripping:
             },
             "spec": "spec",
         }
-        assert manio.strip_manifest(sqcfg, manifest) == expected
+        assert manio.strip_single_manifest(sqcfg, manifest) == expected
         del manifest
 
         # Valid manifest with all mandatory and *some* optional keys (
@@ -1915,9 +1915,9 @@ class TestManifestStripping:
             },
             "spec": "keep",
         }
-        assert manio.strip_manifest(sqcfg, manifest) == expected
+        assert manio.strip_single_manifest(sqcfg, manifest) == expected
 
-    def test_strip_manifest_ambigous_filters(self, sqcfg: Config):
+    def test_strip_single_manifest_ambigous_filters(self, sqcfg: Config):
         """Must cope with filters that specify the same resource multiple times."""
         # Define filters for this test.
         _filters: FiltersKind = [
@@ -1943,7 +1943,7 @@ class TestManifestStripping:
             "metadata": {"name": "name", "namespace": "ns"},
             "spec": "spec",
         }
-        assert manio.strip_manifest(sqcfg, manifest) == manifest
+        assert manio.strip_single_manifest(sqcfg, manifest) == manifest
         del manifest
 
         # Demo manifest. The "labels.creationTimestamp" matches the filter and
@@ -1967,7 +1967,7 @@ class TestManifestStripping:
             },
             "spec": "spec",
         }
-        assert manio.strip_manifest(sqcfg, manifest) == expected
+        assert manio.strip_single_manifest(sqcfg, manifest) == expected
         del manifest
 
         # Valid manifest with a "status" field that must not survive.
@@ -1990,9 +1990,9 @@ class TestManifestStripping:
             },
             "spec": "keep",
         }
-        assert manio.strip_manifest(sqcfg, manifest) == expected
+        assert manio.strip_single_manifest(sqcfg, manifest) == expected
 
-    def test_strip_manifest_sub_hierarchies(self, sqcfg: Config):
+    def test_strip_single_manifest_sub_hierarchies(self, sqcfg: Config):
         """Remove an entire sub-tree from the manifest."""
         # Remove the "status" key, irrespective of whether it is a string, dict
         # or list in the actual manifest.
@@ -2007,18 +2007,18 @@ class TestManifestStripping:
         manifest = cast(dict, copy.deepcopy(expected))
 
         manifest["status"] = "string"
-        assert manio.strip_manifest(sqcfg, manifest) == expected
+        assert manio.strip_single_manifest(sqcfg, manifest) == expected
 
         manifest["status"] = None
-        assert manio.strip_manifest(sqcfg, manifest) == expected
+        assert manio.strip_single_manifest(sqcfg, manifest) == expected
 
         manifest["status"] = ["foo", "bar"]
-        assert manio.strip_manifest(sqcfg, manifest) == expected
+        assert manio.strip_single_manifest(sqcfg, manifest) == expected
 
         manifest["status"] = {"foo", "bar"}
-        assert manio.strip_manifest(sqcfg, manifest) == expected
+        assert manio.strip_single_manifest(sqcfg, manifest) == expected
 
-    def test_strip_manifest_lists_service(self, sqcfg: Config):
+    def test_strip_single_manifest_lists_service(self, sqcfg: Config):
         """Filter the `NodePort` key from a list of dicts."""
         # Filter the "nodePort" element from the port list.
         sqcfg.filters = {"Service": [{"spec": [{"ports": ["nodePort"]}]}]}
@@ -2040,9 +2040,9 @@ class TestManifestStripping:
             {"name": "http", "port": 82},
             {"name": "http", "port": 83},
         ]
-        assert manio.strip_manifest(sqcfg, manifest) == expected
+        assert manio.strip_single_manifest(sqcfg, manifest) == expected
 
-    def test_strip_manifest_default_filters(self, sqcfg: Config):
+    def test_strip_single_manifest_default_filters(self, sqcfg: Config):
         """Must fall back to default filters unless otherwise specified.
 
         Here we expect the function to strip out the `metadata.uid` because it
@@ -2060,4 +2060,4 @@ class TestManifestStripping:
         expected["metadata"] = {"name": "name", "namespace": "ns"}
 
         # Must remove the `metadata.uid` field.
-        assert manio.strip_manifest(sqcfg, manifest)
+        assert manio.strip_single_manifest(sqcfg, manifest)

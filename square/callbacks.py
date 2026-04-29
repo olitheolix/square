@@ -67,4 +67,4 @@ def strip_manifest(config: Config, manifest: dict) -> dict:
     `.status` field is a typical example.
 
     """
-    return square.manio.strip_manifest(config, manifest)
+    return square.manio.strip_single_manifest(config, manifest)
