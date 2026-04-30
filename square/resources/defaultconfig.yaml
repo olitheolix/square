@@ -1,5 +1,5 @@
 # Square configuration syntax.
-version: v1.0
+version: v1.1
 
 # Kubernetes credentials.
 kubeconfig: /path/to/kubeconfig

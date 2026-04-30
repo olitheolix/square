@@ -1,6 +1,6 @@
 from functools import cache
 from pathlib import Path
-from typing import Any, Callable, Dict, List, NamedTuple, Set, Tuple
+from typing import Any, Callable, Dict, List, Literal, NamedTuple, Set, Tuple
 
 import jsonpath_ng as jp
 from jsonpath_ng.exceptions import JsonPathParserError
@@ -304,7 +304,13 @@ def jpcache(p: str) -> jp.JSONPath:
 
 
 class Config(BaseModel):
-    """Uniform interface into top level Square API."""
+    """Square configuration.
+
+    This matches the `.square.yaml` that Square reads.
+
+    """
+
+    version: Literal["v1.1"] = "v1.1"
 
     # Path to local manifests eg "./foo"
     folder: Path
