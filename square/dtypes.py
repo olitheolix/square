@@ -13,22 +13,22 @@ from typing_extensions import Annotated
 # in which it does that is undefined.
 DEFAULT_PRIORITIES = (
     # Custom Resources should come first.
-    "CustomResourceDefinition",
+    "customresourcedefinition",
     # Common non-namespaced resources.
-    "ClusterRole",
-    "ClusterRoleBinding",
+    "clusterrole",
+    "clusterrolebinding",
     # Namespaces must come before any namespaced resources.
-    "Namespace",
+    "namespace",
     # RBAC.
-    "Role",
-    "RoleBinding",
-    "ServiceAccount",
+    "role",
+    "rolebinding",
+    "serviceaccount",
     # Everything else.
-    "ConfigMap",
-    "Service",
-    "Deployment",
-    "HorizontalPodAutoscaler",
-    "Ingress",
+    "configmap",
+    "service",
+    "deployment.apps",
+    "horizontalpodautoscaler.autoscaling",
+    "ingress.networking.k8s.io",
 )
 
 
