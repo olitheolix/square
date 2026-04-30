@@ -34,7 +34,7 @@ logit = logging.getLogger("square")
 
 
 def normalise_kinds(
-    kinds: Iterable[str], k8sconfig: K8sConfig
+    rname: str, kinds: Iterable[str], k8sconfig: K8sConfig
 ) -> Tuple[List[str], bool]:
     """Convert `Selectors.{kind, priorities}` to <kind>.<group>/<name> format.
 
@@ -72,7 +72,7 @@ def normalise_kinds(
     # Abort if any selectors target the same resource.
     ambiguous = {k: v for k, v in ambiguous.items() if len(v) > 1}
     if len(ambiguous) > 0:
-        logit.error(f"different selectors target same resources: {ambiguous}")
+        logit.error(f"different {rname} target same resources: {ambiguous}")
         return [], True
 
     return (normalised_kinds, False)
@@ -95,9 +95,9 @@ def update_config(cfg: Config, k8sconfig: K8sConfig) -> Tuple[Config, bool]:
     oldkeys = set(cfg.filters)
 
     # Normalise the selected kinds and those from the priority list.
-    kinds, err1 = normalise_kinds(cfg.selectors.kinds, k8sconfig)
-    prio, err2 = normalise_kinds(cfg.priorities, k8sconfig)
-    newkeys, err3 = normalise_kinds(oldkeys, k8sconfig)
+    kinds, err1 = normalise_kinds("selectors", cfg.selectors.kinds, k8sconfig)
+    prio, err2 = normalise_kinds("priorities", cfg.priorities, k8sconfig)
+    newkeys, err3 = normalise_kinds("filters", oldkeys, k8sconfig)
     if any((err1, err2, err3)):
         return cfg, True
 

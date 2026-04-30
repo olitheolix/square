@@ -124,13 +124,13 @@ class TestBasic:
         assert sq.show_plan(plan) is False
 
     def test_normalise_kinds_ok(self, k8sconfig):
-        got = sq.normalise_kinds([], k8sconfig)
+        got = sq.normalise_kinds("", [], k8sconfig)
         assert got == ([], False)
 
-        got = sq.normalise_kinds(["svc"], k8sconfig)
+        got = sq.normalise_kinds("", ["svc"], k8sconfig)
         assert got == (["service.v1"], False)
 
-        got = sq.normalise_kinds(["svc/name"], k8sconfig)
+        got = sq.normalise_kinds("", ["svc/name"], k8sconfig)
         assert got == (["service.v1/name"], False)
 
         kinds = [
@@ -144,7 +144,7 @@ class TestBasic:
         ]
 
         # Convert the selector KINDs to their canonical K8s kinds.
-        got_kinds, err = sq.normalise_kinds(kinds, k8sconfig)
+        got_kinds, err = sq.normalise_kinds("", kinds, k8sconfig)
         assert not err
 
         # Must have removed all duplicates.
@@ -172,15 +172,15 @@ class TestBasic:
         )
         r_2 = r_1._replace(apiVersion="group-b/v1")
 
-        _, err = sq.normalise_kinds(["democrd"], k8sconfig)
+        _, err = sq.normalise_kinds("", ["democrd"], k8sconfig)
         assert err
 
         k8sconfig.apis["democrd"] = [r_1]
-        _, err = sq.normalise_kinds(["democrd"], k8sconfig)
+        _, err = sq.normalise_kinds("", ["democrd"], k8sconfig)
         assert not err
 
         k8sconfig.apis["democrd"].append(r_2)
-        _, err = sq.normalise_kinds(["democrd"], k8sconfig)
+        _, err = sq.normalise_kinds("", ["democrd"], k8sconfig)
         assert err
 
     def test_compile_config_ok(self, k8sconfig):
