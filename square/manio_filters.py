@@ -1,4 +1,5 @@
 import copy
+import square.dtypes
 from typing import Any, Dict, List
 
 import jsonpath_ng as jp
@@ -56,9 +57,7 @@ def _delete_match(jpmatch: jp.DatumInContext) -> None:
         del parent[i]
 
 
-def strip_manifest_paths(
-    manifest: Dict[str, Any], paths: List[jp.JSONPath]
-) -> Dict[str, Any]:
+def strip_manifest_paths(manifest: Dict[str, Any], paths: List[str]) -> Dict[str, Any]:
     """
     Remove specified JSONPath paths from a Kubernetes manifest.
 
@@ -77,8 +76,9 @@ def strip_manifest_paths(
     # Collect all matches across all expressions, then sort by index descending
     # so that deleting array elements by index doesn't shift subsequent indices.
     all_matches: List[jp.DatumInContext] = []
+    jpathcache = square.dtypes.jpcache
     for path in paths:
-        all_matches.extend(path.find(manifest))
+        all_matches.extend(jpathcache(path).find(manifest))
     all_matches.sort(key=lambda m: str(m.full_path), reverse=True)
 
     for jpmatch in all_matches:

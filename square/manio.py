@@ -5,12 +5,11 @@ import difflib
 import logging
 import multiprocessing
 from pathlib import Path
-from typing import DefaultDict, Dict, Iterable, List, Tuple, cast
+from typing import DefaultDict, Dict, Iterable, List, Tuple
 
 import yaml.parser
 import yaml.scanner
 
-import jsonpath_ng as jp
 import square.k8s
 import square.square
 import square.manio_filters
@@ -532,15 +531,11 @@ def strip_single_manifest(config: Config, manifest: dict) -> dict:
     # Fetch the filters for this GVK. The user may have specified them via
     # their short or full names, eg "deploy" or "deploy.apps". We need to check
     # for both to cover all bases.
-    filters = list(config.filters.get("_common_", []))
-    filters += config.filters.get(kg, []) + config.filters.get(kind, [])
-    filters = list(set(filters))
+    f = config.filters
+    paths = f.get("_common_", []) + f.get(kg, []) + f.get(kind, [])
+    paths = list(set(paths))
 
-    # Sleight of hand (cf `dtypes.Config.validate_filters`) to satisfy MyPy
-    # that `filters` is indeed a List[jp.JSONPath] and will never contain
-    # any strings.
-    filters = cast(List[jp.JSONPath], filters)
-    return square.manio_filters.strip_manifest_paths(manifest, filters)
+    return square.manio_filters.strip_manifest_paths(manifest, paths)
 
 
 def strip_manifests(
