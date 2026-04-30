@@ -8,9 +8,8 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import Annotated
 
-# Square will first save/deploy the resources in this list in this order.
-# Afterwards it will move on to all those resources not in this list. The order
-# in which it does that is undefined.
+# Default value for the Config.priorities field. This is the order in which
+# Square will apply the resources.
 DEFAULT_PRIORITIES = (
     # Custom Resources should come first.
     "customresourcedefinition",
