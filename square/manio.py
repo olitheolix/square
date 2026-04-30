@@ -532,7 +532,7 @@ def strip_single_manifest(config: Config, manifest: dict) -> dict:
     # Fetch the filters for this GVK. The user may have specified them via
     # their short or full names, eg "deploy" or "deploy.apps". We need to check
     # for both to cover all bases.
-    filters = config.filters.get("_common_", [])
+    filters = list(config.filters.get("_common_", []))
     filters += config.filters.get(kg, []) + config.filters.get(kind, [])
     filters = list(set(filters))
 

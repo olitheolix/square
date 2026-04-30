@@ -1856,3 +1856,30 @@ class TestManifestStripping:
             },
         }
         assert manio.strip_single_manifest(sqcfg, manifest) == expected
+
+    def test_strip_single_manifest_bug(self, sqcfg: Config):
+        """Test a specific bug where the list of filters was mutated.
+
+        The root cause of the bug was that `strip_manifest_paths` created an
+        auxiliary list of filters that was not a copy of the original list but
+        a reference. As a consequence, the original list of filters was mutated
+        and changed for all subsequent calls to `strip_single_manifest`.
+
+        """
+        # Define filters for this test.
+        sqcfg.filters = {
+            "service": ["metadata.labels.foo"],
+            "service.v1": ["metadata.labels.bar"],
+            "_common_": ["metadata.labels.foobar"],
+        }
+
+        # Minimal manifest. Content is irrelevant for this test since we only
+        # want to verify that the filters are not mutated.
+        manifest = {
+            "apiVersion": "v1",
+            "kind": "Service",
+        }
+        manio.strip_single_manifest(sqcfg, manifest)
+        assert len(sqcfg.filters["service"]) == 1
+        assert len(sqcfg.filters["service.v1"]) == 1
+        assert len(sqcfg.filters["_common_"]) == 1
