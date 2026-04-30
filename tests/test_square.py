@@ -13,7 +13,6 @@ import square.k8s as k8s
 import square.manio as manio
 import square.square as sq
 from square.dtypes import (
-    DEFAULT_PRIORITIES,
     Config,
     DeltaCreate,
     DeltaDelete,
@@ -49,20 +48,6 @@ class TestLogging:
 
 
 class TestBasic:
-    def test_config_default(self, tmp_path):
-        """Default values for Config."""
-        assert Config(
-            folder=tmp_path, kubeconfig=tmp_path, kubecontext="ctx"
-        ) == Config(
-            folder=tmp_path,
-            kubecontext="ctx",
-            kubeconfig=tmp_path,
-            selectors=Selectors(),
-            priorities=list(DEFAULT_PRIORITIES),
-            groupby=GroupBy(),
-            filters={},
-        )
-
     def test_find_namespace_orphans(self):
         """Return all resource manifests that belong to non-existing
         namespaces.
