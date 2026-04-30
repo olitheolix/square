@@ -48,3 +48,8 @@ dev = [
     "sh>=2.2.2",
     "types-pyyaml>=6.0.12.20250915",
 ]
+
+[tool.pytest.ini_options]
+addopts = "-p no:warnings"
+norecursedirs = [".git"]
+asyncio_mode = "auto"
