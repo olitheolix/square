@@ -1,3 +1,4 @@
+from functools import cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple, Set, Tuple
 
@@ -285,7 +286,7 @@ class ConnectionParameters(BaseModel):
 
 
 """Define the new-style filters using JSON path strings."""
-Filters = Dict[str, List[str | jp.JSONPath]]  # eg {"Deployment": [".spec.replicas"]}
+Filters = Dict[str, List[str]]  # eg {"Deployment": [".spec.replicas"]}
 
 
 # Workaround for a circular import with `callbacks`. The `callbacks` module
@@ -295,6 +296,12 @@ Filters = Dict[str, List[str | jp.JSONPath]]  # eg {"Deployment": [".spec.replic
 # ctor at runtime.
 def do_nothing():
     return  # codecov-skip
+
+
+@cache
+def jpcache(p: str) -> jp.JSONPath:
+    """Parse a JSONPath expression and cache the result."""
+    return jp.parse(p)
 
 
 class Config(BaseModel):
@@ -355,20 +362,16 @@ class Config(BaseModel):
         #
         # Compilation occurs during validation so that runtime access operates solely
         # on pre-parsed expressions, avoiding repeated parsing overhead.
-        out: Dict[str, List[str | jp.JSONPath]] = {}
-        for key, paths in filters.items():
-            key = key.lower()
-            out[key] = []
-
-            # Run Pydantic validation on the key (eg "Deployment") to ensure it
-            # is a valid `SelKindGroupNames` string.
+        out = {k.lower(): v for k, v in filters.items()}
+        for key, paths in out.items():
+            # Run Pydantic validation on the key (eg "Deployment").
             SelKindGroupNames(value=key)
 
             try:
                 for path in paths:
-                    out[key].append(jp.parse(path) if isinstance(path, str) else path)
+                    jpcache(path)
             except JsonPathParserError:
-                raise ValueError(f"Path <{path}> is not a valid JSON path")
+                raise ValueError(f"invalid JSON path <{path}>")
 
         return out
 

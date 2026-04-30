@@ -1,7 +1,6 @@
 from pathlib import Path
 import pydantic
 import pytest
-import jsonpath_ng as jp
 
 from square.dtypes import (
     Config,
@@ -238,7 +237,7 @@ class TestConfigFilters:
             "service": ["spec.clusterIP"],
         }
         cfg = self.make_config(filters)
-        assert cfg.filters == {k: [jp.parse(_) for _ in v] for k, v in filters.items()}
+        assert cfg.filters == filters
 
     def test_filters_valid_lowercase_manual_assign(self):
         """The filters must be lower-cased upon import as well as when directly
@@ -267,7 +266,7 @@ class TestConfigFilters:
             ],
         }
         cfg = self.make_config(filters)
-        assert cfg.filters == {k: [jp.parse(_) for _ in v] for k, v in filters.items()}
+        assert cfg.filters == filters
 
     def test_filters_invalid_key(self):
         """An invalid SelKindGroupNames key must raise a ValidationError."""
@@ -289,4 +288,4 @@ class TestConfigFilters:
         """A key with an explicit API group is valid."""
         res = "role.rbac.authorization.k8s.io"
         cfg = self.make_config({res: ["metadata.labels"]})
-        assert jp.parse("metadata.labels") in cfg.filters[res]
+        assert "metadata.labels" in cfg.filters[res]

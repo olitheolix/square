@@ -1,5 +1,4 @@
 from square.manio_filters import strip_manifest_paths, remove_empty_dicts
-import jsonpath_ng as jp
 
 # ---------------------------------------------------------------------------
 # Tests for remove_empty_dicts
@@ -123,7 +122,7 @@ def test_basic_stripping():
         "spec": {"containers": [{"name": "nginx", "image": "nginx:latest"}]},
     }
 
-    result = strip_manifest_paths(manifest, [jp.parse("metadata.labels")])
+    result = strip_manifest_paths(manifest, ["metadata.labels"])
     assert result == {
         "apiVersion": "v1",
         "kind": "Pod",
@@ -143,7 +142,7 @@ def test_array_index_stripping():
         }
     }
 
-    result = strip_manifest_paths(manifest, [jp.parse("spec.containers[1]")])
+    result = strip_manifest_paths(manifest, ["spec.containers[1]"])
     assert result == {
         "spec": {
             "containers": [
@@ -165,7 +164,7 @@ def test_array_index_stripping_multi():
         }
     }
 
-    paths = [jp.parse("spec.containers[0]"), jp.parse("spec.containers[2]")]
+    paths = ["spec.containers[0]", "spec.containers[2]"]
     result = strip_manifest_paths(manifest, paths)
     assert result == {
         "spec": {"containers": [{"name": "nginx", "image": "nginx:latest"}]}
@@ -182,7 +181,7 @@ def test_wildcard_stripping():
         }
     }
 
-    paths = [jp.parse("spec.containers[*].env")]
+    paths = ["spec.containers[*].env"]
     result = strip_manifest_paths(manifest, paths)
     assert result == {
         "spec": {
@@ -202,7 +201,7 @@ def test_nested_path_stripping():
         }
     }
 
-    paths = [jp.parse("metadata.annotations.key1")]
+    paths = ["metadata.annotations.key1"]
     result = strip_manifest_paths(manifest, paths)
     assert result == {
         "metadata": {
@@ -224,7 +223,7 @@ def test_multiple_paths_stripping():
         "spec": {"containers": [{"name": "nginx"}], "replicas": 3},
     }
 
-    paths = [jp.parse("metadata.labels"), jp.parse("spec.replicas")]
+    paths = ["metadata.labels", "spec.replicas"]
     result = strip_manifest_paths(manifest, paths)
     assert result == {
         "apiVersion": "v1",
@@ -247,7 +246,7 @@ def test_multiple_paths_stripping2():
         },
     }
 
-    paths = [jp.parse("metadata.labels"), jp.parse("metadata.labels.app")]
+    paths = ["metadata.labels", "metadata.labels.app"]
     result = strip_manifest_paths(manifest, paths)
     assert result == {
         "apiVersion": "v1",
@@ -259,13 +258,13 @@ def test_multiple_paths_stripping2():
 
 
 def test_empty_manifest():
-    result = strip_manifest_paths({}, [jp.parse("metadata")])
+    result = strip_manifest_paths({}, ["metadata"])
     assert result == {}
 
 
 def test_nonexistent_path():
     manifest = {"metadata": {"name": "test"}}
-    result = strip_manifest_paths(manifest, [jp.parse("metadata.labels")])
+    result = strip_manifest_paths(manifest, ["metadata.labels"])
     assert result == manifest
 
 
@@ -306,7 +305,6 @@ def test_complex_k8s_manifest():
         "spec.replicas",
         "metadata.labels['kubernetes.io/name']",
     ]
-    paths = [jp.parse(p) for p in paths]
     result = strip_manifest_paths(manifest, paths)
     assert result == {
         "apiVersion": "apps/v1",
