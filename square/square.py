@@ -36,10 +36,10 @@ logit = logging.getLogger("square")
 def normalise_kinds(
     rname: str, kinds: Iterable[str], k8sconfig: K8sConfig
 ) -> Tuple[List[str], bool]:
-    """Convert `Selectors.{kind, priorities}` to <kind>.<group>/<name> format.
+    """Convert a given resource kind to <kind>.<group>/<name> format.
 
-    This is a Square internal format to uniquely identify a resource and its
-    group, optionally also the name of the resource.
+    This is a Square internal format to uniquely identify a resource kind and
+    its group. The name is optional.
 
     Examples:
       - "svc" -> "service.v1"
