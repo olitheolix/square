@@ -16,7 +16,6 @@ import square.manio as manio
 import square.square as sq
 from square import DEFAULT_CONFIG_FILE
 from square.dtypes import (
-    DEFAULT_PRIORITIES,
     Config,
     ConnectionParameters,
     DeltaCreate,
@@ -85,12 +84,12 @@ def fname_param_config(
         kubeconfig=str(config.kubeconfig),
         # These were not specified on the command line.
         folder=".",
-        kinds=DEFAULT_PRIORITIES,
+        kinds=square.DEFAULT_CONFIG.selectors.kinds,
         labels=[],
         namespaces=[],
         kubecontext=None,
         groupby=["ns", "label=app", "kind"],
-        priorities=DEFAULT_PRIORITIES,
+        priorities=square.DEFAULT_CONFIG.priorities,
         connection_parameters=ConnectionParameters(
             disable_x509_strict=False, k8s_extra_headers={"foo": "bar"}
         ),
@@ -178,9 +177,9 @@ class TestMain:
         assert cfg.folder == Path("tests/support").absolute() / "some/path"
         assert cfg.kubeconfig == kubeconfig_override
         assert cfg.kubecontext is None
-        assert cfg.priorities == list(DEFAULT_PRIORITIES)
+        assert cfg.priorities == square.DEFAULT_CONFIG.priorities
         assert cfg.selectors == Selectors(
-            kinds=set(DEFAULT_PRIORITIES),
+            kinds=set(square.DEFAULT_CONFIG.selectors.kinds),
             namespaces=["default", "kube-system"],
             labels=["app=square"],
         )

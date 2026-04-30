@@ -93,7 +93,7 @@ class TestLoadConfig:
         assert cfg.kubeconfig == Path("/path/to/kubeconfig")
         assert cfg.kubecontext is None
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
-        assert cfg.selectors.kinds == set(DEFAULT_PRIORITIES)
+        assert cfg.selectors.kinds == set(square.DEFAULT_CONFIG.selectors.kinds)
         assert cfg.selectors.namespaces == ["default", "kube-system"]
         assert cfg.selectors.labels == ["app=square"]
         assert set(cfg.filters.keys()) == {
