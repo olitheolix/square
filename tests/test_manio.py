@@ -863,7 +863,7 @@ class TestStripManifest:
         # Convenience.
         fun = manio.strip_manifests
 
-        man_loc = make_manifest("ClusterRole", None, "name")
+        man_loc = make_manifest("ConfigMap", None, "name")
         meta_loc = manio.make_meta(man_loc)
         man_srv = make_manifest("Service", "ns", "name")
         meta_srv = manio.make_meta(man_srv)
@@ -889,7 +889,7 @@ class TestStripManifest:
         # present in the original.
         # ----------------------------------------------------------------------
         man_loc["metadata"]["annotations"] = {"foo": "bar"}
-        sqcfg.filters = {"Clusterrole": ["metadata.annotations"]}
+        sqcfg.filters = {"configmap.v1": ["metadata.annotations"]}
         ret_loc, ret_srv, err = fun(sqcfg, local, server)
         assert not err
 
@@ -899,8 +899,7 @@ class TestStripManifest:
         # Annotations must still be present in the input dictionary.
         assert "annotations" in man_loc["metadata"]
 
-        # Must not have touched the `server` since it did not have any
-        # annotations.
+        # Must not have touched the `server` since it did not have any annotations.
         assert ret_srv == server
 
     def test_strip_manifests_err(self, sqcfg: Config):
