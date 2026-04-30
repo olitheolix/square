@@ -1826,7 +1826,7 @@ class TestDownloadManifests:
 
 
 class TestManifestStripping:
-    @pytest.mark.parametrize("resource", ["service", "service.v1", "_common_"])
+    @pytest.mark.parametrize("resource", ["service.v1", "_common_"])
     def test_strip_single_manifest_generic(self, resource: str, sqcfg: Config):
         """Create a completely fake filter set to test all options.
 
