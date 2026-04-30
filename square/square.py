@@ -90,11 +90,23 @@ def update_config(cfg: Config, k8sconfig: K8sConfig) -> Tuple[Config, bool]:
     `cfg.selectors` in-place.
 
     """
+    # Backup the filters before we modify it.
+    common = cfg.filters.pop("_common_", [])
+    oldkeys = set(cfg.filters)
+
     # Normalise the selected kinds and those from the priority list.
     kinds, err1 = normalise_kinds(cfg.selectors.kinds, k8sconfig)
     prio, err2 = normalise_kinds(cfg.priorities, k8sconfig)
-    if err1 or err2:
+    newkeys, err3 = normalise_kinds(oldkeys, k8sconfig)
+    if any((err1, err2, err3)):
         return cfg, True
+
+    # Relabel the filter keys, eg `svc` -> `service.v1`. Also sort the paths
+    # and remove duplicates.
+    f2 = {new: cfg.filters[old] for old, new in zip(oldkeys, newkeys)}
+    f2["_common_"] = common
+    cfg.filters = {k: list(sorted(set(v))) for k, v in f2.items()}
+    del f2, oldkeys, newkeys
 
     # Check: kinds in the priority list must not contain a name.
     # Valid: "svc"  Invalid: "svc/name"

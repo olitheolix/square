@@ -532,7 +532,7 @@ def strip_single_manifest(config: Config, manifest: dict) -> dict:
     # their short or full names, eg "deploy" or "deploy.apps". We need to check
     # for both to cover all bases.
     f = config.filters
-    paths = f.get("_common_", []) + f.get(kg, []) + f.get(kind, [])
+    paths = f.get("_common_", []) + f.get(kg, [])
     paths = list(set(paths))
 
     return square.manio_filters.strip_manifest_paths(manifest, paths)

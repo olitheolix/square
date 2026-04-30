@@ -191,6 +191,11 @@ class TestBasic:
             groupby=GroupBy(),
             priorities=["ns", "democrd"],
             selectors=Selectors(kinds={"svc", "deploy/name"}),
+            filters={
+                "_common_": ["metadata.annotions"],
+                "svc": ["foo.svc1", "foo.svc2", "bar.svc", "foo.svc2", "foo.svc2"],
+                "deployments": ["bar.deploy1", "foo.deployments", "bar.deploy2"],
+            },
         )
 
         got_cfg, err = sq.update_config(cfg, k8sconfig)
@@ -200,6 +205,11 @@ class TestBasic:
         # must also have removed all duplicates.
         assert got_cfg.selectors.kinds == {"service.v1", "deployment.apps/name"}
         assert got_cfg.priorities == ["namespace.v1", "democrd.mycrd.com"]
+        assert got_cfg.filters == {
+            "_common_": ["metadata.annotions"],
+            "service.v1": ["bar.svc", "foo.svc1", "foo.svc2"],
+            "deployment.apps": ["bar.deploy1", "bar.deploy2", "foo.deployments"],
+        }
 
     def test_compile_config_err(self, k8sconfig):
         # Invalid: kinds in priority list must not contain a name.
