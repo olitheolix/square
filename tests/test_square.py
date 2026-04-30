@@ -1245,7 +1245,7 @@ class TestMainOptions:
         calls, and verify that all the necessary calls are made.
 
         The second part of the test simulates errors. This is not a separate
-        test because it shares virtually all the boiler plate code.
+        test because it shares virtually all the boilerplate code.
 
         """
         k8sconfig: K8sConfig = kube_creds
