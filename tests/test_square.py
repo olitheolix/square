@@ -193,7 +193,7 @@ class TestBasic:
             selectors=Selectors(kinds={"svc", "deploy/name"}),
         )
 
-        got_cfg, err = sq.compile_config(cfg, k8sconfig)
+        got_cfg, err = sq.update_config(cfg, k8sconfig)
         assert not err
 
         # Must have normalised the kinds and preserved the optional name. It
@@ -211,7 +211,7 @@ class TestBasic:
             priorities=["ns/name"],
             selectors=Selectors(kinds=set()),
         )
-        _, err = sq.compile_config(cfg, k8sconfig)
+        _, err = sq.update_config(cfg, k8sconfig)
         assert err
 
         # Invalid: priority list must not contain duplicates.
@@ -223,7 +223,7 @@ class TestBasic:
             priorities=["ns", "ns"],
             selectors=Selectors(kinds=set()),
         )
-        _, err = sq.compile_config(cfg, k8sconfig)
+        _, err = sq.update_config(cfg, k8sconfig)
         assert err
 
         # Invalid: selected kind does not exist in current K8s cluster.
@@ -235,7 +235,7 @@ class TestBasic:
             priorities=[],
             selectors=Selectors(kinds={"unknown"}),
         )
-        _, err = sq.compile_config(cfg, k8sconfig)
+        _, err = sq.update_config(cfg, k8sconfig)
         assert err
 
     def test_valid_label(self):
@@ -815,7 +815,7 @@ class TestPlan:
         )
 
         sqcfg.priorities = ["Namespace", "Service", "Deployment"]
-        sqcfg, err = sq.compile_config(sqcfg, k8sconfig)
+        sqcfg, err = sq.update_config(sqcfg, k8sconfig)
         assert not err
         plan = copy.deepcopy(expected)
         for _ in range(10):
@@ -852,7 +852,7 @@ class TestPlan:
             ],
         )
         sqcfg.priorities = ["Namespace", "Deployment"]
-        sqcfg, err = sq.compile_config(sqcfg, k8sconfig)
+        sqcfg, err = sq.update_config(sqcfg, k8sconfig)
         assert not err
         plan = copy.deepcopy(expected)
         for _ in range(10):
