@@ -31,29 +31,9 @@ except sh.CommandNotFound:
     kubectl = None
 
 
-def add_default_filters(config: Config) -> None:
-    """Add default filters to the configuration if they are not already present."""
-    if "_common_" in config.filters:
-        return
-
-    tmp = config.filters
-    tmp["_common_"] = [
-        'metadata.annotations["autoscaling.alpha.kubernetes.io/conditions"]',
-        'metadata.annotations["deployment.kubernetes.io/revision"]',
-        'metadata.annotations["kubectl.kubernetes.io/last-applied-configuration"]',
-        'metadata.annotations["kubernetes.io/change-cause"]',
-        "metadata.creationTimestamp",
-        "metadata.generation",
-        "metadata.managedFields",
-        "metadata.resourceVersion",
-        "metadata.selfLink",
-        "metadata.uid",
-        "status",
-    ]
-
-    # Explicitly assign the entire dict to ensure that Pydantic re-validates
-    # the filters.
-    config.filters = tmp
+def common_filters() -> dict:
+    """Return the common filters from the default configuration."""
+    return {"_common_": list(square.DEFAULT_CONFIG.filters.get("_common_", []))}
 
 
 @contextmanager
@@ -383,8 +363,8 @@ class TestMainGet:
                 namespaces=["test-hpa"],
                 labels=[],
             ),
+            filters=common_filters(),
         )
-        add_default_filters(config)
 
         # Copy the manifest with the namespace and HPAs to a temporary path.
         manifests = list(yaml.safe_load_all(open("tests/support/k8s-test-hpa.yaml")))
@@ -805,8 +785,8 @@ class TestMainPlan:
                 namespaces=[namespace],
                 labels=["app=test-workflow"],
             ),
+            filters=common_filters(),
         )
-        add_default_filters(config)
 
         # ---------------------------------------------------------------------
         # Deploy a new namespace with only a few resources. There are no
@@ -884,8 +864,8 @@ class TestMainPlan:
             selectors=Selectors(
                 kinds={"HorizontalPodAutoscaler"}, namespaces=["test-hpa"], labels=[]
             ),
+            filters=common_filters(),
         )
-        add_default_filters(config)
 
         # Copy the manifest with the namespace and the two HPAs to the temporary path.
         manifests = list(yaml.safe_load_all(open("tests/support/k8s-test-hpa.yaml")))
@@ -1016,8 +996,8 @@ class TestCRUD:
                 selectors=Selectors(
                     kinds={kind}, namespaces=[ns], labels=["app=test-kind-group-v1"]
                 ),
+                filters=common_filters(),
             )
-            add_default_filters(config)
 
             # ------------------------------------------------------------------
             # Deploy one instance of each CRD with `kubectl`.
@@ -1102,8 +1082,8 @@ class TestCRUD:
                     namespaces=[ns],
                     labels=[],
                 ),
+                filters=common_filters(),
             )
-            add_default_filters(config)
 
             # ------------------------------------------------------------------
             # Deploy one instance of each CRD with `kubectl`.
