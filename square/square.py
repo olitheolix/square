@@ -78,7 +78,7 @@ def normalise_kinds(
     return (normalised_kinds, False)
 
 
-def compile_config(cfg: Config, k8sconfig: K8sConfig) -> Tuple[Config, bool]:
+def update_config(cfg: Config, k8sconfig: K8sConfig) -> Tuple[Config, bool]:
     """Convert `cfg.Selectors.kind` and `cfg.priorities` to Square internal format.
 
     Examples:
@@ -788,7 +788,7 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     )
 
     # Convert "Selectors.kinds" to their canonical names.
-    cfg, compile_err = compile_config(cfg, k8sconfig)
+    cfg, compile_err = update_config(cfg, k8sconfig)
 
     # Abort if we could not get the plan or establish the K8s session.
     if plan_err or k8s_err or compile_err:
@@ -897,7 +897,7 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         assert not err
 
         # Convert "Selectors.kinds" to their canonical names.
-        cfg, err = compile_config(cfg, k8sconfig)
+        cfg, err = update_config(cfg, k8sconfig)
         assert not err
 
         # Load manifests from local files.
@@ -949,7 +949,7 @@ async def get_resources(cfg: Config) -> bool:
         # NOTE: we cannot do this earlier, eg as part of the Pydantic model
         # because we need access to K8s first so that `k8sconfig` contains all
         # the API resources and groups.
-        cfg, err = compile_config(cfg, k8sconfig)
+        cfg, err = update_config(cfg, k8sconfig)
         assert not err
 
         # Use a wildcard Selector to ensure `manio.load` will read _all_ local
