@@ -1,5 +1,5 @@
 # Square configuration Syntax.
-version: v0.1
+version: v1.1
 
 kubeconfig: /path/to/kubeconfig # eg "~/.kube/config".
 kubecontext: null
