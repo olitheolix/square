@@ -15,7 +15,7 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
-  image: kindest/node:v1.34.0
+  image: kindest/node:v1.35.0
 EOF
 
 # Create cluster, then delete its config file.
