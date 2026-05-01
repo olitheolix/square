@@ -1,11 +1,8 @@
 """Use custom callbacks to strip manifests or modify them before computing patches.
 
-This example will first download some manifests from the KinD integration test
-cluster and verify that the plan is clean.
-
-Then it will install a new patch callback that adds a label but only to
-DEPLOYMENTS and compute the same plan again. This time, the plan will contain
-some patches.
+The example will install a new patch callback to add a label before Square
+compares the manifests and derives patches. Consequently, the plan will contain
+patches to add the new label.
 
 """
 
@@ -29,21 +26,22 @@ def patch_callback(
     cfg: Config, local_manifest: dict, server_manifest: dict
 ) -> Tuple[dict, dict]:
     """Modify the local manifest before Square compiles patches."""
-    # Make no modifications if the manifest is not a DEPLOYMENT.
+    # Do nothing unless it is a DEPLOYMENT.
     if local_manifest["kind"] != "Deployment":
         return local_manifest, server_manifest
 
-    # Ensure the DEPLOYMENT has a label `foo=bar`.
+    # Manually insert the label `foo=bar`.
     if "labels" not in local_manifest["metadata"]:
         local_manifest["metadata"]["labels"] = {}
     local_manifest["metadata"]["labels"]["foo"] = "bar"
 
     # Do not patch the replica count of a deployment. This is a typical use
     # case for this kind of callback since the HPA may have increased the
-    # number of replicas in the cluster and we probably do not want to force it
-    # back to the value specified in our local manifest. We can easily avoid
-    # this by showing Square a local manifest that has the exact same amount of
-    # replicas as that on the cluster.
+    # number of replicas in the cluster and we probably do not want to
+    # overwrite it. To avoid this, we can simply set the number of replicas in
+    # the local manifest to be the same as that on the cluster. This way,
+    # Square will not detect any difference in the number of replicas and will
+    # not generate a patch.
     #
     # NOTE: this change happens in memory only and never propagates back to the
     # local manifest stored on disk.
