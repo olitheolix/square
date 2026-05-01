@@ -1,7 +1,7 @@
 # Temporary files and folders
 **/*~
 **/__pycache__
-/examples/clusters/
+
 
 # MyPy
 .mypy_cache
