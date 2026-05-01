@@ -31,11 +31,6 @@ except sh.CommandNotFound:
     kubectl = None
 
 
-def common_filters() -> dict:
-    """Return the common filters from the default configuration."""
-    return {"_common_": list(square.DEFAULT_CONFIG.filters.get("_common_", []))}
-
-
 @contextmanager
 def create_temporary_k8s_namespace():
     ts = int(1000 * time.time())
@@ -363,7 +358,6 @@ class TestMainGet:
                 namespaces=["test-hpa"],
                 labels=[],
             ),
-            filters=common_filters(),
         )
 
         # Copy the manifest with the namespace and HPAs to a temporary path.
@@ -785,7 +779,6 @@ class TestMainPlan:
                 namespaces=[namespace],
                 labels=["app=test-workflow"],
             ),
-            filters=common_filters(),
         )
 
         # ---------------------------------------------------------------------
@@ -864,7 +857,6 @@ class TestMainPlan:
             selectors=Selectors(
                 kinds={"HorizontalPodAutoscaler"}, namespaces=["test-hpa"], labels=[]
             ),
-            filters=common_filters(),
         )
 
         # Copy the manifest with the namespace and the two HPAs to the temporary path.
@@ -996,7 +988,6 @@ class TestCRUD:
                 selectors=Selectors(
                     kinds={kind}, namespaces=[ns], labels=["app=test-kind-group-v1"]
                 ),
-                filters=common_filters(),
             )
 
             # ------------------------------------------------------------------
@@ -1082,7 +1073,6 @@ class TestCRUD:
                     namespaces=[ns],
                     labels=[],
                 ),
-                filters=common_filters(),
             )
 
             # ------------------------------------------------------------------

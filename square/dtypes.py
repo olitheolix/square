@@ -30,6 +30,38 @@ DEFAULT_PRIORITIES = (
     "ingress.networking.k8s.io",
 )
 
+"""Define the new-style filters using JSON path strings."""
+
+# Type: JSON path filters for each resource type.
+Filters = Dict[str, List[str]]  # eg {"Deployment": [".spec.replicas"]}
+
+
+def default_filters() -> Filters:
+    """Default filters if `.square.yaml` does not specify any."""
+    return {
+        "_common_": [
+            'metadata.annotations["autoscaling.alpha.kubernetes.io/conditions"]',
+            'metadata.annotations["deployment.kubernetes.io/revision"]',
+            'metadata.annotations["kubectl.kubernetes.io/last-applied-configuration"]',
+            'metadata.annotations["kubernetes.io/change-cause"]',
+            "metadata.creationTimestamp",
+            "metadata.generation",
+            "metadata.managedFields",
+            "metadata.resourceVersion",
+            "metadata.selfLink",
+            "metadata.uid",
+            "status",
+        ],
+        "configmap": [
+            "metadata.annotations",
+        ],
+        "horizontalpodautoscaler.autoscaling": [
+            'metadata.annotations["autoscaling.alpha.kubernetes.io/current-metrics"]',
+            'metadata.annotations["control-plane.alpha.kubernetes.io/leader"]',
+        ],
+        "service": ["spec.clusterIP", "spec.ports[*].nodePort", "spec.sessionAffinity"],
+    }
+
 
 # -----------------------------------------------------------------------------
 #                                  Kubernetes
@@ -284,10 +316,6 @@ class ConnectionParameters(BaseModel):
     http2: bool = True
 
 
-"""Define the new-style filters using JSON path strings."""
-Filters = Dict[str, List[str]]  # eg {"Deployment": [".spec.replicas"]}
-
-
 # Workaround for a circular import with `callbacks`. The `callbacks` module
 # needs the `Config` type annotation but `dtypes.Config` needs the callbacks.
 # To break the cycle we use this dummy function as the default callback and
@@ -332,7 +360,7 @@ class Config(BaseModel):
     groupby: GroupBy = GroupBy()
 
     # Define which fields to skip for which resource (new JSON path format).
-    filters: Filters = Field(default_factory=dict)
+    filters: Filters = default_filters()
 
     # Connection timeouts, headers and extra SSL configurations.
     connection_parameters: ConnectionParameters = ConnectionParameters()

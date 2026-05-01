@@ -11,6 +11,7 @@ from square.dtypes import (
     Config,
     ConnectionParameters,
     GroupBy,
+    default_filters,
 )
 
 
@@ -43,7 +44,7 @@ class TestLoadConfig:
         assert cfg.selectors.labels == []
         assert cfg.priorities == list(DEFAULT_PRIORITIES)
         assert cfg.groupby == GroupBy()
-        assert cfg.filters == {}
+        assert cfg.filters == default_filters()
         assert cfg.strip_callback is square.callbacks.strip_manifest
         assert cfg.patch_callback is square.callbacks.patch_manifests
         assert cfg.user_data is None
