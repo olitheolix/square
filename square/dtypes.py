@@ -8,29 +8,29 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import Annotated
 
-# Default value for the Config.priorities field. This is the order in which
-# Square will apply the resources.
-DEFAULT_PRIORITIES = (
-    # Custom Resources should come first.
-    "customresourcedefinition",
-    # Common non-namespaced resources.
-    "clusterrole",
-    "clusterrolebinding",
-    # Namespaces must come before any namespaced resources.
-    "namespace",
-    # RBAC.
-    "role",
-    "rolebinding",
-    "serviceaccount",
-    # Everything else.
-    "configmap",
-    "service",
-    "deployment.apps",
-    "horizontalpodautoscaler.autoscaling",
-    "ingress.networking.k8s.io",
-)
 
-"""Define the new-style filters using JSON path strings."""
+def default_priorities() -> List[str]:
+    """Default priorities if `.square.yaml` does not specify any."""
+    return [
+        # Custom Resources should come first.
+        "customresourcedefinition",
+        # Common non-namespaced resources.
+        "clusterrole",
+        "clusterrolebinding",
+        # Namespaces must come before any namespaced resources.
+        "namespace",
+        # RBAC.
+        "role",
+        "rolebinding",
+        "serviceaccount",
+        # Everything else.
+        "configmap",
+        "service",
+        "deployment.apps",
+        "horizontalpodautoscaler.autoscaling",
+        "ingress.networking.k8s.io",
+    ]
+
 
 # Type: JSON path filters for each resource type.
 Filters = Dict[str, List[str]]  # eg {"Deployment": [".spec.replicas"]}
@@ -354,7 +354,7 @@ class Config(BaseModel):
 
     # Sort the manifest in this order, or alphabetically at the end if not in the list.
     # Examples: ["pod", "service.v1", "deploy.apps"]
-    priorities: List[str] = list(DEFAULT_PRIORITIES)
+    priorities: List[str] = default_priorities()
 
     # How to structure the folder directory when syncing manifests.
     groupby: GroupBy = GroupBy()
