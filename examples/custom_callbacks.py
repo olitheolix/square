@@ -11,14 +11,24 @@ from pathlib import Path
 from typing import Tuple
 
 import square
-from square.dtypes import Config, Selectors
+import square.manio
+from square.dtypes import Config, Selectors, GroupBy
 
 
-# Install a `strip` callback that corrupts `MetaManifest` info.
+# Install a `strip` callback to remove the `status` field from all DEPLOYMENT manifests.
 def strip_callback(cfg: Config, manifest: dict):
-    """Remove the `status` field from all DEPLOYMENT manifests."""
+    """Remove the `.status` fields from all DEPLOYMENT manifests.
+
+    This is easier to achieve with the standard filters but this is just an
+    example of how to use the `strip_callback` to implement custom filter
+    logic.
+
+    """
     if manifest["kind"] == "Deployment":
         manifest.pop("status", None)
+
+    # Optional: apply the JSON path filters.
+    manifest = square.manio.strip_single_manifest(cfg, manifest)
     return manifest
 
 
@@ -61,6 +71,7 @@ async def main():
     config = Config(
         kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
         folder=Path("manifests"),
+        groupby=GroupBy(label="app", order=["ns", "label", "kind"]),
         selectors=Selectors(
             kinds={"deployments.apps", "services.v1", "namespace"},
         ),
