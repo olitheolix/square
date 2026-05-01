@@ -32,7 +32,7 @@ async def main():
         kubeconfig=kubeconfig,
         kubecontext=kubecontext,
         # Store manifests in this folder.
-        folder=Path("manifests"),
+        folder=Path("manifests-basic"),
         # Group the downloaded manifests by namespace, label and kind.
         groupby=GroupBy(label="app", order=["ns", "label", "kind"]),
         # Specify the resources types to operate on. These ones in particular
