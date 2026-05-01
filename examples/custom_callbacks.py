@@ -70,7 +70,7 @@ async def main():
     # and `apply` need one.
     config = Config(
         kubeconfig=Path("/tmp/kubeconfig-kind.yaml"),
-        folder=Path("manifests"),
+        folder=Path("manifests-cb"),
         groupby=GroupBy(label="app", order=["ns", "label", "kind"]),
         selectors=Selectors(
             kinds={"deployments.apps", "services.v1", "namespace"},
