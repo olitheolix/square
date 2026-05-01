@@ -90,8 +90,8 @@ priorities:
 
 
 # -----------------------------------------------------------------------------
-# Square will omit all manifest keys defined here in its plan and patches. It
-# will also skip those keys if it creates a new resource.
+# Selectively ignore those portions of the manifest when computing patches.
+# Each element must be a JSON path (https://goessner.net/articles/JsonPath).
 # -----------------------------------------------------------------------------
 filters:
   # --- These will be inserted into all resource types to reduce boilerplate. ---
