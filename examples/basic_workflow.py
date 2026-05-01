@@ -38,6 +38,7 @@ async def main():
             labels=["app=demoapp-1"],
             namespaces=["square-tests-1", "square-tests-2"],
         ),
+        filters2=square.DEFAULT_CONFIG.filters2,
     )
 
     # ----------------------------------------------------------------------
