@@ -47,7 +47,7 @@ async def main():
     # Populate the `Config` structure for Square.
     configs = [make_config(*args) for args in clusters]
 
-    # Import resources and ensure all `square.get` calls returned without error.
+    # Import resources and ensure all `square.get` calls
     coroutines = [square.get(cfg) for cfg in configs]
     err = await asyncio.gather(*coroutines)
     assert not any(err)

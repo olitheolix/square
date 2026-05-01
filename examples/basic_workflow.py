@@ -1,7 +1,11 @@
 """Use Square as a library in your own code.
 
 This example will download some manifests from the KinD integration test
-server, create a plan and then apply it.
+cluster, then create a plan and finally apply it.
+
+The plan will be clean because the local manifests are match those on the
+cluster since we downloaded them. Nevertheless, it will still go through the
+whole workflow to show how to use Square as a library in your own code.
 
 """
 
