@@ -116,8 +116,6 @@ jobs:
       - name: Run Examples
         working-directory: ./examples
         run: |
-          # Temporarily disable the examples during transition to JSON paths filters.
-          exit 0
           python basic_workflow.py
           python custom_callbacks.py
           python multi_cluster.py
