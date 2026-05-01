@@ -115,7 +115,6 @@ filters:
   deployment.apps: []
 
   horizontalpodautoscaler.autoscaling:
-    - metadata.annotations["autoscaling.alpha.kubernetes.io/conditions"]
     - metadata.annotations["autoscaling.alpha.kubernetes.io/current-metrics"]
     - metadata.annotations["control-plane.alpha.kubernetes.io/leader"]
 
