@@ -72,3 +72,17 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "htmlcov"
+
+[tool.bumpversion]
+current_version = "2.4.1"
+commit = true
+tag = false
+
+[[tool.bumpversion.files]]
+filename = "square/__init__.py"
+
+[[tool.bumpversion.files]]
+filename = "README.md"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
