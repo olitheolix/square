@@ -53,3 +53,22 @@ dev = [
 addopts = "-p no:warnings"
 norecursedirs = [".git"]
 asyncio_mode = "auto"
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "tests/*",
+    "delme*",
+    "square/__main__.py",
+    "pyinstaller_entrypoint.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "codecov-skip",
+    "_MEIPASS",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
