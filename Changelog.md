@@ -1,6 +1,18 @@
 # Changelog
 
-## Latest
+## v2.5.0 (2026-05-04)
+### Highlights
+Square now uses JSON path to specify the fields to ignore.
+
+### BREAKING Changes
+- Square only accepts config files with version `v1.1`
+- The existing dict-based `filters` in the config file need to be manually changed to JSON paths.
+
+### Changes
+* feat: JSON path filters.
+* config: merged `.coveragerc` and `.bumpversion.cfg` into `pyproject.toml`.
+
+## v2.4.1 (2026-03-26)
 ### Highlights
 Switched development to a `uv` `based workflow.
 
