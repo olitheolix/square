@@ -488,13 +488,13 @@ async def compile_plan(
 
 
 def show_plan(plan: DeploymentPlan) -> bool:
-    """Print human readable version of `plan` to terminal.
+    """Print a human readable version of `plan` to the terminal.
 
     Inputs:
         plan: DeploymentPlan
 
     Returns:
-        None
+        Error flag (always `False`, since the function only prints).
 
     """
     # Terminal colours for convenience.
@@ -746,7 +746,7 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
         plan: DeploymentPlan
 
     Returns:
-        None
+        Error flag (`True` on failure).
 
     """
     # Sanity check labels.

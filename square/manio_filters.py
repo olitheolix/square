@@ -58,11 +58,11 @@ def _delete_match(jpmatch: jp.DatumInContext) -> None:
 
 
 def strip_manifest_paths(manifest: Dict[str, Any], paths: List[str]) -> Dict[str, Any]:
-    """
-    Remove specified JSONPath paths from a Kubernetes manifest.
+    """Remove the specified JSONPath `paths` from a Kubernetes manifest.
 
-    Returns a (modified_copy, error) tuple. If any path is malformed, returns
-    the unmodified copy and error=True.
+    Operate on a deep copy and return the stripped manifest, leaving the
+    caller's `manifest` untouched. The caller must ensure every entry in
+    `paths` is a valid JSONPath expression (`Config` validates them upfront).
 
     Path syntax examples:
         "metadata.labels"

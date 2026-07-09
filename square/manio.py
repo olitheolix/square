@@ -493,20 +493,18 @@ def filename_for_manifest(
 def diff(local: dict, server: dict) -> Tuple[str, bool]:
     """Return the human readable diff between the `local` and `server` manifest.
 
-    The diff shows the necessary changes to transition the `server` manifest
-    into the state of the `local` manifest.
+    The diff shows the changes needed to transition the `server` manifest into
+    the state of the `local` manifest.
 
     Inputs:
-        config: Square configuration.
-        k8sconfig: K8sConfig
         local: dict
             Local manifest.
         server: dict
             Server manifest.
 
     Returns:
-        str: human readable diff string as the Unix `diff` utility would
-        produce it.
+        (diff string, error flag): the diff reads like the output of the Unix
+        `diff` utility.
 
     """
     srv_lines = yaml.dump(server, default_flow_style=False, Dumper=Dumper).splitlines()
@@ -573,11 +571,10 @@ def run_strip_callback(config: Config, manifest: dict) -> Tuple[dict, bool]:
 
     Inputs:
         config: Config
-        k8sconfig: K8sConfig
         manifest: dict
 
     Returns:
-        dict: stripped manifest
+        (stripped manifest, error flag)
 
     """
     # Run strip callback.
@@ -619,7 +616,7 @@ def save_files(folder: Path, file_data: Dict[Path, str]) -> bool:
             The file name (relative to `folder`) and its content.
 
     Returns:
-        None
+        Error flag (`True` on failure).
 
     """
     # Delete all YAML files under `folder`. This avoids stale manifests.
@@ -792,19 +789,19 @@ def sort_manifests(
 
 
 def save(folder: Path, manifests: LocalManifestLists, priority: List[str]) -> bool:
-    """Saves all `manifests` as YAMLs in `folder`.
+    """Save all `manifests` as YAML files in `folder`.
 
     Input:
         folder: Path
-            Source folder.
-        file_manifests: Dict[Path, Tuple(MetaManifest, dict)]
-            Names of files and their Python dicts to save as YAML.
+            Destination folder.
+        manifests: LocalManifestLists
+            The file names and the manifests to serialise into each of them.
         priority: List[str]
-            Sort the manifest in this order, or alphabetically at the end if
-            not in the list.
+            Sort the manifests in this order, or alphabetically at the end if a
+            kind is not in the list.
 
     Returns:
-        None
+        Error flag (`True` on failure).
 
     """
     # Sort the manifest in each file by priority.
