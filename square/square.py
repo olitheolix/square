@@ -459,6 +459,7 @@ async def compile_plan(
     for meta in plan.delete:
         # Resource URL. Ignore the error flag because `strip` already called
         # `k8s.resource` earlier and would have aborted if there was an error.
+        # We check it as an invariant anyway.
         resource, err = k8s.resource(k8sconfig, meta)
         assert not err
 
@@ -855,12 +856,12 @@ def pick_manifests_for_plan(
 ) -> Tuple[SquareManifests, SquareManifests]:
     """Return the subset of `local` and `server` that satisfy the `selectors`."""
 
-    # Compile the server manifests that match the selectors.
+    # Compile the local manifests that match the selectors.
     sel_local = {
         meta: man for meta, man in local.items() if manio.select(man, selectors, True)
     }
 
-    # Compile the local manifests that match the selectors.
+    # Compile the server manifests that match the selectors.
     sel_server = {
         meta: man for meta, man in server.items() if manio.select(man, selectors, True)
     }
