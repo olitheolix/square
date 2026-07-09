@@ -107,8 +107,8 @@ def select(manifest: dict, selectors: Selectors, match_labels: bool) -> bool:
 
     # Split all labels into tuples: "foo=bar" -> ("foo", "bar").
     # Sanity check: hard abort if the labels do not split.
-    label_selectors = {tuple(_.split("=")) for _ in selectors.labels}
-    assert all([len(_) == 2 for _ in label_selectors])
+    label_selectors = {tuple(label.split("=")) for label in selectors.labels}
+    assert all([len(pair) == 2 for pair in label_selectors])
 
     # Unpack KIND, LABELS and NAME.
     api_version = manifest.get("apiVersion", "")
@@ -273,7 +273,7 @@ def parse(
 
             # Remove all empty manifests. This typically happens when the YAML
             # file ends with a "---" string.
-            manifests = [_ for _ in manifests if _ is not None]
+            manifests = [manifest for manifest in manifests if manifest is not None]
 
             # Retain only those manifests with the correct KIND and namespace.
             # The caller must match the labels themselves. This is necessary to
@@ -282,21 +282,23 @@ def parse(
             # would think the resource does not exist and try to create it
             # when, in fact, it should be patched.
             # See `square.{make_plan, get_resources}` for details.
-            manifests = [_ for _ in manifests if select(_, selectors, False)]
+            manifests = [
+                manifest for manifest in manifests if select(manifest, selectors, False)
+            ]
 
             # Convert List[manifest] into List[(MetaManifest, manifest)].
             # Abort if `make_meta` throws a KeyError which happens if `file_yaml`
             # does not actually contain a Kubernetes manifest but some other
             # (valid) YAML.
             try:
-                out[fname] = [(make_meta(_), _) for _ in manifests]
+                out[fname] = [(make_meta(manifest), manifest) for manifest in manifests]
             except KeyError:
                 logit.error(f"{file_yaml} does not look like a K8s manifest file.")
                 return {}, True
 
     # Drop all files without manifests.
     out = {k: v for k, v in out.items() if len(v) > 0}
-    num_manifests = [len(_) for _ in out.values()]
+    num_manifests = [len(manifests) for manifests in out.values()]
     logit.debug(f"Parsed {sum(num_manifests)} manifests in {len(num_manifests)} files")
 
     # Return the YAML parsed manifests.
@@ -336,7 +338,7 @@ def compile_square_manifests(
     for meta, fnames in all_meta.items():
         if len(fnames) > 1:
             unique = False
-            tmp = [str(_) for _ in fnames]
+            tmp = [str(fname) for fname in fnames]
             logit.error(
                 f"Duplicate ({len(tmp)}x) manifest {meta}. "
                 f"Defined in {str.join(', ', tmp)}"
@@ -481,7 +483,7 @@ def filename_for_manifest(
     # Concatenate the components according to `grouping.order` to produce the
     # full file name. This order is what the user can specify via the
     # "--groupby" option on the command line.
-    path_constituents = [lut[_] for _ in grouping.order]
+    path_constituents = [lut[group] for group in grouping.order]
     path = str.join("/", path_constituents)
 
     # Default to the catch-all `_other.yaml` resource if the order did not
@@ -552,8 +554,8 @@ def strip_manifests(
     }
 
     # Abort if any of the manifests could not be stripped.
-    err_srv = {_[1] for _ in stripped_server.values()}
-    err_loc = {_[1] for _ in stripped_local.values()}
+    err_srv = {item[1] for item in stripped_server.values()}
+    err_loc = {item[1] for item in stripped_local.values()}
     if any(err_srv) or any(err_loc):
         logit.error("Could not strip all manifests.")
         return ({}, {}, True)
@@ -713,7 +715,7 @@ def load_manifests(
     """
     # Compile the list of all YAML files in `folder` but only store their path
     # relative to `folder`.
-    fnames = [(_.relative_to(folder), _.name) for _ in folder.rglob("*.yaml")]
+    fnames = [(path.relative_to(folder), path.name) for path in folder.rglob("*.yaml")]
     fnames = [path for path, name in fnames if not name.startswith(".")]
 
     try:
@@ -758,22 +760,24 @@ def sort_manifests(
         man_sorted: list = []
         for kind in priority:
             # Partition the manifest list into the current `kind` and the rest.
-            tmp = [_ for _ in manifests if _[0].skgn().kind_group == kind]
-            manifests = [_ for _ in manifests if _[0].skgn().kind_group != kind]
+            tmp = [item for item in manifests if item[0].skgn().kind_group == kind]
+            manifests = [
+                item for item in manifests if item[0].skgn().kind_group != kind
+            ]
 
             # Append the manifests ordered by their MetaManifest.
-            man_sorted += sorted(tmp, key=lambda _: _[0])
+            man_sorted += sorted(tmp, key=lambda item: item[0])
 
         # Group the remaining manifests by their "kind" and sort each group
         # alphabetically.
-        remaining_kinds = {_[0].kind for _ in manifests}
+        remaining_kinds = {item[0].kind for item in manifests}
         for kind in sorted(remaining_kinds):
             # Partition the manifest list into the current `kind` and the rest.
-            tmp = [_ for _ in manifests if _[0].kind == kind]
-            manifests = [_ for _ in manifests if _[0].kind != kind]
+            tmp = [item for item in manifests if item[0].kind == kind]
+            manifests = [item for item in manifests if item[0].kind != kind]
 
             # Append the manifests ordered by their MetaManifest.
-            man_sorted += sorted(tmp, key=lambda _: _[0])
+            man_sorted += sorted(tmp, key=lambda item: item[0])
 
         # sanity check: we must have used up all manifests.
         assert len(manifests) == 0
@@ -877,7 +881,7 @@ async def download(
     awaited_tasks = await asyncio.gather(*coroutines)
 
     # Abort if any task returned with an error.
-    if any((_[1] for _ in awaited_tasks)):
+    if any((task[1] for task in awaited_tasks)):
         return ({}, True)
 
     # Combine the manifests from each task into a single output dictionary.

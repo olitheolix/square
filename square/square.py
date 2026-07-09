@@ -209,9 +209,9 @@ def partition_manifests(
 
     # Convert the sets to list. Preserve the relative element ordering as it
     # was in `{local_server}`.
-    create_l = [_ for _ in local if _ in create]
-    patch_l = [_ for _ in local if _ in patch]
-    delete_l = [_ for _ in server if _ in delete]
+    create_l = [meta for meta in local if meta in create]
+    patch_l = [meta for meta in local if meta in patch]
+    delete_l = [meta for meta in server if meta in delete]
 
     # Return the deployment plan.
     plan = DeploymentPlanMeta(create_l, patch_l, delete_l)
@@ -366,7 +366,7 @@ def call_external_function(fun: Callable, *args, **kwargs) -> Tuple[Any, bool]:
     except Exception:
         # Log the stack trace and return with an error.
         lines = traceback.format_exception(*sys.exc_info())
-        lines = [f"  > {_}" for _ in lines]
+        lines = [f"  > {line}" for line in lines]
         tb_str = str.join("", lines)
         logit.error(f"Error in user callback {fun}.\n{tb_str}")
         return (None, True)
@@ -666,34 +666,38 @@ def sort_plan(cfg: Config, plan: DeploymentPlan) -> Tuple[DeploymentPlan, bool]:
     # number that is larger than all other numbers in that list. This will
     # ensure they come last when we sort.
     missing_create = {
-        _.meta.skgn().kind_group
-        for _ in plan.create
-        if _.meta.skgn().kind_group not in priority_id
+        delta.meta.skgn().kind_group
+        for delta in plan.create
+        if delta.meta.skgn().kind_group not in priority_id
     }
-    priority_id.update({_: max_id for _ in missing_create})
+    priority_id.update({kind_group: max_id for kind_group in missing_create})
     missing_delete = {
-        _.meta.skgn().kind_group
-        for _ in plan.delete
-        if _.meta.skgn().kind_group not in priority_id
+        delta.meta.skgn().kind_group
+        for delta in plan.delete
+        if delta.meta.skgn().kind_group not in priority_id
     }
-    priority_id.update({_: max_id for _ in missing_delete})
+    priority_id.update({kind_group: max_id for kind_group in missing_delete})
 
     # Sort the patches by priority ID and MetaManifest.
-    create = [(priority_id[_.meta.skgn().kind_group], _) for _ in plan.create]
-    create.sort(key=lambda _: _[:2])
+    create = [
+        (priority_id[delta.meta.skgn().kind_group], delta) for delta in plan.create
+    ]
+    create.sort(key=lambda item: item[:2])
 
     # Repeat for the patches that will delete resources but reverse the final
     # list. This will ensure we remove resources in the reverse order in which
     # we would create them.
-    delete = [(priority_id[_.meta.skgn().kind_group], _) for _ in plan.delete]
-    delete.sort(key=lambda _: _[:2])
+    delete = [
+        (priority_id[delta.meta.skgn().kind_group], delta) for delta in plan.delete
+    ]
+    delete.sort(key=lambda item: item[:2])
     delete.reverse()
 
     # Assemble the final deployment plan and return it.
     out = DeploymentPlan(
-        create=[_[1] for _ in create],
+        create=[item[1] for item in create],
         patch=list(plan.patch),
-        delete=[_[1] for _ in delete],
+        delete=[item[1] for item in delete],
     )
     return out, False
 
@@ -750,7 +754,7 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
 
     """
     # Sanity check labels.
-    if not all([valid_label(_) for _ in cfg.selectors.labels]):
+    if not all([valid_label(label) for label in cfg.selectors.labels]):
         logit.error(f"Invalid labels: {cfg.selectors.labels}")
         return True
 
@@ -781,7 +785,9 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
             return True
 
     # Patch the server resources. Abort on first error.
-    patches = [(_.meta, _.patch) for _ in plan.patch if len(_.patch.ops) > 0]
+    patches = [
+        (delta.meta, delta.patch) for delta in plan.patch if len(delta.patch.ops) > 0
+    ]
     for meta, patch in patches:
         msg_res = f"{meta.kind.upper()} {meta.namespace}/{meta.name}"
         print(f"Patching {msg_res}")
@@ -843,11 +849,15 @@ def pick_manifests_for_plan(
     # manifests. Similarly, the intersection of all selected server manifests
     # with the full set of local manifests must be included in the set of
     # selected local manifests.
-    missing_sel_server = {_ for _ in sel_local if _ in server and _ not in sel_server}
-    sel_server |= {_: server[_] for _ in missing_sel_server}
+    missing_sel_server = {
+        meta for meta in sel_local if meta in server and meta not in sel_server
+    }
+    sel_server |= {meta: server[meta] for meta in missing_sel_server}
 
-    missing_sel_local = {_ for _ in sel_server if _ in local and _ not in sel_local}
-    sel_local |= {_: local[_] for _ in missing_sel_local}
+    missing_sel_local = {
+        meta for meta in sel_server if meta in local and meta not in sel_local
+    }
+    sel_local |= {meta: local[meta] for meta in missing_sel_local}
 
     return sel_local, sel_server
 
@@ -860,7 +870,7 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
 
     """
     # Sanity check labels.
-    if not all([valid_label(_) for _ in cfg.selectors.labels]):
+    if not all([valid_label(label) for label in cfg.selectors.labels]):
         logit.error(f"Invalid labels: {cfg.selectors.labels}")
         return DeploymentPlan(tuple(), tuple(), tuple()), True
 
@@ -880,7 +890,12 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         assert not err
 
         # All local manifests must pass basic validation.
-        assert all([manio.is_valid_manifest(_, k8sconfig) for _ in local.values()])
+        assert all(
+            [
+                manio.is_valid_manifest(manifest, k8sconfig)
+                for manifest in local.values()
+            ]
+        )
 
         # Download manifests from K8s.
         server, err = await manio.download(cfg, k8sconfig)
@@ -909,7 +924,7 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
 async def get_resources(cfg: Config) -> bool:
     """Download all K8s manifests and merge them into local files."""
     # Sanity check labels.
-    if not all([valid_label(_) for _ in cfg.selectors.labels]):
+    if not all([valid_label(label) for label in cfg.selectors.labels]):
         logit.error(f"Invalid labels: {cfg.selectors.labels}")
         return True
 
@@ -942,7 +957,12 @@ async def get_resources(cfg: Config) -> bool:
         del load_selectors
 
         # All local manifests must pass basic validation.
-        assert all([manio.is_valid_manifest(_, k8sconfig) for _ in local_sqm.values()])
+        assert all(
+            [
+                manio.is_valid_manifest(manifest, k8sconfig)
+                for manifest in local_sqm.values()
+            ]
+        )
 
         # Download manifests from K8s.
         server_sqm, err = await manio.download(cfg, k8sconfig)
