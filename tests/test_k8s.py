@@ -1209,6 +1209,42 @@ class TestUrlPathBuilder:
         got, err = k8s.pick_api(meta, apis)
         assert not err and got is r_foo_v2
 
+    def test_pick_api_double_digit_versions(self):
+        """The version heuristic must order version numbers numerically.
+
+        A lexicographic sort ranks "v2" above "v10"; the heuristic must pick the
+        numerically highest version in each of the stable, beta and alpha tiers.
+
+        """
+        r_foo = K8sResource(
+            apiVersion="api-a.com/v1",
+            kind="Foo",
+            name="foo",
+            namespaced=True,
+            url="",
+            aliases=("foo",),
+            preferred=False,
+        )
+        meta = MetaManifest("", "foo", "", "")
+
+        def res(ver: str) -> K8sResource:
+            return r_foo._replace(apiVersion=f"api-a.com/{ver}")
+
+        # Stable: v10 beats v2 (numeric, not lexicographic).
+        r_v2, r_v10 = res("v2"), res("v10")
+        got, err = k8s.pick_api(meta, {"foo": [r_v2, r_v10]})
+        assert not err and got is r_v10
+
+        # Beta: v1beta10 beats v1beta2.
+        r_b2, r_b10 = res("v1beta2"), res("v1beta10")
+        got, err = k8s.pick_api(meta, {"foo": [r_b2, r_b10]})
+        assert not err and got is r_b10
+
+        # Alpha: a double-digit major (v10alpha1) beats v9alpha1.
+        r_a9, r_a10 = res("v9alpha1"), res("v10alpha1")
+        got, err = k8s.pick_api(meta, {"foo": [r_a9, r_a10]})
+        assert not err and got is r_a10
+
 
 class TestK8sKubeconfig:
     @mock.patch.object(k8s.os, "getenv")

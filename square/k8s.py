@@ -1024,9 +1024,12 @@ def pick_api(
     alpha = [ver for ver in api_dict if p_alpha.match(ver)]
     beta = [ver for ver in api_dict if p_beta.match(ver)]
 
-    stable.sort()
-    alpha.sort()
-    beta.sort()
+    # Sort each tier by its numeric components so that eg "v10" ranks above
+    # "v2" (a plain string sort would order them lexicographically). The regexes
+    # above guarantee every entry consists solely of the digits we parse here.
+    stable.sort(key=lambda ver: int(ver[1:]))
+    alpha.sort(key=lambda ver: tuple(int(part) for part in ver[1:].split("alpha")))
+    beta.sort(key=lambda ver: tuple(int(part) for part in ver[1:].split("beta")))
     if len(stable) > 0:
         pick = api_dict[stable[-1]]
         logit.info(f"Picked {pick.apiVersion} for <{name}>")
