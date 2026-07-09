@@ -50,9 +50,16 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-p no:warnings"
 norecursedirs = [".git"]
 asyncio_mode = "auto"
+filterwarnings = [
+    # Square deliberately forces the `fork` start method (see square/__init__.py)
+    # to work around a multiprocessing bug on Python 3.14, and parses YAML in a
+    # `multiprocessing.Pool`. The resulting "fork() may lead to deadlocks in the
+    # child" notice is therefore expected and would otherwise drown out warnings
+    # that originate in Square's own code.
+    "ignore:.*fork.*may lead to deadlocks:DeprecationWarning",
+]
 
 [tool.coverage.run]
 branch = true

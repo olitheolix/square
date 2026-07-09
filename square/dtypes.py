@@ -338,6 +338,10 @@ class Config(BaseModel):
 
     """
 
+    # Validate on assignment (not just at initialisation) and permit the
+    # non-pydantic `httpx`/`Callable` field types.
+    model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
+
     version: Literal["v1.1"] = "v1.1"
 
     # Path to local manifests eg "./foo"
@@ -373,12 +377,6 @@ class Config(BaseModel):
 
     # Invoked for every manifest downloaded from cluster.
     strip_callback: Annotated[Callable, Field(validate_default=True)] = do_nothing
-
-    class Config:
-        # Pydantic config: ensure that all fields are validated on assignment,
-        # not just at initialisation.
-        validate_assignment = True
-        arbitrary_types_allowed = True
 
     @field_validator("filters")
     @classmethod
