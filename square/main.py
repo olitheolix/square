@@ -282,12 +282,14 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     if order is None:
         groupby = cfg.groupby
     else:
-        clean_order = [_ if not _.startswith("label") else "label" for _ in order]
+        clean_order = [
+            item if not item.startswith("label") else "label" for item in order
+        ]
         if not set(clean_order).issubset({"ns", "kind", "label"}):
             logit.error("Invalid definition of `groupby`")
             return err_resp
 
-        labels = [_ for _ in order if _.startswith("label")]
+        labels = [item for item in order if item.startswith("label")]
         if len(labels) > 1:
             logit.error("Can only specify one `label=<name>` in `--groupby`.")
             return err_resp
@@ -369,7 +371,7 @@ async def apply_plan(cfg: Config, confirm_string: str | None) -> bool:
         assert not err and plan
 
         # Exit prematurely if there are no changes to apply.
-        num_patch_ops = sum([len(_.patch.ops) for _ in plan.patch])
+        num_patch_ops = sum([len(delta.patch.ops) for delta in plan.patch])
         if len(plan.create) == len(plan.delete) == num_patch_ops == 0:
             print("Nothing to change")
             return False

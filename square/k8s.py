@@ -191,7 +191,7 @@ def load_kubeconfig(
 
         try:
             # Find the correct context.
-            ctx = [_ for _ in kubeconf["contexts"] if _["name"] == ctx]
+            ctx = [entry for entry in kubeconf["contexts"] if entry["name"] == ctx]
             assert len(ctx) == 1
             ctx = ctx[0]["context"]
 
@@ -199,8 +199,12 @@ def load_kubeconfig(
             clustername, username = ctx["cluster"], ctx["user"]
 
             # Find the information for the current cluster and user.
-            user_info = [_ for _ in kubeconf["users"] if _["name"] == username]
-            cluster_info = [_ for _ in kubeconf["clusters"] if _["name"] == clustername]
+            user_info = [
+                entry for entry in kubeconf["users"] if entry["name"] == username
+            ]
+            cluster_info = [
+                entry for entry in kubeconf["clusters"] if entry["name"] == clustername
+            ]
             assert len(user_info) == len(cluster_info) == 1
         except AssertionError:
             logit.error(f"Could not find context <{context}>")
@@ -336,7 +340,7 @@ def load_authenticator_config(
 
     # Compile the name, arguments and env vars for the command specified in kubeconf.
     cmd_args = [cmd] + args
-    env_kubeconf = {_["name"]: _["value"] for _ in env_kubeconf}
+    env_kubeconf = {var["name"]: var["value"] for var in env_kubeconf}
     env.update(env_kubeconf)
     logit.debug(f"Authenticator app: {cmd_args} with envs: {env_kubeconf}")
 
@@ -787,7 +791,7 @@ def parse_api_group(gv, url: str, resp: dict) -> List[K8sResource]:
         # lower case. They should be already, but just to be sure.
         all_names = set(all_names)
         all_names.discard("")
-        tan = tuple(sorted([_.lower() for _ in all_names]))
+        tan = tuple(sorted([name.lower() for name in all_names]))
 
         group_urls.append(K8sResource(gv, kind, name, namespaced, url, tan))
 
@@ -828,7 +832,7 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
     # Determine the set of preferred groups. We will use this to mark the
     # corresponding `K8sResource` instance.
     preferred: Set[str] = {
-        _["preferredVersion"]["groupVersion"] for _ in resp["groups"]
+        group["preferredVersion"]["groupVersion"] for group in resp["groups"]
     }
 
     # Determine the URL where we can get information for each group and version.
@@ -854,13 +858,13 @@ async def compile_api_endpoints(k8sconfig: K8sConfig) -> bool:
 
     # Partition the APIs into the list of native (eg Pod, Service) and
     # non-native ones (everything else, like Deployment).
-    res_not_v1 = [_ for _ in resources if _.apiVersion != "v1"]
-    res_v1 = [_ for _ in resources if _.apiVersion == "v1"]
+    res_not_v1 = [res for res in resources if res.apiVersion != "v1"]
+    res_v1 = [res for res in resources if res.apiVersion == "v1"]
     del resources
 
     # Convenience only (no technical reason but was helpful during debugging).
-    res_v1.sort(key=lambda _: _.apiVersion)
-    res_not_v1.sort(key=lambda _: _.apiVersion)
+    res_v1.sort(key=lambda res: res.apiVersion)
+    res_not_v1.sort(key=lambda res: res.apiVersion)
 
     # Temporary buffer that will be inserted into `k8sconfig.apis` later.
     apis: Dict[str, List[K8sResource]]
@@ -918,7 +922,7 @@ def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
         if "/" in name:
             if len(resources) != 1:
                 err = True
-                tmp = str.join(", ", [_.apiVersion for _ in resources])
+                tmp = str.join(", ", [res.apiVersion for res in resources])
                 logit.critical(
                     f"bug: API <{name}> must contain exactly one resource "
                     f"but contains {len(resources)}: {tmp}"
@@ -933,9 +937,9 @@ def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
 
             # Warn if we have multiple preferred version. That usually means the resource
             # name is ambiguous and multiple groups provide one of its kind.
-            preferred = [_ for _ in resources if _.preferred]
+            preferred = [res for res in resources if res.preferred]
             if len(preferred) > 1:
-                tmp = str.join(", ", [_.apiVersion for _ in preferred])
+                tmp = str.join(", ", [res.apiVersion for res in preferred])
                 N = len(preferred)
                 logit.warning(f"<{name}> has {N} preferred versions: {tmp}")
                 continue
@@ -990,9 +994,9 @@ def pick_api(
         return err_resp
 
     # Return an error if the resource is provided by multiple API groups.
-    groups = {_.apiVersion.partition("/")[0] for _ in apis[name]}
+    groups = {res.apiVersion.partition("/")[0] for res in apis[name]}
     if len(groups) > 1:
-        msg = sorted([f"{name}.{_}" for _ in groups])
+        msg = sorted([f"{name}.{group}" for group in groups])
         logit.error(
             f"resource <{name}> is provided by multiple groups. "
             f"Please use one of: {msg}"
@@ -1000,7 +1004,7 @@ def pick_api(
         return err_resp
 
     # Return the preferred group if there is exactly one.
-    preferred = [_ for _ in apis[name] if _.preferred]
+    preferred = [res for res in apis[name] if res.preferred]
     if len(preferred) == 1:
         return preferred[0], False
     elif len(preferred) > 1:
@@ -1010,14 +1014,14 @@ def pick_api(
     # If we got here it means we have no preferred API version. In that case,
     # we will use a heuristic to determine, in this order, the highest stable,
     # beta or alpha version.
-    api_dict = {_.apiVersion.partition("/")[2]: _ for _ in apis[name]}
+    api_dict = {res.apiVersion.partition("/")[2]: res for res in apis[name]}
 
     p_stable = re.compile(r"^v\d+$")
     p_alpha = re.compile(r"^v\d+alpha\d+$")
     p_beta = re.compile(r"^v\d+beta\d+$")
-    stable = [_ for _ in api_dict if p_stable.match(_)]
-    alpha = [_ for _ in api_dict if p_alpha.match(_)]
-    beta = [_ for _ in api_dict if p_beta.match(_)]
+    stable = [ver for ver in api_dict if p_stable.match(ver)]
+    alpha = [ver for ver in api_dict if p_alpha.match(ver)]
+    beta = [ver for ver in api_dict if p_beta.match(ver)]
 
     stable.sort()
     alpha.sort()

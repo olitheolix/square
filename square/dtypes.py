@@ -279,7 +279,7 @@ class Selectors(BaseModel):
     @property
     def str_skgns(self) -> Set[str]:
         """Set of all stringified kind/group/name information."""
-        return {str(SelKindGroupNames(value=_)) for _ in self.kinds}
+        return {str(SelKindGroupNames(value=kind)) for kind in self.kinds}
 
 
 class GroupBy(BaseModel):
