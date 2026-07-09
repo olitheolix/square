@@ -1448,6 +1448,28 @@ class TestMainOptions:
         assert await sq.make_plan(sqcfg) == err_resp
 
     @mock.patch.object(manio, "load_manifests")
+    async def test_make_plan_closes_client_on_error(self, m_load, sqcfg, k8sconfig):
+        """The HTTP client must be closed even when planning fails midway."""
+        empty = DeploymentPlan(tuple(), tuple(), tuple())
+
+        with mock.patch.object(sq.k8s, "cluster_config") as m_cc:
+            # Connect successfully but fail on the very next step.
+            m_cc.return_value = (k8sconfig, False)
+            m_load.return_value = (None, None, True)
+
+            assert not k8sconfig.client.is_closed
+            assert await sq.make_plan(sqcfg) == (empty, True)
+            assert k8sconfig.client.is_closed
+
+    async def test_make_plan_cluster_config_error(self, sqcfg):
+        """Abort cleanly if we cannot establish a cluster session."""
+        empty = DeploymentPlan(tuple(), tuple(), tuple())
+
+        with mock.patch.object(sq.k8s, "cluster_config") as m_cc:
+            m_cc.return_value = (K8sConfig(), True)
+            assert await sq.make_plan(sqcfg) == (empty, True)
+
+    @mock.patch.object(manio, "load_manifests")
     @mock.patch.object(manio, "download")
     async def test_make_plan_no_labels(self, m_down, m_load, sqcfg, kube_creds):
         """Mock the available local/server manifests and verify the plan.

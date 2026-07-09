@@ -1,3 +1,4 @@
+import contextlib
 import copy
 import json
 import logging
@@ -5,6 +6,7 @@ import re
 import sys
 import traceback
 from collections import Counter, defaultdict
+from collections.abc import AsyncIterator
 from typing import Any, Callable, Dict, Iterable, List, Tuple
 
 import colorama
@@ -742,6 +744,51 @@ def valid_label(label: str) -> bool:
         return False
 
 
+@contextlib.asynccontextmanager
+async def cluster_session(cfg: Config) -> AsyncIterator[Tuple[K8sConfig, bool]]:
+    """Set up a Kubernetes session for `cfg` and always clean it up afterwards.
+
+    Validate the label selectors, connect to the cluster and normalise the
+    configuration (in-place). Yield the `(K8sConfig, error flag)` pair: the flag
+    is `True` if any of those steps failed, in which case the caller must not
+    proceed. Always close the httpx client on exit, whether the caller finished
+    successfully or bailed out on an error.
+
+    """
+    k8sconfig = K8sConfig()
+    owns_client = False
+    try:
+        # Sanity check the labels.
+        if not all([valid_label(label) for label in cfg.selectors.labels]):
+            logit.error(f"Invalid labels: {cfg.selectors.labels}")
+            yield k8sconfig, True
+            return
+
+        # Get an HttpX client to talk to the K8s API.
+        k8sconfig, err = await k8s.cluster_config(
+            cfg.kubeconfig, cfg.kubecontext, cfg.connection_parameters
+        )
+        if err:
+            yield k8sconfig, True
+            return
+        owns_client = True
+
+        # Convert "Selectors.kinds" to their canonical names. This must happen
+        # after `cluster_config` because it needs the cluster's API resources.
+        cfg, err = update_config(cfg, k8sconfig)
+        if err:
+            yield k8sconfig, True
+            return
+
+        yield k8sconfig, False
+    finally:
+        # Only close a client that we actually created, ie one from a
+        # successful `cluster_config`. This runs on every exit path, including
+        # the error paths that the callers take.
+        if owns_client and not k8sconfig.client.is_closed:
+            await k8sconfig.client.aclose()
+
+
 async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
     """Update K8s resources according to the `plan`.
 
@@ -753,66 +800,53 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
         Error flag (`True` on failure).
 
     """
-    # Sanity check labels.
-    if not all([valid_label(label) for label in cfg.selectors.labels]):
-        logit.error(f"Invalid labels: {cfg.selectors.labels}")
-        return True
-
-    # Sort the plan according to `cfg.priority`.
+    # Sort the plan according to `cfg.priority`. This uses the raw priority list
+    # (before `cluster_session` normalises it), matching the historic order.
     plan, plan_err = sort_plan(cfg, plan)
 
-    # Get an HttpX client to talk to the K8s API.
-    k8sconfig, k8s_err = await k8s.cluster_config(
-        cfg.kubeconfig, cfg.kubecontext, cfg.connection_parameters
-    )
-
-    # Convert "Selectors.kinds" to their canonical names.
-    cfg, compile_err = update_config(cfg, k8sconfig)
-
-    # Abort if we could not get the plan or establish the K8s session.
-    if plan_err or k8s_err or compile_err:
-        return True
-
-    # Create the missing resources. Abort on first error.
-    for data_c in plan.create:
-        msg_res = (
-            f"{data_c.meta.kind.upper()} {data_c.meta.namespace}/{data_c.meta.name}"
-        )
-        print(f"Creating {msg_res}")
-        _, err = await k8s.post(k8sconfig, data_c.url, data_c.manifest)
-        if err:
-            logit.error(f"Could not create {msg_res}")
+    async with cluster_session(cfg) as (k8sconfig, err):
+        # Abort if we could not sort the plan or establish the K8s session.
+        if err or plan_err:
             return True
 
-    # Patch the server resources. Abort on first error.
-    patches = [
-        (delta.meta, delta.patch) for delta in plan.patch if len(delta.patch.ops) > 0
-    ]
-    for meta, patch in patches:
-        msg_res = f"{meta.kind.upper()} {meta.namespace}/{meta.name}"
-        print(f"Patching {msg_res}")
-        _, err = await k8s.patch(k8sconfig, patch.url, patch.ops)
-        if err:
-            logit.error(f"Could not patch {msg_res}")
-            return True
+        # Create the missing resources. Abort on first error.
+        for data_c in plan.create:
+            msg_res = (
+                f"{data_c.meta.kind.upper()} {data_c.meta.namespace}/{data_c.meta.name}"
+            )
+            print(f"Creating {msg_res}")
+            _, err = await k8s.post(k8sconfig, data_c.url, data_c.manifest)
+            if err:
+                logit.error(f"Could not create {msg_res}")
+                return True
 
-    # Delete the excess resources. Abort on first error.
-    for data_d in plan.delete:
-        msg_res = (
-            f"{data_d.meta.kind.upper()} {data_d.meta.namespace}/{data_d.meta.name}"
-        )
-        print(f"Deleting {msg_res}")
-        _, err = await k8s.delete(k8sconfig, data_d.url, data_d.manifest)
-        if err:
-            logit.error(f"Could not delete {msg_res}")
-            return True
+        # Patch the server resources. Abort on first error.
+        patches = [
+            (delta.meta, delta.patch)
+            for delta in plan.patch
+            if len(delta.patch.ops) > 0
+        ]
+        for meta, patch in patches:
+            msg_res = f"{meta.kind.upper()} {meta.namespace}/{meta.name}"
+            print(f"Patching {msg_res}")
+            _, err = await k8s.patch(k8sconfig, patch.url, patch.ops)
+            if err:
+                logit.error(f"Could not patch {msg_res}")
+                return True
 
-    # Close the client.
-    if not k8sconfig.client.is_closed:
-        await k8sconfig.client.aclose()
+        # Delete the excess resources. Abort on first error.
+        for data_d in plan.delete:
+            msg_res = (
+                f"{data_d.meta.kind.upper()} {data_d.meta.namespace}/{data_d.meta.name}"
+            )
+            print(f"Deleting {msg_res}")
+            _, err = await k8s.delete(k8sconfig, data_d.url, data_d.manifest)
+            if err:
+                logit.error(f"Could not delete {msg_res}")
+                return True
 
-    # All good.
-    return False
+        # All good.
+        return False
 
 
 def pick_manifests_for_plan(
@@ -869,131 +903,102 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
         Deployment plan.
 
     """
-    # Sanity check labels.
-    if not all([valid_label(label) for label in cfg.selectors.labels]):
-        logit.error(f"Invalid labels: {cfg.selectors.labels}")
-        return DeploymentPlan(tuple(), tuple(), tuple()), True
+    empty = DeploymentPlan(tuple(), tuple(), tuple())
 
-    try:
-        # Get an HttpX client to talk to the K8s API.
-        k8sconfig, err = await k8s.cluster_config(
-            cfg.kubeconfig, cfg.kubecontext, cfg.connection_parameters
-        )
-        assert not err
+    async with cluster_session(cfg) as (k8sconfig, err):
+        if err:
+            return empty, True
 
-        # Convert "Selectors.kinds" to their canonical names.
-        cfg, err = update_config(cfg, k8sconfig)
-        assert not err
+        try:
+            # Load manifests from local files.
+            local, _, err = manio.load_manifests(cfg.folder, cfg.selectors)
+            assert not err
 
-        # Load manifests from local files.
-        local, _, err = manio.load_manifests(cfg.folder, cfg.selectors)
-        assert not err
+            # All local manifests must pass basic validation.
+            assert all(
+                [
+                    manio.is_valid_manifest(manifest, k8sconfig)
+                    for manifest in local.values()
+                ]
+            )
 
-        # All local manifests must pass basic validation.
-        assert all(
-            [
-                manio.is_valid_manifest(manifest, k8sconfig)
-                for manifest in local.values()
-            ]
-        )
+            # Download manifests from K8s.
+            server, err = await manio.download(cfg, k8sconfig)
+            assert not err
 
-        # Download manifests from K8s.
-        server, err = await manio.download(cfg, k8sconfig)
-        assert not err
+            # Retain only those manifests that satisfy the selectors.
+            # NOTE: we can already be certain that `local` and `server`
+            # contain only the desired resource KINDs and namespaces, but the
+            # label selectors have not been applied yet.
+            local, server = pick_manifests_for_plan(local, server, cfg.selectors)
 
-        # Retain only those manifests that satisfy the selectors.
-        # NOTE: we can already be certain that `local` and `server`
-        # contain only the desired resource KINDs and namespaces, but the label
-        # selectors have not been applied yet.
-        local, server = pick_manifests_for_plan(local, server, cfg.selectors)
+            # Create deployment plan.
+            plan, err = await compile_plan(cfg, k8sconfig, local, server)
+            assert not err and plan
+        except AssertionError:
+            return empty, True
 
-        # Create deployment plan.
-        plan, err = await compile_plan(cfg, k8sconfig, local, server)
-        assert not err and plan
-    except AssertionError:
-        return (DeploymentPlan(tuple(), tuple(), tuple()), True)
-
-    # Close the client.
-    if not k8sconfig.client.is_closed:
-        await k8sconfig.client.aclose()
-
-    # Print the plan and return.
-    return (plan, False)
+        return plan, False
 
 
 async def get_resources(cfg: Config) -> bool:
     """Download all K8s manifests and merge them into local files."""
-    # Sanity check labels.
-    if not all([valid_label(label) for label in cfg.selectors.labels]):
-        logit.error(f"Invalid labels: {cfg.selectors.labels}")
-        return True
+    async with cluster_session(cfg) as (k8sconfig, err):
+        if err:
+            return True
 
-    try:
-        # Get an HttpX client to talk to the K8s API.
-        k8sconfig, err = await k8s.cluster_config(
-            cfg.kubeconfig, cfg.kubecontext, cfg.connection_parameters
-        )
-        assert not err
+        try:
+            # Use a wildcard Selector to ensure `manio.load` will read _all_
+            # local manifests. This will allow `manio.sync` to modify the ones
+            # specified by the `selector` argument only, delete all the local
+            # manifests and then create the new ones. This logic will ensure we
+            # never have stale manifests. Refer to `manio.save_files` for
+            # details and how `manio.save` uses it.
+            all_kinds = set(k8sconfig.apis)
+            load_selectors = Selectors(kinds=all_kinds, labels=[], namespaces=[])
 
-        # Convert "Selectors.kinds" to their canonical names.
-        # NOTE: we cannot do this earlier, eg as part of the Pydantic model
-        # because we need access to K8s first so that `k8sconfig` contains all
-        # the API resources and groups.
-        cfg, err = update_config(cfg, k8sconfig)
-        assert not err
-
-        # Use a wildcard Selector to ensure `manio.load` will read _all_ local
-        # manifests. This will allow `manio.sync` to modify the ones specified
-        # by the `selector` argument only, delete all the local manifests and
-        # then create the new ones. This logic will ensure we never have stale
-        # manifests. Refer to `manio.save_files` for details and how
-        # `manio.save` uses it.
-        all_kinds = set(k8sconfig.apis)
-        load_selectors = Selectors(kinds=all_kinds, labels=[], namespaces=[])
-
-        # Load manifests from local files.
-        local_sqm, local_man, err = manio.load_manifests(cfg.folder, load_selectors)
-        assert not err
-        del load_selectors
-
-        # All local manifests must pass basic validation.
-        assert all(
-            [
-                manio.is_valid_manifest(manifest, k8sconfig)
-                for manifest in local_sqm.values()
-            ]
-        )
-
-        # Download manifests from K8s.
-        server_sqm, err = await manio.download(cfg, k8sconfig)
-        assert not err
-
-        # Replace the server resources fetched from K8s' preferred endpoint with
-        # the one from the endpoint referenced in the local manifest.
-        server_sqm, err = await match_api_version(k8sconfig, local_sqm, server_sqm)
-        assert not err
-
-        # Sync the server manifests into the local manifests. All this happens
-        # in-memory and no files will be modified here - see `manio.save` below.
-        synced_man, err = manio.sync(local_man, server_sqm, cfg.selectors, cfg.groupby)
-        assert not err
-
-        # Remove all unwanted entries from the manifests.
-        for path in synced_man:
-            sm: SquareManifests = dict(synced_man[path])
-            _, sm, err = manio.strip_manifests(cfg, {}, sm)
+            # Load manifests from local files.
+            local_sqm, local_man, err = manio.load_manifests(cfg.folder, load_selectors)
             assert not err
-            synced_man[path] = list(sm.items())
+            del load_selectors
 
-        # Write the new manifest files.
-        err = manio.save(cfg.folder, synced_man, cfg.priorities)
-        assert not err
-    except AssertionError:
-        return True
+            # All local manifests must pass basic validation.
+            assert all(
+                [
+                    manio.is_valid_manifest(manifest, k8sconfig)
+                    for manifest in local_sqm.values()
+                ]
+            )
 
-    # Close the client.
-    if not k8sconfig.client.is_closed:
-        await k8sconfig.client.aclose()
+            # Download manifests from K8s.
+            server_sqm, err = await manio.download(cfg, k8sconfig)
+            assert not err
 
-    # Success.
-    return False
+            # Replace the server resources fetched from K8s' preferred endpoint
+            # with the one from the endpoint referenced in the local manifest.
+            server_sqm, err = await match_api_version(k8sconfig, local_sqm, server_sqm)
+            assert not err
+
+            # Sync the server manifests into the local manifests. All this
+            # happens in-memory and no files will be modified here - see
+            # `manio.save` below.
+            synced_man, err = manio.sync(
+                local_man, server_sqm, cfg.selectors, cfg.groupby
+            )
+            assert not err
+
+            # Remove all unwanted entries from the manifests.
+            for path in synced_man:
+                sm: SquareManifests = dict(synced_man[path])
+                _, sm, err = manio.strip_manifests(cfg, {}, sm)
+                assert not err
+                synced_man[path] = list(sm.items())
+
+            # Write the new manifest files.
+            err = manio.save(cfg.folder, synced_man, cfg.priorities)
+            assert not err
+        except AssertionError:
+            return True
+
+        # Success.
+        return False
