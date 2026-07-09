@@ -9,6 +9,34 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import Annotated
 
 
+# -----------------------------------------------------------------------------
+#                          Pipeline error handling
+# -----------------------------------------------------------------------------
+class StepError(Exception):
+    """Signal that a step in a pipeline reported an error or failed a check.
+
+    Square's functions chain many fallible steps that each return a trailing
+    error flag (or validate their inputs). Rather than checking every result by
+    hand and returning early each time, the steps call `ensure(...)` and a
+    single `except StepError` handles any failure. Unlike a bare `assert`, this
+    survives `python -O` and cannot be mistaken for a genuine bug. The message
+    names the failed step so the handler can log it.
+
+    """
+
+
+def ensure(ok: object, what: str) -> None:
+    """Raise `StepError(what)` unless `ok` is truthy.
+
+    This is the runtime-safe replacement for `assert ok`: use it to assert a
+    trailing error flag (`ensure(not err, ...)`) or a validation condition,
+    while a single `except StepError` in the caller turns it into an error.
+
+    """
+    if not ok:
+        raise StepError(what)
+
+
 def default_priorities() -> List[str]:
     """Default priorities if `.square.yaml` does not specify any."""
     return [

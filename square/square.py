@@ -29,6 +29,8 @@ from square.dtypes import (
     Selectors,
     SelKindGroupNames,
     SquareManifests,
+    StepError,
+    ensure,
 )
 
 # Convenience: global logger instance to avoid repetitive code.
@@ -156,9 +158,9 @@ def make_patch(
     try:
         res_srv, err_srv = k8s.resource(k8sconfig, manio.make_meta(srv))
         res_loc, err_loc = k8s.resource(k8sconfig, manio.make_meta(loc))
-        assert err_srv is err_loc is False
-        assert res_srv == res_loc
-    except AssertionError:
+        ensure(not err_srv and not err_loc, "resolve resource")
+        ensure(res_srv == res_loc, "manifests reference the same resource")
+    except StepError:
         # Log the invalid manifests and return with an error.
         keys = ("apiVersion", "kind", "metadata")
         loc_tmp = {k: loc[k] for k in keys}
@@ -325,7 +327,7 @@ def run_patch_callback(
             (local[meta], server[meta]), err = call_external_function(
                 cb, config, local[meta], server[meta]
             )
-            assert not err
+            ensure(not err, "patch callback")
 
             # The `MetaManifest` information must not have changed.
             for man in (local[meta], server[meta]):
@@ -345,7 +347,7 @@ def run_patch_callback(
                 # uniquely identify resources.
                 logit.error(f"Patch callback modify MetaManifest: {meta} -> {ret_meta}")
                 return True
-    except (ValueError, TypeError, AssertionError):
+    except (ValueError, TypeError, StepError):
         return True
     return False
 
@@ -717,7 +719,7 @@ def valid_label(label: str) -> bool:
 
     try:
         # Split `app=part/file` into (`app`, `part/value`).
-        assert label.count("=") == 1
+        ensure(label.count("=") == 1, "label needs exactly one '='")
         tmp, value = label.split("=")
 
         # Split on the "/"
@@ -727,20 +729,20 @@ def valid_label(label: str) -> bool:
         del label, _
 
         # If the label contains a "/" then validate its "part" component.
-        assert len(name) > 0
+        ensure(len(name) > 0, "empty label name")
         if "/" in tmp:
-            assert pat.match(part)
+            ensure(pat.match(part), "invalid label prefix")
 
         # All components must be at most 64 characters long.
-        assert max(len(name), len(part), len(value)) < 64
+        ensure(max(len(name), len(part), len(value)) < 64, "label component too long")
 
         # Validate the label and value.
-        assert pat.match(name)
-        assert pat.match(value)
+        ensure(pat.match(name), "invalid label name")
+        ensure(pat.match(value), "invalid label value")
 
         # The label is valid.
         return True
-    except AssertionError:
+    except StepError:
         return False
 
 
@@ -809,41 +811,35 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
         if err or plan_err:
             return True
 
-        # Create the missing resources. Abort on first error.
-        for data_c in plan.create:
-            msg_res = (
-                f"{data_c.meta.kind.upper()} {data_c.meta.namespace}/{data_c.meta.name}"
-            )
-            print(f"Creating {msg_res}")
-            _, err = await k8s.post(k8sconfig, data_c.url, data_c.manifest)
-            if err:
-                logit.error(f"Could not create {msg_res}")
-                return True
+        try:
+            # Create the missing resources. Abort on first error.
+            for data_c in plan.create:
+                msg_res = f"{data_c.meta.kind.upper()} {data_c.meta.namespace}/{data_c.meta.name}"
+                print(f"Creating {msg_res}")
+                _, err = await k8s.post(k8sconfig, data_c.url, data_c.manifest)
+                ensure(not err, f"create {msg_res}")
 
-        # Patch the server resources. Abort on first error.
-        patches = [
-            (delta.meta, delta.patch)
-            for delta in plan.patch
-            if len(delta.patch.ops) > 0
-        ]
-        for meta, patch in patches:
-            msg_res = f"{meta.kind.upper()} {meta.namespace}/{meta.name}"
-            print(f"Patching {msg_res}")
-            _, err = await k8s.patch(k8sconfig, patch.url, patch.ops)
-            if err:
-                logit.error(f"Could not patch {msg_res}")
-                return True
+            # Patch the server resources. Abort on first error.
+            patches = [
+                (delta.meta, delta.patch)
+                for delta in plan.patch
+                if len(delta.patch.ops) > 0
+            ]
+            for meta, patch in patches:
+                msg_res = f"{meta.kind.upper()} {meta.namespace}/{meta.name}"
+                print(f"Patching {msg_res}")
+                _, err = await k8s.patch(k8sconfig, patch.url, patch.ops)
+                ensure(not err, f"patch {msg_res}")
 
-        # Delete the excess resources. Abort on first error.
-        for data_d in plan.delete:
-            msg_res = (
-                f"{data_d.meta.kind.upper()} {data_d.meta.namespace}/{data_d.meta.name}"
-            )
-            print(f"Deleting {msg_res}")
-            _, err = await k8s.delete(k8sconfig, data_d.url, data_d.manifest)
-            if err:
-                logit.error(f"Could not delete {msg_res}")
-                return True
+            # Delete the excess resources. Abort on first error.
+            for data_d in plan.delete:
+                msg_res = f"{data_d.meta.kind.upper()} {data_d.meta.namespace}/{data_d.meta.name}"
+                print(f"Deleting {msg_res}")
+                _, err = await k8s.delete(k8sconfig, data_d.url, data_d.manifest)
+                ensure(not err, f"delete {msg_res}")
+        except StepError as exc:
+            logit.error(f"Could not apply plan: {exc} failed.")
+            return True
 
         # All good.
         return False
@@ -910,21 +906,20 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
             return empty, True
 
         try:
-            # Load manifests from local files.
+            # Load and validate the local manifests.
             local, _, err = manio.load_manifests(cfg.folder, cfg.selectors)
-            assert not err
-
-            # All local manifests must pass basic validation.
-            assert all(
-                [
+            ensure(not err, "load local manifests")
+            ensure(
+                all(
                     manio.is_valid_manifest(manifest, k8sconfig)
                     for manifest in local.values()
-                ]
+                ),
+                "validate local manifests",
             )
 
             # Download manifests from K8s.
             server, err = await manio.download(cfg, k8sconfig)
-            assert not err
+            ensure(not err, "download manifests")
 
             # Retain only those manifests that satisfy the selectors.
             # NOTE: we can already be certain that `local` and `server`
@@ -932,10 +927,11 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
             # label selectors have not been applied yet.
             local, server = pick_manifests_for_plan(local, server, cfg.selectors)
 
-            # Create deployment plan.
+            # Compute the deployment plan.
             plan, err = await compile_plan(cfg, k8sconfig, local, server)
-            assert not err and plan
-        except AssertionError:
+            ensure(not err and bool(plan), "compile plan")
+        except StepError as exc:
+            logit.error(f"Could not create plan: {exc} failed.")
             return empty, True
 
         return plan, False
@@ -948,57 +944,51 @@ async def get_resources(cfg: Config) -> bool:
             return True
 
         try:
-            # Use a wildcard Selector to ensure `manio.load` will read _all_
-            # local manifests. This will allow `manio.sync` to modify the ones
-            # specified by the `selector` argument only, delete all the local
-            # manifests and then create the new ones. This logic will ensure we
-            # never have stale manifests. Refer to `manio.save_files` for
-            # details and how `manio.save` uses it.
-            all_kinds = set(k8sconfig.apis)
-            load_selectors = Selectors(kinds=all_kinds, labels=[], namespaces=[])
-
-            # Load manifests from local files.
-            local_sqm, local_man, err = manio.load_manifests(cfg.folder, load_selectors)
-            assert not err
-            del load_selectors
-
-            # All local manifests must pass basic validation.
-            assert all(
-                [
-                    manio.is_valid_manifest(manifest, k8sconfig)
-                    for manifest in local_sqm.values()
-                ]
+            # Use a wildcard Selector so `manio.load_manifests` reads _all_ local
+            # manifests. `manio.sync` then updates only the selected ones and
+            # `manio.save` rewrites the folder, so we never keep stale files.
+            # Refer to `manio.save_files` for how `manio.save` uses this.
+            load_selectors = Selectors(
+                kinds=set(k8sconfig.apis), labels=[], namespaces=[]
             )
 
-            # Download manifests from K8s.
+            # Load and validate the local manifests.
+            local_sqm, local_man, err = manio.load_manifests(cfg.folder, load_selectors)
+            ensure(not err, "load local manifests")
+            ensure(
+                all(
+                    manio.is_valid_manifest(manifest, k8sconfig)
+                    for manifest in local_sqm.values()
+                ),
+                "validate local manifests",
+            )
+
+            # Download the server manifests and align their API versions.
             server_sqm, err = await manio.download(cfg, k8sconfig)
-            assert not err
+            ensure(not err, "download manifests")
 
-            # Replace the server resources fetched from K8s' preferred endpoint
-            # with the one from the endpoint referenced in the local manifest.
             server_sqm, err = await match_api_version(k8sconfig, local_sqm, server_sqm)
-            assert not err
+            ensure(not err, "match API versions")
 
-            # Sync the server manifests into the local manifests. All this
-            # happens in-memory and no files will be modified here - see
-            # `manio.save` below.
+            # Sync the server manifests into the local ones (in-memory only).
             synced_man, err = manio.sync(
                 local_man, server_sqm, cfg.selectors, cfg.groupby
             )
-            assert not err
+            ensure(not err, "sync manifests")
 
-            # Remove all unwanted entries from the manifests.
+            # Strip the unwanted fields from every manifest, file by file.
             for path in synced_man:
-                sm: SquareManifests = dict(synced_man[path])
-                _, sm, err = manio.strip_manifests(cfg, {}, sm)
-                assert not err
-                synced_man[path] = list(sm.items())
+                _, stripped, err = manio.strip_manifests(
+                    cfg, {}, dict(synced_man[path])
+                )
+                ensure(not err, "strip manifests")
+                synced_man[path] = list(stripped.items())
 
             # Write the new manifest files.
             err = manio.save(cfg.folder, synced_man, cfg.priorities)
-            assert not err
-        except AssertionError:
+            ensure(not err, "save manifests")
+        except StepError as exc:
+            logit.error(f"Could not get resources: {exc} failed.")
             return True
 
-        # Success.
         return False

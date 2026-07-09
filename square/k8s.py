@@ -22,6 +22,8 @@ from square.dtypes import (
     K8sResource,
     MetaManifest,
     SelKindGroupNames,
+    StepError,
+    ensure,
 )
 
 # Convenience: location of K8s credentials inside a Pod.
@@ -192,7 +194,7 @@ def load_kubeconfig(
         try:
             # Find the correct context.
             ctx = [entry for entry in kubeconf["contexts"] if entry["name"] == ctx]
-            assert len(ctx) == 1
+            ensure(len(ctx) == 1, "context")
             ctx = ctx[0]["context"]
 
             # Unpack the cluster- and user name from the current context.
@@ -205,8 +207,8 @@ def load_kubeconfig(
             cluster_info = [
                 entry for entry in kubeconf["clusters"] if entry["name"] == clustername
             ]
-            assert len(user_info) == len(cluster_info) == 1
-        except AssertionError:
+            ensure(len(user_info) == len(cluster_info) == 1, "user/cluster")
+        except StepError:
             logit.error(f"Could not find context <{context}>")
             return ("", {}, {}, True)
 
@@ -250,10 +252,10 @@ def load_incluster_config(
     # Sanity checks: URL and service account must exist, or we are not running
     # inside a Pod.
     try:
-        assert server_ip is not None
-        assert cafile.exists()
-        assert tokenfile.exists()
-    except AssertionError:
+        ensure(server_ip is not None, "server IP")
+        ensure(cafile.exists(), "CA file")
+        ensure(tokenfile.exists(), "token file")
+    except StepError:
         logit.debug("Could not find incluster (service account) credentials.")
         return K8sConfig(), True
 
@@ -722,20 +724,20 @@ async def cluster_config(
     try:
         # Parse Kubeconfig file.
         k8sconfig, err = load_auto_config(kubeconfig, context)
-        assert not err
+        ensure(not err, "load kubeconfig")
 
         # Configure a HttpX client for this cluster.
         k8sconfig, err = create_httpx_client(k8sconfig, conparams)
-        assert not err
+        ensure(not err, "create HTTP client")
 
         # Contact the K8s API to update version field in `k8sconfig`.
         k8sconfig, err = await version(k8sconfig)
-        assert not err and k8sconfig
+        ensure(not err and k8sconfig, "query K8s version")
 
         # Populate the `k8sconfig.apis` field.
         err = await compile_api_endpoints(k8sconfig)
-        assert not err
-    except AssertionError:
+        ensure(not err, "compile API endpoints")
+    except StepError:
         return (K8sConfig(), True)
 
     # Log the K8s API address and version.

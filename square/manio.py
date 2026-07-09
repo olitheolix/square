@@ -22,6 +22,8 @@ from square.dtypes import (
     Selectors,
     SelKindGroupNames,
     SquareManifests,
+    StepError,
+    ensure,
 )
 from square.yaml_io import Dumper, Loader
 
@@ -78,12 +80,8 @@ def is_valid_manifest(manifest: dict, k8sconfig: K8sConfig) -> bool:
     if meta.skgn().kind_group not in k8sconfig.apis:
         return True
 
-    try:
-        _, err = square.k8s.resource(k8sconfig, meta)
-        assert not err
-    except AssertionError:
-        return False
-    return True
+    _, err = square.k8s.resource(k8sconfig, meta)
+    return not err
 
 
 def select(manifest: dict, selectors: Selectors, match_labels: bool) -> bool:
@@ -587,7 +585,7 @@ def run_strip_callback(config: Config, manifest: dict) -> Tuple[dict, bool]:
 
         # Run the callback function to strip the `manifest`.
         stripped_man, err = square.square.call_external_function(cb, config, manifest)
-        assert not err and isinstance(stripped_man, dict)
+        ensure(not err and isinstance(stripped_man, dict), "strip callback")
 
         # The callback function must not have changed any fields that would
         # result in either corrupt or different `MetaManifest`.
@@ -602,7 +600,7 @@ def run_strip_callback(config: Config, manifest: dict) -> Tuple[dict, bool]:
                 f"Strip callback changed MetaManifest: {orig_meta} -> {ret_meta}"
             )
             return {}, True
-    except (TypeError, AssertionError):
+    except (TypeError, StepError):
         return {}, True
     return stripped_man, False
 
@@ -721,16 +719,16 @@ def load_manifests(
     try:
         # Load the files and abort on error.
         fdata_raw, err = load_files(folder, fnames)
-        assert not err and fdata_raw is not None
+        ensure(not err and fdata_raw is not None, "load files")
 
         # Return the YAML parsed manifests.
         man_files, err = parse(fdata_raw, selectors)
-        assert not err and man_files is not None
+        ensure(not err and man_files is not None, "parse manifests")
 
         # Remove the Path dimension.
         man_meta, err = compile_square_manifests(man_files)
-        assert not err and man_meta is not None
-    except AssertionError:
+        ensure(not err and man_meta is not None, "compile manifests")
+    except StepError:
         return ({}, {}, True)
 
     # Return the file based manifests and unpacked manifests.
@@ -914,13 +912,13 @@ async def _download_worker(
     try:
         # Download the resource manifests for the current KIND.
         manifest_list, err = await square.k8s.get(k8sconfig, resource.url)
-        assert not err and manifest_list is not None
+        ensure(not err and manifest_list is not None, "download manifests")
 
         # Parse the K8s List (eg `DeploymentList`, `NamespaceList`, ...) into a
         # `SquareManifests` (ie `Dict[MetaManifest, dict]`) structure.
         manifests, err = unpack_k8s_resource_list(manifest_list)
-        assert not err and manifests is not None
+        ensure(not err and manifests is not None, "unpack manifest list")
         return manifests, False
-    except AssertionError:
+    except StepError:
         logit.error(f"Could not query <{kgn}> from {k8sconfig.name}")
         return ({}, True)

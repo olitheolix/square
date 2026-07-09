@@ -10,7 +10,7 @@ import colorama
 import square
 import square.square
 from square import DEFAULT_CONFIG_FILE, __version__
-from square.dtypes import Config, GroupBy, Selectors
+from square.dtypes import Config, GroupBy, Selectors, StepError, ensure
 
 # Convenience: global logger instance to avoid repetitive code.
 logit = logging.getLogger("square")
@@ -301,8 +301,8 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
         if len(labels) == 1:
             try:
                 _, label_name = labels[0].split("=")
-                assert len(label_name) > 0
-            except (ValueError, AssertionError):
+                ensure(len(label_name) > 0, "empty label name")
+            except (ValueError, StepError):
                 logit.error(f"Invalid label specification <{labels[0]}>")
                 return err_resp
 
@@ -368,7 +368,7 @@ async def apply_plan(cfg: Config, confirm_string: str | None) -> bool:
     try:
         # Obtain the plan.
         plan, err = await square.square.make_plan(cfg)
-        assert not err and plan
+        ensure(not err and plan, "make plan")
 
         # Exit prematurely if there are no changes to apply.
         num_patch_ops = sum([len(delta.patch.ops) for delta in plan.patch])
@@ -386,8 +386,8 @@ async def apply_plan(cfg: Config, confirm_string: str | None) -> bool:
         print()
 
         # Apply the plan.
-        assert not await square.square.apply_plan(cfg, plan)
-    except AssertionError:
+        ensure(not await square.square.apply_plan(cfg, plan), "apply plan")
+    except StepError:
         return True
 
     # All good.
