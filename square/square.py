@@ -279,18 +279,22 @@ async def match_api_version(
     del meta_noapi_loc, meta_noapi_srv, meta_overlap
 
     # Re-fetch the resources we already got but this time from the correct endpoint.
-    for meta_loc in to_download:
-        # Construct the correct K8sResource.
-        resource, err = k8s.resource(k8sconfig, meta_loc)
-        assert not err
+    try:
+        for meta_loc in to_download:
+            # Construct the correct K8sResource.
+            resource, err = k8s.resource(k8sconfig, meta_loc)
+            ensure(not err, "resolve resource")
 
-        # Download the resource.
-        manifest, err = await k8s.get(k8sconfig, resource.url)
-        assert not err
+            # Download the resource.
+            manifest, err = await k8s.get(k8sconfig, resource.url)
+            ensure(not err, "download resource")
 
-        # Add the resource to the `server` dict. This will have been one of
-        # those we deleted a few lines earlier.
-        server[manio.make_meta(manifest)] = manifest
+            # Add the resource to the `server` dict. This will have been one of
+            # those we deleted a few lines earlier.
+            server[manio.make_meta(manifest)] = manifest
+    except StepError as exc:
+        logit.error(f"Could not match API versions ({exc} failed).")
+        return {}, True
 
     return server, False
 
@@ -409,7 +413,8 @@ async def compile_plan(
     # Replace the server resources fetched from K8s' preferred endpoint with
     # those from the endpoint declared in the local manifest.
     server, err = await match_api_version(k8sconfig, local, server)
-    assert not err
+    if err:
+        return err_resp
 
     # Strip the unwanted sections from the manifests before we compute patches.
     local, server, err = manio.strip_manifests(config, local, server)
