@@ -59,6 +59,12 @@ filterwarnings = [
     # child" notice is therefore expected and would otherwise drown out warnings
     # that originate in Square's own code.
     "ignore:.*fork.*may lead to deadlocks:DeprecationWarning",
+    # The integration tests tear down namespaces with a fire-and-forget
+    # `kubectl delete ns --force` via `sh` (`_bg=True`). When the test process
+    # exits, `sh`'s stdout/stderr reader thread for that still-running
+    # subprocess can raise, which pytest surfaces as an unhandled thread
+    # exception. It is a benign, timing-dependent artifact of the test harness.
+    "ignore::pytest.PytestUnhandledThreadExceptionWarning",
 ]
 
 [tool.coverage.run]

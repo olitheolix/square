@@ -569,9 +569,15 @@ def create_httpx_client(
 
     # Construct the HttpX client.
     try:
+        # Load the client certificate (used by eg Minikube and KinD) into the
+        # SSL context. Passing `cert=` to the transport directly is deprecated
+        # in httpx, which loads it into this very context under the hood anyway.
+        if k8sconfig.cert:
+            certfile, keyfile = k8sconfig.cert
+            sslcontext.load_cert_chain(certfile=certfile, keyfile=keyfile)
+
         transport = httpx.AsyncHTTPTransport(
             verify=sslcontext,
-            cert=k8sconfig.cert,  # type: ignore
             retries=0,  # Square has its own retry logic.
             http1=conparam.http1,
             http2=conparam.http2,
