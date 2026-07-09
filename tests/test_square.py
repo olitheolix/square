@@ -48,40 +48,6 @@ class TestLogging:
 
 
 class TestBasic:
-    def test_find_namespace_orphans(self):
-        """Return all resource manifests that belong to non-existing
-        namespaces.
-
-        This function will be useful to sanity check the local deployments
-        manifest to avoid cases where users define resources in a namespace but
-        forget to define that namespace (or mis-spell it).
-
-        """
-        fun = sq.find_namespace_orphans
-
-        # Two deployments in the same non-existing Namespace. Both are orphaned
-        # because the namespace `ns1` does not exist.
-        man = {
-            MetaManifest("v1", "Deployment", "ns1", "foo"),
-            MetaManifest("v1", "Deployment", "ns1", "bar"),
-        }
-        assert fun(man) == (man, True)
-
-        # Two namespaces - neither is orphaned by definition.
-        man = {
-            MetaManifest("v1", "Namespace", None, "ns1"),
-            MetaManifest("v1", "Namespace", None, "ns2"),
-        }
-        assert fun(man) == (set(), True)
-
-        # Two deployments, only one of which is inside a defined Namespace.
-        man = {
-            MetaManifest("v1", "Deployment", "ns1", "foo"),
-            MetaManifest("v1", "Deployment", "ns2", "bar"),
-            MetaManifest("v1", "Namespace", None, "ns1"),
-        }
-        assert fun(man) == ({MetaManifest("v1", "Deployment", "ns2", "bar")}, True)
-
     def test_show_plan(self):
         """Just verify it runs.
 

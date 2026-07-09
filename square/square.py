@@ -5,7 +5,7 @@ import re
 import sys
 import traceback
 from collections import Counter, defaultdict
-from typing import Any, Callable, Collection, Dict, Iterable, List, Set, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Tuple
 
 import colorama
 import jsonpatch
@@ -580,43 +580,6 @@ def show_plan(plan: DeploymentPlan) -> bool:
         + "\n"
     )
     return False
-
-
-def find_namespace_orphans(
-    meta_manifests: Collection[MetaManifest],
-) -> Tuple[Set[MetaManifest], bool]:
-    """Return all orphaned resources in the `meta_manifest` set.
-
-    A resource is orphaned iff it lives in a namespace that is not explicitly
-    declared in the set of `meta_manifests`.
-
-    This function is particularly useful to verify a set of local manifests and
-    pinpoint resources that someone forgot to delete and that have a typo in
-    their namespace field.
-
-    Inputs:
-        meta_manifests: Collection[MetaManifest]
-
-    Returns:
-        set[MetaManifest]: orphaned resources.
-
-    """
-    # Turn the input into a set.
-    meta_manifests = set(meta_manifests)
-
-    # Extract all declared namespaces so we can find the orphans next.
-    namespaces = {_.name for _ in meta_manifests if _.kind == "Namespace"}
-
-    # Find all manifests that are neither a Namespace nor belong to any of the
-    # `namespaces` from the previous step
-    orphans = {
-        _
-        for _ in meta_manifests
-        if _.kind != "Namespace" and _.namespace not in namespaces
-    }
-
-    # Return the result.
-    return (orphans, True)
 
 
 def setup_logging(log_level: int) -> None:
