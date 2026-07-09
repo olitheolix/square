@@ -488,6 +488,26 @@ class TestMatchApiVersions:
         m_get.assert_called_once_with(k8sconfig, resource.url)
 
     @mock.patch.object(k8s, "get")
+    async def test_match_api_version_err(self, m_get, k8sconfig):
+        """A failed re-download must return an error instead of crashing."""
+        hpa = "HorizontalPodAutoscaler"
+
+        # Same HPA locally and on the server but with different `apiVersions`,
+        # so `match_api_version` will try to re-download it.
+        man_loc = make_manifest(hpa, "ns", "name")
+        man_srv = make_manifest(hpa, "ns", "name")
+        man_loc.update(dict(apiVersion="autoscaling/v1"))
+        man_srv.update(dict(apiVersion="autoscaling/v2"))
+        local: SquareManifests = {manio.make_meta(man_loc): man_loc}
+        server: SquareManifests = {manio.make_meta(man_srv): man_srv}
+
+        # Simulate a failed download, eg a network error.
+        m_get.return_value = (None, True)
+
+        ret = await square.square.match_api_version(k8sconfig, local, server)
+        assert ret == ({}, True)
+
+    @mock.patch.object(k8s, "get")
     async def test_match_api_version_namespace(self, m_get, k8sconfig):
         """Square must use the API version declared in local manifests.
 
@@ -922,6 +942,17 @@ class TestPlan:
         with mock.patch.object(sq.k8s, "resource") as m_url:
             m_url.return_value = (None, True)
             assert await sq.compile_plan(sqcfg, k8sconfig, man, man) == err_resp
+
+    @mock.patch.object(sq, "match_api_version")
+    async def test_compile_plan_match_api_version_err(self, m_mav, sqcfg, k8sconfig):
+        """A failure in `match_api_version` must abort plan compilation."""
+        err_resp = (DeploymentPlan(tuple(), tuple(), tuple()), True)
+
+        man = make_manifest("Deployment", "ns", "name")
+        local = {manio.make_meta(man): man}
+
+        m_mav.return_value = ({}, True)
+        assert await sq.compile_plan(sqcfg, k8sconfig, local, local) == err_resp
 
     async def test_compile_plan_patch_no_diff(self, sqcfg, k8sconfig):
         """The plan must be empty if the local and server manifests are too."""
