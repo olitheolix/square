@@ -808,13 +808,19 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
         Error flag (`True` on failure).
 
     """
-    # Sort the plan according to `cfg.priority`. This uses the raw priority list
-    # (before `cluster_session` normalises it), matching the historic order.
-    plan, plan_err = sort_plan(cfg, plan)
-
     async with cluster_session(cfg) as (k8sconfig, err):
-        # Abort if we could not sort the plan or establish the K8s session.
-        if err or plan_err:
+        # Abort if we could not establish the K8s session.
+        if err:
+            return True
+
+        # Sort the plan according to `cfg.priorities`. This must happen inside
+        # the `cluster_session` because it normalises the priority list against
+        # the live cluster (eg "namespace" -> "namespace.v1"). `sort_plan` keys
+        # on that canonical form, so sorting beforehand would leave every
+        # core-group kind tied at the lowest priority (eg a Deployment could be
+        # created before its Namespace).
+        plan, plan_err = sort_plan(cfg, plan)
+        if plan_err:
             return True
 
         try:

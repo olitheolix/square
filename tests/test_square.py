@@ -1324,6 +1324,48 @@ class TestMainOptions:
             m_sort.return_value = [], True
             assert await sq.apply_plan(sqcfg, plan) is True
 
+    @mock.patch.object(k8s, "post")
+    @mock.patch.object(k8s, "patch")
+    @mock.patch.object(k8s, "delete")
+    async def test_apply_plan_sorts_after_priority_normalisation(
+        self, m_delete, m_apply, m_post, sqcfg, kube_creds
+    ):
+        """`apply_plan` must honour priorities for core (v1) kinds.
+
+        `sort_plan` keys on the canonical `kind_group` (eg "namespace.v1"), but
+        the priority list is given in raw form (eg "Namespace"). `apply_plan`
+        must therefore normalise the priorities (via `cluster_session`) *before*
+        sorting, otherwise every core-group kind ties at the lowest priority and
+        a Deployment can be created before its Namespace.
+
+        """
+        m_post.return_value = (None, False)
+        m_apply.return_value = (None, False)
+        m_delete.return_value = (None, False)
+
+        meta_ns = manio.make_meta(make_manifest("Namespace", None, "ns0"))
+        meta_dpl = manio.make_meta(make_manifest("Deployment", "ns0", "dpl"))
+
+        # Deliberately list the Deployment first so a stable-but-wrong sort would
+        # keep it ahead of the Namespace.
+        plan = DeploymentPlan(
+            create=[
+                DeltaCreate(meta_dpl, "create_dpl", {"kind": "Deployment"}),
+                DeltaCreate(meta_ns, "create_ns", {"kind": "Namespace"}),
+            ],
+            patch=[],
+            delete=[],
+        )
+
+        # Raw priority list, exactly as it arrives from `.square.yaml` before any
+        # normalisation. The Namespace must still be created before the Deployment.
+        sqcfg.priorities = ["Namespace", "Deployment"]
+
+        assert await sq.apply_plan(sqcfg, plan) is False
+
+        created_urls = [call.args[1] for call in m_post.call_args_list]
+        assert created_urls == ["create_ns", "create_dpl"]
+
     def test_pick_manifests_for_plan_different_resources(self):
         """Use an orthogonal set of manifests for server and client.
 
