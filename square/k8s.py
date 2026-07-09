@@ -162,9 +162,10 @@ async def post(k8sconfig: K8sConfig, url: str, payload: dict) -> Tuple[dict, boo
 def load_kubeconfig(
     kubeconf_path: Path, context: str | None
 ) -> Tuple[str, dict, dict, bool]:
-    """Return user name as well as user- and cluster information.
+    """Return the user name plus the user and cluster information.
 
-    Return None on error.
+    Read `kubeconf_path`, find the requested `context` (or the default one) and
+    return the details it references. Set the trailing error flag on failure.
 
     Inputs:
         kubeconf_path: Path
@@ -173,7 +174,7 @@ def load_kubeconfig(
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
-        name, user info, cluster info
+        (user name, user info, cluster info, error flag)
 
     """
     # Load `kubeconfig`.
@@ -223,15 +224,18 @@ def load_kubeconfig(
 def load_incluster_config(
     tokenfile: Path = TOKENFILE, cafile: Path = CAFILE
 ) -> Tuple[K8sConfig, bool]:
-    """Return K8s access config from Pod service account.
+    """Return the K8s access config from the Pod service account.
 
-    Returns None if we are not running in a Pod.
+    Set the error flag if we are not running inside a Pod.
 
     Inputs:
-        kubconfig: str
-            Name of kubeconfig file.
+        tokenfile: Path
+            Path to the service account token file.
+        cafile: Path
+            Path to the cluster CA certificate.
+
     Returns:
-        K8sConfig
+        (K8sConfig, error flag)
 
     """
     # These exist inside every Kubernetes pod.
@@ -287,9 +291,9 @@ def run_external_command(cmd: List[str], env: Dict[str, str]) -> Tuple[str, str,
 def load_authenticator_config(
     kubeconf_path: Path, context: str | None
 ) -> Tuple[K8sConfig, bool]:
-    """Return K8s config based on authenticator app specified in `kubeconfig`.
+    """Return the K8s config based on the authenticator app in `kubeconfig`.
 
-    Returns None if `kubeconfig` does not exist or could not be parsed.
+    Set the error flag if `kubeconfig` does not exist or cannot be parsed.
 
     Inputs:
         kubeconf_path: Path
@@ -298,7 +302,7 @@ def load_authenticator_config(
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
-        K8sConfig
+        (K8sConfig, error flag)
 
     """
     # Parse the kubeconfig file.
@@ -372,9 +376,9 @@ def load_authenticator_config(
 def load_minikube_config(
     kubeconf_path: Path, context: str | None
 ) -> Tuple[K8sConfig, bool]:
-    """Load Minikube configuration from `fname`.
+    """Load the Minikube configuration from `kubeconf_path`.
 
-    Return None on error.
+    Set the error flag on failure.
 
     Inputs:
         kubeconf_path: Path
@@ -383,7 +387,7 @@ def load_minikube_config(
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
-        K8sConfig
+        (K8sConfig, error flag)
 
     """
     # Parse the kubeconfig file.
@@ -417,11 +421,11 @@ def load_kind_config(
 
     https://github.com/bsycorp/kind
 
-    Kind is just another Minikube cluster. The only notable difference
-    is that it does not store its credentials as files but directly in
-    the Kubeconfig file. This function will copy those files into /tmp.
+    Kind is just another Minikube cluster. The only notable difference is that
+    it stores its credentials directly in the Kubeconfig file rather than as
+    separate files, so this function copies them into /tmp.
 
-    Return None on error.
+    Set the error flag on failure.
 
     Inputs:
         kubeconf_path: Path
@@ -430,7 +434,7 @@ def load_kind_config(
             Kubeconf context. Use `None` to select the default context.
 
     Returns:
-        K8sConfig
+        (K8sConfig, error flag)
 
     """
     # Parse the kubeconfig file.

@@ -347,16 +347,20 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
 
 
 async def apply_plan(cfg: Config, confirm_string: str | None) -> bool:
-    """Update K8s to match the specifications in `local_manifests`.
+    """Apply the plan that reconciles the cluster to the local manifests.
 
-    Create a deployment plan that will transition the K8s state
-    `server_manifests` to the desired `local_manifests`.
+    Compute the deployment plan for `cfg`, print it and — unless the user
+    declines the confirmation — apply it to the cluster.
 
     Inputs:
         cfg: Square configuration.
         confirm_string:
-            Only apply the plan if user answers with this string in the
+            Only apply the plan if the user answers with this string in the
             confirmation dialog (set to `None` to disable confirmation).
+
+    Returns:
+        Error flag: `True` if the plan could not be applied or the user
+        aborted, `False` on success or when there was nothing to change.
 
     """
     try:
