@@ -777,7 +777,7 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
         print(f"Creating {msg_res}")
         _, err = await k8s.post(k8sconfig, data_c.url, data_c.manifest)
         if err:
-            logit.error(f"Could not patch {msg_res}")
+            logit.error(f"Could not create {msg_res}")
             return True
 
     # Patch the server resources. Abort on first error.
@@ -798,7 +798,7 @@ async def apply_plan(cfg: Config, plan: DeploymentPlan) -> bool:
         print(f"Deleting {msg_res}")
         _, err = await k8s.delete(k8sconfig, data_d.url, data_d.manifest)
         if err:
-            logit.error(f"Could not patch {msg_res}")
+            logit.error(f"Could not delete {msg_res}")
             return True
 
     # Close the client.
