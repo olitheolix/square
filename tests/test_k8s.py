@@ -325,6 +325,23 @@ class TestK8sDeleteGetPatchPost:
         assert await k8s.post(k8sconfig, path, payload) == (response, True)
         m_req.assert_called_once_with(k8sconfig, "POST", path, payload, headers=None)
 
+    @mock.patch.object(k8s, "request")
+    async def test_post_honours_request_error_flag(self, m_req, k8sconfig):
+        """POST must not report success when `request` flagged an error.
+
+        A 201 response with a non-JSON body makes `request` return
+        `(resp, 201, True)`. POST must propagate that error flag instead of
+        recomputing it purely from the status code.
+
+        """
+        path = "path"
+        payload = {"pay": "load"}
+        response = "response"
+
+        m_req.return_value = (response, 201, True)
+        assert await k8s.post(k8sconfig, path, payload) == (response, True)
+        m_req.assert_called_once_with(k8sconfig, "POST", path, payload, headers=None)
+
 
 class TestK8sVersion:
     @mock.patch.object(k8s, "get")

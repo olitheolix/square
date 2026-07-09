@@ -154,8 +154,7 @@ async def patch(
 async def post(k8sconfig: K8sConfig, url: str, payload: dict) -> Tuple[dict, bool]:
     """Make POST requests to K8s (see `request`)."""
     resp, code, err = await request(k8sconfig, "POST", url, payload, headers=None)
-    err = code != 201
-    if err:
+    if err or code != 201:
         logit.error(f"{code} - POST - {url} - {resp}")
         return (resp, True)
     return (resp, False)
