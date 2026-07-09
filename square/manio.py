@@ -592,7 +592,7 @@ def run_strip_callback(config: Config, manifest: dict) -> Tuple[dict, bool]:
         try:
             ret_meta = make_meta(stripped_man)
         except KeyError:
-            logit.error(f"Patch callback corrupted {orig_meta}")
+            logit.error(f"Strip callback corrupted {orig_meta}")
             return {}, True
 
         if ret_meta != orig_meta:
