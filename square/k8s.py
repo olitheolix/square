@@ -179,7 +179,7 @@ def load_kubeconfig(
     """
     # Load `kubeconfig`.
     try:
-        kubeconf = yaml.safe_load(open(kubeconf_path))
+        kubeconf = yaml.safe_load(open(kubeconf_path).read())
     except (IOError, PermissionError) as err:
         logit.error(f"{err}")
         return ("", {}, {}, True)
