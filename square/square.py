@@ -212,7 +212,7 @@ def partition_manifests(
     del meta_loc, meta_srv
 
     # Convert the sets to list. Preserve the relative element ordering as it
-    # was in `{local_server}`.
+    # was in `{local,server}`.
     create_l = [meta for meta in local if meta in create]
     patch_l = [meta for meta in local if meta in patch]
     delete_l = [meta for meta in server if meta in delete]
@@ -230,8 +230,8 @@ async def match_api_version(
     Re-fetch the manifests where the local files specify a different API
     version than K8s uses by default.
 
-    This function returns `server` verbatim if there is no overlap with
-    `server` and `local`.
+    This function returns `server` verbatim if there is no overlap between
+    `local` and `server`.
 
     Inputs:
         k8sconfig: K8sConfig
@@ -349,7 +349,9 @@ def run_patch_callback(
                 # The callback destroyed the `MetaManifest` information. Square
                 # cannot deal with this because it uses `MetaManifests` to
                 # uniquely identify resources.
-                logit.error(f"Patch callback modify MetaManifest: {meta} -> {ret_meta}")
+                logit.error(
+                    f"Patch callback modified MetaManifest: {meta} -> {ret_meta}"
+                )
                 return True
     except (ValueError, TypeError, StepError):
         return True

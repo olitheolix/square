@@ -276,7 +276,7 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # Out: GroupBy(order=["ns", "kind", "label"], label="app")
     # ------------------------------------------------------------------------
     # Unpack the ordering and replace all `label=*` with `label`.
-    # NOTE: `p.groups` does not necessarily exist because the option only makes
+    # NOTE: `p.groupby` does not necessarily exist because the option only makes
     #        sense for eg `square GET` and is thus not implemented for `square apply`.
     order = getattr(p, "groupby", None)
     if order is None:

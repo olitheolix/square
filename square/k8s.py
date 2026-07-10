@@ -71,12 +71,14 @@ async def request(
     payload: dict | list | None,
     headers: dict | None,
 ) -> Tuple[dict, int, bool]:
-    """Return response of web request made with `client`.
+    """Return response of the web request made against the K8s API.
 
     Inputs:
-        client: HttpX client with correct K8s certificates.
+        k8sconfig: K8sConfig with the HttpX client and correct K8s certificates.
+        method: str
+            HTTP verb, eg "GET", "POST", "PATCH" or "DELETE".
         url: str
-            Eg `https://1.2.3.4/api/v1/namespaces`)
+            Eg `https://1.2.3.4/api/v1/namespaces`
         payload: dict
             Anything that can be JSON encoded, usually a K8s manifest.
         headers: dict
@@ -84,7 +86,8 @@ async def request(
             headers dictionary (eg the access tokens), but augment them.
 
     Returns:
-        (dict, int, bool): the JSON response and the HTTP status code.
+        (dict, int, bool): the JSON response, the HTTP status code and the
+        error flag.
 
     """
     # Build the request up front so the retry/backoff handler can send it
@@ -431,7 +434,7 @@ def load_minikube_config(
 def load_kind_config(
     kubeconf_path: Path, context: str | None
 ) -> Tuple[K8sConfig, bool]:
-    """Load Kind configuration from `fname`.
+    """Load Kind configuration from `kubeconf_path`.
 
     https://github.com/bsycorp/kind
 
@@ -481,7 +484,7 @@ def load_kind_config(
             name=name,
         ), False
     except KeyError:
-        logit.debug(f"Context {context} in <{kubeconf_path}> is not a Minikube config")
+        logit.debug(f"Context {context} in <{kubeconf_path}> is not a Kind config")
         return (K8sConfig(), True)
 
 
@@ -622,14 +625,14 @@ def create_httpx_client(
 def resource(
     k8sconfig: K8sConfig, gvknn: SelKindGroupNames | MetaManifest
 ) -> Tuple[K8sResource, bool]:
-    """Return the `K8sResource` object that corresponds to `meta`.
+    """Return the `K8sResource` object that corresponds to `gvknn`.
 
-    That object will contain the full path to a resource, eg.
+    That object will contain the full path to a resource, eg
     https://1.2.3.4/api/v1/namespace/foo/services.
 
     Inputs:
         k8sconfig: K8sConfig
-        GVKN: can be either a MetaManifest or SelKindGroupNames
+        gvknn: can be either a MetaManifest or SelKindGroupNames
 
     Returns:
         K8sResource
@@ -950,7 +953,7 @@ def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
                 logit.warning(f"bug: resource <{name}> has no preferred version")
                 continue
 
-            # Warn if we have multiple preferred version. That usually means the resource
+            # Warn if we have multiple preferred versions. That usually means the resource
             # name is ambiguous and multiple groups provide one of its kind.
             preferred = [res for res in resources if res.preferred]
             if len(preferred) > 1:
@@ -973,10 +976,10 @@ def _validate_apis(apis: Dict[str, List[K8sResource]]) -> bool:
 def pick_api(
     kgn: SelKindGroupNames | MetaManifest, apis: Dict[str, List[K8sResource]]
 ) -> Tuple[K8sResource, bool]:
-    """Selects the most appropriate API version for a given Kubernetes resource name.
+    """Select the most appropriate API version for a given Kubernetes resource name.
 
     Args:
-        meta: the Kubernetes resource to match to an API.
+        kgn: the Kubernetes resource to match to an API.
         apis: should be `k8sconfig.apis`.
 
     Returns:
