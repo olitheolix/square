@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, NamedTuple, Set, Tuple
 
 import jsonpath_ng as jp
-from jsonpath_ng.exceptions import JsonPathParserError
+from jsonpath_ng.exceptions import JSONPathError
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import Annotated
@@ -429,7 +429,10 @@ class Config(BaseModel):
             try:
                 for path in paths:
                     jpcache(path)
-            except JsonPathParserError:
+            except JSONPathError:
+                # Catch the common base so both parser- and lexer-level errors
+                # (eg `JsonPathLexerError` from "!!invalid") surface as a clean
+                # ValueError instead of escaping as a raw traceback.
                 raise ValueError(f"invalid JSON path <{path}>")
 
         return out

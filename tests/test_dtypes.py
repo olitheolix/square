@@ -284,6 +284,17 @@ class TestConfigFilters:
         with pytest.raises(pydantic.ValidationError):
             self.make_config({"deployment": ["]$0metadata.labels"]})
 
+    def test_filters_invalid_path_lexer_error(self):
+        """A lexer-level JSON path error must also raise a ValidationError.
+
+        `!!invalid` raises `JsonPathLexerError`, which is not a subclass of
+        `JsonPathParserError`; without catching it too, it escaped Config
+        construction as a raw traceback.
+
+        """
+        with pytest.raises(pydantic.ValidationError):
+            self.make_config({"deployment": ["!!invalid"]})
+
     def test_filters_valid_key_with_group(self):
         """A key with an explicit API group is valid."""
         res = "role.rbac.authorization.k8s.io"
