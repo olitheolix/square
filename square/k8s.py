@@ -275,10 +275,21 @@ def run_external_command(cmd: List[str], env: Dict[str, str]) -> Tuple[str, str,
     # Upsert the new environment variables to the default ones.
     tmp_env = dict(os.environ) | env
 
-    # Execute the program.
+    # Maximum time (seconds) to wait for an external exec authenticator plugin.
+    # The 30s is arbitrary but should be long enough for any authenticator plugin.
+    EXEC_AUTH_TIMEOUT = 30
+
+    # Execute the program. Impose a timeout so a stalled authenticator plugin
+    # (eg aws-iam-authenticator, gke-gcloud-auth-plugin) cannot hang Square
+    # indefinitely.
     try:
-        out = subprocess.run(cmd, env=tmp_env, capture_output=True)
+        out = subprocess.run(
+            cmd, env=tmp_env, capture_output=True, timeout=EXEC_AUTH_TIMEOUT
+        )
     except FileNotFoundError:
+        return "", "", True
+    except subprocess.TimeoutExpired:
+        logit.error(f"External command timed out after {EXEC_AUTH_TIMEOUT}s: {cmd}")
         return "", "", True
 
     # Return with an error unless the return code was zero.

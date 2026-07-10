@@ -1331,6 +1331,13 @@ class TestK8sKubeconfig:
             m_run.return_value = types.SimpleNamespace(stdout=b"\x80", returncode=0)
             assert k8s.run_external_command(["ls"], {}) == ("", "", True)
 
+        # Gracefully handle an authenticator command that hangs: it must be
+        # given a timeout and a timeout must be reported as an error, not raised.
+        with mock.patch.object(k8s.subprocess, "run") as m_run:
+            m_run.side_effect = k8s.subprocess.TimeoutExpired(cmd=["x"], timeout=1)
+            assert k8s.run_external_command(["sleep", "100"], {}) == ("", "", True)
+            assert m_run.call_args.kwargs.get("timeout")
+
     @mock.patch.object(k8s, "load_incluster_config")
     @mock.patch.object(k8s, "load_minikube_config")
     @mock.patch.object(k8s, "load_kind_config")
