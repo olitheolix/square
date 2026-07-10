@@ -233,11 +233,23 @@ class K8sConfig(BaseModel):
     headers: Dict[str, str] = {}
 
     # HttpX client to access the cluster. The `k8s.create_httpx_client` will
-    # replace it with a properly configured client.
-    client: httpx.AsyncClient = httpx.AsyncClient()
+    # replace it with a properly configured client. Use a `default_factory` so
+    # every instance gets its own client rather than sharing a single one
+    # created at import time.
+    client: httpx.AsyncClient = Field(default_factory=httpx.AsyncClient)
 
     # Kubernetes API endpoints (see `k8s.compile_api_endpoints`).
     apis: Dict[str, List[K8sResource]] = {}
+
+    def __eq__(self, other: object) -> bool:
+        # The httpx client is transient transport, not part of a config's
+        # identity, so exclude it from equality. This keeps the `(result, err)`
+        # convention's `K8sConfig()` error sentinels comparable even though each
+        # now carries its own client instance.
+        if not isinstance(other, K8sConfig):
+            return NotImplemented
+        fields = (name for name in type(self).model_fields if name != "client")
+        return all(getattr(self, name) == getattr(other, name) for name in fields)
 
 
 # -----------------------------------------------------------------------------
