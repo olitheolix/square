@@ -327,8 +327,11 @@ def compile_config(cmdline_param) -> Tuple[Config, bool]:
     # ------------------------------------------------------------------------
     # Verify inputs.
     # ------------------------------------------------------------------------
-    # Abort without credentials.
-    if not kubeconfig.exists():
+    # Abort without credentials. Require an actual file: an empty kubeconfig
+    # value parses to `Path('.')`, which `.exists()` accepts (the CWD) but
+    # `.is_file()` correctly rejects, so we abort here instead of failing later
+    # with a confusing K8s loading error.
+    if not kubeconfig.is_file():
         logit.error(f"Cannot find Kubernetes config file <{kubeconfig}>")
         return err_resp
 
