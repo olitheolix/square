@@ -10,6 +10,7 @@
 htmlcov/
 .coverage*
 .ropeproject/
+/coverage.xml
 
 # Binaries.
 build/
@@ -17,9 +18,11 @@ dist/
 kubernetes_square.egg-info/
 
 # Personal files and folders.
+.aider*
+.cecli*
 .square.yaml
+_plans/
 delme*
 manifests/
 personal/
-.aider*
-.cecli*
+tmp/
