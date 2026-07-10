@@ -1366,16 +1366,16 @@ class TestK8sKubeconfig:
             assert m_run.call_args.kwargs.get("timeout")
 
     @mock.patch.object(k8s, "load_incluster_config")
-    @mock.patch.object(k8s, "load_minikube_config")
-    @mock.patch.object(k8s, "load_kind_config")
+    @mock.patch.object(k8s, "load_certfile_config")
+    @mock.patch.object(k8s, "load_certdata_config")
     @mock.patch.object(k8s, "load_authenticator_config")
-    def test_load_auto_config(self, m_auth, m_kind, m_mini, m_incluster):
+    def test_load_auto_config(self, m_auth, m_certdata, m_certfile, m_incluster):
         """`load_auto_config` must pick the first successful configuration."""
         fun = k8s.load_auto_config
 
         m_incluster.return_value = (K8sConfig(), False)
-        m_mini.return_value = (K8sConfig(), False)
-        m_kind.return_value = (K8sConfig(), False)
+        m_certfile.return_value = (K8sConfig(), False)
+        m_certdata.return_value = (K8sConfig(), False)
         m_auth.return_value = (K8sConfig(), False)
 
         # Authenticator succeeds.
@@ -1388,22 +1388,24 @@ class TestK8sKubeconfig:
         assert fun(kubeconf, context) == m_incluster.return_value
         m_incluster.assert_called_once_with()
 
-        # Authenticator & Incluster fail but KinD succeeds.
+        # Authenticator & Incluster fail but the inline-cert config succeeds.
         m_incluster.return_value = (K8sConfig(), True)
-        assert fun(kubeconf, context) == m_kind.return_value
-        m_kind.assert_called_once_with(kubeconf, context)
+        assert fun(kubeconf, context) == m_certdata.return_value
+        m_certdata.assert_called_once_with(kubeconf, context)
 
-        # Authenticator & Incluster & KinD fail but Minikube succeeds.
-        m_kind.return_value = (K8sConfig(), True)
-        assert fun(kubeconf, context) == m_mini.return_value
-        m_mini.assert_called_once_with(kubeconf, context)
+        # Authenticator, Incluster & inline-cert fail but the on-disk-cert
+        # config succeeds.
+        m_certdata.return_value = (K8sConfig(), True)
+        assert fun(kubeconf, context) == m_certfile.return_value
+        m_certfile.assert_called_once_with(kubeconf, context)
 
         # All fail.
-        m_mini.return_value = (K8sConfig(), True)
+        m_certfile.return_value = (K8sConfig(), True)
         assert fun(kubeconf, context) == (K8sConfig(), True)
 
-    def test_load_minikube_config_ok(self):
-        # Load the K8s configuration for "minikube" context.
+    def test_load_certfile_config_ok(self):
+        # Load a kubeconfig whose certs are on-disk files (the "minikube"
+        # context uses this form).
         fname = Path("tests/support/kubeconf.yaml")
         cadata = Path("tests/support/client.crt").read_text()
 
@@ -1417,24 +1419,25 @@ class TestK8sKubeconfig:
             name="minikube",
         )
         expected = (ref, False)
-        assert k8s.load_minikube_config(fname, "minikube") == expected
+        assert k8s.load_certfile_config(fname, "minikube") == expected
 
         # Function must also accept `Path` instances.
-        assert expected == k8s.load_minikube_config(Path(fname), None)
+        assert expected == k8s.load_certfile_config(Path(fname), None)
 
         # Minikube also happens to be the default context, so not supplying an
         # explicit context must return the same information.
-        assert expected == k8s.load_minikube_config(fname, None)
+        assert expected == k8s.load_certfile_config(fname, None)
 
     @pytest.mark.parametrize("with_token", [False, True])
-    def test_load_kind_config_ok(self, with_token):
+    def test_load_certdata_config_ok(self, with_token):
         token = "secret" if with_token else ""
         context = "kind-token" if with_token else "kind"
 
-        # Load the K8s configuration for a Kind cluster.
+        # Load a kubeconfig whose certs are embedded inline (the "kind" context
+        # uses this form).
         fname = Path("tests/support/kubeconf.yaml")
 
-        ret, err = k8s.load_kind_config(fname, context)
+        ret, err = k8s.load_certdata_config(fname, context)
         assert not err
         assert ret.url == "https://localhost:8443"
         assert ret.token == token
@@ -1442,7 +1445,7 @@ class TestK8sKubeconfig:
         assert ret.name == "kind"
 
         # Function must also accept `Path` instances.
-        ret, err = k8s.load_kind_config(Path(fname), context)
+        ret, err = k8s.load_certdata_config(Path(fname), context)
         assert not err
         assert ret.url == "https://localhost:8443"
         assert ret.token == token
@@ -1453,10 +1456,16 @@ class TestK8sKubeconfig:
         assert ret.cadata is not None
         assert ret.cert is not None and len(ret.cert) == 2
 
-    @pytest.mark.parametrize("kubetype", ["kind", "minkube"])
-    def test_load_minkube_kind_config_invalid_context_err(self, kubetype, tmp_path):
-        """Gracefully abort if we cannot parse Minkube & KinD credentials."""
-        fun = k8s.load_kind_config if kubetype == "kind" else k8s.load_minikube_config
+    @pytest.mark.parametrize("kubetype", ["certdata", "certfile"])
+    def test_load_certfile_certdata_config_invalid_context_err(
+        self, kubetype, tmp_path
+    ):
+        """Gracefully abort if we cannot parse the client-certificate credentials."""
+        fun = (
+            k8s.load_certdata_config
+            if kubetype == "certdata"
+            else k8s.load_certfile_config
+        )
 
         # Valid Kubeconfig file but it has no "invalid" context.
         fname = Path("tests/support/kubeconf.yaml")
@@ -1583,8 +1592,8 @@ class TestK8sKubeconfig:
         token = yaml.dump({"status": {"token": "token"}})
         m_run.return_value = (token, "", False)
 
-        assert k8s.load_minikube_config(fname, "minikube")[1] is False
-        assert k8s.load_kind_config(fname, "kind")[1] is False
+        assert k8s.load_certfile_config(fname, "minikube")[1] is False
+        assert k8s.load_certdata_config(fname, "kind")[1] is False
         assert k8s.load_authenticator_config(fname, "gke")[1] is False
         assert k8s.load_authenticator_config(fname, "eks")[1] is False
 
@@ -1601,17 +1610,17 @@ class TestK8sKubeconfig:
         # Expected failure response.
         resp = (K8sConfig(), True)
 
-        # `load_minikube_config` must fail due to invalid Kubenconfig.
-        assert k8s.load_minikube_config(P / "invalid.yaml", None) == resp
-        assert k8s.load_minikube_config(P / "invalid.yaml", "invalid") == resp
-        assert k8s.load_minikube_config(P / "kubeconf.yaml", "invalid") == resp
-        assert k8s.load_minikube_config(P / "kubeconf_invalid.yaml", "minkube") == resp
+        # `load_certfile_config` must fail due to invalid Kubenconfig.
+        assert k8s.load_certfile_config(P / "invalid.yaml", None) == resp
+        assert k8s.load_certfile_config(P / "invalid.yaml", "invalid") == resp
+        assert k8s.load_certfile_config(P / "kubeconf.yaml", "invalid") == resp
+        assert k8s.load_certfile_config(P / "kubeconf_invalid.yaml", "minkube") == resp
 
-        # `load_kind_config` must fail due to invalid Kubenconfig.
-        assert k8s.load_kind_config(P / "invalid.yaml", None) == resp
-        assert k8s.load_kind_config(P / "invalid.yaml", "invalid") == resp
-        assert k8s.load_kind_config(P / "kubeconf.yaml", "invalid") == resp
-        assert k8s.load_kind_config(P / "kubeconf_invalid.yaml", "kind") == resp
+        # `load_certdata_config` must fail due to invalid Kubenconfig.
+        assert k8s.load_certdata_config(P / "invalid.yaml", None) == resp
+        assert k8s.load_certdata_config(P / "invalid.yaml", "invalid") == resp
+        assert k8s.load_certdata_config(P / "kubeconf.yaml", "invalid") == resp
+        assert k8s.load_certdata_config(P / "kubeconf_invalid.yaml", "kind") == resp
 
         # `load_authenticator_config` must fail due to invalid Kubenconfig.
         assert k8s.load_authenticator_config(P / "invalid.yaml", None) == resp

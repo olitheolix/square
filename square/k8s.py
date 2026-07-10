@@ -390,12 +390,21 @@ def load_authenticator_config(
     ), False
 
 
-def load_minikube_config(
+def load_certfile_config(
     kubeconf_path: Path, context: str | None
 ) -> Tuple[K8sConfig, bool]:
-    """Load the Minikube configuration from `kubeconf_path`.
+    """Load a client-certificate kubeconfig whose certs are on-disk files.
 
-    Set the error flag on failure.
+    Use this for any kubeconfig that authenticates with a client certificate
+    referenced by *file path*, ie via the `certificate-authority`,
+    `client-certificate` and `client-key` keys. Minikube is the canonical
+    example, but plain hand-written kubeconfigs (and those produced by
+    `kubectl config set-credentials --embed-certs=false`) use the same form.
+    The sibling `load_certdata_config` handles the variant that embeds the
+    equivalent certificates inline as base64.
+
+    Set the error flag on failure, most notably when the kubeconfig embeds its
+    certificates inline rather than referencing them as files.
 
     Inputs:
         kubeconf_path: Path
@@ -413,11 +422,11 @@ def load_minikube_config(
         return (K8sConfig(), True)
     name = cluster["name"]
 
-    # Minikube uses client certificates to authenticate. We need to pass those
-    # to the HTTP client of our choice
+    # This scheme references the client certificate and key as files on disk,
+    # so we hand those paths straight to the HTTP client.
     try:
         # Return the Kubernetes access configuration.
-        logit.info(f"Assuming Minikube cluster for {name}")
+        logit.info(f"Assuming on-disk client certificates for {name}")
         return K8sConfig(
             url=cluster["server"],
             token="",
@@ -427,22 +436,28 @@ def load_minikube_config(
             name=name,
         ), False
     except KeyError:
-        logit.debug(f"Context {context} in <{kubeconf_path}> is not a Minikube config")
+        logit.debug(
+            f"Context {context} in <{kubeconf_path}> does not reference "
+            "on-disk certificate files"
+        )
         return (K8sConfig(), True)
 
 
-def load_kind_config(
+def load_certdata_config(
     kubeconf_path: Path, context: str | None
 ) -> Tuple[K8sConfig, bool]:
-    """Load Kind configuration from `kubeconf_path`.
+    """Load a client-certificate kubeconfig whose certs are embedded inline.
 
-    https://github.com/bsycorp/kind
+    Use this for any kubeconfig that authenticates with a client certificate
+    embedded *inline* as base64, ie via the `certificate-authority-data`,
+    `client-certificate-data` and `client-key-data` keys. KinD is the canonical
+    example. This is the same client-certificate scheme as
+    `load_certfile_config`, except the certificates travel inside the kubeconfig
+    rather than as separate files, so this function decodes them and writes the
+    client cert/key to temporary files before handing them to HttpX.
 
-    Kind is just another Minikube cluster. The only notable difference is that
-    it stores its credentials directly in the Kubeconfig file rather than as
-    separate files, so this function copies them into /tmp.
-
-    Set the error flag on failure.
+    Set the error flag on failure, most notably when the kubeconfig references
+    its certificates as files rather than embedding them inline.
 
     Inputs:
         kubeconf_path: Path
@@ -460,21 +475,21 @@ def load_kind_config(
         return (K8sConfig(), True)
     name = cluster["name"]
 
-    # Kind and Minikube use client certificates to authenticate. We need to
-    # save them to files before we can pass them to HttpX.
+    # This scheme embeds the client certificate and key inline as base64, so we
+    # decode them and write them to temp files before we can pass them to HttpX.
     try:
         cadata = base64.b64decode(cluster["certificate-authority-data"]).decode()
 
         path = Path(tempfile.mkdtemp())
         client_crt = base64.b64decode(user["client-certificate-data"]).decode()
         client_key = base64.b64decode(user["client-key-data"]).decode()
-        p_client_crt = path / "kind-client.crt"
-        p_client_key = path / "kind-client.key"
+        p_client_crt = path / "client.crt"
+        p_client_key = path / "client.key"
         p_client_crt.write_text(client_crt)
         p_client_key.write_text(client_key)
 
         # Return the config data.
-        logit.debug(f"Assuming Kind cluster for {name}.")
+        logit.debug(f"Assuming inline client certificates for {name}.")
         return K8sConfig(
             url=cluster["server"],
             token=user.get("token", ""),
@@ -484,7 +499,10 @@ def load_kind_config(
             name=name,
         ), False
     except KeyError:
-        logit.debug(f"Context {context} in <{kubeconf_path}> is not a Kind config")
+        logit.debug(
+            f"Context {context} in <{kubeconf_path}> does not embed inline "
+            "certificate data"
+        )
         return (K8sConfig(), True)
 
 
@@ -498,8 +516,8 @@ def load_auto_config(
 
     1) `load_authenticator_config`
     2) `load_incluster_config`
-    3) `load_kind_config`
-    4) `load_minikube_config`
+    3) `load_certdata_config`
+    4) `load_certfile_config`
 
     Inputs:
         kubeconf_path: Path
@@ -521,15 +539,15 @@ def load_auto_config(
         return conf, False
     logit.debug("Incluster config failed")
 
-    conf, err = load_kind_config(kubeconf_path, context)
+    conf, err = load_certdata_config(kubeconf_path, context)
     if not err:
         return conf, False
-    logit.debug("KIND config failed")
+    logit.debug("Inline certificate config failed")
 
-    conf, err = load_minikube_config(kubeconf_path, context)
+    conf, err = load_certfile_config(kubeconf_path, context)
     if not err:
         return conf, False
-    logit.debug("Minikube config failed")
+    logit.debug("On-disk certificate config failed")
 
     logit.error(f"Could not find a valid configuration in <{kubeconf_path}>")
     return (K8sConfig(), True)
