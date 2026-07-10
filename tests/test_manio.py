@@ -873,6 +873,26 @@ class TestStripManifest:
         _, err = manio.run_strip_callback(sqcfg, manifest)
         assert err
 
+    def test_run_strip_callback_invalid_input(self, sqcfg: Config):
+        """A malformed input manifest must set the error flag, not raise.
+
+        The normal pipeline builds manifests through `make_meta` first, so this
+        is only reachable via a direct library call, but the function documents
+        the `(result, err)` contract for every input. The first `make_meta`
+        (on the input) must be guarded like the second (on the callback result).
+
+        """
+
+        def cb_ok(_cfg: Config, _man: dict):
+            _ = _cfg, _man  # make linter happy.
+            return _man
+
+        sqcfg.strip_callback = cb_ok
+
+        # Input manifest lacks the essential `kind`/`apiVersion` keys.
+        _, err = manio.run_strip_callback(sqcfg, {"metadata": {"name": "x"}})
+        assert err
+
     def test_strip_manifests(self, sqcfg: Config):
         """Run some basic tests."""
         # Convenience.

@@ -585,8 +585,14 @@ def run_strip_callback(config: Config, manifest: dict) -> Tuple[dict, bool]:
     # Run strip callback.
     cb = config.strip_callback
     try:
-        # Backup the original MetaManifest of `manifest`.
-        orig_meta = make_meta(manifest)
+        # Backup the original MetaManifest of `manifest`. Guard this like the
+        # `make_meta` on the callback result below: a malformed input manifest
+        # must set the error flag rather than escape as a raw `KeyError`.
+        try:
+            orig_meta = make_meta(manifest)
+        except KeyError:
+            logit.error("Strip callback received an invalid K8s manifest")
+            return {}, True
 
         # Run the callback function to strip the `manifest`.
         stripped_man, err = square.square.call_external_function(cb, config, manifest)
