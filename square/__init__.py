@@ -1,4 +1,5 @@
 import importlib.resources
+import logging
 import multiprocessing
 import os
 import sys
@@ -9,14 +10,32 @@ from .cfgfile import load
 
 __version__ = "2.5.0"
 
-# This is a workaround for a multiprocessing problem on Linux that started with
-# Python 3.14. In that version, Python made the `forkserver` the default method
-# to create new processes. Unfortunately, that leads to errors deep inside the
-# multiprocessing module. Therefore, we switch back to the `fork` method from
-# previous versions unless explicitly overridden.
-if sys.platform.startswith("linux"):
+logit = logging.getLogger("square")
+
+
+def _configure_start_method() -> None:
+    """Force the `fork` multiprocessing start method on Linux.
+
+    Python 3.14 made `forkserver` the default on Linux, which triggers errors
+    deep inside the multiprocessing module for Square, so we switch back to
+    `fork` (overridable via `MULTIPROCESSING_START_METHOD`).
+
+    Use `force=True` so this still works when a start method was already set (eg
+    by an embedding application, which would otherwise raise `RuntimeError`), and
+    ignore an invalid override value rather than letting `import square` crash
+    with a `ValueError`.
+    """
+    if not sys.platform.startswith("linux"):
+        return
+
     mp_method = os.environ.get("MULTIPROCESSING_START_METHOD", "fork")
-    multiprocessing.set_start_method(mp_method)
+    try:
+        multiprocessing.set_start_method(mp_method, force=True)
+    except ValueError:
+        logit.warning(f"Ignoring invalid multiprocessing start method <{mp_method}>")
+
+
+_configure_start_method()
 
 # ---------------------------------------------------------------------------
 # Global Runtime Constants
