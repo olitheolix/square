@@ -408,6 +408,29 @@ class TestMain:
                 else:
                     assert err
 
+    def test_compile_config_empty_kubeconfig_in_configfile(self, fname_param_config):
+        """An empty `kubeconfig` in a `--config` file must abort cleanly.
+
+        `kubeconfig: ""` parses to `Path('.')`, which is truthy and whose
+        `.exists()` returns True. Without a proper file check Square would
+        proceed with a bogus kubeconfig and fail later with a confusing K8s
+        loading error instead of aborting here.
+
+        """
+        fname_config, param, _ = fname_param_config
+
+        data = yaml.safe_load(fname_config.read_text())
+        data["kubeconfig"] = ""
+        fname_config.write_text(yaml.dump(data))
+
+        # Use the config file explicitly (the `--config` branch) and provide no
+        # `--kubeconfig`, so the empty config value is all Square has.
+        param.configfile = str(fname_config)
+        param.kubeconfig = None
+
+        _, err = main.compile_config(param)
+        assert err
+
     def test_compile_config_kinds_clear_existing(self, fname_param_config):
         """Empty list on command line must clear the option."""
         _, param, _ = fname_param_config
