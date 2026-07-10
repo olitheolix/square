@@ -296,7 +296,7 @@ def parse(
             try:
                 out[fname] = [(make_meta(manifest), manifest) for manifest in manifests]
             except KeyError:
-                logit.error(f"{file_yaml} does not look like a K8s manifest file.")
+                logit.error(f"<{fname}> does not look like a K8s manifest file.")
                 return {}, True
 
     # Drop all files without manifests.
