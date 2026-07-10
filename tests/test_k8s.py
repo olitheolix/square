@@ -162,6 +162,32 @@ class TestK8sDeleteGetPatchPost:
         assert ret == (response, status_code, False)
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
+    async def test_request_carries_client_default_headers(
+        self, method, k8sconfig: K8sConfig, respx_mock
+    ):
+        """The client's default headers (eg the bearer token) must reach the wire.
+
+        The auth token lives as a default header on the `httpx` client, not on
+        the individual request. This guards against building the request in a
+        way that bypasses that merge (eg the bare `httpx.Request` constructor).
+
+        """
+        url = "http://examples.com/"
+
+        # Put a default header on the client, exactly as `create_httpx_client`
+        # does for the bearer token.
+        k8sconfig.client.headers.update({"authorization": "Bearer token"})
+
+        m_http = respx_mock.request(method, url)
+        m_http.return_value = httpx.Response(200, json={})
+
+        await k8s.request(k8sconfig, method, url, None, None)
+
+        # The outgoing request must carry the client's default header.
+        sent = m_http.calls.last.request
+        assert sent.headers["authorization"] == "Bearer token"
+
+    @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     async def test_request_err_json(self, method, k8sconfig: K8sConfig, respx_mock):
         """Simulate a corrupt JSON response from K8s."""
         # Dummies for K8s API URL and `httpx` client.
@@ -209,16 +235,17 @@ class TestK8sDeleteGetPatchPost:
 
         # Trick: we cannot mock any of the `Tenacity` callback functions
         # because they are imported before PyTest can patch them. Therefore, we
-        # will mock `urlparse` as a proxy since it is not used anywhere else
-        # and can tell us the number of invocations.
-        with mock.patch.object(k8s, "urlparse") as m_proxy:
+        # mock the module logger as a proxy: `_on_backoff` emits exactly one
+        # warning per retry, so its `warning` count tells us how often we backed
+        # off.
+        with mock.patch.object(k8s, "logit") as m_logit:
             # Test function must return an empty response and an error.
             ret = await k8s.request(k8sconfig, method, url, None, None)
             assert ret == ({}, -1, True)
 
-            # Callback must have been called 7 times because Square
+            # Backoff callback must have fired 7 times because Square
             # set `stop_after_attempt(8)`.
-            assert m_proxy.call_count == 7
+            assert m_logit.warning.call_count == 7
 
     @pytest.mark.parametrize("method", ("DELETE", "GET", "PATCH", "POST"))
     async def test_request_invalid(self, method, k8sconfig):

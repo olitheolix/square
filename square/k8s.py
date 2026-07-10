@@ -10,7 +10,6 @@ import tempfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
-from urllib.parse import urlparse
 
 import httpx
 import tenacity as tc
@@ -41,10 +40,11 @@ logit = logging.getLogger("square")
 def _on_backoff(retry_state: tc.RetryCallState):
     """Log a warning on each retry."""
     attempt = retry_state.attempt_number
-    k8sconfig, method, url = retry_state.args[:3]
-    path = urlparse(url).path
+    k8sconfig, request = retry_state.args
 
-    logit.warning(f"Back off {attempt} - {k8sconfig.name} - {method} {path}.")
+    logit.warning(
+        f"Back off {attempt} - {k8sconfig.name} - {request.method} {request.url.path}."
+    )
 
 
 async def _mysleep(delay: float):
@@ -60,14 +60,8 @@ async def _mysleep(delay: float):
     reraise=True,
     sleep=_mysleep,
 )
-async def _call(
-    k8sconfig: K8sConfig,
-    method: str,
-    url: str,
-    payload: dict | list | None,
-    headers: dict | None,
-) -> httpx.Response:
-    return await k8sconfig.client.request(method, url, json=payload, headers=headers)
+async def _call(k8sconfig: K8sConfig, request: httpx.Request) -> httpx.Response:
+    return await k8sconfig.client.send(request)
 
 
 async def request(
@@ -93,9 +87,13 @@ async def request(
         (dict, int, bool): the JSON response and the HTTP status code.
 
     """
-    # Make the HTTP request via our backoff/retry handler.
+    # Build the request up front so the retry/backoff handler can send it
+    # verbatim on each attempt. We use `client.build_request` rather than the
+    # bare `httpx.Request` constructor so the client's default headers (most
+    # notably the bearer token) are merged into the request.
+    request = k8sconfig.client.build_request(method, url, json=payload, headers=headers)
     try:
-        ret = await _call(k8sconfig, method, url, payload=payload, headers=headers)
+        ret = await _call(k8sconfig, request)
     except WEB_EXCEPTIONS as err:
         logit.error(f"Giving up - {k8sconfig.name} - {err} - {method} {url}")
         return ({}, -1, True)
