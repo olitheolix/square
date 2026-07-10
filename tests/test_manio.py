@@ -655,6 +655,21 @@ class TestYamlManifestIO:
         }
         assert fun(m1_yaml, yaml.safe_dump(valid_yaml)) == ([valid_yaml], False)
 
+    def test_parse_worker_all_yaml_errors(self):
+        """`_parse_worker` must flag *any* YAML error, not just parse/scan ones.
+
+        Undefined aliases (ComposerError), unknown tags (ConstructorError) and
+        bad encodings (ReaderError, which has no `problem_mark`) are other
+        `yaml.YAMLError` subclasses. Because the worker runs in a process pool,
+        an uncaught error re-raises in the parent and crashes the whole command
+        instead of returning the documented `([], True)`.
+
+        """
+        fun = manio._parse_worker
+        m = Path("m0.yaml")
+        for data in ["foo: *undefined_alias", "!!unknown_tag {}", "a: \x00"]:
+            assert fun(m, data) == ([], True)
+
     def test_compile_square_manifests_ok(self):
         """Test function must remove the filename dimension.
 
