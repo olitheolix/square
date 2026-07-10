@@ -457,9 +457,12 @@ async def compile_plan(
     # Compile the Deltas to delete the excess resources.
     delete = []
     for meta in plan.delete:
-        # Resource URL. Ignore the error flag because `strip` already called
-        # `k8s.resource` earlier and would have aborted if there was an error.
-        # We check it as an invariant anyway.
+        # Resource URL. Ignore the error flag: `plan.delete` metas come from
+        # `server` (delete = server - local), and `manio.download` only emits
+        # kinds that already resolved through `k8s.resource`, so this lookup
+        # cannot fail. The assert simply documents that invariant. (Note the
+        # up-front check above validates `local`, not `server`, so it is the
+        # provenance of `server` — not that check — that guarantees this.)
         resource, err = k8s.resource(k8sconfig, meta)
         assert not err
 
