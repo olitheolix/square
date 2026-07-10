@@ -7,8 +7,7 @@ import multiprocessing
 from pathlib import Path
 from typing import DefaultDict, Dict, Iterable, List, Tuple
 
-import yaml.parser
-import yaml.scanner
+import yaml
 
 import square.k8s
 import square.square
@@ -227,10 +226,16 @@ def _parse_worker(fname: Path, yaml_str: str) -> Tuple[List[dict], bool]:
     try:
         manifests = list(yaml.load_all(yaml_str, Loader=Loader))
         return manifests, False
-    except (yaml.parser.ParserError, yaml.scanner.ScannerError) as err:
-        # To satisfy MyPy we need to check that `problem_mark` is not None.
-        line = err.problem_mark.line if err.problem_mark else ""
-        logit.error(f"Cannot YAML parse <{fname}> - {err.problem} - Line {line}")
+    except yaml.YAMLError as err:
+        # Catch *any* YAML error, not just parser/scanner ones: undefined
+        # aliases, unknown tags and bad encodings raise other subclasses that
+        # would otherwise re-raise from the process pool and crash the command.
+        # `MarkedYAMLError` subclasses expose `problem`/`problem_mark`; others
+        # (eg `ReaderError`) do not, so access both defensively.
+        mark = getattr(err, "problem_mark", None)
+        line = mark.line if mark else ""
+        problem = getattr(err, "problem", None) or str(err)
+        logit.error(f"Cannot YAML parse <{fname}> - {problem} - Line {line}")
         return ([], True)
 
 
