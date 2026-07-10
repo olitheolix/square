@@ -1,8 +1,23 @@
 import copy
+import re
 import square.dtypes
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import jsonpath_ng as jp
+
+
+def _natural_path_key(match: jp.DatumInContext) -> List[Union[int, str]]:
+    """Return a natural-sort key for a JSONPath match.
+
+    Splitting the path string on digit runs and parsing those runs as integers
+    makes array indices sort numerically (eg "[10]" after "[9]") rather than
+    lexicographically. `re.split` alternates non-digit and digit chunks, so a
+    given position is always the same type across keys and the lists compare
+    without mixing `int` and `str`.
+
+    """
+    parts = re.split(r"(\d+)", str(match.full_path))
+    return [int(part) if part.isdigit() else part for part in parts]
 
 
 def remove_empty_dicts(data: Any) -> Any:
@@ -75,11 +90,13 @@ def strip_manifest_paths(manifest: Dict[str, Any], paths: List[str]) -> Dict[str
 
     # Collect all matches across all expressions, then sort by index descending
     # so that deleting array elements by index doesn't shift subsequent indices.
+    # The key must order indices numerically, otherwise "[10]" sorts before
+    # "[9]" and deleting from a >=10 element array raises an IndexError.
     all_matches: List[jp.DatumInContext] = []
     jpathcache = square.dtypes.jpcache
     for path in paths:
         all_matches.extend(jpathcache(path).find(manifest))
-    all_matches.sort(key=lambda m: str(m.full_path), reverse=True)
+    all_matches.sort(key=_natural_path_key, reverse=True)
 
     for jpmatch in all_matches:
         _delete_match(jpmatch)
