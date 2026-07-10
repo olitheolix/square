@@ -33,7 +33,10 @@ try:  # codecov-skip
 
     logit.debug("Using LibYAML C library")
 except ImportError:  # codecov-skip
-    from yaml import Dumper, Loader
+    from yaml import (
+        SafeDumper as Dumper,
+        SafeLoader as Loader,
+    )
 
     logit.debug("Using Python YAML library")
 
