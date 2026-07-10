@@ -690,8 +690,13 @@ async def version(k8sconfig: K8sConfig) -> Tuple[K8sConfig, bool]:
         logit.error(f"Could not interrogate {k8sconfig.name} ({url})")
         return (K8sConfig(), True)
 
-    # Construct the version number of the K8s API.
-    major, minor = resp["major"], resp["minor"]
+    # Construct the version number of the K8s API. Some auth proxies and
+    # distributions omit these keys, in which case we abort with an error flag
+    # rather than crash with a `KeyError`.
+    major, minor = resp.get("major"), resp.get("minor")
+    if major is None or minor is None:
+        logit.error(f"K8s version response from {k8sconfig.name} lacks major/minor")
+        return (K8sConfig(), True)
     version = f"{major}.{minor}"
 
     # Return an updated `K8sconfig` tuple.

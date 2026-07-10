@@ -391,6 +391,18 @@ class TestK8sVersion:
         # Test function must abort gracefully.
         assert await k8s.version(k8sconfig) == (K8sConfig(), True)
 
+    @mock.patch.object(k8s, "get")
+    async def test_version_auto_missing_keys(self, m_get, k8sconfig: K8sConfig):
+        """A 200 /version body without `major`/`minor` must set the error flag.
+
+        Some auth proxies and distributions return a version payload that omits
+        those keys. `version` must return `(K8sConfig(), True)` instead of
+        crashing with a raw `KeyError`.
+
+        """
+        m_get.return_value = ({"gitVersion": "v1.10.0"}, False)
+        assert await k8s.version(k8sconfig) == (K8sConfig(), True)
+
 
 class TestUrlPathBuilder:
     async def k8sconfig(self, integrationtest: bool, ref_config):
