@@ -617,7 +617,7 @@ class TestYamlManifestIO:
         )
         assert manio.parse(fdata_test_in, selectors) == ({}, False)
 
-    def test_parse_err(self):
+    def test_parse_err(self, caplog):
         """Intercept YAML decoding errors."""
         # Generic selector that matches all manifests in this test.
         selectors = Selectors(kinds={"Deployment"})
@@ -635,9 +635,16 @@ class TestYamlManifestIO:
             "metadata": {"namespace": "namespace"},
             "items": [{"invalid": "manifest"}],
         }
-        fdata_test_in = {"m0.yaml": yaml.safe_dump(not_a_k8s_manifest)}
+        fdata_test_in = {"corrupt.yaml": yaml.safe_dump(not_a_k8s_manifest)}
         fdata_test_in = cast(Dict[Path, str], fdata_test_in)
+
+        caplog.clear()
         assert manio.parse(fdata_test_in, selectors) == ({}, True)
+
+        # The error must name the offending file, not dump the manifest content.
+        [msg] = [r.message for r in caplog.records if "does not look like" in r.message]
+        assert "corrupt.yaml" in msg
+        assert "invalid" not in msg
 
     def test_parse_worker(self):
         """Load valid and invalid YAML strings with `_parse_worker` helper."""
