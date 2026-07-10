@@ -19,8 +19,8 @@ def kind_available():
     # Query the version of the integration test cluster. If that works we have
     # a cluster that the tests can use, otherwise not.
     try:
-        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "version")  # type: ignore
-    except (ImportError, sh.CommandNotFound, sh.ErrorReturnCode_1):  # type: ignore
+        sh.kubectl("--kubeconfig", "/tmp/kubeconfig-kind.yaml", "version")
+    except (ImportError, sh.CommandNotFound, sh.ErrorReturnCode_1):
         return False
     return True
 
