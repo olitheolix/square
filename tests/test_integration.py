@@ -26,7 +26,7 @@ from .test_helpers import kind_available, make_manifest
 # We need to wrap this into a try/except block because CircleCI does not have
 # `kubectl` installed and cannot run the integration tests anyway.
 try:
-    kubectl = sh.kubectl.bake("--kubeconfig", "/tmp/kubeconfig-kind.yaml")  # type: ignore
+    kubectl = sh.kubectl.bake("--kubeconfig", "/tmp/kubeconfig-kind.yaml")
 except sh.CommandNotFound:
     kubectl = None
 
@@ -819,7 +819,7 @@ class TestMainPlan:
             time.sleep(1)
             try:
                 kubectl("get", "ns", namespace)
-            except sh.ErrorReturnCode_1:  # type: ignore
+            except sh.ErrorReturnCode_1:
                 break
         else:
             assert False, f"Could not delete the namespace <{namespace}> in time"
