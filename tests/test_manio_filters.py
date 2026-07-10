@@ -171,6 +171,29 @@ def test_array_index_stripping_multi():
     }
 
 
+def test_array_index_stripping_double_digit():
+    """Deleting array elements must order indices numerically, not as strings.
+
+    A string sort ranks "[2]" above "[11]", so deleting index 2 first shrinks
+    the list and the later `del arr[11]` raises IndexError. Arrays with fewer
+    than ten elements are only coincidentally safe.
+
+    """
+    # Surgical case: delete a single- and a double-digit index. String-sorting
+    # would delete [2] before [11] and then crash.
+    manifest = {"spec": {"containers": [{"name": f"c{i}"} for i in range(12)]}}
+    result = strip_manifest_paths(
+        manifest, ["spec.containers[2]", "spec.containers[11]"]
+    )
+    kept = [i for i in range(12) if i not in (2, 11)]
+    assert result == {"spec": {"containers": [{"name": f"c{i}"} for i in kept]}}
+
+    # Wildcard over a 12-element array must strip them all without crashing.
+    manifest = {"spec": {"containers": [{"name": f"c{i}"} for i in range(12)]}}
+    result = strip_manifest_paths(manifest, ["spec.containers[*]"])
+    assert result == {"spec": {"containers": []}}
+
+
 def test_wildcard_stripping():
     manifest = {
         "spec": {
