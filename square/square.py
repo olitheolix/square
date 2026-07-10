@@ -941,7 +941,7 @@ async def make_plan(cfg: Config) -> Tuple[DeploymentPlan, bool]:
 
             # Compute the deployment plan.
             plan, err = await compile_plan(cfg, k8sconfig, local, server)
-            ensure(not err and bool(plan), "compile plan")
+            ensure(not err, "compile plan")
         except StepError as exc:
             logit.error(f"Could not create plan: {exc} failed.")
             return empty, True

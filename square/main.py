@@ -371,7 +371,7 @@ async def apply_plan(cfg: Config, confirm_string: str | None) -> bool:
     try:
         # Obtain the plan.
         plan, err = await square.square.make_plan(cfg)
-        ensure(not err and plan, "make plan")
+        ensure(not err, "make plan")
 
         # Exit prematurely if there are no changes to apply.
         num_patch_ops = sum([len(delta.patch.ops) for delta in plan.patch])
