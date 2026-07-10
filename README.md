@@ -9,7 +9,7 @@
 cluster.
 
 It facilitates a lightweight and CLI based GitOps workflow, but developers can
-also use it as library to drive the Kubernetes state at scale.
+also use it as a library to drive the Kubernetes state at scale.
 
 It is important to understand that *Square* is neither a version manager, nor a
 package manager nor a render engine nor an authoring tool for manifests. Its
@@ -20,7 +20,7 @@ The plan/apply workflow will be familiar to Terraform users.
 *Square* is safe to use alongside other tools like *Helm*, *Kustomize* or
 *kubectl* since it never modifies any manifests it touches. This includes the
 `app.kubernetes.io/managed-by` annotation. Similarly, it does not create any
-`Secrets` or other resource to track its own state because it has no state.
+`Secrets` or other resources to track its own state because it has no state.
 
 
 # Installation
@@ -98,7 +98,7 @@ foo@bar:~$ kubectl apply -f integration-test-cluster/test-resources.yaml
 foo@bar:~$ mkdir try_square
 foo@bar:~$ cd try_square
 
-# Creata a vanilla Square configuration file `.square.yaml`.
+# Create a vanilla Square configuration file `.square.yaml`.
 foo@bar:~$ square init
 Created configuration file <.square.yaml>.
 Please open the file in an editor and adjust the values, most notably `kubeconfig` and `selectors.[kinds | namespaces | labels]`.
@@ -188,8 +188,8 @@ foo@bar:~$ tree
 
 The `--groupby` determines the layout of the `manifests/` folder. In
 this case, Square created one folder for each namespace and grouped the
-resources type within those folders. Non-namespaced resources, like
-`ClusterRole` will be in the `_global_` folder.
+resources by type within those folders. Non-namespaced resources, like
+`ClusterRole`, will be in the `_global_` folder.
 
 It is important to note that Square does not attach any meaning to the
 directory layout. Internally, it will compile all manifests into a flat list.
@@ -372,8 +372,10 @@ Use *kubectl* to verify that the `square-tests-1` Namespace now has the `foo=bar
 
 ```console
 foo@bar:~$ kubectl describe ns square-tests-1
-Name:         default
-Labels:       foo=bar
+Name:         square-tests-1
+Labels:       app=demoapp-1
+              foo=bar
+              kubernetes.io/metadata.name=square-tests-1
 Annotations:  <none>
 Status:       Active
 
@@ -392,7 +394,7 @@ Plan: 0 to add, 0 to change, 0 to destroy.
 ```
 
 ## Create and Destroy Resources
-So far we have only imported and modified existing resource but `square apply`
+So far we have only imported and modified existing resources but `square apply`
 will also create and remove resources as necessary. For instance, to add a new
 resource we add its manifest to the `manifests/` folder, either in a new file
 or added to an existing one.

@@ -172,7 +172,7 @@ def select(manifest: dict, selectors: Selectors, match_labels: bool) -> bool:
 
 
 def unpack_k8s_resource_list(manifest_list: dict) -> Tuple[SquareManifests, bool]:
-    """Convert the K8s `manifest_list` into a `SquareManifest` type.
+    """Convert the K8s `manifest_list` into a `SquareManifests` type.
 
     The `manifest_list` must be a K8s List, eg `DeploymentList` or `NamespaceList`.
 
@@ -441,12 +441,12 @@ def sync(
 def filename_for_manifest(
     meta: MetaManifest, manifest: dict, grouping: GroupBy
 ) -> Tuple[Path, bool]:
-    """Return the file for the manifest based on `groupby`.
+    """Return the file for the manifest based on `grouping`.
 
     Inputs:
         meta: MetaManifest
         manifest: dict
-        groupby: GroupBy
+        grouping: GroupBy
 
     Output:
         Path
@@ -703,7 +703,7 @@ def load_files(folder: Path, fnames: Iterable[Path]) -> Tuple[Dict[Path, str], b
 def load_manifests(
     folder: Path, selectors: Selectors
 ) -> Tuple[SquareManifests, LocalManifestLists, bool]:
-    """Return all K8s manifest found in `folder`.
+    """Return all K8s manifests found in `folder`.
 
     Recursively load all "*.yaml" files in `folder` and return those manifests
     that match the `selectors`.
@@ -719,7 +719,8 @@ def load_manifests(
         selectors: Selectors
 
     Returns:
-        (local manifest without file info, local manifests with file info)
+        (local manifests without file info, local manifests with file info,
+        error flag)
 
     """
     # Compile the list of all YAML files in `folder` but only store their path
@@ -851,7 +852,7 @@ async def download(
     Use `selectors.namespace=None` to download from all namespaces.
 
     Returns nothing if there was a network error with one or more requests. In
-    other words, either all requests to Kubernetes must succeeded or this
+    other words, either all requests to Kubernetes must succeed or this
     function returns an error. However, asking for an unknown resource does not
     constitute an error, only network failures do.
 
@@ -908,7 +909,7 @@ async def _download_worker(
     If the `namespace` or `kind` does not exist then the function will return
     an empty list of manifests but not an error. This has mostly practical
     reasons because Kubernetes is unfazed when asked about non-existing
-    namespaces or resource, and this function mimics this behaviour.
+    namespaces or resources, and this function mimics this behaviour.
 
     Return with an error if the resource exists but could not be downloaded.
 

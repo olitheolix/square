@@ -286,7 +286,7 @@ class DeltaPatch(NamedTuple):
 class DeploymentPlan(NamedTuple):
     """Describe Square plan.
 
-    Collects all resources manifests to add/delete as well as the JSON
+    Collects all resource manifests to add/delete as well as the JSON
     patches that make up a full plan.
 
     """
@@ -323,10 +323,10 @@ class Selectors(BaseModel):
 
 
 class GroupBy(BaseModel):
-    """Define how to organise downloaded manifests on the files system."""
+    """Define how to organise downloaded manifests on the file system."""
 
     label: str = ""  # "app"
-    order: List[str] = []  # ["ns", "label=app", kind"]
+    order: List[str] = []  # ["ns", "label=app", "kind"]
 
 
 class ConnectionParameters(BaseModel):
@@ -336,8 +336,8 @@ class ConnectionParameters(BaseModel):
     k8s_extra_headers: Dict[str, str] = dict()
 
     # Disable strict SSL certificate checks for cluster. This is only
-    # recommended for old clusters that were years ago. See this link for more
-    # info: https://github.com/aws/containers-roadmap/issues/2638
+    # recommended for old clusters that were created years ago. See this link
+    # for more info: https://github.com/aws/containers-roadmap/issues/2638
     disable_x509_strict: bool = False
 
     # https://www.python-httpx.org/advanced/#timeout-configuration
