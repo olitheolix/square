@@ -1,14 +1,39 @@
 from pathlib import Path
+import httpx
 import pydantic
 import pytest
 
 from square.dtypes import (
     Config,
+    K8sConfig,
     MetaManifest,
     Selectors,
     SelKindGroupNames,
     SelKindGroupNames as SKGN,
 )
+
+
+class TestK8sConfig:
+    def test_client_not_shared_between_instances(self):
+        """Each `K8sConfig` must get its own httpx client, not a shared one."""
+        a, b = K8sConfig(), K8sConfig()
+        assert a.client is not b.client
+        assert isinstance(a.client, httpx.AsyncClient)
+
+    def test_equality_ignores_client(self):
+        """Equality must ignore the transient httpx client.
+
+        The `(result, err)` convention returns `K8sConfig()` sentinels that
+        callers compare for equality, so two configs that differ only in their
+        (transient) client object must still compare equal. A difference in any
+        real field must still make them unequal.
+
+        """
+        assert K8sConfig() == K8sConfig()
+        assert K8sConfig(url="a") != K8sConfig(url="b")
+
+        # A config compared against a non-K8sConfig is never equal.
+        assert K8sConfig() != 42
 
 
 class TestSelectors:
