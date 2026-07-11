@@ -8,7 +8,7 @@ from pathlib import Path
 from . import square
 from .cfgfile import load
 
-__version__ = "2.5.0"
+__version__ = "2.6.0"
 
 logit = logging.getLogger("square")
 

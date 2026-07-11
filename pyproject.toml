@@ -1,6 +1,6 @@
 [project]
 name = "kubernetes-square"
-version = "2.5.0"
+version = "2.6.0"
 description = ""
 readme = "README.md"
 requires-python = ">=3.13"
@@ -88,7 +88,7 @@ exclude_lines = [
 directory = "htmlcov"
 
 [tool.bumpversion]
-current_version = "2.5.0"
+current_version = "2.6.0"
 commit = true
 tag = false
 
