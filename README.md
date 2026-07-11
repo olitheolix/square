@@ -1,4 +1,4 @@
-[![Version](https://img.shields.io/badge/latest-v2.5.0-blue.svg)](https://pypi.org/project/kubernetes-square/)
+[![Version](https://img.shields.io/badge/latest-v2.6.0-blue.svg)](https://pypi.org/project/kubernetes-square/)
 [![Python versions](https://img.shields.io/badge/python-3.13,3.14-blue.svg)](https://pypi.org/project/kubernetes-square/)
 [![License](https://img.shields.io/github/license/olitheolix/square.svg)](https://github.com/olitheolix/square/blob/master/LICENSE)
 [![Build status](https://github.com/olitheolix/square/actions/workflows/run-tests.yml/badge.svg)](https://github.com/olitheolix/square/actions/workflows/run-tests.yml)
@@ -28,7 +28,7 @@ use `pip` to install it into a Python 3.13+ environment:
 ```console
 foo@bar:~$ pip install kubernetes-square --upgrade
 foo@bar:~$ square version
-2.5.0
+2.6.0
 ```
 
 # Quickstart
