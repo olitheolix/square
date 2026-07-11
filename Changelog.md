@@ -1,5 +1,36 @@
 # Changelog
 
+## v2.6.0 (2026-07-11)
+### Highlights
+A robustness and hardening release. Square now returns error flags instead of
+crashing on malformed cluster responses, kubeconfigs and JSON path filters, and
+no longer relies on `assert` statements for runtime control flow.
+
+This release also welcomes Claude as a new contributor.
+
+### BREAKING Changes
+None
+
+### Changes
+* security: use a safe YAML loader on the non-LibYAML fallback path.
+* bugfix: reject a non-file kubeconfig so an empty `--config` value aborts.
+* bugfix: impose a timeout on external exec authenticator commands.
+* bugfix: catch lexer-level JSON path errors in `validate_filters`.
+* bugfix: JSON path based element removal is now robust with 10+ elements.
+* bugfix: order API versions numerically in the `pick_api` heuristic.
+* bugfix: normalise priorities before sorting the apply plan.
+* bugfix: return an error flag when the K8s version response lacks major/minor.
+* bugfix: return an error from `match_api_version` instead of crashing.
+* bugfix: catch all YAML errors in `_parse_worker`, not just parse/scan errors.
+* bugfix: propagate the request error flag from `post()`.
+* bugfix: guard the input `make_meta` in `run_strip_callback`.
+* bugfix: log the offending filename, not the whole manifest dict.
+* bugfix: close leaked file handles.
+* fix: make the multiprocessing start-method setup robust at import.
+* refactor: replace `assert`-based runtime logic with explicit error handling.
+* refactor: give each `K8sConfig` its own httpx client and streamline the retry logic.
+* deps: upgrade all packages.
+
 ## v2.5.0 (2026-05-04)
 ### Highlights
 Square now uses JSON path to specify the fields to ignore.
