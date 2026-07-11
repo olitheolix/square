@@ -50,6 +50,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+addopts = "--cov=. --cov-report=term-missing --cov-report=xml --cov-fail-under=100"
 norecursedirs = [".git"]
 asyncio_mode = "auto"
 filterwarnings = [

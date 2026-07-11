@@ -53,16 +53,21 @@ jobs:
           uv tool run ruff format --check
           uv tool run ty check
 
+      # Coverage options (source, reports, 100% gate) come from the `addopts`
+      # in pyproject.toml. These platforms skip the integration tests and so
+      # cannot reach 100%, hence disable the gate here (only Linux enforces it).
       - name: Unit Tests
         if: matrix.os != 'ubuntu-latest'
         run: |
-          uv run pytest --cov=square --ignore=tests/test_integration.py --durations=10
+          uv run pytest --ignore=tests/test_integration.py --cov-fail-under=0
 
-      # Break if coverage drops below 100%.
+      # Coverage options (incl. the 100% gate that breaks the build) come from
+      # the `addopts` in pyproject.toml. This job runs the integration tests too,
+      # so coverage can actually reach 100%.
       - name: Unit and Integration Tests (Linux only)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          uv run pytest --cov=square --cov-report=term-missing --cov-report=xml --cov-fail-under=100 --durations=10
+          uv run pytest --durations=10
 
       - uses: codecov/codecov-action@v5
         if: matrix.os == 'ubuntu-latest'
