@@ -1,12 +1,10 @@
-[![](https://img.shields.io/badge/license-Apache%202-blue.svg)]()
-[![](https://img.shields.io/badge/python-3.13,3.14-blue.svg)]()
-[![](https://img.shields.io/badge/latest-v2.5.0-blue.svg)]()
-[![](https://github.com/olitheolix/square/workflows/build/badge.svg)]()
-[![](https://img.shields.io/codecov/c/github/olitheolix/square.svg?style=flat)]()
+[![Version](https://img.shields.io/badge/latest-v2.5.0-blue.svg)](https://pypi.org/project/kubernetes-square/)
+[![Python versions](https://img.shields.io/badge/python-3.13,3.14-blue.svg)](https://pypi.org/project/kubernetes-square/)
+[![License](https://img.shields.io/github/license/olitheolix/square.svg)](https://github.com/olitheolix/square/blob/master/LICENSE)
+[![Build status](https://github.com/olitheolix/square/actions/workflows/run-tests.yml/badge.svg)](https://github.com/olitheolix/square/actions/workflows/run-tests.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/olitheolix/square.svg)](https://codecov.io/gh/olitheolix/square)
 
-
-*Square* is a tool to reconcile local manifests to/from a Kubernetes
-cluster.
+*Square* is a tool to reconcile local manifests to/from a Kubernetes cluster.
 
 It facilitates a lightweight and CLI based GitOps workflow, but developers can
 also use it as a library to drive the Kubernetes state at scale.
